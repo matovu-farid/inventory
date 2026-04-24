@@ -54,6 +54,12 @@ function RootLayout() {
           </Link>
           <nav className="flex gap-4 text-sm">
             <Link
+              to="/supply"
+              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
+            >
+              Routes
+            </Link>
+            <Link
               to="/supply/suppliers"
               className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
             >

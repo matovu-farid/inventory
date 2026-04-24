@@ -1,0 +1,93 @@
+import { createServerFn } from "@tanstack/react-start"
+import { eq } from "drizzle-orm"
+import { z } from "zod"
+import { db } from "#/db"
+import { supplyRouteExpenses } from "#/db/schema"
+import { requireSession } from "#/server/middleware/auth"
+import { requireRole } from "#/server/middleware/rbac"
+
+const addExpenseInput = z.object({
+  supplyRouteId: z.string().uuid(),
+  category: z.enum([
+    "freight",
+    "shipping",
+    "customs",
+    "ticket",
+    "transportation",
+    "insurance",
+    "rent",
+    "salary",
+    "tax",
+    "miscellaneous",
+  ]),
+  description: z.string().optional(),
+  amount: z.string(),
+  currency: z.string().default("UGX"),
+  exchangeRate: z.string().optional(),
+})
+
+export const addSupplyRouteExpense = createServerFn()
+  .inputValidator(addExpenseInput)
+  .handler(async ({ data }) => {
+    const session = await requireSession()
+    requireRole(session, ["admin", "supervisor"])
+
+    const [expense] = await db
+      .insert(supplyRouteExpenses)
+      .values(data)
+      .returning()
+
+    return expense
+  })
+
+const updateExpenseInput = z.object({
+  id: z.string().uuid(),
+  category: z
+    .enum([
+      "freight",
+      "shipping",
+      "customs",
+      "ticket",
+      "transportation",
+      "insurance",
+      "rent",
+      "salary",
+      "tax",
+      "miscellaneous",
+    ])
+    .optional(),
+  description: z.string().optional(),
+  amount: z.string().optional(),
+  currency: z.string().optional(),
+  exchangeRate: z.string().optional(),
+})
+
+export const updateSupplyRouteExpense = createServerFn()
+  .inputValidator(updateExpenseInput)
+  .handler(async ({ data }) => {
+    const session = await requireSession()
+    requireRole(session, ["admin", "supervisor"])
+
+    const { id, ...fields } = data
+    const [expense] = await db
+      .update(supplyRouteExpenses)
+      .set(fields)
+      .where(eq(supplyRouteExpenses.id, id))
+      .returning()
+
+    if (!expense) throw new Error("Expense not found")
+    return expense
+  })
+
+const deleteExpenseInput = z.object({ id: z.string().uuid() })
+
+export const deleteSupplyRouteExpense = createServerFn()
+  .inputValidator(deleteExpenseInput)
+  .handler(async ({ data }) => {
+    const session = await requireSession()
+    requireRole(session, ["admin", "supervisor"])
+
+    await db
+      .delete(supplyRouteExpenses)
+      .where(eq(supplyRouteExpenses.id, data.id))
+  })

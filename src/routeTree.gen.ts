@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SupplyIndexRouteImport } from './routes/supply/index'
 import { Route as SupplySuppliersRouteImport } from './routes/supply/suppliers'
+import { Route as SupplyRouteIdRouteImport } from './routes/supply/$routeId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -18,9 +20,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SupplyIndexRoute = SupplyIndexRouteImport.update({
+  id: '/supply/',
+  path: '/supply/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SupplySuppliersRoute = SupplySuppliersRouteImport.update({
   id: '/supply/suppliers',
   path: '/supply/suppliers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupplyRouteIdRoute = SupplyRouteIdRouteImport.update({
+  id: '/supply/$routeId',
+  path: '/supply/$routeId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -31,31 +43,50 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/supply/': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/supply': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/supply/': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/supply/suppliers' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/supply/$routeId'
+    | '/supply/suppliers'
+    | '/supply/'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/supply/suppliers' | '/api/auth/$'
-  id: '__root__' | '/' | '/supply/suppliers' | '/api/auth/$'
+  to: '/' | '/supply/$routeId' | '/supply/suppliers' | '/supply' | '/api/auth/$'
+  id:
+    | '__root__'
+    | '/'
+    | '/supply/$routeId'
+    | '/supply/suppliers'
+    | '/supply/'
+    | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SupplyRouteIdRoute: typeof SupplyRouteIdRoute
   SupplySuppliersRoute: typeof SupplySuppliersRoute
+  SupplyIndexRoute: typeof SupplyIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -68,11 +99,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/supply/': {
+      id: '/supply/'
+      path: '/supply'
+      fullPath: '/supply/'
+      preLoaderRoute: typeof SupplyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/supply/suppliers': {
       id: '/supply/suppliers'
       path: '/supply/suppliers'
       fullPath: '/supply/suppliers'
       preLoaderRoute: typeof SupplySuppliersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/supply/$routeId': {
+      id: '/supply/$routeId'
+      path: '/supply/$routeId'
+      fullPath: '/supply/$routeId'
+      preLoaderRoute: typeof SupplyRouteIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -87,7 +132,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SupplyRouteIdRoute: SupplyRouteIdRoute,
   SupplySuppliersRoute: SupplySuppliersRoute,
+  SupplyIndexRoute: SupplyIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
