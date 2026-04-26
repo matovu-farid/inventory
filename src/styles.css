@@ -210,6 +210,18 @@ a {
   text-decoration-color: rgba(50, 143, 151, 0.4);
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+a[role="menuitem"],
+a[role="option"],
+[role="combobox"],
+[role="checkbox"],
+[role="switch"],
+[role="tab"],
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]) {
+  cursor: pointer;
 }
 
 a:hover {
