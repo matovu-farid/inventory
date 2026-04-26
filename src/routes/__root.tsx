@@ -4,9 +4,14 @@ import {
   Outlet,
   Scripts,
   createRootRouteWithContext,
+  useRouter,
+  useMatches,
 } from "@tanstack/react-router"
 
 import { Separator } from "#/components/ui/separator"
+import { Button } from "#/components/ui/button"
+import { getSession } from "#/server/middleware/auth"
+import { authClient } from "#/lib/auth-client"
 import appCss from "../styles.css?url"
 
 import type { QueryClient } from "@tanstack/react-query"
@@ -27,6 +32,10 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
+  beforeLoad: async () => {
+    const session = await getSession()
+    return { session }
+  },
   component: RootLayout,
   shellComponent: RootDocument,
 })
@@ -46,6 +55,32 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 }
 
 function RootLayout() {
+  const { session } = Route.useRouteContext()
+  const router = useRouter()
+  const matches = useMatches()
+
+  // Check if current route is the login page
+  const isLoginPage = matches.some((m) => m.fullPath === "/login")
+
+  // If not logged in and not on login page, redirect to login
+  if (!session && !isLoginPage) {
+    router.navigate({ to: "/login" })
+    return null
+  }
+
+  // Login page renders without the nav shell
+  if (isLoginPage) {
+    return <Outlet />
+  }
+
+  const userName = (session?.user as { name?: string })?.name ?? "User"
+  const userRole = (session?.user as { role?: string })?.role ?? ""
+
+  async function handleLogout() {
+    await authClient.signOut()
+    router.navigate({ to: "/login" })
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b">
@@ -53,7 +88,7 @@ function RootLayout() {
           <Link to="/" className="font-bold text-lg">
             Inventory
           </Link>
-          <nav className="flex gap-4 text-sm">
+          <nav className="flex gap-4 text-sm flex-1">
             <Link
               to="/supply"
               className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
@@ -119,6 +154,17 @@ function RootLayout() {
               Settings
             </Link>
           </nav>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-muted-foreground">
+              {userName}
+              {userRole && (
+                <span className="ml-1 text-xs">({userRole})</span>
+              )}
+            </span>
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              Sign out
+            </Button>
+          </div>
         </div>
       </header>
       <main className="flex-1 p-6">

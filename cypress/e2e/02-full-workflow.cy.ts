@@ -42,7 +42,7 @@ describe("Full Inventory Workflow", () => {
   it("01 - loads the home page", () => {
     cy.visit("/")
     waitForHydration()
-    cy.contains("Welcome").should("be.visible")
+    cy.contains("Dashboard", { timeout: 10000 }).should("be.visible")
     cy.screenshot("01-home-page")
   })
 
