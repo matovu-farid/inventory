@@ -19,6 +19,8 @@ export const auth = betterAuth({
   trustedOrigins: [
     "http://localhost:3000",
     "http://localhost:3001",
+    "https://tanstack-start-app.faridmato90.workers.dev",
+    "https://inventory.fidexa.org",
   ],
   emailAndPassword: {
     enabled: true,

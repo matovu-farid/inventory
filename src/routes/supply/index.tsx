@@ -3,6 +3,7 @@ import { useState } from "react"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
+import { MoneyInput } from "#/components/ui/money-input"
 import { Label } from "#/components/ui/label"
 import { Textarea } from "#/components/ui/textarea"
 import { Badge } from "#/components/ui/badge"
@@ -168,20 +169,29 @@ function CreateRouteForm({
 }) {
   const [pending, setPending] = useState(false)
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([])
+  const [budgetUsd, setBudgetUsd] = useState("")
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setPending(true)
-
     const form = new FormData(e.currentTarget)
+    const name = (form.get("name") as string).trim()
+
+    const errs: Record<string, string> = {}
+    if (!name) errs.name = "Route name is required"
+    if (budgetUsd && isNaN(Number(budgetUsd))) errs.budget = "Invalid budget amount"
+    setFormErrors(errs)
+    if (Object.keys(errs).length > 0) return
+
+    setPending(true)
     try {
       await createSupplyRoute({
         data: {
-          name: form.get("name") as string,
+          name,
           departureDate: (form.get("departureDate") as string) || undefined,
           returnDate: (form.get("returnDate") as string) || undefined,
-          budgetUsd: (form.get("budgetUsd") as string) || undefined,
+          budgetUsd: budgetUsd || undefined,
           notes: (form.get("notes") as string) || undefined,
           supplierIds: selectedSuppliers.length
             ? selectedSuppliers
@@ -206,7 +216,11 @@ function CreateRouteForm({
           name="name"
           placeholder='e.g., "47th Route" or "Jan 2026"'
           required
+          aria-invalid={!!formErrors.name || undefined}
         />
+        {formErrors.name && (
+          <p className="text-xs text-destructive">{formErrors.name}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -221,13 +235,14 @@ function CreateRouteForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="budgetUsd">Budget (USD)</Label>
-        <Input
-          id="budgetUsd"
-          name="budgetUsd"
-          type="number"
-          step="0.01"
+        <Label htmlFor="budgetUsd">Budget</Label>
+        <MoneyInput
+          currency="USD"
+          value={budgetUsd}
+          onChange={setBudgetUsd}
+          decimals={2}
           placeholder="0.00"
+          error={formErrors.budget}
         />
       </div>
 

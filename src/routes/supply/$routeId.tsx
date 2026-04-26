@@ -3,6 +3,7 @@ import { useState } from "react"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
+import { MoneyInput, RateInput } from "#/components/ui/money-input"
 import { Label } from "#/components/ui/label"
 import { Badge } from "#/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
@@ -379,30 +380,45 @@ function AddItemForm({
 }) {
   const [pending, setPending] = useState(false)
   const [currency, setCurrency] = useState("RMB")
+  const [supplierId, setSupplierId] = useState("")
+  const [unitPrice, setUnitPrice] = useState("")
+  const [fxToUsd, setFxToUsd] = useState("")
+  const [usdToUgx, setUsdToUgx] = useState("")
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setPending(true)
-
     const form = new FormData(e.currentTarget)
+    const productName = (form.get("productName") as string).trim()
+    const quantity = Number(form.get("quantity"))
+
+    const errs: Record<string, string> = {}
+    if (!productName) errs.productName = "Product name is required"
+    if (!supplierId) errs.supplierId = "Select a supplier"
+    if (!quantity || quantity < 1) errs.quantity = "Quantity must be at least 1"
+    if (!unitPrice || Number(unitPrice) <= 0) errs.unitPrice = "Enter a valid price"
+    if (currency !== "UGX") {
+      if (!fxToUsd || Number(fxToUsd) <= 0) errs.fxToUsd = "Enter a valid rate"
+      if (!usdToUgx || Number(usdToUgx) <= 0) errs.usdToUgx = "Enter a valid rate"
+    }
+    setFormErrors(errs)
+    if (Object.keys(errs).length > 0) return
+
+    setPending(true)
     try {
       await addSupplyRouteItem({
         data: {
           supplyRouteId,
-          supplierId: form.get("supplierId") as string,
-          productName: form.get("productName") as string,
+          supplierId,
+          productName,
           articleNumber: (form.get("articleNumber") as string) || undefined,
-          quantity: Number(form.get("quantity")),
-          unitPriceForeign: form.get("unitPriceForeign") as string,
+          quantity,
+          unitPriceForeign: unitPrice,
           foreignCurrency: currency,
           exchangeRateForeignToUsd:
-            currency !== "UGX"
-              ? (form.get("exchangeRateForeignToUsd") as string) || undefined
-              : undefined,
+            currency !== "UGX" ? fxToUsd || undefined : undefined,
           exchangeRateUsdToUgx:
-            currency !== "UGX"
-              ? (form.get("exchangeRateUsdToUgx") as string) || undefined
-              : undefined,
+            currency !== "UGX" ? usdToUgx || undefined : undefined,
         },
       })
       onSuccess()
@@ -418,7 +434,15 @@ function AddItemForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="productName">Product Name *</Label>
-          <Input id="productName" name="productName" required />
+          <Input
+            id="productName"
+            name="productName"
+            required
+            aria-invalid={!!formErrors.productName || undefined}
+          />
+          {formErrors.productName && (
+            <p className="text-xs text-destructive">{formErrors.productName}</p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="articleNumber">Article #</Label>
@@ -428,8 +452,8 @@ function AddItemForm({
 
       <div className="space-y-2">
         <Label htmlFor="supplierId">Supplier *</Label>
-        <Select name="supplierId">
-          <SelectTrigger>
+        <Select value={supplierId} onValueChange={setSupplierId}>
+          <SelectTrigger aria-invalid={!!formErrors.supplierId || undefined}>
             <SelectValue placeholder="Select supplier" />
           </SelectTrigger>
           <SelectContent>
@@ -440,6 +464,9 @@ function AddItemForm({
             ))}
           </SelectContent>
         </Select>
+        {formErrors.supplierId && (
+          <p className="text-xs text-destructive">{formErrors.supplierId}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-4">
@@ -451,16 +478,21 @@ function AddItemForm({
             type="number"
             min="1"
             required
+            aria-invalid={!!formErrors.quantity || undefined}
           />
+          {formErrors.quantity && (
+            <p className="text-xs text-destructive">{formErrors.quantity}</p>
+          )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="unitPriceForeign">Unit Price *</Label>
-          <Input
-            id="unitPriceForeign"
-            name="unitPriceForeign"
-            type="number"
-            step="0.01"
-            required
+          <Label>Unit Price *</Label>
+          <MoneyInput
+            currency={currency}
+            value={unitPrice}
+            onChange={setUnitPrice}
+            decimals={2}
+            placeholder="0.00"
+            error={formErrors.unitPrice}
           />
         </div>
         <div className="space-y-2">
@@ -482,27 +514,25 @@ function AddItemForm({
       {currency !== "UGX" && (
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="exchangeRateForeignToUsd">
-              {currency}/USD Rate *
-            </Label>
-            <Input
-              id="exchangeRateForeignToUsd"
-              name="exchangeRateForeignToUsd"
-              type="number"
-              step="0.000001"
-              placeholder={`How many ${currency} per 1 USD`}
-              required
+            <Label>{currency} per 1 USD *</Label>
+            <RateInput
+              label={`${currency}/USD`}
+              value={fxToUsd}
+              onChange={setFxToUsd}
+              decimals={6}
+              placeholder={`e.g. 7.25`}
+              error={formErrors.fxToUsd}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="exchangeRateUsdToUgx">USD/UGX Rate *</Label>
-            <Input
-              id="exchangeRateUsdToUgx"
-              name="exchangeRateUsdToUgx"
-              type="number"
-              step="0.01"
-              placeholder="UGX per 1 USD"
-              required
+            <Label>UGX per 1 USD *</Label>
+            <RateInput
+              label="UGX/USD"
+              value={usdToUgx}
+              onChange={setUsdToUgx}
+              decimals={2}
+              placeholder="e.g. 3750"
+              error={formErrors.usdToUgx}
             />
           </div>
         </div>
@@ -527,19 +557,28 @@ function AddExpenseForm({
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
+  const [category, setCategory] = useState("")
+  const [amount, setAmount] = useState("")
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setPending(true)
-
     const form = new FormData(e.currentTarget)
+
+    const errs: Record<string, string> = {}
+    if (!category) errs.category = "Select a category"
+    if (!amount || Number(amount) <= 0) errs.amount = "Enter a valid amount"
+    setFormErrors(errs)
+    if (Object.keys(errs).length > 0) return
+
+    setPending(true)
     try {
       await addSupplyRouteExpense({
         data: {
           supplyRouteId,
-          category: form.get("category") as (typeof EXPENSE_CATEGORIES)[number],
+          category: category as (typeof EXPENSE_CATEGORIES)[number],
           description: (form.get("description") as string) || undefined,
-          amount: form.get("amount") as string,
+          amount,
         },
       })
       onSuccess()
@@ -554,8 +593,8 @@ function AddExpenseForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="category">Category *</Label>
-        <Select name="category">
-          <SelectTrigger>
+        <Select value={category} onValueChange={setCategory}>
+          <SelectTrigger aria-invalid={!!formErrors.category || undefined}>
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent>
@@ -566,6 +605,9 @@ function AddExpenseForm({
             ))}
           </SelectContent>
         </Select>
+        {formErrors.category && (
+          <p className="text-xs text-destructive">{formErrors.category}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -574,13 +616,13 @@ function AddExpenseForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="amount">Amount (UGX) *</Label>
-        <Input
-          id="amount"
-          name="amount"
-          type="number"
-          step="1"
-          required
+        <Label>Amount *</Label>
+        <MoneyInput
+          currency="UGX"
+          value={amount}
+          onChange={setAmount}
+          placeholder="0"
+          error={formErrors.amount}
         />
       </div>
 

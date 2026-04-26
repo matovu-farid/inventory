@@ -1,9 +1,9 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
+import { Logo } from "#/components/logo"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { authClient } from "#/lib/auth-client"
 
 export const Route = createFileRoute("/login")({
@@ -55,61 +55,83 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Inventory Management</CardTitle>
-          <p className="text-muted-foreground text-sm">
+    <div className="flex min-h-screen items-center justify-center bg-[#f5f5f7]">
+      <div className="w-full max-w-[400px] px-6">
+        {/* Brand */}
+        <div className="mb-8 flex flex-col items-center">
+          <Logo className="size-12 shadow-md" />
+          <h1 className="mt-4 text-[20px] font-semibold tracking-[-0.01em] text-foreground">
+            {mode === "login" ? "Welcome back" : "Create your account"}
+          </h1>
+          <p className="mt-1 text-[13px] text-muted-foreground">
             {mode === "login"
-              ? "Sign in to your account"
-              : "Create a new account"}
+              ? "Sign in to Inventory Management"
+              : "Get started with Inventory Management"}
           </p>
-        </CardHeader>
-        <CardContent>
+        </div>
+
+        {/* Form card */}
+        <div
+          className="rounded-2xl bg-white p-6"
+          style={{ boxShadow: "var(--shadow-lg)" }}
+        >
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+              <div className="rounded-xl bg-destructive/8 px-4 py-3 text-[13px] text-destructive">
                 {error}
               </div>
             )}
 
             {mode === "signup" && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="name" className="text-[13px]">
+                  Name
+                </Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
+                  className="h-10 rounded-xl"
                   required
                 />
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-[13px]">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
+                placeholder="you@example.com"
+                className="h-10 rounded-xl"
                 required
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-[13px]">
+                Password
+              </Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="h-10 rounded-xl"
                 required
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={pending}>
+            <Button
+              type="submit"
+              className="h-10 w-full rounded-xl text-[13px] font-semibold"
+              disabled={pending}
+            >
               {pending
                 ? mode === "login"
                   ? "Signing in..."
@@ -119,40 +141,41 @@ function LoginPage() {
                   : "Create Account"}
             </Button>
           </form>
+        </div>
 
-          <div className="mt-4 text-center text-sm">
-            {mode === "login" ? (
-              <p className="text-muted-foreground">
-                Don't have an account?{" "}
-                <button
-                  type="button"
-                  className="text-primary underline hover:no-underline cursor-pointer"
-                  onClick={() => {
-                    setMode("signup")
-                    setError("")
-                  }}
-                >
-                  Sign up
-                </button>
-              </p>
-            ) : (
-              <p className="text-muted-foreground">
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  className="text-primary underline hover:no-underline cursor-pointer"
-                  onClick={() => {
-                    setMode("login")
-                    setError("")
-                  }}
-                >
-                  Sign in
-                </button>
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        {/* Toggle */}
+        <p className="mt-6 text-center text-[13px] text-muted-foreground">
+          {mode === "login" ? (
+            <>
+              Don't have an account?{" "}
+              <button
+                type="button"
+                className="font-medium text-primary hover:underline cursor-pointer"
+                onClick={() => {
+                  setMode("signup")
+                  setError("")
+                }}
+              >
+                Sign up
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{" "}
+              <button
+                type="button"
+                className="font-medium text-primary hover:underline cursor-pointer"
+                onClick={() => {
+                  setMode("login")
+                  setError("")
+                }}
+              >
+                Sign in
+              </button>
+            </>
+          )}
+        </p>
+      </div>
     </div>
   )
 }

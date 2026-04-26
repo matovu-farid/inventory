@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2=".5" y2="1">
+      <stop offset="0%" stop-color="#4DA6FF"/>
+      <stop offset="100%" stop-color="#0066E6"/>
+    </linearGradient>
+  </defs>
+  <!-- Squircle -->
+  <rect width="512" height="512" rx="114" fill="url(#g)"/>
+  <!-- Box body (filled white) -->
+  <rect x="136" y="240" width="240" height="164" rx="24" fill="#fff"/>
+  <!-- Lid (filled white, slightly wider) -->
+  <rect x="118" y="188" width="276" height="64" rx="18" fill="#fff"/>
+  <!-- Tape vertical -->
+  <rect x="244" y="188" width="24" height="216" rx="4" fill="url(#g)" opacity="0.25"/>
+  <!-- Arrow up -->
+  <path d="M256 342 V272" stroke="url(#g)" stroke-width="22" stroke-linecap="round"/>
+  <path d="M228 298 L256 268 L284 298" fill="none" stroke="url(#g)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

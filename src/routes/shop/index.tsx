@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
+import { MoneyInput } from "#/components/ui/money-input"
 import { Label } from "#/components/ui/label"
 import { Badge } from "#/components/ui/badge"
 import {
@@ -227,6 +228,7 @@ function NewSaleForm({
     Array<{ stockId: string; qty: number; price: string }>
   >([])
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "bank">("cash")
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   function addToCart(stockId: string) {
     const item = stock.find((s) => s.id === stockId)
@@ -261,8 +263,29 @@ function NewSaleForm({
     new BigNumber(0),
   )
 
+  function validate(): boolean {
+    const newErrors: Record<string, string> = {}
+    if (cart.length === 0) {
+      newErrors.cart = "Add at least one item"
+    }
+    for (const item of cart) {
+      if (!item.price || new BigNumber(item.price).lte(0)) {
+        newErrors[`price_${item.stockId}`] = "Price is required"
+      }
+      if (item.qty < 1) {
+        newErrors[`qty_${item.stockId}`] = "Quantity must be at least 1"
+      }
+      const s = stock.find((x) => x.id === item.stockId)
+      if (s && item.qty > s.quantityOnHand) {
+        newErrors[`qty_${item.stockId}`] = `Only ${s.quantityOnHand} available`
+      }
+    }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   async function handleSubmit() {
-    if (cart.length === 0) return
+    if (!validate()) return
     setPending(true)
     try {
       await recordSale({
@@ -310,54 +333,62 @@ function NewSaleForm({
           {cart.map((item) => {
             const s = stock.find((x) => x.id === item.stockId)
             if (!s) return null
-            const isBelowMin = new BigNumber(item.price || 0).lt(
-              s.minimumSellPriceUgx,
-            )
+            const isBelowMin =
+              item.price !== "" &&
+              new BigNumber(item.price || 0).lt(s.minimumSellPriceUgx)
             return (
               <div
                 key={item.stockId}
-                className="flex items-center gap-2 p-2 border rounded"
+                className="space-y-1 p-3 border rounded-lg"
               >
-                <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
                   <p className="text-sm font-medium truncate">
                     {s.productName}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Min: {new BigNumber(s.minimumSellPriceUgx).toFormat(0)}
-                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => removeFromCart(item.stockId)}
+                  >
+                    x
+                  </Button>
                 </div>
-                <Input
-                  type="number"
-                  min={1}
-                  max={s.quantityOnHand}
-                  className="w-16 text-right"
-                  value={item.qty}
-                  onChange={(e) =>
-                    updateCart(item.stockId, "qty", e.target.value)
-                  }
-                />
-                <span className="text-xs">x</span>
-                <Input
-                  type="number"
-                  step="1"
-                  className="w-28 text-right"
-                  value={item.price}
-                  onChange={(e) =>
-                    updateCart(item.stockId, "price", e.target.value)
-                  }
-                />
-                {isBelowMin && (
-                  <Badge variant="destructive" className="text-xs">
-                    Below min
-                  </Badge>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeFromCart(item.stockId)}
-                >
-                  x
-                </Button>
+                <div className="flex items-end gap-2">
+                  <div className="w-20 space-y-1">
+                    <Label className="text-xs text-muted-foreground">Qty</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={s.quantityOnHand}
+                      className="text-right"
+                      value={item.qty}
+                      onChange={(e) =>
+                        updateCart(item.stockId, "qty", e.target.value)
+                      }
+                    />
+                  </div>
+                  <span className="pb-2 text-muted-foreground">x</span>
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Price (min:{" "}
+                      {new BigNumber(s.minimumSellPriceUgx).toFormat(0)})
+                    </Label>
+                    <MoneyInput
+                      currency="UGX"
+                      value={item.price}
+                      onChange={(val) =>
+                        updateCart(item.stockId, "price", val)
+                      }
+                      placeholder="0"
+                      error={
+                        isBelowMin
+                          ? `Below minimum (${new BigNumber(s.minimumSellPriceUgx).toFormat(0)})`
+                          : undefined
+                      }
+                    />
+                  </div>
+                </div>
               </div>
             )
           })}
@@ -389,6 +420,10 @@ function NewSaleForm({
           </p>
         </div>
       </div>
+
+      {errors.cart && (
+        <p className="text-sm text-destructive text-center">{errors.cart}</p>
+      )}
 
       <Button
         className="w-full"

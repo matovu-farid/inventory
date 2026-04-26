@@ -1,6 +1,6 @@
+import "#/sentry.client"
 import {
   HeadContent,
-  Link,
   Outlet,
   Scripts,
   createRootRouteWithContext,
@@ -8,8 +8,9 @@ import {
   useMatches,
 } from "@tanstack/react-router"
 
-import { Separator } from "#/components/ui/separator"
-import { Button } from "#/components/ui/button"
+import { TooltipProvider } from "#/components/ui/tooltip"
+import { AppSidebar, SidebarTrigger } from "#/components/app-sidebar"
+import { Logo } from "#/components/logo"
 import { getSession } from "#/server/middleware/auth"
 import { authClient } from "#/lib/auth-client"
 import appCss from "../styles.css?url"
@@ -30,7 +31,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
       { title: "Inventory Management" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "apple-touch-icon", href: "/logo.svg" },
+    ],
   }),
   beforeLoad: async () => {
     const session = await getSession()
@@ -47,7 +52,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
-        {children}
+        <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
         <Scripts />
       </body>
     </html>
@@ -59,16 +64,13 @@ function RootLayout() {
   const router = useRouter()
   const matches = useMatches()
 
-  // Check if current route is the login page
   const isLoginPage = matches.some((m) => m.fullPath === "/login")
 
-  // If not logged in and not on login page, redirect to login
   if (!session && !isLoginPage) {
     router.navigate({ to: "/login" })
     return null
   }
 
-  // Login page renders without the nav shell
   if (isLoginPage) {
     return <Outlet />
   }
@@ -82,94 +84,33 @@ function RootLayout() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-b">
-        <div className="flex h-14 items-center px-6 gap-6">
-          <Link to="/" className="font-bold text-lg">
+    <div className="flex h-screen overflow-hidden">
+      <AppSidebar
+        userName={userName}
+        userRole={userRole}
+        onLogout={handleLogout}
+      />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Mobile header */}
+        <header className="flex h-14 items-center gap-3 border-b border-border/60 bg-sidebar px-4 md:hidden">
+          <SidebarTrigger
+            userName={userName}
+            userRole={userRole}
+            onLogout={handleLogout}
+          />
+          <Logo className="size-7" />
+          <span className="text-[15px] font-semibold tracking-[-0.01em]">
             Inventory
-          </Link>
-          <nav className="flex gap-4 text-sm flex-1">
-            <Link
-              to="/supply"
-              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
-            >
-              Routes
-            </Link>
-            <Link
-              to="/supply/suppliers"
-              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
-            >
-              Suppliers
-            </Link>
-            <Separator orientation="vertical" className="h-4 self-center" />
-            <Link
-              to="/store"
-              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
-            >
-              Stock
-            </Link>
-            <Link
-              to="/store/receiving"
-              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
-            >
-              Receiving
-            </Link>
-            <Link
-              to="/store/transfers"
-              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
-            >
-              Transfers
-            </Link>
-            <Separator orientation="vertical" className="h-4 self-center" />
-            <Link
-              to="/shop"
-              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
-            >
-              Shop
-            </Link>
-            <Link
-              to="/shop/sales"
-              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
-            >
-              Sales
-            </Link>
-            <Separator orientation="vertical" className="h-4 self-center" />
-            <Link
-              to="/reports"
-              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
-            >
-              Reports
-            </Link>
-            <Link
-              to="/reports/ledger"
-              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
-            >
-              Ledger
-            </Link>
-            <Separator orientation="vertical" className="h-4 self-center" />
-            <Link
-              to="/settings"
-              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
-            >
-              Settings
-            </Link>
-          </nav>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">
-              {userName}
-              {userRole && (
-                <span className="ml-1 text-xs">({userRole})</span>
-              )}
-            </span>
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              Sign out
-            </Button>
+          </span>
+        </header>
+
+        {/* Main content */}
+        <main className="flex-1 overflow-y-auto bg-background">
+          <div className="mx-auto w-full max-w-[1120px] px-8 py-8">
+            <Outlet />
           </div>
-        </div>
-      </header>
-      <main className="flex-1 p-6">
-        <Outlet />
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

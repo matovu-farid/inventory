@@ -1,111 +1,121 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import {
   Package,
   ShoppingCart,
   Truck,
   BarChart3,
   Users,
+  ArrowLeftRight,
 } from "lucide-react"
 
 export const Route = createFileRoute("/")({ component: Home })
 
+const quickActions = [
+  {
+    to: "/supply" as const,
+    icon: Truck,
+    title: "Supply Routes",
+    description: "Manage buying trips and track procurement costs",
+    color: "from-blue-500/10 to-blue-600/5",
+    iconColor: "text-blue-600",
+  },
+  {
+    to: "/supply/suppliers" as const,
+    icon: Users,
+    title: "Suppliers",
+    description: "Manage local and international suppliers",
+    color: "from-violet-500/10 to-violet-600/5",
+    iconColor: "text-violet-600",
+  },
+  {
+    to: "/store" as const,
+    icon: Package,
+    title: "Store Stock",
+    description: "View warehouse inventory and stock levels",
+    color: "from-emerald-500/10 to-emerald-600/5",
+    iconColor: "text-emerald-600",
+  },
+  {
+    to: "/store/transfers" as const,
+    icon: ArrowLeftRight,
+    title: "Transfers",
+    description: "Transfer goods between locations",
+    color: "from-amber-500/10 to-amber-600/5",
+    iconColor: "text-amber-600",
+  },
+  {
+    to: "/shop" as const,
+    icon: ShoppingCart,
+    title: "Shop & Sales",
+    description: "View shop inventory and record retail sales",
+    color: "from-rose-500/10 to-rose-600/5",
+    iconColor: "text-rose-600",
+  },
+  {
+    to: "/reports" as const,
+    icon: BarChart3,
+    title: "Reports",
+    description: "P&L, balance sheet, and cash position",
+    color: "from-cyan-500/10 to-cyan-600/5",
+    iconColor: "text-cyan-600",
+  },
+]
+
 function Home() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
+      {/* Welcome */}
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Inventory & Trade Management System
+        <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-foreground">
+          Dashboard
+        </h1>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          Your inventory management overview
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Link to="/supply">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center gap-3 pb-2">
-              <Truck className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">Supply Routes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Manage buying trips, track procurement costs, and record
-                expenses.
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
+      {/* Quick access */}
+      <section>
+        <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">
+          Quick Access
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {quickActions.map((action) => (
+            <Link
+              key={action.to}
+              to={action.to}
+              className="group relative rounded-2xl bg-card p-5 transition-all duration-200 hover:-translate-y-0.5"
+              style={{
+                boxShadow: "var(--shadow-card)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = "var(--shadow-card-hover)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = "var(--shadow-card)"
+              }}
+            >
+              {/* Icon */}
+              <div
+                className={`flex size-10 items-center justify-center rounded-xl bg-gradient-to-br ${action.color}`}
+              >
+                <action.icon
+                  className={`size-[20px] ${action.iconColor}`}
+                  strokeWidth={1.75}
+                />
+              </div>
 
-        <Link to="/supply/suppliers">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center gap-3 pb-2">
-              <Users className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">Suppliers</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Manage local and international suppliers.
+              {/* Text */}
+              <p className="mt-3.5 text-[14px] font-semibold tracking-[-0.01em] text-foreground">
+                {action.title}
               </p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to="/store">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center gap-3 pb-2">
-              <Package className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">Store Stock</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                View warehouse inventory, set prices, and manage stock levels.
+              <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+                {action.description}
               </p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to="/store/transfers">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center gap-3 pb-2">
-              <Truck className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">Transfers</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Transfer goods from warehouse to retail shops.
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to="/shop">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center gap-3 pb-2">
-              <ShoppingCart className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">Shop & Sales</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                View shop inventory and record retail sales.
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to="/reports">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center gap-3 pb-2">
-              <BarChart3 className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">Reports</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                P&L, balance sheet, cash position, and general ledger.
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }
