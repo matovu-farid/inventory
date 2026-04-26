@@ -16,6 +16,8 @@ export function foreignToUgx(params: {
   const fxToUsd = new BigNumber(params.exchangeRateForeignToUsd)
   const usdToUgx = new BigNumber(params.exchangeRateUsdToUgx)
 
+  if (fxToUsd.lte(0)) throw new Error("Exchange rate (foreign to USD) must be positive")
+
   return unitPrice.div(fxToUsd).times(usdToUgx).times(params.quantity).dp(2, BigNumber.ROUND_HALF_UP)
 }
 
@@ -26,9 +28,9 @@ export function foreignToUsd(params: {
   amountForeign: string
   exchangeRateForeignToUsd: string
 }): BigNumber {
-  return new BigNumber(params.amountForeign)
-    .div(params.exchangeRateForeignToUsd)
-    .dp(2, BigNumber.ROUND_HALF_UP)
+  const rate = new BigNumber(params.exchangeRateForeignToUsd)
+  if (rate.lte(0)) throw new Error("Exchange rate must be positive")
+  return new BigNumber(params.amountForeign).div(rate).dp(2, BigNumber.ROUND_HALF_UP)
 }
 
 /**

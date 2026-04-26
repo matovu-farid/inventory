@@ -55,7 +55,9 @@ export async function getCategoryBalance(
   let balance = new BigNumber(0)
 
   for (const row of rows) {
+    if (!row.total) continue
     const amount = new BigNumber(row.total)
+    if (amount.isNaN()) continue
     if (row.type === "debit") {
       balance = isNormalDebit ? balance.plus(amount) : balance.minus(amount)
     } else {
@@ -107,6 +109,7 @@ export async function getTrialBalance(
   >()
 
   for (const row of rows) {
+    if (!row.total) continue
     if (!categoryMap.has(row.categoryName)) {
       categoryMap.set(row.categoryName, {
         categoryName: row.categoryName,
@@ -174,6 +177,7 @@ export async function getLocationBalances(
   >()
 
   for (const row of rows) {
+    if (!row.total) continue
     if (!categoryMap.has(row.categoryName)) {
       categoryMap.set(row.categoryName, {
         categoryName: row.categoryName,

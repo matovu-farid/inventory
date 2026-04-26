@@ -98,8 +98,8 @@ export const recordSale = createServerFn()
 
         if (isBelowMinimum) {
           hasBelowMinimum = true
-          // Only admin/supervisor can approve below-minimum sales
-          if (userRole === "sales" && !data.approvedBy) {
+          // Below-minimum sales always require explicit approval from admin/supervisor
+          if (userRole === "sales") {
             throw new Error(
               `Sale price ${unitPrice.toFixed(0)} is below minimum ${minPrice.toFixed(0)} for ${stock.productName}. Requires supervisor approval.`,
             )
@@ -132,9 +132,7 @@ export const recordSale = createServerFn()
           paymentMethod: data.paymentMethod,
           bankAccountId: data.bankAccountId,
           totalAmount: totalAmount.toFixed(2),
-          approvedBy: hasBelowMinimum
-            ? data.approvedBy ?? userId
-            : undefined,
+          approvedBy: hasBelowMinimum ? userId : undefined,
           notes: data.notes,
         })
         .returning()

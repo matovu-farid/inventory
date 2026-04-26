@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
@@ -356,17 +356,15 @@ function ReceiveTransferForm({
     setTransferId(tid)
   }
 
-  // Initialize on first render
-  if (transfer && Object.keys(receivedQtys).length === 0) {
-    const qtys: Record<string, number> = {}
-    for (const item of transfer.items) {
-      qtys[item.id] = item.quantityDispatched
+  useEffect(() => {
+    if (transfer && transfer.items.length > 0) {
+      const qtys: Record<string, number> = {}
+      for (const item of transfer.items) {
+        qtys[item.id] = item.quantityDispatched
+      }
+      setReceivedQtys(qtys)
     }
-    // Use direct set since this is first render
-    if (Object.keys(receivedQtys).length === 0 && transfer.items.length > 0) {
-      setTimeout(() => setReceivedQtys(qtys), 0)
-    }
-  }
+  }, [transferId])
 
   async function handleConfirm() {
     if (!transfer) return

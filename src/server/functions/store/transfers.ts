@@ -200,15 +200,25 @@ export const confirmTransferReceipt = createServerFn()
           .set({ quantityReceived: receiptItem.quantityReceived })
           .where(eq(storeTransferItems.id, ti.id))
 
-        // Create shop stock
-        await tx.insert(shopStock).values({
-          shopId: transfer.shopId,
-          productName: ti.productName,
-          storeTransferItemId: ti.id,
-          quantityOnHand: receiptItem.quantityReceived,
-          costPerUnitUgx: ti.unitPriceUgx,
-          minimumSellPriceUgx: ti.unitPriceUgx,
+        // Create or update shop stock (idempotent for re-calls)
+        const existingShopStock = await tx.query.shopStock.findFirst({
+          where: eq(shopStock.storeTransferItemId, ti.id),
         })
+        if (existingShopStock) {
+          await tx
+            .update(shopStock)
+            .set({ quantityOnHand: receiptItem.quantityReceived })
+            .where(eq(shopStock.id, existingShopStock.id))
+        } else {
+          await tx.insert(shopStock).values({
+            shopId: transfer.shopId,
+            productName: ti.productName,
+            storeTransferItemId: ti.id,
+            quantityOnHand: receiptItem.quantityReceived,
+            costPerUnitUgx: ti.unitPriceUgx,
+            minimumSellPriceUgx: ti.unitPriceUgx,
+          })
+        }
 
         // Detect distribution loss
         const loss = ti.quantityDispatched - receiptItem.quantityReceived

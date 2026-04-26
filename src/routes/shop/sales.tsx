@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import BigNumber from "bignumber.js"
 import { Badge } from "#/components/ui/badge"
 import {
@@ -53,9 +53,9 @@ function SalesPage() {
     setSales(s)
   }
 
-  if (shopId && sales.length === 0 && shops.length > 0) {
-    loadSales(shopId)
-  }
+  useEffect(() => {
+    if (shopId && shops.length > 0) loadSales(shopId)
+  }, [shopId])
 
   const totalRevenue = sales.reduce(
     (s, sale) => s.plus(sale.totalAmount),

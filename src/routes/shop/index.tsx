@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
@@ -63,10 +63,9 @@ function ShopPage() {
     setStock(s)
   }
 
-  // Load stock on first render if a shop is selected
-  if (shopId && stock.length === 0 && shops.length > 0) {
-    loadStock(shopId)
-  }
+  useEffect(() => {
+    if (shopId && shops.length > 0) loadStock(shopId)
+  }, [shopId])
 
   const totalItems = stock.reduce((s, i) => s + i.quantityOnHand, 0)
   const totalValue = stock.reduce(
@@ -309,7 +308,8 @@ function NewSaleForm({
       {cart.length > 0 && (
         <div className="space-y-2">
           {cart.map((item) => {
-            const s = stock.find((x) => x.id === item.stockId)!
+            const s = stock.find((x) => x.id === item.stockId)
+            if (!s) return null
             const isBelowMin = new BigNumber(item.price || 0).lt(
               s.minimumSellPriceUgx,
             )

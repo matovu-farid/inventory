@@ -58,6 +58,28 @@ describe("foreignToUgx", () => {
     expect(result.isFinite()).toBe(true)
     expect(result.gt(0)).toBe(true)
   })
+
+  it("throws on zero exchange rate", () => {
+    expect(() =>
+      foreignToUgx({
+        unitPriceForeign: "100",
+        exchangeRateForeignToUsd: "0",
+        exchangeRateUsdToUgx: "3700",
+        quantity: 1,
+      }),
+    ).toThrow("must be positive")
+  })
+
+  it("throws on negative exchange rate", () => {
+    expect(() =>
+      foreignToUgx({
+        unitPriceForeign: "100",
+        exchangeRateForeignToUsd: "-7.2",
+        exchangeRateUsdToUgx: "3700",
+        quantity: 1,
+      }),
+    ).toThrow("must be positive")
+  })
 })
 
 describe("foreignToUsd", () => {
