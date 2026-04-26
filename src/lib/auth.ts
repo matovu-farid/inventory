@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { admin } from "better-auth/plugins"
 import { tanstackStartCookies } from "better-auth/tanstack-start"
+import { sql } from "drizzle-orm"
 import { db } from "#/db"
 import * as schema from "#/db/schema"
 
@@ -34,6 +35,27 @@ export const auth = betterAuth({
         type: "string",
         required: false,
         input: true,
+      },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (userData) => {
+          // First user in the system becomes admin
+          const result = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(schema.user)
+          const userCount = Number(result[0].count)
+          if (userCount === 0) {
+            return { data: { ...userData, role: "admin" } }
+          }
+          // Subsequent users default to sales
+          if (!userData.role || userData.role === "user") {
+            return { data: { ...userData, role: "sales" } }
+          }
+          return { data: userData }
+        },
       },
     },
   },
