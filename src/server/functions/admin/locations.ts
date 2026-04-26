@@ -43,11 +43,11 @@ export const updateStore = createServerFn()
     requireRole(session, ["admin"])
 
     const { id, ...fields } = data
-    const [store] = await db
+    const store = (await db
       .update(stores)
       .set(fields)
       .where(eq(stores.id, id))
-      .returning()
+      .returning()).at(0)
     if (!store) throw new Error("Store not found")
     return store
   })
@@ -91,11 +91,11 @@ export const updateShop = createServerFn()
     requireRole(session, ["admin"])
 
     const { id, ...fields } = data
-    const [shop] = await db
+    const shop = (await db
       .update(shops)
       .set(fields)
       .where(eq(shops.id, id))
-      .returning()
+      .returning()).at(0)
     if (!shop) throw new Error("Shop not found")
     return shop
   })

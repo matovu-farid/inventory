@@ -107,11 +107,11 @@ export const updateSupplyRouteExpense = createServerFn()
     requireRole(session, ["admin", "supervisor"])
 
     const { id, ...fields } = data
-    const [expense] = await db
+    const expense = (await db
       .update(supplyRouteExpenses)
       .set(fields)
       .where(eq(supplyRouteExpenses.id, id))
-      .returning()
+      .returning()).at(0)
 
     if (!expense) throw new Error("Expense not found")
     return expense

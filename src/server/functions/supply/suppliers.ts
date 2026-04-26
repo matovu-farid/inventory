@@ -54,11 +54,11 @@ export const updateSupplier = createServerFn()
     requireRole(session, ["admin"])
 
     const { id, ...fields } = data
-    const [supplier] = await db
+    const supplier = (await db
       .update(suppliers)
       .set(fields)
       .where(eq(suppliers.id, id))
-      .returning()
+      .returning()).at(0)
 
     if (!supplier) {
       throw new Error("Supplier not found")

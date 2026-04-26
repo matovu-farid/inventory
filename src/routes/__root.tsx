@@ -75,8 +75,8 @@ function RootLayout() {
     return <Outlet />
   }
 
-  const userName = (session?.user as { name?: string })?.name ?? "User"
-  const userRole = (session?.user as { role?: string })?.role ?? ""
+  const userName = (session?.user as { name?: string } | undefined)?.name ?? "User"
+  const userRole = (session?.user as { role?: string } | undefined)?.role ?? ""
 
   async function handleLogout() {
     await authClient.signOut()

@@ -109,11 +109,11 @@ export const updateSupplyRoute = createServerFn()
     requireRole(session, ["admin", "supervisor"])
 
     const { id, ...fields } = data
-    const [route] = await db
+    const route = (await db
       .update(supplyRoutes)
       .set(fields)
       .where(eq(supplyRoutes.id, id))
-      .returning()
+      .returning()).at(0)
 
     if (!route) throw new Error("Supply route not found")
     return route

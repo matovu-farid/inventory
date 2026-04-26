@@ -250,11 +250,11 @@ export const setMinimumSellPrice = createServerFn()
     const session = await requireSession()
     requireRole(session, ["admin"])
 
-    const [updated] = await db
+    const updated = (await db
       .update(storeStock)
       .set({ minimumSellPriceUgx: data.minimumSellPriceUgx })
       .where(eq(storeStock.id, data.storeStockId))
-      .returning()
+      .returning()).at(0)
 
     if (!updated) throw new Error("Stock item not found")
     return updated

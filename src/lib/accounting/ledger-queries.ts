@@ -26,7 +26,7 @@ export async function getCategoryBalance(
     .from(transactionCategories)
     .where(eq(transactionCategories.name, categoryName))
     .limit(1)
-    .then((rows) => rows[0])
+    .then((rows) => rows.at(0))
 
   if (!category) {
     throw new Error(`Category not found: "${categoryName}"`)

@@ -34,12 +34,12 @@ describe("exchange rate edge cases", () => {
 
 describe("quantity edge cases", () => {
   it("rejects zero quantity for stock operations", () => {
-    const qty = 0
+    const qty = 0 as number
     expect(qty <= 0).toBe(true)
   })
 
   it("rejects negative quantity", () => {
-    const qty = -5
+    const qty = -5 as number
     expect(qty <= 0).toBe(true)
   })
 
@@ -54,14 +54,14 @@ describe("quantity edge cases", () => {
 
 describe("stock level edge cases", () => {
   it("detects insufficient stock", () => {
-    const onHand = 10
-    const requested = 15
+    const onHand = 10 as number
+    const requested = 15 as number
     expect(onHand < requested).toBe(true)
   })
 
   it("allows exact stock level", () => {
-    const onHand = 10
-    const requested = 10
+    const onHand = 10 as number
+    const requested = 10 as number
     expect(onHand >= requested).toBe(true)
   })
 
@@ -120,13 +120,13 @@ describe("cost per unit precision", () => {
 
 describe("multi-currency amount validation", () => {
   it("UGX purchases skip currency conversion", () => {
-    const currency: string = "UGX"
+    const currency = "UGX" as string
     const needsConversion = currency !== "UGX"
     expect(needsConversion).toBe(false)
   })
 
   it("RMB purchases require exchange rates", () => {
-    const currency: string = "RMB"
+    const currency = "RMB" as string
     const needsConversion = currency !== "UGX"
     expect(needsConversion).toBe(true)
   })

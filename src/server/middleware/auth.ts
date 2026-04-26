@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { getRequestHeaders } from "@tanstack/react-start/server"
-import { auth, type Session } from "#/lib/auth"
+import { auth  } from "#/lib/auth"
+import type {Session} from "#/lib/auth";
 
 export const getSession = createServerFn().handler(async (): Promise<Session | null> => {
   const headers = getRequestHeaders()

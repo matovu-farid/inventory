@@ -52,11 +52,11 @@ export const updateBankAccount = createServerFn()
     requireRole(session, ["admin"])
 
     const { id, ...fields } = data
-    const [account] = await db
+    const account = (await db
       .update(bankAccounts)
       .set(fields)
       .where(eq(bankAccounts.id, id))
-      .returning()
+      .returning()).at(0)
     if (!account) throw new Error("Bank account not found")
     return account
   })
