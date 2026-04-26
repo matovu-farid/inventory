@@ -46,23 +46,26 @@ export const getUnreceivedItems = createServerFn()
     })
 
     // Get existing receivings for these items
-    const receivings = await db
-      .select({
-        supplyRouteItemId: storeReceivings.supplyRouteItemId,
-        totalReceived: sql<number>`sum(${storeReceivings.quantityReceived})`,
-      })
-      .from(storeReceivings)
-      .where(
-        sql`${storeReceivings.supplyRouteItemId} IN (${sql.join(
-          items.map((i) => sql`${i.id}`),
-          sql`, `,
-        )})`,
-      )
-      .groupBy(storeReceivings.supplyRouteItemId)
+    const receivedMap = new Map<string, number>()
+    if (items.length > 0) {
+      const receivings = await db
+        .select({
+          supplyRouteItemId: storeReceivings.supplyRouteItemId,
+          totalReceived: sql<number>`sum(${storeReceivings.quantityReceived})`,
+        })
+        .from(storeReceivings)
+        .where(
+          sql`${storeReceivings.supplyRouteItemId} IN (${sql.join(
+            items.map((i) => sql`${i.id}`),
+            sql`, `,
+          )})`,
+        )
+        .groupBy(storeReceivings.supplyRouteItemId)
 
-    const receivedMap = new Map(
-      receivings.map((r) => [r.supplyRouteItemId, Number(r.totalReceived)]),
-    )
+      for (const r of receivings) {
+        receivedMap.set(r.supplyRouteItemId, Number(r.totalReceived))
+      }
+    }
 
     return items.map((item) => ({
       ...item,

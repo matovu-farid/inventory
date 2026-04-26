@@ -428,7 +428,7 @@ function AddItemForm({
 
       <div className="space-y-2">
         <Label htmlFor="supplierId">Supplier *</Label>
-        <Select name="supplierId" required>
+        <Select name="supplierId">
           <SelectTrigger>
             <SelectValue placeholder="Select supplier" />
           </SelectTrigger>
@@ -554,7 +554,7 @@ function AddExpenseForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="category">Category *</Label>
-        <Select name="category" required>
+        <Select name="category">
           <SelectTrigger>
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
