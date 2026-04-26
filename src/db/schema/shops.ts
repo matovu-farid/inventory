@@ -31,6 +31,7 @@ export const shopStock = pgTable(
       .references(() => shops.id, { onDelete: "restrict" }),
     productName: text("product_name").notNull(),
     articleNumber: text("article_number"),
+    // FK to storeTransferItems omitted here to avoid circular import (shops <-> transfers)
     storeTransferItemId: uuid("store_transfer_item_id").notNull(),
     quantityOnHand: integer("quantity_on_hand").notNull().default(0),
     costPerUnitUgx: numeric("cost_per_unit_ugx", { precision: 15, scale: 2 }).notNull(),

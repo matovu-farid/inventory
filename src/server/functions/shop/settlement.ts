@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import BigNumber from "bignumber.js"
 import { db } from "#/db"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { requireSession } from "#/server/middleware/auth"
@@ -7,7 +8,7 @@ import { requireRole } from "#/server/middleware/rbac"
 
 const settleInput = z.object({
   shopId: z.string().uuid(),
-  amount: z.string(),
+  amount: z.string().refine((v) => new BigNumber(v).gt(0), "Amount must be positive"),
   paymentMethod: z.enum(["cash", "bank"]),
   bankAccountId: z.string().uuid().optional(),
   description: z.string().optional(),

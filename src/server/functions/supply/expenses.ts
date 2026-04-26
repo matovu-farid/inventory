@@ -3,8 +3,23 @@ import { eq } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
 import { supplyRouteExpenses } from "#/db/schema"
+import { postJournalEntry } from "#/lib/accounting/ledger"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+
+/** Map supply-route expense categories to ledger account names. */
+const expenseCategoryToLedger: Record<string, string> = {
+  freight: "Freight Expense",
+  shipping: "Freight Expense",
+  customs: "Customs Expense",
+  ticket: "Travel Expense",
+  transportation: "Transportation Expense",
+  insurance: "Miscellaneous Expense",
+  rent: "Rent Expense",
+  salary: "Salary Expense",
+  tax: "Tax Expense",
+  miscellaneous: "Miscellaneous Expense",
+}
 
 const addExpenseInput = z.object({
   supplyRouteId: z.string().uuid(),
@@ -31,13 +46,36 @@ export const addSupplyRouteExpense = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
+    const userId = (session.user as { id: string }).id
 
-    const [expense] = await db
-      .insert(supplyRouteExpenses)
-      .values(data)
-      .returning()
+    const store = await db.query.stores.findFirst()
+    if (!store) throw new Error("Store not configured")
 
-    return expense
+    return db.transaction(async (tx) => {
+      const [expense] = await tx
+        .insert(supplyRouteExpenses)
+        .values(data)
+        .returning()
+
+      const ledgerCategory =
+        expenseCategoryToLedger[data.category] ?? "Miscellaneous Expense"
+
+      await postJournalEntry(tx, {
+        entries: [
+          { type: "debit", category: ledgerCategory, amount: data.amount },
+          { type: "credit", category: "Cash", amount: data.amount },
+        ],
+        referenceType: "supply_route",
+        referenceId: expense.id,
+        locationType: "store",
+        locationId: store.id,
+        depositLocation: "cash",
+        recordedBy: userId,
+        description: `${data.category}: ${data.description ?? ""}`,
+      })
+
+      return expense
+    })
   })
 
 const updateExpenseInput = z.object({

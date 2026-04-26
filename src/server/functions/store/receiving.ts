@@ -134,6 +134,7 @@ export const receiveGoods = createServerFn()
         })
 
         // 2. Create or update StoreStock
+        if (sri.quantity <= 0) throw new Error("Invalid supply route item quantity")
         const costPerUnit = new BigNumber(sri.totalCostUgx)
           .div(sri.quantity)
           .dp(2, BigNumber.ROUND_HALF_UP)
@@ -188,7 +189,7 @@ export const receiveGoods = createServerFn()
           await postJournalEntry(tx, {
             entries: [
               { type: "debit", category: "Inventory Loss", amount: lossValue.toFixed(2) },
-              { type: "credit", category: "Cash", amount: lossValue.toFixed(2) },
+              { type: "credit", category: "Inventory - Store", amount: lossValue.toFixed(2) },
             ],
             referenceType: "transit_loss",
             referenceId: sri.id,

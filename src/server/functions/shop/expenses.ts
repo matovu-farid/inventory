@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { eq, and } from "drizzle-orm"
 import { z } from "zod"
+import BigNumber from "bignumber.js"
 import { db } from "#/db"
 import { locationExpenses } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
@@ -32,7 +33,7 @@ const addExpenseInput = z.object({
   locationId: z.string().uuid(),
   category: z.string().min(1),
   description: z.string().optional(),
-  amount: z.string(),
+  amount: z.string().refine((v) => new BigNumber(v).gt(0), "Amount must be positive"),
   expenseDate: z.string(),
   paymentMethod: z.enum(["cash", "bank"]),
   bankAccountId: z.string().uuid().optional(),

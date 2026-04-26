@@ -42,6 +42,7 @@ export const addSupplyRouteItem = createServerFn()
       totalCostUgx = totalAmountForeign
     } else {
       const fxToUsd = new BigNumber(data.exchangeRateForeignToUsd)
+      if (fxToUsd.isZero()) throw new Error("Exchange rate cannot be zero")
       const usdToUgx = new BigNumber(data.exchangeRateUsdToUgx)
 
       totalAmountUsd = new BigNumber(totalAmountForeign)
@@ -118,6 +119,7 @@ export const updateSupplyRouteItem = createServerFn()
       totalCostUgx = totalAmountForeign
     } else {
       const fxToUsd = new BigNumber(fxToUsdStr)
+      if (fxToUsd.isZero()) throw new Error("Exchange rate cannot be zero")
       const usdToUgx = new BigNumber(usdToUgxStr)
 
       totalAmountUsd = new BigNumber(totalAmountForeign)

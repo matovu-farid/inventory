@@ -1,4 +1,6 @@
 import { pgTable, pgEnum, uuid, text, timestamp } from "drizzle-orm/pg-core"
+import { relations } from "drizzle-orm"
+import { supplyRouteSuppliers, supplyRouteItems } from "./supply-routes"
 
 export const supplierTypeEnum = pgEnum("supplier_type", ["local", "international"])
 
@@ -18,3 +20,9 @@ export const suppliers = pgTable("suppliers", {
     .$onUpdate(() => new Date())
     .notNull(),
 })
+
+// Relations
+export const supplierRelations = relations(suppliers, ({ many }) => ({
+  supplyRouteSuppliers: many(supplyRouteSuppliers),
+  supplyRouteItems: many(supplyRouteItems),
+}))
