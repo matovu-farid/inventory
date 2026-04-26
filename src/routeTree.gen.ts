@@ -11,8 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SupplyIndexRouteImport } from './routes/supply/index'
+import { Route as StoreIndexRouteImport } from './routes/store/index'
 import { Route as SupplySuppliersRouteImport } from './routes/supply/suppliers'
 import { Route as SupplyRouteIdRouteImport } from './routes/supply/$routeId'
+import { Route as StoreTransfersRouteImport } from './routes/store/transfers'
+import { Route as StoreReceivingRouteImport } from './routes/store/receiving'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -25,6 +28,11 @@ const SupplyIndexRoute = SupplyIndexRouteImport.update({
   path: '/supply/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoreIndexRoute = StoreIndexRouteImport.update({
+  id: '/store/',
+  path: '/store/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SupplySuppliersRoute = SupplySuppliersRouteImport.update({
   id: '/supply/suppliers',
   path: '/supply/suppliers',
@@ -35,6 +43,16 @@ const SupplyRouteIdRoute = SupplyRouteIdRouteImport.update({
   path: '/supply/$routeId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoreTransfersRoute = StoreTransfersRouteImport.update({
+  id: '/store/transfers',
+  path: '/store/transfers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoreReceivingRoute = StoreReceivingRouteImport.update({
+  id: '/store/receiving',
+  path: '/store/receiving',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -43,23 +61,32 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/store/receiving': typeof StoreReceivingRoute
+  '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/store/': typeof StoreIndexRoute
   '/supply/': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/store/receiving': typeof StoreReceivingRoute
+  '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/store': typeof StoreIndexRoute
   '/supply': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/store/receiving': typeof StoreReceivingRoute
+  '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/store/': typeof StoreIndexRoute
   '/supply/': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -67,25 +94,42 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/store/receiving'
+    | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
+    | '/store/'
     | '/supply/'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/supply/$routeId' | '/supply/suppliers' | '/supply' | '/api/auth/$'
+  to:
+    | '/'
+    | '/store/receiving'
+    | '/store/transfers'
+    | '/supply/$routeId'
+    | '/supply/suppliers'
+    | '/store'
+    | '/supply'
+    | '/api/auth/$'
   id:
     | '__root__'
     | '/'
+    | '/store/receiving'
+    | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
+    | '/store/'
     | '/supply/'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  StoreReceivingRoute: typeof StoreReceivingRoute
+  StoreTransfersRoute: typeof StoreTransfersRoute
   SupplyRouteIdRoute: typeof SupplyRouteIdRoute
   SupplySuppliersRoute: typeof SupplySuppliersRoute
+  StoreIndexRoute: typeof StoreIndexRoute
   SupplyIndexRoute: typeof SupplyIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
@@ -106,6 +150,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SupplyIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/store/': {
+      id: '/store/'
+      path: '/store'
+      fullPath: '/store/'
+      preLoaderRoute: typeof StoreIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/supply/suppliers': {
       id: '/supply/suppliers'
       path: '/supply/suppliers'
@@ -120,6 +171,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SupplyRouteIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/store/transfers': {
+      id: '/store/transfers'
+      path: '/store/transfers'
+      fullPath: '/store/transfers'
+      preLoaderRoute: typeof StoreTransfersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store/receiving': {
+      id: '/store/receiving'
+      path: '/store/receiving'
+      fullPath: '/store/receiving'
+      preLoaderRoute: typeof StoreReceivingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -132,8 +197,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  StoreReceivingRoute: StoreReceivingRoute,
+  StoreTransfersRoute: StoreTransfersRoute,
   SupplyRouteIdRoute: SupplyRouteIdRoute,
   SupplySuppliersRoute: SupplySuppliersRoute,
+  StoreIndexRoute: StoreIndexRoute,
   SupplyIndexRoute: SupplyIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }

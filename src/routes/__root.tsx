@@ -6,6 +6,7 @@ import {
   createRootRouteWithContext,
 } from "@tanstack/react-router"
 
+import { Separator } from "#/components/ui/separator"
 import appCss from "../styles.css?url"
 
 import type { QueryClient } from "@tanstack/react-query"
@@ -64,6 +65,25 @@ function RootLayout() {
               className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
             >
               Suppliers
+            </Link>
+            <Separator orientation="vertical" className="h-4 self-center" />
+            <Link
+              to="/store"
+              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
+            >
+              Stock
+            </Link>
+            <Link
+              to="/store/receiving"
+              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
+            >
+              Receiving
+            </Link>
+            <Link
+              to="/store/transfers"
+              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
+            >
+              Transfers
             </Link>
           </nav>
         </div>
