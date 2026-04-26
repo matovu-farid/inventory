@@ -12,10 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SupplyIndexRouteImport } from './routes/supply/index'
 import { Route as StoreIndexRouteImport } from './routes/store/index'
+import { Route as ShopIndexRouteImport } from './routes/shop/index'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as ReportsIndexRouteImport } from './routes/reports/index'
 import { Route as SupplySuppliersRouteImport } from './routes/supply/suppliers'
 import { Route as SupplyRouteIdRouteImport } from './routes/supply/$routeId'
 import { Route as StoreTransfersRouteImport } from './routes/store/transfers'
 import { Route as StoreReceivingRouteImport } from './routes/store/receiving'
+import { Route as ShopSalesRouteImport } from './routes/shop/sales'
+import { Route as ReportsLedgerRouteImport } from './routes/reports/ledger'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -31,6 +36,21 @@ const SupplyIndexRoute = SupplyIndexRouteImport.update({
 const StoreIndexRoute = StoreIndexRouteImport.update({
   id: '/store/',
   path: '/store/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShopIndexRoute = ShopIndexRouteImport.update({
+  id: '/shop/',
+  path: '/shop/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsIndexRoute = ReportsIndexRouteImport.update({
+  id: '/reports/',
+  path: '/reports/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SupplySuppliersRoute = SupplySuppliersRouteImport.update({
@@ -53,6 +73,16 @@ const StoreReceivingRoute = StoreReceivingRouteImport.update({
   path: '/store/receiving',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShopSalesRoute = ShopSalesRouteImport.update({
+  id: '/shop/sales',
+  path: '/shop/sales',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsLedgerRoute = ReportsLedgerRouteImport.update({
+  id: '/reports/ledger',
+  path: '/reports/ledger',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -61,20 +91,30 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/reports/ledger': typeof ReportsLedgerRoute
+  '/shop/sales': typeof ShopSalesRoute
   '/store/receiving': typeof StoreReceivingRoute
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/reports/': typeof ReportsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/shop/': typeof ShopIndexRoute
   '/store/': typeof StoreIndexRoute
   '/supply/': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/reports/ledger': typeof ReportsLedgerRoute
+  '/shop/sales': typeof ShopSalesRoute
   '/store/receiving': typeof StoreReceivingRoute
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/reports': typeof ReportsIndexRoute
+  '/settings': typeof SettingsIndexRoute
+  '/shop': typeof ShopIndexRoute
   '/store': typeof StoreIndexRoute
   '/supply': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -82,10 +122,15 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/reports/ledger': typeof ReportsLedgerRoute
+  '/shop/sales': typeof ShopSalesRoute
   '/store/receiving': typeof StoreReceivingRoute
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/reports/': typeof ReportsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/shop/': typeof ShopIndexRoute
   '/store/': typeof StoreIndexRoute
   '/supply/': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -94,30 +139,45 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/reports/ledger'
+    | '/shop/sales'
     | '/store/receiving'
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
+    | '/reports/'
+    | '/settings/'
+    | '/shop/'
     | '/store/'
     | '/supply/'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/reports/ledger'
+    | '/shop/sales'
     | '/store/receiving'
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
+    | '/reports'
+    | '/settings'
+    | '/shop'
     | '/store'
     | '/supply'
     | '/api/auth/$'
   id:
     | '__root__'
     | '/'
+    | '/reports/ledger'
+    | '/shop/sales'
     | '/store/receiving'
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
+    | '/reports/'
+    | '/settings/'
+    | '/shop/'
     | '/store/'
     | '/supply/'
     | '/api/auth/$'
@@ -125,10 +185,15 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ReportsLedgerRoute: typeof ReportsLedgerRoute
+  ShopSalesRoute: typeof ShopSalesRoute
   StoreReceivingRoute: typeof StoreReceivingRoute
   StoreTransfersRoute: typeof StoreTransfersRoute
   SupplyRouteIdRoute: typeof SupplyRouteIdRoute
   SupplySuppliersRoute: typeof SupplySuppliersRoute
+  ReportsIndexRoute: typeof ReportsIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
+  ShopIndexRoute: typeof ShopIndexRoute
   StoreIndexRoute: typeof StoreIndexRoute
   SupplyIndexRoute: typeof SupplyIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -155,6 +220,27 @@ declare module '@tanstack/react-router' {
       path: '/store'
       fullPath: '/store/'
       preLoaderRoute: typeof StoreIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shop/': {
+      id: '/shop/'
+      path: '/shop'
+      fullPath: '/shop/'
+      preLoaderRoute: typeof ShopIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports/': {
+      id: '/reports/'
+      path: '/reports'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof ReportsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/supply/suppliers': {
@@ -185,6 +271,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoreReceivingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shop/sales': {
+      id: '/shop/sales'
+      path: '/shop/sales'
+      fullPath: '/shop/sales'
+      preLoaderRoute: typeof ShopSalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports/ledger': {
+      id: '/reports/ledger'
+      path: '/reports/ledger'
+      fullPath: '/reports/ledger'
+      preLoaderRoute: typeof ReportsLedgerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -197,10 +297,15 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ReportsLedgerRoute: ReportsLedgerRoute,
+  ShopSalesRoute: ShopSalesRoute,
   StoreReceivingRoute: StoreReceivingRoute,
   StoreTransfersRoute: StoreTransfersRoute,
   SupplyRouteIdRoute: SupplyRouteIdRoute,
   SupplySuppliersRoute: SupplySuppliersRoute,
+  ReportsIndexRoute: ReportsIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
+  ShopIndexRoute: ShopIndexRoute,
   StoreIndexRoute: StoreIndexRoute,
   SupplyIndexRoute: SupplyIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

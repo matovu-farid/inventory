@@ -85,6 +85,39 @@ function RootLayout() {
             >
               Transfers
             </Link>
+            <Separator orientation="vertical" className="h-4 self-center" />
+            <Link
+              to="/shop"
+              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
+            >
+              Shop
+            </Link>
+            <Link
+              to="/shop/sales"
+              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
+            >
+              Sales
+            </Link>
+            <Separator orientation="vertical" className="h-4 self-center" />
+            <Link
+              to="/reports"
+              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
+            >
+              Reports
+            </Link>
+            <Link
+              to="/reports/ledger"
+              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
+            >
+              Ledger
+            </Link>
+            <Separator orientation="vertical" className="h-4 self-center" />
+            <Link
+              to="/settings"
+              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground [&.active]:font-medium"
+            >
+              Settings
+            </Link>
           </nav>
         </div>
       </header>
