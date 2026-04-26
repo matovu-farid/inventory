@@ -11,6 +11,8 @@ export const Route = createFileRoute("/login")({
 })
 
 function LoginPage() {
+  const [mode, setMode] = useState<"login" | "signup">("login")
+  const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -23,21 +25,31 @@ function LoginPage() {
     setPending(true)
 
     try {
-      const result = await authClient.signIn.email({
-        email,
-        password,
-      })
-
-      if (result.error) {
-        setError(result.error.message ?? "Invalid email or password")
-        setPending(false)
-        return
+      if (mode === "signup") {
+        const result = await authClient.signUp.email({
+          name,
+          email,
+          password,
+        })
+        if (result.error) {
+          setError(result.error.message ?? "Signup failed")
+          setPending(false)
+          return
+        }
+      } else {
+        const result = await authClient.signIn.email({
+          email,
+          password,
+        })
+        if (result.error) {
+          setError(result.error.message ?? "Invalid email or password")
+          setPending(false)
+          return
+        }
       }
-
-      // Redirect to home
       router.navigate({ to: "/" })
     } catch {
-      setError("Login failed. Please try again.")
+      setError(mode === "signup" ? "Signup failed." : "Login failed.")
       setPending(false)
     }
   }
@@ -48,7 +60,9 @@ function LoginPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Inventory Management</CardTitle>
           <p className="text-muted-foreground text-sm">
-            Sign in to your account
+            {mode === "login"
+              ? "Sign in to your account"
+              : "Create a new account"}
           </p>
         </CardHeader>
         <CardContent>
@@ -58,6 +72,20 @@ function LoginPage() {
                 {error}
               </div>
             )}
+
+            {mode === "signup" && (
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                  required
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -69,6 +97,7 @@ function LoginPage() {
                 required
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
@@ -79,10 +108,49 @@ function LoginPage() {
                 required
               />
             </div>
+
             <Button type="submit" className="w-full" disabled={pending}>
-              {pending ? "Signing in..." : "Sign In"}
+              {pending
+                ? mode === "login"
+                  ? "Signing in..."
+                  : "Creating account..."
+                : mode === "login"
+                  ? "Sign In"
+                  : "Create Account"}
             </Button>
           </form>
+
+          <div className="mt-4 text-center text-sm">
+            {mode === "login" ? (
+              <p className="text-muted-foreground">
+                Don't have an account?{" "}
+                <button
+                  type="button"
+                  className="text-primary underline hover:no-underline"
+                  onClick={() => {
+                    setMode("signup")
+                    setError("")
+                  }}
+                >
+                  Sign up
+                </button>
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  className="text-primary underline hover:no-underline"
+                  onClick={() => {
+                    setMode("login")
+                    setError("")
+                  }}
+                >
+                  Sign in
+                </button>
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

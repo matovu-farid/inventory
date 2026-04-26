@@ -26,10 +26,13 @@ describe("Browser Verification", () => {
     cy.task("cleanupAllTestData", null)
   })
 
-  it("redirects to login when not authenticated", () => {
-    cy.clearCookies()
+  it("shows login page when not authenticated", () => {
+    cy.clearAllCookies()
+    cy.clearAllSessionStorage()
+    cy.clearAllLocalStorage()
     cy.visit("/login")
-    cy.contains("Sign in to your account").should("be.visible")
+    cy.contains("Sign in to your account", { timeout: 10000 }).should("be.visible")
+    cy.contains("Sign up").should("be.visible")
     cy.screenshot("verify-01-login-page")
   })
 
