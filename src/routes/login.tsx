@@ -126,7 +126,7 @@ function LoginPage() {
                 Don't have an account?{" "}
                 <button
                   type="button"
-                  className="text-primary underline hover:no-underline"
+                  className="text-primary underline hover:no-underline cursor-pointer"
                   onClick={() => {
                     setMode("signup")
                     setError("")
@@ -140,7 +140,7 @@ function LoginPage() {
                 Already have an account?{" "}
                 <button
                   type="button"
-                  className="text-primary underline hover:no-underline"
+                  className="text-primary underline hover:no-underline cursor-pointer"
                   onClick={() => {
                     setMode("login")
                     setError("")
