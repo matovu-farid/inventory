@@ -240,8 +240,7 @@ function CreateRouteForm({
           currency="USD"
           value={budgetUsd}
           onChange={setBudgetUsd}
-          decimals={2}
-          placeholder="0.00"
+          placeholder="0"
           error={formErrors.budget}
         />
       </div>

@@ -490,8 +490,7 @@ function AddItemForm({
             currency={currency}
             value={unitPrice}
             onChange={setUnitPrice}
-            decimals={2}
-            placeholder="0.00"
+            placeholder="0"
             error={formErrors.unitPrice}
           />
         </div>
