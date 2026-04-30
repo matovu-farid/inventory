@@ -14,7 +14,14 @@ import { user } from "./auth"
 import { shops, shopStock } from "./shops"
 import { bankAccounts } from "./bank-accounts"
 
-export const paymentMethodEnum = pgEnum("payment_method", ["cash", "bank"])
+export const paymentMethodEnum = pgEnum("payment_method", ["cash", "bank", "credit"])
+
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "settled",
+  "open",
+  "partially_paid",
+  "written_off",
+])
 
 export const shopSales = pgTable(
   "shop_sales",
@@ -31,8 +38,14 @@ export const shopSales = pgTable(
     bankAccountId: uuid("bank_account_id").references(() => bankAccounts.id, {
       onDelete: "restrict",
     }),
+    customerId: uuid("customer_id"),
     totalAmount: numeric("total_amount", { precision: 15, scale: 2 }).notNull(),
+    paymentStatus: paymentStatusEnum("payment_status").notNull().default("settled"),
+    outstandingBalance: numeric("outstanding_balance", { precision: 15, scale: 2 })
+      .notNull()
+      .default("0"),
     approvedBy: text("approved_by").references(() => user.id, { onDelete: "restrict" }),
+    documentNumber: text("document_number"),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -44,6 +57,8 @@ export const shopSales = pgTable(
     index("idx_sale_shop").on(table.shopId),
     index("idx_sale_date").on(table.saleDate),
     index("idx_sale_soldby").on(table.soldBy),
+    index("idx_sale_customer").on(table.customerId),
+    index("idx_sale_status").on(table.paymentStatus),
   ],
 )
 
