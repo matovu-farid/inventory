@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm"
+import { eq, isNotNull, and } from "drizzle-orm"
 import BigNumber from "bignumber.js"
 import { transactions, transactionCategories } from "#/db/schema"
 import type { Database } from "#/db"
+import { buildReversalEntries } from "./reversal"
 
 interface JournalEntry {
   type: "debit" | "credit"
@@ -75,6 +76,84 @@ export async function postJournalEntry(
   }
 
   return journalGroupId
+}
+
+/**
+ * Reverse a previously posted journal group.
+ *
+ * Creates a new journal group whose legs flip the originals' debit/credit type,
+ * preserving amounts and categories. Links the two groups bidirectionally via
+ * reversesJournalGroupId / reversedByJournalGroupId. Refuses to reverse a group
+ * that has already been reversed.
+ */
+export async function reverseJournalEntry(
+  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+  originalJournalGroupId: string,
+  params: { reason: string; recordedBy: string },
+): Promise<string> {
+  const original = await tx
+    .select()
+    .from(transactions)
+    .where(eq(transactions.journalGroupId, originalJournalGroupId))
+
+  if (original.length === 0) {
+    throw new Error(`Journal group not found: ${originalJournalGroupId}`)
+  }
+
+  const alreadyReversed = original.find((e) => e.reversedByJournalGroupId !== null)
+  if (alreadyReversed) {
+    throw new Error(
+      `Journal group ${originalJournalGroupId} already reversed by ${alreadyReversed.reversedByJournalGroupId}`,
+    )
+  }
+
+  const reversalGroupId = crypto.randomUUID()
+  const reversalEntries = buildReversalEntries(
+    original.map((e) => ({
+      type: e.type,
+      amount: e.amount,
+      categoryId: e.categoryId,
+      locationType: e.locationType,
+      locationId: e.locationId,
+      bankAccountId: e.bankAccountId,
+      depositLocation: e.depositLocation,
+      referenceType: e.referenceType,
+      referenceId: e.referenceId,
+      description: e.description,
+    })),
+    params,
+  )
+
+  for (const entry of reversalEntries) {
+    await tx.insert(transactions).values({
+      type: entry.type,
+      amount: entry.amount,
+      categoryId: entry.categoryId,
+      journalGroupId: reversalGroupId,
+      reversesJournalGroupId: originalJournalGroupId,
+      referenceType: entry.referenceType,
+      referenceId: entry.referenceId,
+      locationType: entry.locationType,
+      locationId: entry.locationId,
+      depositLocation: entry.depositLocation,
+      bankAccountId: entry.bankAccountId,
+      recordedBy: entry.recordedBy,
+      transactionDate: new Date(),
+      description: entry.description,
+    })
+  }
+
+  await tx
+    .update(transactions)
+    .set({ reversedByJournalGroupId: reversalGroupId })
+    .where(
+      and(
+        eq(transactions.journalGroupId, originalJournalGroupId),
+        isNotNull(transactions.id),
+      ),
+    )
+
+  return reversalGroupId
 }
 
 /**

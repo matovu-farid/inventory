@@ -53,6 +53,8 @@ export const transactions = pgTable(
     referenceType: text("reference_type"),
     referenceId: text("reference_id"),
     journalGroupId: uuid("journal_group_id").notNull(),
+    reversesJournalGroupId: uuid("reverses_journal_group_id"),
+    reversedByJournalGroupId: uuid("reversed_by_journal_group_id"),
     transactionDate: timestamp("transaction_date", { withTimezone: true }).notNull(),
     description: text("description"),
     locationType: locationTypeEnum("location_type").notNull(),
