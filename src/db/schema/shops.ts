@@ -34,6 +34,7 @@ export const shopStock = pgTable(
     // FK to storeTransferItems omitted here to avoid circular import (shops <-> transfers)
     storeTransferItemId: uuid("store_transfer_item_id").notNull(),
     quantityOnHand: integer("quantity_on_hand").notNull().default(0),
+    damagedQuantity: integer("damaged_quantity").notNull().default(0),
     costPerUnitUgx: numeric("cost_per_unit_ugx", { precision: 15, scale: 2 }).notNull(),
     minimumSellPriceUgx: numeric("minimum_sell_price_ugx", { precision: 15, scale: 2 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
