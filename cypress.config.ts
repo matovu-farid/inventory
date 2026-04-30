@@ -15,6 +15,7 @@ export default defineConfig({
     setupNodeEvents(on) {
       const pool = new pg.Pool({
         connectionString:
+          process.env.DATABASE_URL ??
           "postgresql://faridmatovu:alphanew90@127.0.0.1:5432/inventory",
       })
 
