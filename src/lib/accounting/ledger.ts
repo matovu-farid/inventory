@@ -2,7 +2,7 @@ import { eq, isNotNull, and } from "drizzle-orm"
 import BigNumber from "bignumber.js"
 import { transactions, transactionCategories } from "#/db/schema"
 import type { Database } from "#/db"
-import { buildReversalEntries } from "./reversal"
+import { buildReversalEntries, assertReversible } from "./reversal"
 
 interface JournalEntry {
   type: "debit" | "credit"
@@ -91,21 +91,17 @@ export async function reverseJournalEntry(
   originalJournalGroupId: string,
   params: { reason: string; recordedBy: string },
 ): Promise<string> {
+  // SELECT ... FOR UPDATE to lock the original group's rows for the
+  // duration of this transaction. Closes the TOCTOU race where two
+  // concurrent reverseJournalEntry calls could both pass the
+  // already-reversed guard.
   const original = await tx
     .select()
     .from(transactions)
     .where(eq(transactions.journalGroupId, originalJournalGroupId))
+    .for("update")
 
-  if (original.length === 0) {
-    throw new Error(`Journal group not found: ${originalJournalGroupId}`)
-  }
-
-  const alreadyReversed = original.find((e) => e.reversedByJournalGroupId !== null)
-  if (alreadyReversed) {
-    throw new Error(
-      `Journal group ${originalJournalGroupId} already reversed by ${alreadyReversed.reversedByJournalGroupId}`,
-    )
-  }
+  assertReversible(original)
 
   const reversalGroupId = crypto.randomUUID()
   const reversalEntries = buildReversalEntries(

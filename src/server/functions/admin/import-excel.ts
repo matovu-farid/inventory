@@ -3,16 +3,19 @@ import { eq } from "drizzle-orm"
 import { z } from "zod"
 import * as XLSX from "xlsx"
 import { db } from "#/db"
-import { supplyRoutes, supplyRouteItems } from "#/db/schema"
+import { supplyRoutes, supplyRouteItems, suppliers } from "#/db/schema"
 import {
   parseExcelRouteSheet,
   computeExternalRef
-  
+
 } from "#/lib/excel/parser"
 import type {RawRow} from "#/lib/excel/parser";
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { prepareImportItem } from "./import-prepare"
+
+const UNKNOWN_IMPORTED_SUPPLIER_NAME = "Unknown (Imported)"
 
 const importInput = z.object({
   filename: z.string().min(1),
@@ -49,6 +52,27 @@ export const importExcel = createServerFn()
     let itemsImported = 0
 
     return db.transaction(async (tx) => {
+      // Atomically resolve-or-create the "Unknown (Imported)" supplier.
+      // The unique index on suppliers.name + ON CONFLICT DO NOTHING wins
+      // the race against a concurrent first import; the follow-up SELECT
+      // then reads the canonical row regardless of which transaction won.
+      await tx
+        .insert(suppliers)
+        .values({
+          name: UNKNOWN_IMPORTED_SUPPLIER_NAME,
+          type: "international",
+          country: "Unknown",
+          notes: "Auto-created placeholder for Excel imports without a known supplier.",
+        })
+        .onConflictDoNothing({ target: suppliers.name })
+      const unknownSupplier = await tx.query.suppliers.findFirst({
+        where: eq(suppliers.name, UNKNOWN_IMPORTED_SUPPLIER_NAME),
+      })
+      if (!unknownSupplier) {
+        throw new Error("Unknown supplier upsert failed")
+      }
+      const unknownSupplierId = unknownSupplier.id
+
       for (const sheetName of workbook.SheetNames) {
         const externalRef = computeExternalRef(data.filename, sheetName)
 
@@ -93,44 +117,9 @@ export const importExcel = createServerFn()
           .returning()
 
         for (const item of parsed.items) {
-          // Compute totals if exchange rates are present
-          const totalAmountForeign = (
-            Number(item.unitPriceForeign) * item.quantity
-          ).toFixed(2)
-          const totalAmountUsd = item.exchangeRateForeignToUsd
-            ? (
-                Number(totalAmountForeign) /
-                Number(item.exchangeRateForeignToUsd)
-              ).toFixed(2)
-            : null
-          const totalCostUgx =
-            item.exchangeRateForeignToUsd && item.exchangeRateUsdToUgx
-              ? (
-                  (Number(item.unitPriceForeign) /
-                    Number(item.exchangeRateForeignToUsd)) *
-                  Number(item.exchangeRateUsdToUgx) *
-                  item.quantity
-                ).toFixed(2)
-              : "0"
-
-          await tx.insert(supplyRouteItems).values({
-            supplyRouteId: route.id,
-            // supplierId is required at the schema level — for historical
-            // imports we use a placeholder "Unknown" supplier created
-            // upstream (see future work). For now, set null and adjust the
-            // schema if importing without a supplier should be allowed.
-            supplierId: null as unknown as string,
-            productName: item.productName,
-            articleNumber: item.articleNumber ?? undefined,
-            quantity: item.quantity,
-            unitPriceForeign: item.unitPriceForeign,
-            foreignCurrency: item.foreignCurrency,
-            exchangeRateForeignToUsd: item.exchangeRateForeignToUsd,
-            exchangeRateUsdToUgx: item.exchangeRateUsdToUgx,
-            totalAmountForeign,
-            totalAmountUsd,
-            totalCostUgx,
-          })
+          await tx
+            .insert(supplyRouteItems)
+            .values(prepareImportItem(item, unknownSupplierId, route.id))
           itemsImported++
         }
 

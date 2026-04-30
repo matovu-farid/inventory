@@ -7,6 +7,7 @@ import { shopStock, storeStock } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { computeWriteOffAmount } from "./writeoff-math"
 
 const locationEnum = z.enum(["store", "shop"])
 
@@ -46,6 +47,7 @@ export const markGoodsDamaged = createServerFn()
           .set({
             quantityOnHand: sql`${shopStock.quantityOnHand} - ${data.quantity}`,
             damagedQuantity: sql`${shopStock.damagedQuantity} + ${data.quantity}`,
+            damagedValueUgx: sql`${shopStock.damagedValueUgx} + ${cost.toFixed(2)}`,
           })
           .where(eq(shopStock.id, data.stockId))
         await postJournalEntry(tx, {
@@ -78,6 +80,7 @@ export const markGoodsDamaged = createServerFn()
         .set({
           quantityOnHand: sql`${storeStock.quantityOnHand} - ${data.quantity}`,
           damagedQuantity: sql`${storeStock.damagedQuantity} + ${data.quantity}`,
+          damagedValueUgx: sql`${storeStock.damagedValueUgx} + ${cost.toFixed(2)}`,
         })
         .where(eq(storeStock.id, data.stockId))
       await postJournalEntry(tx, {
@@ -125,17 +128,22 @@ export const writeOffDamagedGoods = createServerFn()
             `Not enough damaged stock: have ${stock.damagedQuantity}, want to write off ${data.quantity}`,
           )
         }
-        const cost = new BigNumber(stock.costPerUnitUgx).times(data.quantity)
+        const writeOffAmount = computeWriteOffAmount({
+          damagedQuantity: stock.damagedQuantity,
+          damagedValueUgx: stock.damagedValueUgx,
+          writeOffQuantity: data.quantity,
+        })
         await tx
           .update(shopStock)
           .set({
             damagedQuantity: sql`${shopStock.damagedQuantity} - ${data.quantity}`,
+            damagedValueUgx: sql`${shopStock.damagedValueUgx} - ${writeOffAmount}`,
           })
           .where(eq(shopStock.id, data.stockId))
         await postJournalEntry(tx, {
           entries: [
-            { type: "debit", category: "Damaged Goods Write-off", amount: cost.toFixed(2) },
-            { type: "credit", category: "Damaged Inventory - Shop", amount: cost.toFixed(2) },
+            { type: "debit", category: "Damaged Goods Write-off", amount: writeOffAmount },
+            { type: "credit", category: "Damaged Inventory - Shop", amount: writeOffAmount },
           ],
           referenceType: "damaged_writeoff",
           referenceId: data.stockId,
@@ -144,7 +152,7 @@ export const writeOffDamagedGoods = createServerFn()
           recordedBy: userId,
           description: `Write-off ${data.quantity} damaged: ${data.reason}`,
         })
-        return { ok: true, writtenOff: cost.toFixed(2) }
+        return { ok: true, writtenOff: writeOffAmount }
       }
 
       const stock = await tx.query.storeStock.findFirst({
@@ -156,17 +164,22 @@ export const writeOffDamagedGoods = createServerFn()
           `Not enough damaged stock: have ${stock.damagedQuantity}, want to write off ${data.quantity}`,
         )
       }
-      const cost = new BigNumber(stock.costPerUnitUgx).times(data.quantity)
+      const writeOffAmount = computeWriteOffAmount({
+        damagedQuantity: stock.damagedQuantity,
+        damagedValueUgx: stock.damagedValueUgx,
+        writeOffQuantity: data.quantity,
+      })
       await tx
         .update(storeStock)
         .set({
           damagedQuantity: sql`${storeStock.damagedQuantity} - ${data.quantity}`,
+          damagedValueUgx: sql`${storeStock.damagedValueUgx} - ${writeOffAmount}`,
         })
         .where(eq(storeStock.id, data.stockId))
       await postJournalEntry(tx, {
         entries: [
-          { type: "debit", category: "Damaged Goods Write-off", amount: cost.toFixed(2) },
-          { type: "credit", category: "Damaged Inventory - Store", amount: cost.toFixed(2) },
+          { type: "debit", category: "Damaged Goods Write-off", amount: writeOffAmount },
+          { type: "credit", category: "Damaged Inventory - Store", amount: writeOffAmount },
         ],
         referenceType: "damaged_writeoff",
         referenceId: data.stockId,
@@ -175,6 +188,6 @@ export const writeOffDamagedGoods = createServerFn()
         recordedBy: userId,
         description: `Write-off ${data.quantity} damaged: ${data.reason}`,
       })
-      return { ok: true, writtenOff: cost.toFixed(2) }
+      return { ok: true, writtenOff: writeOffAmount }
     })
   })

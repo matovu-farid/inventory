@@ -13,6 +13,7 @@ import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { buildStoreReturnReceiveEntries } from "./return-entries"
 
 const returnItemInput = z.object({
   shopStockId: z.string().uuid(),
@@ -187,62 +188,25 @@ export const receiveStoreReturn = createServerFn()
       const totalTransferPrice = totalTransferPriceResellable.plus(
         totalTransferPriceDamaged,
       )
-      const totalCost = totalCostResellable.plus(totalCostDamaged)
-      const totalMargin = totalTransferPrice.minus(totalCost)
 
-      // Reverse the original transfer's journal entries
-      const entries: Array<{
-        type: "debit" | "credit"
-        category: string
-        amount: string
-      }> = []
-      if (totalCostResellable.gt(0)) {
-        entries.push({
-          type: "debit",
-          category: "Inventory - Store",
-          amount: totalCostResellable.toFixed(2),
-        })
-      }
-      if (totalCostDamaged.gt(0)) {
-        entries.push({
-          type: "debit",
-          category: "Damaged Inventory - Store",
-          amount: totalCostDamaged.toFixed(2),
-        })
-      }
-      entries.push({
-        type: "credit",
-        category: "Inventory - Shop",
-        amount: totalTransferPrice.toFixed(2),
-      })
-      if (totalMargin.gt(0)) {
-        entries.push({
-          type: "debit",
-          category: "Store Transfer Revenue",
-          amount: totalMargin.toFixed(2),
-        })
-      }
-      // Reverse inter-branch balances
-      entries.push({
-        type: "debit",
-        category: "Due to Store",
-        amount: totalTransferPrice.toFixed(2),
-      })
-      entries.push({
-        type: "credit",
-        category: "Due from Shop",
-        amount: totalTransferPrice.toFixed(2),
+      // Build the (always balanced) reversal journal via the pure helper.
+      const { entries } = buildStoreReturnReceiveEntries({
+        totalCostResellable: totalCostResellable.toFixed(2),
+        totalCostDamaged: totalCostDamaged.toFixed(2),
+        totalTransferPrice: totalTransferPrice.toFixed(2),
       })
 
-      await postJournalEntry(tx, {
-        entries,
-        referenceType: "store_return",
-        referenceId: storeReturn.id,
-        locationType: "store",
-        locationId: storeReturn.storeId,
-        recordedBy: userId,
-        description: `Store return ${storeReturn.documentNumber} received`,
-      })
+      if (entries.length > 0) {
+        await postJournalEntry(tx, {
+          entries,
+          referenceType: "store_return",
+          referenceId: storeReturn.id,
+          locationType: "store",
+          locationId: storeReturn.storeId,
+          recordedBy: userId,
+          description: `Store return ${storeReturn.documentNumber} received`,
+        })
+      }
 
       await tx
         .update(storeReturns)

@@ -66,6 +66,9 @@ export const storeStock = pgTable(
       .references(() => supplyRouteItems.id, { onDelete: "restrict" }),
     quantityOnHand: integer("quantity_on_hand").notNull().default(0),
     damagedQuantity: integer("damaged_quantity").notNull().default(0),
+    damagedValueUgx: numeric("damaged_value_ugx", { precision: 15, scale: 2 })
+      .notNull()
+      .default("0"),
     costPerUnitUgx: numeric("cost_per_unit_ugx", { precision: 15, scale: 2 }).notNull(),
     minimumSellPriceUgx: numeric("minimum_sell_price_ugx", { precision: 15, scale: 2 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
