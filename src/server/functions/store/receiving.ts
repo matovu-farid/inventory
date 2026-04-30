@@ -12,6 +12,7 @@ import {
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { validateReceiveItem } from "./receive-validate"
 
 /**
  * List supply routes that have status "in_transit" or "received" —
@@ -121,7 +122,10 @@ export const receiveGoods = createServerFn()
         })
         if (!sri) throw new Error(`Supply route item not found: ${item.supplyRouteItemId}`)
 
-        const usableQty = item.quantityReceived - item.quantityDamaged
+        const { usableQty } = validateReceiveItem({
+          quantityReceived: item.quantityReceived,
+          quantityDamaged: item.quantityDamaged,
+        })
         const transitLoss = sri.quantity - item.quantityReceived
 
         // 1. Create StoreReceiving record

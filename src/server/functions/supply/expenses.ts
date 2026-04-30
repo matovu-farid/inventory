@@ -6,6 +6,7 @@ import { supplyRouteExpenses } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { convertExpenseToUgx } from "./expense-fx"
 
 /** Map supply-route expense categories to ledger account names. */
 const expenseCategoryToLedger: Record<string, string> = {
@@ -59,11 +60,12 @@ export const addSupplyRouteExpense = createServerFn()
 
       const ledgerCategory =
         expenseCategoryToLedger[data.category] ?? "Miscellaneous Expense"
+      const amountUgx = convertExpenseToUgx(data)
 
       await postJournalEntry(tx, {
         entries: [
-          { type: "debit", category: ledgerCategory, amount: data.amount },
-          { type: "credit", category: "Cash", amount: data.amount },
+          { type: "debit", category: ledgerCategory, amount: amountUgx },
+          { type: "credit", category: "Cash", amount: amountUgx },
         ],
         referenceType: "supply_route",
         referenceId: expense.id,

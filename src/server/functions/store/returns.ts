@@ -139,6 +139,17 @@ export const receiveStoreReturn = createServerFn()
       let totalTransferPriceDamaged = new BigNumber(0)
       let totalCostResellable = new BigNumber(0)
       let totalCostDamaged = new BigNumber(0)
+      let totalCostDispatched = new BigNumber(0)
+      let totalTransferDispatched = new BigNumber(0)
+
+      for (const item of storeReturn.items) {
+        totalCostDispatched = totalCostDispatched.plus(
+          new BigNumber(item.unitCostUgx).times(item.quantityDispatched),
+        )
+        totalTransferDispatched = totalTransferDispatched.plus(
+          new BigNumber(item.unitTransferPriceUgx).times(item.quantityDispatched),
+        )
+      }
 
       for (const receipt of data.itemReceipts) {
         const item = storeReturn.items.find(
@@ -194,6 +205,8 @@ export const receiveStoreReturn = createServerFn()
         totalCostResellable: totalCostResellable.toFixed(2),
         totalCostDamaged: totalCostDamaged.toFixed(2),
         totalTransferPrice: totalTransferPrice.toFixed(2),
+        totalCostDispatched: totalCostDispatched.toFixed(2),
+        totalTransferDispatched: totalTransferDispatched.toFixed(2),
       })
 
       if (entries.length > 0) {

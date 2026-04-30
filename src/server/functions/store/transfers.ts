@@ -12,6 +12,7 @@ import {
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { buildTransferInventoryEntries } from "./transfer-entries"
 
 export const listTransfers = createServerFn().handler(async () => {
   const session = await requireSession()
@@ -111,21 +112,11 @@ export const createTransfer = createServerFn()
         totalCostValue = totalCostValue.plus(itemCost)
       }
 
-      const margin = totalTransferValue.minus(totalCostValue)
-
-      // Ledger: inventory movement
-      // DR Inventory-Shop (transfer price) / CR Inventory-Store (cost) + CR Store Transfer Revenue (margin)
-      const inventoryEntries: Array<{ type: "debit" | "credit"; category: string; amount: string }> = [
-        { type: "debit", category: "Inventory - Shop", amount: totalTransferValue.toFixed(2) },
-        { type: "credit", category: "Inventory - Store", amount: totalCostValue.toFixed(2) },
-      ]
-      if (margin.gt(0)) {
-        inventoryEntries.push({
-          type: "credit",
-          category: "Store Transfer Revenue",
-          amount: margin.toFixed(2),
-        })
-      }
+      // Ledger: inventory movement (always balanced via the helper)
+      const { entries: inventoryEntries } = buildTransferInventoryEntries({
+        totalTransferValue: totalTransferValue.toFixed(2),
+        totalCostValue: totalCostValue.toFixed(2),
+      })
 
       await postJournalEntry(tx, {
         entries: inventoryEntries,

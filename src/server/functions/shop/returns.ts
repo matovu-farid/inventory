@@ -15,6 +15,8 @@ import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { computeNewSaleStatus } from "#/lib/credit/payment-allocation"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { computeShopStockMutationsForReturnItem } from "./return-stock-mutations"
+import { validateCreditAdjustmentRefund } from "./refund-validate"
 
 const returnItemInput = z.object({
   shopStockId: z.string().uuid(),
@@ -129,16 +131,49 @@ export const recordCustomerReturn = createServerFn()
           totalRefundUgx: detail.totalRefund.toFixed(2),
         })
 
-        if (detail.condition === "resellable") {
-          await tx
-            .update(shopStock)
-            .set({
-              quantityOnHand: sql`${shopStock.quantityOnHand} + ${detail.quantity}`,
-            })
-            .where(eq(shopStock.id, detail.stock.id))
+        const mutations = computeShopStockMutationsForReturnItem({
+          condition: detail.condition,
+          quantity: detail.quantity,
+          unitCostUgx: detail.unitCost.toFixed(2),
+        })
+        for (const m of mutations) {
+          if (m.field === "quantityOnHand") {
+            await tx
+              .update(shopStock)
+              .set({
+                quantityOnHand: sql`${shopStock.quantityOnHand} + ${m.quantityDelta}`,
+              })
+              .where(eq(shopStock.id, detail.stock.id))
+          } else {
+            await tx
+              .update(shopStock)
+              .set({
+                damagedQuantity: sql`${shopStock.damagedQuantity} + ${m.quantityDelta}`,
+                damagedValueUgx: sql`${shopStock.damagedValueUgx} + ${m.valueDelta ?? "0"}`,
+              })
+              .where(eq(shopStock.id, detail.stock.id))
+          }
         }
-        // Damaged returns intentionally do NOT increment regular stock —
-        // they are tracked via the journal entry's Damaged Inventory leg.
+      }
+
+      // For credit_adjustment refunds, look up the original sale and guard
+      // against over-refunding before posting any journal entry.
+      let originalSale:
+        | typeof shopSales.$inferSelect
+        | undefined
+      if (
+        data.refundMethod === "credit_adjustment" &&
+        data.originalSaleId
+      ) {
+        originalSale = await tx.query.shopSales.findFirst({
+          where: eq(shopSales.id, data.originalSaleId),
+        })
+        if (originalSale) {
+          validateCreditAdjustmentRefund({
+            totalRefund: totalRefund.toFixed(2),
+            outstandingBalance: originalSale.outstandingBalance,
+          })
+        }
       }
 
       // Refund leg
@@ -219,9 +254,7 @@ export const recordCustomerReturn = createServerFn()
         data.refundMethod === "credit_adjustment" &&
         data.originalSaleId
       ) {
-        const sale = await tx.query.shopSales.findFirst({
-          where: eq(shopSales.id, data.originalSaleId),
-        })
+        const sale = originalSale
         if (
           sale &&
           (sale.paymentStatus === "open" || sale.paymentStatus === "partially_paid")
