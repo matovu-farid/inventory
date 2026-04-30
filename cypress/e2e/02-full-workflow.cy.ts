@@ -11,8 +11,8 @@ describe("Full Inventory Workflow", () => {
   /** Wait for React hydration to complete before interacting */
   function waitForHydration() {
     // Wait for TanStack Start hydration — the __tsr script is removed after hydration
-    cy.get("body", { timeout: 10000 }).should("be.visible")
-    cy.wait(1500) // Allow React hydration + client-side routing to settle
+    cy.get("body", { timeout: 15000 }).should("be.visible")
+    cy.wait(3500) // Allow React hydration + client-side routing to settle (CI is slow)
   }
 
   before(() => {

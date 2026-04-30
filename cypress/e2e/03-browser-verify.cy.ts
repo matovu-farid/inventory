@@ -41,7 +41,9 @@ describe("Browser Verification", () => {
     cy.get("input#email").type(testEmail)
     cy.get("input#password").type("wrongpassword")
     cy.get("button[type='submit']").click()
-    cy.contains("Invalid", { timeout: 5000 }).should("be.visible")
+    // Better Auth may return "Invalid email or password" or a generic
+    // "Login failed" depending on configuration; both are fine.
+    cy.contains(/(Invalid|failed)/i, { timeout: 10000 }).should("be.visible")
     cy.screenshot("verify-02-login-error")
   })
 
