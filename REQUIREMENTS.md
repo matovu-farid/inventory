@@ -186,7 +186,7 @@ Store
 └── updatedAt: TIMESTAMP
 ```
 
-The system supports **one store** (warehouse) with multiple shops. The store is the central receiving and distribution hub. **All goods flow through the store** — even local purchases must be received at the store before distribution to shops. Goods only flow forward (no returns from shops to store, no customer returns).
+The system supports **one store** (warehouse) with multiple shops. The store is the central receiving and distribution hub. **All goods flow through the store** — even local purchases must be received at the store before distribution to shops. Goods primarily flow forward, but the system supports **rare reverse flows**: shops can return unsold goods to the store, and customers can return goods to a shop. Returns generate reverse journal entries and restock the appropriate location.
 
 #### 4.1.6 Store Inventory (Stock In)
 
@@ -210,7 +210,7 @@ StoreReceiving
 
 **Loss Detection Point 1:** `quantityExpected - quantityReceived = transit loss`
 
-**Damaged Goods:** Damaged items are tracked separately (via `quantityDamaged`). They can be written off as losses or held for possible discount sale. *(Pending client confirmation — see CLIENT_QUESTIONS.md)*
+**Damaged Goods:** Damaged items are tracked separately (via `quantityDamaged`). They are not added to sellable stock; instead they sit in a damaged-goods bucket and can later be either (a) sold at a discount (with admin/supervisor approval) or (b) written off as an inventory loss. Damaged inventory is a distinct asset sub-category from regular Inventory - Store / Inventory - Shop so loss reports can separate damage from theft/shrinkage.
 
 #### 4.1.7 Store Stock (Current Inventory)
 
@@ -305,10 +305,17 @@ ShopSale
 ├── shopId: FK -> Shop
 ├── saleDate: TIMESTAMP
 ├── soldBy: FK -> User
-├── paymentMethod: ENUM ["cash", "bank"]
+├── paymentMethod: ENUM ["cash", "bank", "credit"]
 ├── bankAccountId: FK -> BankAccount (nullable, only if payment = bank)
+├── customerId: FK -> Customer (nullable, required if paymentMethod = credit)
 ├── totalAmount: NUMERIC(15,2)
-├── approvedBy: FK -> User (nullable, required if any item sold below minimum)
+├── paymentStatus: ENUM ["settled", "open", "partially_paid", "written_off"]
+│                  -- "settled" for cash/bank sales (paid at point of sale)
+│                  -- "open" for credit sales until any payment is received
+│                  -- "partially_paid" when a CustomerPayment covers part of the balance
+│                  -- "written_off" if balance is bad-debt written off (Admin only)
+├── outstandingBalance: NUMERIC(15,2) (derived; surfaced as denormalized cache for queries — source of truth is the ledger)
+├── approvedBy: FK -> User (nullable, required if any item sold below minimum OR if paymentMethod = credit)
 ├── notes: TEXT
 ├── createdAt: TIMESTAMP
 └── updatedAt: TIMESTAMP
@@ -329,7 +336,133 @@ ShopSaleItem
 
 **Pricing Rule:** `unitPriceUgx >= minimumSellPriceUgx` unless approved by Admin or Supervisor.
 
-**Sales are anonymous** — no customer records. All sales are walk-in. All sales are in **UGX only**.
+**Sales are mostly anonymous** — cash and bank sales are walk-in and require no customer record. **Credit sales are the exception**: they require a Customer record so the receivable can be tracked and later cleared. All sales are in **UGX only**.
+
+#### 4.1.11.1 Customers (Credit Debtors)
+
+Customer records exist solely to track who owes the business money on credit sales. Cash and bank walk-in sales do not need a customer record.
+
+```
+Customer
+├── id: UUID
+├── name: TEXT
+├── phone: TEXT (optional)
+├── notes: TEXT (optional)
+├── createdAt: TIMESTAMP
+└── updatedAt: TIMESTAMP
+```
+
+**Credit policy:**
+- **Trust-based** — no per-customer credit limits enforced by the system.
+- **Approval required:** Only Admin or Supervisor can authorize a credit sale. Sales personnel cannot grant credit on their own. The `approvedBy` field on `ShopSale` records who authorized.
+- **No fixed payment terms** tracked.
+- **Partial payments allowed** — a customer's outstanding balance is reduced incrementally as payments come in.
+
+#### 4.1.11.2 Customer Payments
+
+Records cash or bank receipts that clear (fully or partially) outstanding credit-sale balances.
+
+```
+CustomerPayment
+├── id: UUID
+├── customerId: FK -> Customer
+├── shopId: FK -> Shop (which shop received the payment)
+├── paymentDate: TIMESTAMP
+├── amount: NUMERIC(15,2)
+├── paymentMethod: ENUM ["cash", "bank"]
+├── bankAccountId: FK -> BankAccount (nullable)
+├── receivedBy: FK -> User
+├── notes: TEXT
+├── createdAt: TIMESTAMP
+└── updatedAt: TIMESTAMP
+```
+
+The current outstanding balance per customer is **derived from the ledger** (sum of credit-sale receivables minus sum of payments applied), not stored as a denormalized field.
+
+**Payment-to-sale allocation:** Payments are applied to open credit sales using **FIFO by `saleDate`** (oldest sale first). The system records the allocation explicitly so customer statements can show which payments cleared which sales.
+
+```
+CustomerPaymentApplication
+├── id: UUID
+├── customerPaymentId: FK -> CustomerPayment
+├── shopSaleId: FK -> ShopSale
+├── amountApplied: NUMERIC(15,2)
+├── createdAt: TIMESTAMP
+└── updatedAt: TIMESTAMP
+```
+
+The sum of `amountApplied` across all applications for a payment equals `CustomerPayment.amount`. When a sale's outstanding balance reaches zero, its `paymentStatus` flips to `settled`. Partial coverage flips it to `partially_paid`.
+
+**Bad-debt write-off:** If a credit sale becomes uncollectible, an Admin can mark it `written_off`. This posts: `DR Bad Debt Expense / CR Accounts Receivable` for the remaining balance. Sales personnel and supervisors cannot write off bad debt — Admin only.
+
+#### 4.1.11.3 Returns (Customer → Shop and Shop → Store)
+
+Returns are rare but supported. Two flows exist:
+
+```
+ShopReturn (customer returning goods to a shop)
+├── id: UUID
+├── shopId: FK -> Shop
+├── originalSaleId: FK -> ShopSale (nullable — may be untraceable for old sales)
+├── returnDate: TIMESTAMP
+├── reason: TEXT
+├── refundMethod: ENUM ["cash", "bank", "credit_adjustment"]
+│                  -- "credit_adjustment" reduces customer balance for credit sales
+├── bankAccountId: FK -> BankAccount (nullable)
+├── customerId: FK -> Customer (nullable, required for credit_adjustment)
+├── totalRefund: NUMERIC(15,2)
+├── approvedBy: FK -> User (Admin or Supervisor)
+├── receivedBy: FK -> User
+├── notes: TEXT
+├── createdAt: TIMESTAMP
+└── updatedAt: TIMESTAMP
+
+ShopReturnItem
+├── id: UUID
+├── shopReturnId: FK -> ShopReturn
+├── shopStockId: FK -> ShopStock (which stock line the item is being returned to)
+├── productName: TEXT
+├── quantity: INTEGER
+├── unitRefundPriceUgx: NUMERIC(15,2)
+├── condition: ENUM ["resellable", "damaged"]
+│              -- if damaged, goods go to damaged bucket, not regular stock
+├── totalRefundUgx: NUMERIC(15,2)
+├── createdAt: TIMESTAMP
+└── updatedAt: TIMESTAMP
+```
+
+```
+StoreReturn (shop returning unsold goods to the store)
+├── id: UUID
+├── shopId: FK -> Shop (originating shop)
+├── storeId: FK -> Store (destination)
+├── originalTransferId: FK -> StoreTransfer (nullable)
+├── returnDate: TIMESTAMP
+├── reason: TEXT
+├── status: ENUM ["dispatched", "received", "reconciled"]
+├── dispatchedBy: FK -> User (at shop)
+├── receivedBy: FK -> User (at store)
+├── approvedBy: FK -> User (Admin or Supervisor)
+├── notes: TEXT
+├── createdAt: TIMESTAMP
+└── updatedAt: TIMESTAMP
+
+StoreReturnItem
+├── id: UUID
+├── storeReturnId: FK -> StoreReturn
+├── shopStockId: FK -> ShopStock
+├── productName: TEXT
+├── quantityDispatched: INTEGER
+├── quantityReceived: INTEGER (nullable until received at store)
+├── unitTransferPriceUgx: NUMERIC(15,2) (original transfer price reversed)
+├── condition: ENUM ["resellable", "damaged"]
+├── createdAt: TIMESTAMP
+└── updatedAt: TIMESTAMP
+```
+
+**Approval:** All returns (both flows) require Admin or Supervisor approval. Sales personnel cannot accept returns on their own.
+
+**Damaged returns:** If a returned item is damaged, it lands in the location's damaged-goods bucket rather than being added back to sellable stock.
 
 #### 4.1.12 Location Expenses (Store & Shop Operating Costs)
 
@@ -411,11 +544,15 @@ TransactionCategory
 | Bank | Asset | Money in bank accounts |
 | Inventory - Store | Asset | Value of goods in warehouse |
 | Inventory - Shop | Asset | Value of goods at shops |
+| Damaged Inventory - Store | Asset | Value of damaged goods at warehouse (segregated) |
+| Damaged Inventory - Shop | Asset | Value of damaged goods at shops (segregated) |
+| Accounts Receivable | Asset | Outstanding balances owed by credit customers |
 | Due from Shop | Asset | What shops owe the store (inter-branch) |
 | Supplier Payable | Liability | What is owed to suppliers |
 | Due to Store | Liability | What shops owe the store (inter-branch) |
 | Owner's Equity | Equity | Owner's capital |
 | Sales Revenue | Revenue | Income from shop sales |
+| Sales Returns | Contra-Revenue | Customer refunds (reduces revenue) |
 | Store Transfer Revenue | Revenue | Store's margin on transfers to shops |
 | Cost of Goods Sold | Expense | Cost of goods that were sold |
 | Freight Expense | Expense | Shipping/freight costs |
@@ -426,6 +563,8 @@ TransactionCategory
 | Salary Expense | Expense | Staff salaries |
 | Tax Expense | Expense | Tax payments |
 | Inventory Loss | Expense | Losses detected via stock take |
+| Damaged Goods Write-off | Expense | Damaged inventory written off (no resale) |
+| Bad Debt Expense | Expense | Uncollectible credit-sale balances written off |
 | Miscellaneous Expense | Expense | Other expenses |
 
 #### 4.2.2 Transactions (Ledger Entries)
@@ -437,9 +576,13 @@ Transaction
 ├── amount: NUMERIC(15,2)
 ├── categoryId: FK -> TransactionCategory
 ├── referenceType: TEXT (e.g., "supply_route", "store_transfer", "shop_sale",
-│                        "stock_take_adjustment", "fund_transfer", "expense")
+│                        "stock_take_adjustment", "fund_transfer", "expense",
+│                        "customer_payment", "shop_return", "store_return",
+│                        "bad_debt_writeoff", "reversal")
 ├── referenceId: TEXT (ID of the referenced entity)
 ├── journalGroupId: UUID (groups related debits/credits)
+├── reversesJournalGroupId: UUID (nullable; if set, this group reverses an earlier group)
+├── reversedByJournalGroupId: UUID (nullable; if set, this group has been reversed)
 ├── transactionDate: TIMESTAMP WITH TIMEZONE
 ├── description: TEXT
 ├── locationType: ENUM ["store", "shop"] (which location this transaction belongs to)
@@ -517,12 +660,25 @@ Example: trousers with landed cost 10,000 UGX transferred at minimum sell price 
 
 ### 5.3 Shop Sale (Retail)
 
-**When a shop sells goods to a customer:**
+**When a shop sells goods to a customer for cash or bank:**
 
 | Debit | Credit | Amount |
 |-------|--------|--------|
 | Cash / Bank | Sales Revenue | Sale amount |
 | Cost of Goods Sold | Inventory - Shop | Cost of goods sold |
+
+**When a shop sells goods to a customer on credit (Admin/Supervisor approved):**
+
+| Debit | Credit | Amount |
+|-------|--------|--------|
+| Accounts Receivable | Sales Revenue | Sale amount |
+| Cost of Goods Sold | Inventory - Shop | Cost of goods sold |
+
+**When a credit customer later pays (full or partial):**
+
+| Debit | Credit | Amount |
+|-------|--------|--------|
+| Cash / Bank | Accounts Receivable | Payment amount |
 
 ### 5.4 Shop Settlement to Store
 
@@ -545,6 +701,59 @@ Settlement is ad-hoc — no fixed schedule or credit limits since all locations 
 |-------|--------|--------|
 | Inventory Loss | Inventory - Store / Inventory - Shop | Value of lost goods |
 
+### 5.5.1 Damaged Goods
+
+**When goods are flagged as damaged on receipt or during stock take (move to damaged bucket):**
+
+| Debit | Credit | Amount |
+|-------|--------|--------|
+| Damaged Inventory - Store / Shop | Inventory - Store / Shop | Cost value of damaged goods |
+
+**When damaged goods are sold at a discount (Admin/Supervisor approved):**
+
+| Debit | Credit | Amount |
+|-------|--------|--------|
+| Cash / Bank / Accounts Receivable | Sales Revenue | Discounted sale price |
+| Cost of Goods Sold | Damaged Inventory - Store / Shop | Cost value |
+
+**When damaged goods are written off (cannot be sold):**
+
+| Debit | Credit | Amount |
+|-------|--------|--------|
+| Damaged Goods Write-off | Damaged Inventory - Store / Shop | Cost value |
+
+### 5.5.2 Customer Return to Shop
+
+**Cash or bank refund (item resellable, returned to stock):**
+
+| Debit | Credit | Amount |
+|-------|--------|--------|
+| Sales Returns | Cash / Bank | Refund amount |
+| Inventory - Shop | Cost of Goods Sold | Cost value |
+
+**Refund applied as credit-balance adjustment (customer originally bought on credit):**
+
+| Debit | Credit | Amount |
+|-------|--------|--------|
+| Sales Returns | Accounts Receivable | Refund amount |
+| Inventory - Shop | Cost of Goods Sold | Cost value |
+
+**If the returned item is damaged, the inventory leg targets Damaged Inventory - Shop instead of Inventory - Shop.**
+
+### 5.5.3 Shop Return to Store
+
+**When a shop sends unsold goods back to the store (reverses the original transfer):**
+
+| | Debit | Credit | Amount |
+|---|-------|--------|--------|
+| Inventory - Store | X | | Cost value at store |
+| Inventory - Shop | | X (transfer price) | Reverses shop inventory |
+| Store Transfer Revenue | Y | | Reverses store's prior margin |
+| Due to Store (Liability) | X (transfer price) | | Reduces shop's obligation |
+| Due from Shop (Asset) | | X (transfer price) | Reduces store's receivable |
+
+Where `X` = original transfer price and `Y` = original margin (transfer price minus landed cost). If the returned goods are damaged, the store-side debit lands in Damaged Inventory - Store.
+
 ### 5.6 Operating Expenses
 
 **Rent, salary, tax, miscellaneous:**
@@ -560,6 +769,28 @@ Settlement is ad-hoc — no fixed schedule or credit limits since all locations 
 | Debit | Credit | Amount |
 |-------|--------|--------|
 | Cash (destination) | Cash (source) | Transfer amount |
+
+### 5.8 Bad Debt Write-off (Credit Sales)
+
+**When an Admin determines a credit-sale balance is uncollectible:**
+
+| Debit | Credit | Amount |
+|-------|--------|--------|
+| Bad Debt Expense | Accounts Receivable | Remaining outstanding balance |
+
+The originating `ShopSale.paymentStatus` flips to `written_off` and its `outstandingBalance` becomes zero.
+
+### 5.9 Journal Entry Reversals
+
+**Journal entries are immutable.** Once a journal group is posted, it cannot be edited or deleted. Corrections happen exclusively via reversal:
+
+1. A new journal group is created with each leg's debit/credit type flipped.
+2. The new group's `reversesJournalGroupId` is set to the original group's ID.
+3. The original group's `reversedByJournalGroupId` is set to the new group's ID.
+4. Both groups remain in the ledger; balances naturally net to zero for the reversed entries.
+5. Reversals require Admin or Supervisor authorization and a mandatory `description` explaining the reason.
+
+**Reports honor reversals:** when computing balances or trial balance, the system includes both the original and the reversal — there is no flag to "hide" reversed entries; the math takes care of itself.
 
 ---
 
@@ -644,8 +875,15 @@ For local suppliers, purchases are directly in UGX. No currency conversion is ne
 | Receive goods at store | Yes | Yes | No |
 | Set minimum sell price | Yes | No | No |
 | Transfer goods to shop | Yes | Yes | No |
-| Record shop sales | Yes | Yes | Yes |
+| Record shop sales (cash/bank) | Yes | Yes | Yes |
+| Authorize credit sale | Yes | Yes | No |
+| Manage customers (debtors) | Yes | Yes | No |
+| Record customer payment | Yes | Yes | Yes |
 | Sell below minimum price | Yes (approve) | Yes (approve) | No |
+| Sell damaged goods at discount | Yes (approve) | Yes (approve) | No |
+| Write off damaged goods | Yes | Yes | No |
+| Approve customer return | Yes | Yes | No |
+| Approve shop-to-store return | Yes | Yes | No |
 | Conduct stock taking | Yes | Yes | No |
 | Reconcile stock | Yes | Yes | No |
 | View store reports | Yes | Yes | No |
@@ -728,10 +966,13 @@ All detected losses must be:
 
 All financial reports must be derived directly from the ledger, not from denormalized fields:
 
-- **Profit & Loss Statement:** Revenue minus expenses for a period
+- **Profit & Loss Statement:** Revenue minus expenses for a period (net of Sales Returns)
 - **Balance Sheet:** Assets, liabilities, equity at a point in time
 - **Cash Position:** Cash on hand and bank balances (by bank account)
 - **Inter-Branch Balances:** What each shop owes the store (Due from Shop / Due to Store)
+- **Accounts Receivable / Customer Statements:** Outstanding balance per credit customer, sale and payment history
+- **Damaged Goods Report:** Damaged inventory by location, with disposition status (held, sold-discounted, written-off)
+- **Returns Report:** Customer returns and shop-to-store returns over a period
 - **Trial Balance:** Verification that debits equal credits
 - **General Ledger:** Full transaction history with journal entries
 
@@ -817,7 +1058,7 @@ User (1) ──── (*) [various recordedBy/conductedBy fields]
 
 - All routes protected by authentication
 - Role-based access control enforced at API level
-- Sensitive operations (price changes, stock adjustments) require elevated roles
+- Sensitive operations (price changes, stock adjustments, credit-sale authorization, write-offs, reversals) require elevated roles
 - Audit trail for all data modifications
 
 ### 14.2 Data Integrity
@@ -825,20 +1066,130 @@ User (1) ──── (*) [various recordedBy/conductedBy fields]
 - All monetary calculations use precise decimal arithmetic (NUMERIC(15,2))
 - Double-entry ledger enforced: every journal entry must balance
 - Foreign key constraints on all relationships
-- Soft deletes with audit trail for critical entities
+- Soft deletes with audit trail for **reference entities only** (Customer, Supplier, Shop, BankAccount, User, TransactionCategory) via a nullable `deletedAt` column. Transactional records (sales, transfers, transactions, stock takes) are **never** soft-deleted — corrections happen via reversal entries (§5.9).
 
 ### 14.3 Performance
 
 - Ledger queries must support date-range filtering for efficient reporting
-- Indexes on frequently queried columns (journalGroupId, referenceType, transactionDate)
+- Indexes on frequently queried columns (journalGroupId, referenceType, transactionDate, customerId, locationId+transactionDate)
 - Financial snapshot caching for expensive report computations
 
 ### 14.4 Auditability
 
 - Every transaction linked to its source via referenceType/referenceId
 - Journal groups link debit/credit pairs
+- Reversals link to the group they reverse (and vice versa)
 - Stock take history preserved indefinitely
 - User attribution on all create/update/approve actions
+
+#### 14.4.1 Audit Log
+
+A generic, append-only `AuditLog` table records sensitive operations beyond what the ledger captures (price changes, approvals, role grants, customer record edits, etc.).
+
+```
+AuditLog
+├── id: UUID
+├── actorUserId: FK -> User
+├── action: TEXT (e.g., "minimum_price.update", "user.role_change",
+│                       "credit_sale.authorize", "bad_debt.writeoff",
+│                       "journal.reverse", "stock.reconcile")
+├── entityType: TEXT (e.g., "store_stock", "shop_sale", "user")
+├── entityId: TEXT
+├── before: JSONB (nullable — prior state)
+├── after: JSONB (nullable — new state)
+├── metadata: JSONB (nullable — extra context, e.g., approval reason)
+├── ipAddress: INET (nullable)
+├── userAgent: TEXT (nullable)
+├── createdAt: TIMESTAMP WITH TIMEZONE
+```
+
+`AuditLog` is **append-only**: no updates or deletes. Admin-only read access.
+
+### 14.5 Time Zone & Business Day
+
+- All timestamps stored as `TIMESTAMP WITH TIMEZONE` (UTC internally)
+- Reports and "by day" aggregations use **Africa/Kampala** (UTC+3) as the business time zone
+- Daily reports use the local-time day boundary (00:00–23:59 Africa/Kampala)
+- A single constant `BUSINESS_TIMEZONE = "Africa/Kampala"` is referenced wherever date boundaries matter
+
+### 14.6 Concurrency
+
+Stock contention can occur when two users (e.g., two sales personnel at the same shop) attempt to sell the last unit simultaneously. The system protects against this with:
+
+- **Row-level locking** during sales: `SELECT ... FOR UPDATE` on the relevant `ShopStock` row inside the sale transaction. The second concurrent sale waits, then re-reads quantity and fails cleanly with a "stock just sold out" error.
+- **Same approach applies to** stock-take reconciliation, transfers, and returns — any operation that mutates a stock row.
+- **Idempotency keys** on all mutating server functions: clients pass an `Idempotency-Key` header; the server deduplicates retries within a 24-hour window.
+
+### 14.7 Backup, Retention, and Disaster Recovery
+
+- **Database backups:** Neon's built-in branching/PITR (Point-in-Time Recovery) is the primary mechanism. Retention: 7 days on free tier (upgrade if longer retention is needed for compliance).
+- **RPO target:** ≤ 5 minutes (Neon WAL-based PITR meets this).
+- **RTO target:** ≤ 1 hour for app + sync layer (re-deploy from CI; ElectricSQL is stateless beyond the WAL replication slot).
+- **Logical replication slot:** monitor lag — a stalled ElectricSQL consumer can cause WAL bloat on Neon. Alert if slot lag > 1 GB.
+- **Off-site export:** weekly `pg_dump` of all non-ledger reference tables to Cloudflare R2 as a belt-and-braces measure. Ledger is the system of record and is included.
+- **Retention:** ledger entries and audit logs are retained indefinitely. Soft-deleted reference rows are retained indefinitely (compliance + audit).
+
+### 14.8 Human-Readable Document Numbers
+
+Every document a user might reference verbally or in print has a stable, sequential, human-readable number alongside its internal UUID. Numbers are zero-padded and prefixed by document type and year.
+
+| Document | Format | Example |
+|----------|--------|---------|
+| Supply route | `SR-YYYY-NNNN` | `SR-2026-0048` |
+| Store receiving | `RCV-YYYY-NNNN` | `RCV-2026-0123` |
+| Store transfer | `TRF-YYYY-NNNN` | `TRF-2026-0089` |
+| Shop sale (receipt) | `SALE-YYYY-NNNNN` | `SALE-2026-00457` |
+| Customer payment | `PAY-YYYY-NNNN` | `PAY-2026-0021` |
+| Shop return | `RET-YYYY-NNNN` | `RET-2026-0007` |
+| Store return | `STR-RET-YYYY-NNNN` | `STR-RET-2026-0003` |
+| Stock take | `STK-YYYY-NNNN` | `STK-2026-0014` |
+
+Numbers are generated server-side using a per-prefix Postgres sequence and reset annually. They are immutable once issued.
+
+### 14.9 Receipt & Document Generation
+
+The system generates printable PDFs for the following documents:
+- **Sales receipt** (per `ShopSale`) — issued at point of sale, includes shop name, items, total, payment method, and document number
+- **Transfer slip** (per `StoreTransfer`) — accompanies goods leaving the warehouse, lists items dispatched
+- **Customer statement** (per `Customer`, on demand) — outstanding balance, sale history, payment history, aged receivables
+- **Stock-take worksheet** (per `StockTake`) — printable count sheet with system quantities hidden until reconciliation
+
+PDFs are generated on demand via server function (no batch storage); receipts can be printed or downloaded.
+
+### 14.10 Listing, Search & Pagination
+
+All list endpoints (sales, transfers, customers, ledger) follow a consistent contract:
+- **Pagination:** cursor-based (`?cursor=<id>&limit=<n>`), default limit 50, max 200
+- **Filters:** date range, location, status, free-text search where applicable (e.g., customer name, product name, document number)
+- **Sort:** explicit `?sort=<field>:<asc|desc>`; default by `createdAt desc`
+- **Total count** is **not** returned by default (avoid `SELECT COUNT(*)` on hot paths). A separate `?countHint=true` parameter triggers an approximate count via `pg_stat_*` for large lists.
+
+### 14.11 Notifications & Alerts
+
+The system emits in-app notifications (and optionally email for Admin) for events that need attention:
+
+| Trigger | Audience | Channel |
+|---------|----------|---------|
+| Shop stock for an item drops below 5 units | Admin, Supervisor | In-app |
+| Stock take discrepancy > 10% of system quantity | Admin, Supervisor | In-app + email |
+| Credit sale outstanding > 30 days | Admin, Supervisor | In-app + email |
+| Below-minimum sale recorded | Admin, Supervisor | In-app |
+| Bad-debt write-off | Admin | In-app + email |
+| Journal reversal posted | Admin | In-app + email |
+| Logical replication slot lag > 1 GB | Admin (sysops) | Email |
+
+Thresholds (low-stock count, aging window, discrepancy %) are configurable in settings, not hardcoded.
+
+### 14.12 Excel Data Import
+
+A one-time import path migrates the historical `gross_profit.xlsx` (47 routes, 2011–2026) into the system:
+
+- **CSV upload UI** for Admin only: one tab per supply route
+- **Preview step:** parsed rows are shown side-by-side with their target schema fields; user resolves ambiguous columns before commit
+- **Idempotent import:** each route gets a deterministic `external_ref` (e.g., sheet name) so re-running the import skips already-imported routes
+- **Historical exchange rates:** imported as-is from the spreadsheet, preserved on `SupplyRouteItem` records
+- **No ledger backfill:** historical routes are imported as **closed** routes with no journal entries (the business considers them already settled). Opening balances for cash/bank/inventory are entered separately as a single `Owner's Equity` opening journal.
+- **Audit trail:** every imported row writes an `AuditLog` entry with `action = "import.excel"` and the source filename + sheet.
 
 ---
 
