@@ -33,20 +33,25 @@ export const expenseCategoryEnum = pgEnum("expense_category", [
   "miscellaneous",
 ])
 
-export const supplyRoutes = pgTable("supply_routes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  status: supplyRouteStatusEnum("status").notNull().default("planning"),
-  departureDate: date("departure_date"),
-  returnDate: date("return_date"),
-  budgetUsd: numeric("budget_usd", { precision: 15, scale: 2 }),
-  notes: text("notes"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-})
+export const supplyRoutes = pgTable(
+  "supply_routes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    status: supplyRouteStatusEnum("status").notNull().default("planning"),
+    departureDate: date("departure_date"),
+    returnDate: date("return_date"),
+    budgetUsd: numeric("budget_usd", { precision: 15, scale: 2 }),
+    notes: text("notes"),
+    externalRef: text("external_ref"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [index("idx_route_external_ref").on(table.externalRef)],
+)
 
 export const supplyRouteSuppliers = pgTable(
   "supply_route_suppliers",
