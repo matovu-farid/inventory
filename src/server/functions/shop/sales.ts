@@ -3,8 +3,9 @@ import { eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
-import { shopSales, shopSaleItems, shopStock } from "#/db/schema"
+import { shopSales, shopSaleItems, shopStock, customers } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
+import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
@@ -42,8 +43,9 @@ const saleItemInput = z.object({
 
 const recordSaleInput = z.object({
   shopId: z.string().uuid(),
-  paymentMethod: z.enum(["cash", "bank"]),
+  paymentMethod: z.enum(["cash", "bank", "credit"]),
   bankAccountId: z.string().uuid().optional(),
+  customerId: z.string().uuid().optional(),
   items: z.array(saleItemInput).min(1),
   approvedBy: z.string().optional(),
   notes: z.string().optional(),
@@ -66,7 +68,27 @@ export const recordSale = createServerFn()
     const userId = (session.user as { id: string }).id
     const userRole = (session.user as { role: string }).role
 
+    if (data.paymentMethod === "credit") {
+      if (userRole === "sales") {
+        throw new Error(
+          "Only admin or supervisor can authorize a credit sale.",
+        )
+      }
+      if (!data.customerId) {
+        throw new Error("customerId is required for credit sales.")
+      }
+    }
+
     return db.transaction(async (tx) => {
+      // Verify customer exists when this is a credit sale
+      if (data.paymentMethod === "credit" && data.customerId) {
+        const customer = await tx.query.customers.findFirst({
+          where: eq(customers.id, data.customerId),
+        })
+        if (!customer || customer.deletedAt) {
+          throw new Error(`Customer not found: ${data.customerId}`)
+        }
+      }
       let totalAmount = new BigNumber(0)
       let totalCost = new BigNumber(0)
       let hasBelowMinimum = false
@@ -122,7 +144,9 @@ export const recordSale = createServerFn()
         })
       }
 
-      // Create sale header
+      const isCredit = data.paymentMethod === "credit"
+      const docNumber = await nextDocumentNumber(tx, "SALE")
+
       const [sale] = await tx
         .insert(shopSales)
         .values({
@@ -131,8 +155,12 @@ export const recordSale = createServerFn()
           soldBy: userId,
           paymentMethod: data.paymentMethod,
           bankAccountId: data.bankAccountId,
+          customerId: isCredit ? data.customerId : null,
           totalAmount: totalAmount.toFixed(2),
-          approvedBy: hasBelowMinimum ? userId : undefined,
+          paymentStatus: isCredit ? "open" : "settled",
+          outstandingBalance: isCredit ? totalAmount.toFixed(2) : "0",
+          approvedBy: isCredit || hasBelowMinimum ? userId : undefined,
+          documentNumber: docNumber.formatted,
           notes: data.notes,
         })
         .returning()
@@ -158,12 +186,17 @@ export const recordSale = createServerFn()
           .where(eq(shopStock.id, detail.stock.id))
       }
 
-      // Post ledger: revenue
+      const debitCategory = isCredit
+        ? "Accounts Receivable"
+        : data.paymentMethod === "cash"
+          ? "Cash"
+          : "Bank"
+
       await postJournalEntry(tx, {
         entries: [
           {
             type: "debit",
-            category: data.paymentMethod === "cash" ? "Cash" : "Bank",
+            category: debitCategory,
             amount: totalAmount.toFixed(2),
           },
           { type: "credit", category: "Sales Revenue", amount: totalAmount.toFixed(2) },
@@ -172,10 +205,12 @@ export const recordSale = createServerFn()
         referenceId: sale.id,
         locationType: "shop",
         locationId: data.shopId,
-        depositLocation: data.paymentMethod,
+        depositLocation: isCredit
+          ? undefined
+          : (data.paymentMethod as "cash" | "bank"),
         bankAccountId: data.bankAccountId,
         recordedBy: userId,
-        description: `Sale of ${data.items.length} items`,
+        description: `Sale ${docNumber.formatted} (${data.items.length} items)`,
       })
 
       // Post ledger: COGS
