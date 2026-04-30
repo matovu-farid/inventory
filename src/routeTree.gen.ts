@@ -16,6 +16,7 @@ import { Route as StoreIndexRouteImport } from './routes/store/index'
 import { Route as ShopIndexRouteImport } from './routes/shop/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReportsIndexRouteImport } from './routes/reports/index'
+import { Route as CustomersIndexRouteImport } from './routes/customers/index'
 import { Route as SupplySuppliersRouteImport } from './routes/supply/suppliers'
 import { Route as SupplyRouteIdRouteImport } from './routes/supply/$routeId'
 import { Route as StoreTransfersRouteImport } from './routes/store/transfers'
@@ -57,6 +58,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
 const ReportsIndexRoute = ReportsIndexRouteImport.update({
   id: '/reports/',
   path: '/reports/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomersIndexRoute = CustomersIndexRouteImport.update({
+  id: '/customers/',
+  path: '/customers/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SupplySuppliersRoute = SupplySuppliersRouteImport.update({
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/customers/': typeof CustomersIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/shop/': typeof ShopIndexRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/customers': typeof CustomersIndexRoute
   '/reports': typeof ReportsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/shop': typeof ShopIndexRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/customers/': typeof CustomersIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/shop/': typeof ShopIndexRoute
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
+    | '/customers/'
     | '/reports/'
     | '/settings/'
     | '/shop/'
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
+    | '/customers'
     | '/reports'
     | '/settings'
     | '/shop'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
+    | '/customers/'
     | '/reports/'
     | '/settings/'
     | '/shop/'
@@ -204,6 +216,7 @@ export interface RootRouteChildren {
   StoreTransfersRoute: typeof StoreTransfersRoute
   SupplyRouteIdRoute: typeof SupplyRouteIdRoute
   SupplySuppliersRoute: typeof SupplySuppliersRoute
+  CustomersIndexRoute: typeof CustomersIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   ShopIndexRoute: typeof ShopIndexRoute
@@ -261,6 +274,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports/'
       preLoaderRoute: typeof ReportsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customers/': {
+      id: '/customers/'
+      path: '/customers'
+      fullPath: '/customers/'
+      preLoaderRoute: typeof CustomersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/supply/suppliers': {
@@ -324,6 +344,7 @@ const rootRouteChildren: RootRouteChildren = {
   StoreTransfersRoute: StoreTransfersRoute,
   SupplyRouteIdRoute: SupplyRouteIdRoute,
   SupplySuppliersRoute: SupplySuppliersRoute,
+  CustomersIndexRoute: CustomersIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   ShopIndexRoute: ShopIndexRoute,

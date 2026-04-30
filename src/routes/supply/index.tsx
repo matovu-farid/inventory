@@ -237,6 +237,7 @@ function CreateRouteForm({
       <div className="space-y-2">
         <Label htmlFor="budgetUsd">Budget</Label>
         <MoneyInput
+          id="budgetUsd"
           currency="USD"
           value={budgetUsd}
           onChange={setBudgetUsd}

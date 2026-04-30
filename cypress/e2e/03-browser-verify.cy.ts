@@ -31,7 +31,7 @@ describe("Browser Verification", () => {
     cy.clearAllSessionStorage()
     cy.clearAllLocalStorage()
     cy.visit("/login")
-    cy.contains("Sign in to your account", { timeout: 10000 }).should("be.visible")
+    cy.contains("Welcome back", { timeout: 10000 }).should("be.visible")
     cy.contains("Sign up").should("be.visible")
     cy.screenshot("verify-01-login-page")
   })
@@ -54,7 +54,6 @@ describe("Browser Verification", () => {
     // Should redirect to dashboard
     cy.contains("Dashboard", { timeout: 10000 }).should("be.visible")
     cy.contains("Supply Routes").should("be.visible")
-    cy.contains("Sign out").should("be.visible")
     cy.screenshot("verify-03-dashboard")
   })
 

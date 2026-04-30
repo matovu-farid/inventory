@@ -75,6 +75,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Shop", to: "/shop", icon: Store },
       { label: "Sales", to: "/shop/sales", icon: ShoppingCart },
+      { label: "Customers", to: "/customers", icon: Users },
     ],
   },
   {
