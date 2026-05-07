@@ -38,7 +38,11 @@ export interface SystemPrereqItem extends MissingPrereq {
 export interface SystemPrereqsSummary {
   /** Total page prereq checks performed (one per page that declares prereqs). */
   totalChecks: number
-  /** Pages whose prereqs are fully satisfied. */
+  /**
+   * Pages that are usable — no hard prereqs blocking. Soft-warning pages
+   * are still counted as passing because they render and work; the
+   * `satisfiedPages` array below is the strict "no issues at all" set.
+   */
   passing: number
   /** Pages with ≥1 hard prereq missing. */
   failingHard: number

@@ -2,6 +2,10 @@ import { createFileRoute } from "@tanstack/react-router"
 import { OpeningBalanceForm } from "#/components/opening-balance/opening-balance-form"
 import { getSession } from "#/server/middleware/auth"
 
+// No PagePrerequisites wrapper here by design: the opening-balance form is
+// the bootstrap mechanism for an empty warehouse, so it must always be
+// reachable. Auth/role is the only gate. The page is therefore omitted
+// from getSystemPrereqs.
 export const Route = createFileRoute("/store/opening-balance")({
   loader: async () => {
     const session = await getSession()

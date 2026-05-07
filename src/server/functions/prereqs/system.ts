@@ -74,7 +74,7 @@ export const getSystemPrereqs = createServerFn().handler(
 
     return {
       totalChecks: pageChecks.length,
-      passing: pageChecks.length - failingHard - failingSoft,
+      passing: pageChecks.length - failingHard,
       failingHard,
       failingSoft,
       items,
