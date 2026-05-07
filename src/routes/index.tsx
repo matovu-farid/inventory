@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router"
 import {
   Package,
   ShoppingCart,
@@ -6,9 +6,18 @@ import {
   BarChart3,
   Users,
   ArrowLeftRight,
+  AlertTriangle,
+  ArrowRight,
 } from "lucide-react"
+import { getSystemPrereqs } from "#/server/functions/prereqs/system"
 
-export const Route = createFileRoute("/")({ component: Home })
+export const Route = createFileRoute("/")({
+  loader: async () => {
+    const summary = await getSystemPrereqs()
+    return { summary }
+  },
+  component: Home,
+})
 
 const quickActions = [
   {
@@ -62,8 +71,32 @@ const quickActions = [
 ]
 
 function Home() {
+  const { summary } = useLoaderData({ from: "/" })
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
+      {summary.failingHard > 0 && (
+        <Link
+          to="/settings/setup"
+          className="block rounded-md border border-destructive/40 bg-destructive/5 p-4 text-destructive transition-colors hover:bg-destructive/10"
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="size-4" strokeWidth={1.75} />
+            <div className="flex-1">
+              <p className="text-sm font-medium leading-tight">
+                {summary.failingHard} setup{" "}
+                {summary.failingHard === 1 ? "step needs" : "steps need"}{" "}
+                attention
+              </p>
+              <p className="text-[13px] opacity-90">
+                Open the Setup Checklist to see what's missing.
+              </p>
+            </div>
+            <ArrowRight className="size-4" strokeWidth={1.75} />
+          </div>
+        </Link>
+      )}
+
       {/* Welcome */}
       <div>
         <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-foreground">
