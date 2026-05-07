@@ -5,6 +5,7 @@ import BigNumber from "bignumber.js"
 import { db } from "#/db"
 import { stockTakes, stockTakeItems, storeStock, shopStock } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
+import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
@@ -57,6 +58,7 @@ export const startStockTake = createServerFn()
         })
         .returning()
 
+      let itemCount = 0
       // Get current stock for this location
       if (data.locationType === "store") {
         const items = await tx.query.storeStock.findMany({
@@ -71,6 +73,7 @@ export const startStockTake = createServerFn()
             physicalQuantity: item.quantityOnHand, // default to matching
             discrepancy: 0,
           })
+          itemCount++
         }
       } else {
         const items = await tx.query.shopStock.findMany({
@@ -85,8 +88,24 @@ export const startStockTake = createServerFn()
             physicalQuantity: item.quantityOnHand,
             discrepancy: 0,
           })
+          itemCount++
         }
       }
+
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "stockTake.start",
+        entityType: "stock_take",
+        entityId: st.id,
+        after: {
+          locationType: data.locationType,
+          locationId: data.locationId,
+          status: st.status,
+        },
+        metadata: {
+          itemCount,
+        },
+      })
 
       return st
     })
@@ -212,6 +231,33 @@ export const reconcileStockTake = createServerFn()
         .update(stockTakes)
         .set({ status: "reconciled" })
         .where(eq(stockTakes.id, data.stockTakeId))
+
+      const discrepancyCount = st.items.filter((i) => i.discrepancy !== 0).length
+      const totalShrinkage = st.items.reduce(
+        (sum, i) => sum + (i.discrepancy < 0 ? Math.abs(i.discrepancy) : 0),
+        0,
+      )
+      const totalOverage = st.items.reduce(
+        (sum, i) => sum + (i.discrepancy > 0 ? i.discrepancy : 0),
+        0,
+      )
+
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "stockTake.reconcile",
+        entityType: "stock_take",
+        entityId: st.id,
+        before: { status: st.status },
+        after: { status: "reconciled" },
+        metadata: {
+          locationType: st.locationType,
+          locationId: st.locationId,
+          itemCount: st.items.length,
+          discrepancyCount,
+          totalShrinkage,
+          totalOverage,
+        },
+      })
 
       return { reconciled: true }
     })

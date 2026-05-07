@@ -11,6 +11,7 @@ import {
 } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
+import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { buildStoreReturnReceiveEntries } from "./return-entries"
@@ -93,6 +94,24 @@ export const dispatchStoreReturn = createServerFn()
           })
           .where(eq(shopStock.id, detail.stock.id))
       }
+
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "storeReturn.dispatch",
+        entityType: "store_return",
+        entityId: storeReturn.id,
+        after: {
+          status: "dispatched",
+          shopId: data.shopId,
+          storeId: data.storeId,
+          documentNumber: docNumber.formatted,
+          reason: data.reason,
+        },
+        metadata: {
+          itemCount: data.items.length,
+          originalTransferId: data.originalTransferId,
+        },
+      })
 
       return storeReturn
     })
@@ -225,6 +244,23 @@ export const receiveStoreReturn = createServerFn()
         .update(storeReturns)
         .set({ status: "received", receivedBy: userId })
         .where(eq(storeReturns.id, data.storeReturnId))
+
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "storeReturn.receive",
+        entityType: "store_return",
+        entityId: storeReturn.id,
+        before: { status: "dispatched" },
+        after: { status: "received" },
+        metadata: {
+          itemCount: data.itemReceipts.length,
+          documentNumber: storeReturn.documentNumber,
+          totalTransferPriceResellableUgx: totalTransferPriceResellable.toFixed(2),
+          totalTransferPriceDamagedUgx: totalTransferPriceDamaged.toFixed(2),
+          totalCostResellableUgx: totalCostResellable.toFixed(2),
+          totalCostDamagedUgx: totalCostDamaged.toFixed(2),
+        },
+      })
 
       return { ok: true }
     })

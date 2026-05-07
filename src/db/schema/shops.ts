@@ -31,8 +31,9 @@ export const shopStock = pgTable(
       .references(() => shops.id, { onDelete: "restrict" }),
     productName: text("product_name").notNull(),
     articleNumber: text("article_number"),
-    // FK to storeTransferItems omitted here to avoid circular import (shops <-> transfers)
-    storeTransferItemId: uuid("store_transfer_item_id").notNull(),
+    // FK to storeTransferItems omitted here to avoid circular import (shops <-> transfers).
+    // Nullable: opening-balance stock rows have no originating transfer.
+    storeTransferItemId: uuid("store_transfer_item_id"),
     quantityOnHand: integer("quantity_on_hand").notNull().default(0),
     damagedQuantity: integer("damaged_quantity").notNull().default(0),
     damagedValueUgx: numeric("damaged_value_ugx", { precision: 15, scale: 2 })

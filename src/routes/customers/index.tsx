@@ -3,7 +3,7 @@ import { useState } from "react"
 import { Plus } from "lucide-react"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
-import { Label } from "#/components/ui/label"
+import { FieldLabel } from "#/components/ui/field-label"
 import {
   Dialog,
   DialogContent,
@@ -91,7 +91,7 @@ function CustomersPage() {
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <FieldLabel htmlFor="name" help="customer.name">Name</FieldLabel>
                 <Input
                   id="name"
                   value={name}
@@ -100,7 +100,7 @@ function CustomersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone (optional)</Label>
+                <FieldLabel htmlFor="phone" help="customer.phone">Phone (optional)</FieldLabel>
                 <Input
                   id="phone"
                   value={phone}
@@ -108,7 +108,7 @@ function CustomersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes (optional)</Label>
+                <FieldLabel htmlFor="notes" help="customer.notes">Notes (optional)</FieldLabel>
                 <Input
                   id="notes"
                   value={notes}

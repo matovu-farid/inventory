@@ -59,6 +59,8 @@ const createRouteInput = z.object({
   departureDate: z.string().optional(),
   returnDate: z.string().optional(),
   budgetUsd: z.string().optional(),
+  rateUgxPerUsd: z.string().optional(),
+  rateRmbPerUsd: z.string().optional(),
   notes: z.string().optional(),
   supplierIds: z.array(z.string().uuid()).optional(),
 })
@@ -94,11 +96,13 @@ const updateRouteInput = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).optional(),
   status: z
-    .enum(["planning", "purchasing", "in_transit", "received", "completed"])
+    .enum(["planning", "in_transit", "received"])
     .optional(),
   departureDate: z.string().optional(),
   returnDate: z.string().optional(),
   budgetUsd: z.string().optional(),
+  rateUgxPerUsd: z.string().optional(),
+  rateRmbPerUsd: z.string().optional(),
   notes: z.string().optional(),
 })
 

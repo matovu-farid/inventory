@@ -10,6 +10,7 @@ import {
   shopStock,
 } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
+import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { buildTransferInventoryEntries } from "./transfer-entries"
@@ -143,6 +144,23 @@ export const createTransfer = createServerFn()
         description: `Inter-branch balance for transfer`,
       })
 
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "transfer.create",
+        entityType: "store_transfer",
+        entityId: transfer.id,
+        after: {
+          shopId: data.shopId,
+          status: "dispatched",
+          notes: data.notes,
+        },
+        metadata: {
+          itemCount: data.items.length,
+          totalTransferValueUgx: totalTransferValue.toFixed(2),
+          totalCostValueUgx: totalCostValue.toFixed(2),
+        },
+      })
+
       return transfer
     })
   })
@@ -235,6 +253,19 @@ export const confirmTransferReceipt = createServerFn()
         .update(storeTransfers)
         .set({ status: "received", receivedBy: userId })
         .where(eq(storeTransfers.id, data.transferId))
+
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "transfer.receive",
+        entityType: "store_transfer",
+        entityId: data.transferId,
+        before: { status: "dispatched" },
+        after: { status: "received" },
+        metadata: {
+          itemCount: data.items.length,
+          shopId: transfer.shopId,
+        },
+      })
 
       return { transferId: data.transferId, status: "received" }
     })

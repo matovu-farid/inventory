@@ -132,9 +132,8 @@ describe("multi-currency amount validation", () => {
   })
 
   it("validates all supported currencies", () => {
-    const supported = ["RMB", "BHT", "USD", "UGX"]
+    const supported = ["RMB", "USD", "UGX"]
     expect(supported).toContain("RMB")
-    expect(supported).toContain("BHT")
     expect(supported).toContain("USD")
     expect(supported).toContain("UGX")
   })

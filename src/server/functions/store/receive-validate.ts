@@ -39,3 +39,25 @@ export function validateReceiveItem(
 
   return { usableQty: quantityReceived - quantityDamaged }
 }
+
+export interface ValidateDiscrepancyNotesInput {
+  quantityExpected: number
+  quantityReceived: number
+  discrepancyNotes?: string | null
+}
+
+/**
+ * Require an explanation when fewer items arrived than expected (transit loss).
+ * Damaged-but-arrived items don't trigger this — only missing items do.
+ */
+export function validateDiscrepancyNotes(
+  input: ValidateDiscrepancyNotesInput,
+): void {
+  if (input.quantityReceived >= input.quantityExpected) return
+  const note = (input.discrepancyNotes ?? "").trim()
+  if (note.length === 0) {
+    throw new Error(
+      `Discrepancy notes required: received ${input.quantityReceived} of ${input.quantityExpected} expected`,
+    )
+  }
+}

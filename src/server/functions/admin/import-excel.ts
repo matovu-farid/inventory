@@ -111,7 +111,7 @@ export const importExcel = createServerFn()
           .insert(supplyRoutes)
           .values({
             name: parsed.name,
-            status: "completed",
+            status: "received",
             externalRef,
           })
           .returning()

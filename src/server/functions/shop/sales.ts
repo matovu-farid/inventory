@@ -6,6 +6,7 @@ import { db } from "#/db"
 import { shopSales, shopSaleItems, shopStock, customers } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
+import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
@@ -225,6 +226,27 @@ export const recordSale = createServerFn()
         locationId: data.shopId,
         recordedBy: userId,
         description: `COGS for sale`,
+      })
+
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "sale.create",
+        entityType: "shop_sale",
+        entityId: sale.id,
+        after: {
+          shopId: data.shopId,
+          documentNumber: docNumber.formatted,
+          paymentMethod: data.paymentMethod,
+          totalAmountUgx: totalAmount.toFixed(2),
+          paymentStatus: isCredit ? "open" : "settled",
+          customerId: isCredit ? data.customerId : null,
+        },
+        metadata: {
+          itemCount: data.items.length,
+          totalCostUgx: totalCost.toFixed(2),
+          hasBelowMinimum,
+          bankAccountId: data.bankAccountId,
+        },
       })
 
       return sale

@@ -3,10 +3,11 @@ import { useState } from "react"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
-import { MoneyInput } from "#/components/ui/money-input"
-import { Label } from "#/components/ui/label"
+import { MoneyInput, RateInput } from "#/components/ui/money-input"
+import { FieldLabel } from "#/components/ui/field-label"
 import { Textarea } from "#/components/ui/textarea"
 import { Badge } from "#/components/ui/badge"
+import { DatePicker } from "#/components/ui/date-picker"
 import {
   Dialog,
   DialogContent,
@@ -42,10 +43,8 @@ export const Route = createFileRoute("/supply/")({
 
 const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   planning: "outline",
-  purchasing: "secondary",
   in_transit: "default",
-  received: "default",
-  completed: "secondary",
+  received: "secondary",
 }
 
 function SupplyRoutesPage() {
@@ -72,13 +71,27 @@ function SupplyRoutesPage() {
             <DialogHeader>
               <DialogTitle>Create Supply Route</DialogTitle>
             </DialogHeader>
-            <CreateRouteForm
-              suppliers={suppliers}
-              onSuccess={() => setOpen(false)}
-            />
+            <CreateRouteForm onSuccess={() => setOpen(false)} />
           </DialogContent>
         </Dialog>
       </div>
+
+      {suppliers.length === 0 && (
+        <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/40 p-4">
+          <div>
+            <p className="text-sm font-medium">Add suppliers first</p>
+            <p className="text-muted-foreground text-xs">
+              Routes track procurement from suppliers. Add at least one supplier before items can be recorded.
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/supply/suppliers">
+              Manage suppliers
+              <ArrowRight className="ml-1 h-3 w-3" />
+            </Link>
+          </Button>
+        </div>
+      )}
 
       {routes.length === 0 ? (
         <div className="text-muted-foreground py-12 text-center">
@@ -161,15 +174,14 @@ function SupplyRoutesPage() {
 }
 
 function CreateRouteForm({
-  suppliers,
   onSuccess,
 }: {
-  suppliers: Array<{ id: string; name: string; type: string }>
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
-  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([])
   const [budgetUsd, setBudgetUsd] = useState("")
+  const [rateUgxPerUsd, setRateUgxPerUsd] = useState("")
+  const [rateRmbPerUsd, setRateRmbPerUsd] = useState("")
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const router = useRouter()
 
@@ -192,10 +204,9 @@ function CreateRouteForm({
           departureDate: (form.get("departureDate") as string) || undefined,
           returnDate: (form.get("returnDate") as string) || undefined,
           budgetUsd: budgetUsd || undefined,
+          rateUgxPerUsd: rateUgxPerUsd || undefined,
+          rateRmbPerUsd: rateRmbPerUsd || undefined,
           notes: (form.get("notes") as string) || undefined,
-          supplierIds: selectedSuppliers.length
-            ? selectedSuppliers
-            : undefined,
         },
       })
       router.invalidate()
@@ -210,7 +221,7 @@ function CreateRouteForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Route Name *</Label>
+        <FieldLabel htmlFor="name" help="supplyRoute.name">Route Name *</FieldLabel>
         <Input
           id="name"
           name="name"
@@ -225,17 +236,17 @@ function CreateRouteForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="departureDate">Departure Date</Label>
-          <Input id="departureDate" name="departureDate" type="date" />
+          <FieldLabel htmlFor="departureDate" help="supplyRoute.departureDate">Departure Date</FieldLabel>
+          <DatePicker id="departureDate" name="departureDate" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="returnDate">Return Date</Label>
-          <Input id="returnDate" name="returnDate" type="date" />
+          <FieldLabel htmlFor="returnDate" help="supplyRoute.returnDate">Return Date</FieldLabel>
+          <DatePicker id="returnDate" name="returnDate" />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="budgetUsd">Budget</Label>
+        <FieldLabel htmlFor="budgetUsd" help="supplyRoute.budgetUsd">Budget</FieldLabel>
         <MoneyInput
           id="budgetUsd"
           currency="USD"
@@ -246,38 +257,34 @@ function CreateRouteForm({
         />
       </div>
 
-      {suppliers.length > 0 && (
-        <div className="space-y-2">
-          <Label>Suppliers</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {suppliers.map((s) => (
-              <label
-                key={s.id}
-                className="flex items-center gap-2 rounded border p-2 text-sm cursor-pointer hover:bg-muted"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedSuppliers.includes(s.id)}
-                  onChange={(e) => {
-                    setSelectedSuppliers((prev) =>
-                      e.target.checked
-                        ? [...prev, s.id]
-                        : prev.filter((id) => id !== s.id),
-                    )
-                  }}
-                />
-                {s.name}
-                <Badge variant="outline" className="ml-auto text-xs">
-                  {s.type}
-                </Badge>
-              </label>
-            ))}
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Trip Exchange Rates</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <FieldLabel>UGX per 1 USD</FieldLabel>
+            <RateInput
+              label="UGX/USD"
+              value={rateUgxPerUsd}
+              onChange={setRateUgxPerUsd}
+              decimals={2}
+              placeholder="e.g. 3750"
+            />
+          </div>
+          <div className="space-y-2">
+            <FieldLabel>RMB per 1 USD</FieldLabel>
+            <RateInput
+              label="RMB/USD"
+              value={rateRmbPerUsd}
+              onChange={setRateRmbPerUsd}
+              decimals={6}
+              placeholder="e.g. 7.25"
+            />
           </div>
         </div>
-      )}
+      </div>
 
       <div className="space-y-2">
-        <Label htmlFor="notes">Notes</Label>
+        <FieldLabel htmlFor="notes" help="supplyRoute.notes">Notes</FieldLabel>
         <Textarea id="notes" name="notes" rows={2} />
       </div>
 

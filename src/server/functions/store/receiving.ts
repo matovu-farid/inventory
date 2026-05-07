@@ -10,9 +10,13 @@ import {
   supplyRouteItems,
 } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
+import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
-import { validateReceiveItem } from "./receive-validate"
+import {
+  validateDiscrepancyNotes,
+  validateReceiveItem,
+} from "./receive-validate"
 
 /**
  * List supply routes that have status "in_transit" or "received" —
@@ -33,7 +37,8 @@ export const listReceivableRoutes = createServerFn().handler(async () => {
 })
 
 /**
- * Get items for a route that haven't been fully received yet.
+ * Get route items that have not yet been received.
+ * Each item has at most one StoreReceiving row — once received, it disappears.
  */
 export const getUnreceivedItems = createServerFn()
   .inputValidator(z.object({ supplyRouteId: z.string().uuid() }))
@@ -46,33 +51,23 @@ export const getUnreceivedItems = createServerFn()
       with: { supplier: true },
     })
 
-    // Get existing receivings for these items
-    const receivedMap = new Map<string, number>()
-    if (items.length > 0) {
-      const receivings = await db
-        .select({
-          supplyRouteItemId: storeReceivings.supplyRouteItemId,
-          totalReceived: sql<number>`sum(${storeReceivings.quantityReceived})`,
-        })
-        .from(storeReceivings)
-        .where(
-          sql`${storeReceivings.supplyRouteItemId} IN (${sql.join(
-            items.map((i) => sql`${i.id}`),
-            sql`, `,
-          )})`,
-        )
-        .groupBy(storeReceivings.supplyRouteItemId)
+    if (items.length === 0) return []
 
-      for (const r of receivings) {
-        receivedMap.set(r.supplyRouteItemId, Number(r.totalReceived))
-      }
-    }
+    const receivedIds = new Set(
+      (
+        await db
+          .select({ supplyRouteItemId: storeReceivings.supplyRouteItemId })
+          .from(storeReceivings)
+          .where(
+            sql`${storeReceivings.supplyRouteItemId} IN (${sql.join(
+              items.map((i) => sql`${i.id}`),
+              sql`, `,
+            )})`,
+          )
+      ).map((r) => r.supplyRouteItemId),
+    )
 
-    return items.map((item) => ({
-      ...item,
-      alreadyReceived: receivedMap.get(item.id) ?? 0,
-      remaining: item.quantity - (receivedMap.get(item.id) ?? 0),
-    }))
+    return items.filter((item) => !receivedIds.has(item.id))
   })
 
 const receiveItemInput = z.object({
@@ -122,9 +117,24 @@ export const receiveGoods = createServerFn()
         })
         if (!sri) throw new Error(`Supply route item not found: ${item.supplyRouteItemId}`)
 
+        // One receipt per item — refuse if already received
+        const prior = await tx.query.storeReceivings.findFirst({
+          where: eq(storeReceivings.supplyRouteItemId, sri.id),
+        })
+        if (prior) {
+          throw new Error(
+            `${sri.productName} has already been received on this route`,
+          )
+        }
+
         const { usableQty } = validateReceiveItem({
           quantityReceived: item.quantityReceived,
           quantityDamaged: item.quantityDamaged,
+        })
+        validateDiscrepancyNotes({
+          quantityExpected: sri.quantity,
+          quantityReceived: item.quantityReceived,
+          discrepancyNotes: item.discrepancyNotes,
         })
         const transitLoss = sri.quantity - item.quantityReceived
 
@@ -222,6 +232,29 @@ export const receiveGoods = createServerFn()
         .update(supplyRoutes)
         .set({ status: "received" })
         .where(eq(supplyRoutes.id, data.supplyRouteId))
+
+      const totalUsableQty = results.reduce(
+        (sum, r) => sum + (r.received - r.damaged),
+        0,
+      )
+      const totalTransitLoss = results.reduce(
+        (sum, r) => sum + r.transitLoss,
+        0,
+      )
+      const totalDamaged = results.reduce((sum, r) => sum + r.damaged, 0)
+
+      await recordAuditLog(tx, {
+        actorUserId: (session.user as { id: string }).id,
+        action: "store.receiveGoods",
+        entityType: "supply_route",
+        entityId: data.supplyRouteId,
+        metadata: {
+          itemCount: data.items.length,
+          totalUsableQty,
+          totalTransitLoss,
+          totalDamaged,
+        },
+      })
 
       return results
     })

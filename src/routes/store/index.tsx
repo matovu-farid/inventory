@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
@@ -13,24 +13,29 @@ import {
   TableRow,
 } from "#/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
-import { Check } from "lucide-react"
+import { InfoTip } from "#/components/ui/info-tip"
+import { Check, Plus } from "lucide-react"
 import {
   getStoreStock,
   setMinimumSellPrice,
 } from "#/server/functions/store/receiving"
 import { ensureStore } from "#/server/functions/admin/locations"
+import { getSession } from "#/server/middleware/auth"
 
 export const Route = createFileRoute("/store/")({
   loader: async () => {
     await ensureStore()
+    const session = await getSession()
+    const role = (session?.user as { role?: string } | undefined)?.role ?? null
     const stock = await getStoreStock()
-    return { stock }
+    return { stock, role }
   },
   component: StoreStockPage,
 })
 
 function StoreStockPage() {
-  const { stock } = Route.useLoaderData()
+  const { stock, role } = Route.useLoaderData()
+  const canSeed = role === "admin" || role === "supervisor"
 
   const totalValue = stock.reduce(
     (sum, s) =>
@@ -41,18 +46,29 @@ function StoreStockPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Store Stock</h1>
-        <p className="text-muted-foreground">
-          Current warehouse inventory levels and pricing.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Store Stock</h1>
+          <p className="text-muted-foreground">
+            Current warehouse inventory levels and pricing.
+          </p>
+        </div>
+        {canSeed && (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/store/opening-balance">
+              <Plus className="mr-1 h-4 w-4" />
+              Add Existing Stock
+            </Link>
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 max-w-md">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Total Items
+              <InfoTip term="kpi.totalItemsStore" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -61,8 +77,9 @@ function StoreStockPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Inventory Value
+              <InfoTip term="kpi.inventoryValue" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -85,8 +102,16 @@ function StoreStockPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Product</TableHead>
-                <TableHead>Art #</TableHead>
-                <TableHead className="text-right">Qty On Hand</TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1.5">
+                    Art # <InfoTip term="col.articleNumber" />
+                  </span>
+                </TableHead>
+                <TableHead className="text-right">
+                  <span className="inline-flex items-center gap-1.5">
+                    Qty On Hand <InfoTip term="col.qtyOnHand" />
+                  </span>
+                </TableHead>
                 <TableHead className="text-right">Cost/Unit (UGX)</TableHead>
                 <TableHead className="text-right">Min Sell Price</TableHead>
                 <TableHead className="text-right">Total Value</TableHead>

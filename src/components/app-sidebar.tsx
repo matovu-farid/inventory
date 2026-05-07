@@ -154,6 +154,7 @@ function NavLink({
     <Link
       to={item.to}
       onClick={onClick}
+      activeOptions={{ exact: true }}
       className={cn(
         "group/link relative flex items-center rounded-lg text-[13px] font-medium",
         "text-sidebar-foreground/60 transition-all duration-150",

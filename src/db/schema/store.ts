@@ -61,9 +61,11 @@ export const storeStock = pgTable(
       .references(() => stores.id, { onDelete: "restrict" }),
     productName: text("product_name").notNull(),
     articleNumber: text("article_number"),
-    supplyRouteItemId: uuid("supply_route_item_id")
-      .notNull()
-      .references(() => supplyRouteItems.id, { onDelete: "restrict" }),
+    // Nullable: opening-balance stock rows have no originating supply route.
+    supplyRouteItemId: uuid("supply_route_item_id").references(
+      () => supplyRouteItems.id,
+      { onDelete: "restrict" },
+    ),
     quantityOnHand: integer("quantity_on_hand").notNull().default(0),
     damagedQuantity: integer("damaged_quantity").notNull().default(0),
     damagedValueUgx: numeric("damaged_value_ugx", { precision: 15, scale: 2 })

@@ -33,15 +33,20 @@ export const addSupplyRouteItem = createServerFn()
     let totalAmountUsd: string | null = null
     let totalCostUgx: string
 
+    const isUsd = data.foreignCurrency === "USD"
+    const fxToUsdStr = isUsd
+      ? data.exchangeRateForeignToUsd ?? "1"
+      : data.exchangeRateForeignToUsd
+
     if (
       data.foreignCurrency === "UGX" ||
-      !data.exchangeRateForeignToUsd ||
+      !fxToUsdStr ||
       !data.exchangeRateUsdToUgx
     ) {
       // Local purchase — already in UGX
       totalCostUgx = totalAmountForeign
     } else {
-      const fxToUsd = new BigNumber(data.exchangeRateForeignToUsd)
+      const fxToUsd = new BigNumber(fxToUsdStr)
       if (fxToUsd.isZero()) throw new Error("Exchange rate cannot be zero")
       const usdToUgx = new BigNumber(data.exchangeRateUsdToUgx)
 
@@ -107,7 +112,9 @@ export const updateSupplyRouteItem = createServerFn()
     const unitPrice = new BigNumber(fields.unitPriceForeign ?? existing.unitPriceForeign)
     const qty = fields.quantity ?? existing.quantity
     const currency = fields.foreignCurrency ?? existing.foreignCurrency
-    const fxToUsdStr = fields.exchangeRateForeignToUsd ?? existing.exchangeRateForeignToUsd
+    const rawFxToUsdStr = fields.exchangeRateForeignToUsd ?? existing.exchangeRateForeignToUsd
+    const fxToUsdStr =
+      currency === "USD" ? rawFxToUsdStr ?? "1" : rawFxToUsdStr
     const usdToUgxStr = fields.exchangeRateUsdToUgx ?? existing.exchangeRateUsdToUgx
 
     const totalAmountForeign = unitPrice.times(qty).toFixed(2)

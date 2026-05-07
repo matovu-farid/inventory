@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState, useEffect } from "react"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
@@ -30,20 +30,27 @@ import {
 } from "#/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { Separator } from "#/components/ui/separator"
-import { ShoppingCart } from "lucide-react"
+import { InfoTip } from "#/components/ui/info-tip"
+import { Plus, ShoppingCart } from "lucide-react"
+import { AddShopDialog } from "#/components/shops/add-shop-dialog"
 import { listShops } from "#/server/functions/admin/locations"
 import { getShopStock, recordSale } from "#/server/functions/shop/sales"
+import { getSession } from "#/server/middleware/auth"
 
 export const Route = createFileRoute("/shop/")({
   loader: async () => {
+    const session = await getSession()
+    const role = (session?.user as { role?: string } | undefined)?.role ?? null
     const shops = await listShops()
-    return { shops }
+    return { shops, role }
   },
   component: ShopPage,
 })
 
 function ShopPage() {
-  const { shops } = Route.useLoaderData()
+  const { shops, role } = Route.useLoaderData()
+  const router = useRouter()
+  const canManage = role === "admin" || role === "supervisor"
   const [shopId, setShopId] = useState(shops[0]?.id ?? "")
   const [stock, setStock] = useState<
     Array<{
@@ -84,7 +91,7 @@ function ShopPage() {
             View shop inventory and record sales.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Select value={shopId} onValueChange={loadStock}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Select shop" />
@@ -97,6 +104,23 @@ function ShopPage() {
               ))}
             </SelectContent>
           </Select>
+          {canManage && (
+            <AddShopDialog onCreated={() => router.invalidate()} />
+          )}
+          {canManage &&
+            (shopId ? (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/shop/opening-balance" search={{ shopId }}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  Add Existing Stock
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" disabled>
+                <Plus className="mr-1 h-4 w-4" />
+                Add Existing Stock
+              </Button>
+            ))}
           {shopId && (
             <Dialog open={saleOpen} onOpenChange={setSaleOpen}>
               <DialogTrigger asChild>
@@ -125,15 +149,17 @@ function ShopPage() {
 
       {shops.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center">
-          No shops configured yet. Create one in Settings.
+          No shops configured yet.
+          {canManage ? " Use the Add Shop button above to create one." : ""}
         </p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 max-w-md">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                   Items in Stock
+                  <InfoTip term="kpi.itemsInStockShop" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -142,8 +168,9 @@ function ShopPage() {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                   Stock Value
+                  <InfoTip term="kpi.shopStockValue" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -165,8 +192,16 @@ function ShopPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
-                    <TableHead>Art #</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1.5">
+                        Art # <InfoTip term="col.articleNumber" />
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <span className="inline-flex items-center gap-1.5">
+                        Qty <InfoTip term="col.qtyOnHand" />
+                      </span>
+                    </TableHead>
                     <TableHead className="text-right">Cost/Unit</TableHead>
                     <TableHead className="text-right">Min Sell</TableHead>
                   </TableRow>

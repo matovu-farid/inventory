@@ -5,6 +5,15 @@ import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
 import { Badge } from "#/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
+import { InfoTip } from "#/components/ui/info-tip"
+import { Textarea } from "#/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "#/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -47,12 +56,14 @@ function ReceivingPage() {
       quantity: number
       totalCostUgx: string
       supplier: { name: string }
-      alreadyReceived: number
-      remaining: number
     }>
   >([])
   const [receivedQtys, setReceivedQtys] = useState<Record<string, number>>({})
   const [damagedQtys, setDamagedQtys] = useState<Record<string, number>>({})
+  const [discrepancyNotes, setDiscrepancyNotes] = useState<
+    Record<string, string>
+  >({})
+  const [discrepancyOpen, setDiscrepancyOpen] = useState(false)
   const [pending, setPending] = useState(false)
   const [results, setResults] = useState<
     Array<{
@@ -75,17 +86,21 @@ function ReceivingPage() {
     const unreceived = await getUnreceivedItems({
       data: { supplyRouteId: routeId },
     })
-    setItems(unreceived.filter((i) => i.remaining > 0))
+    setItems(unreceived)
     const qtys: Record<string, number> = {}
     for (const i of unreceived) {
-      if (i.remaining > 0) qtys[i.id] = i.remaining
+      qtys[i.id] = i.quantity
     }
     setReceivedQtys(qtys)
     setDamagedQtys({})
+    setDiscrepancyNotes({})
   }
 
-  async function handleReceive() {
-    if (!selectedRouteId || items.length === 0) return
+  const discrepantItems = items.filter(
+    (i) => (receivedQtys[i.id] ?? i.quantity) < i.quantity,
+  )
+
+  async function submitReceipt() {
     setPending(true)
     try {
       const res = await receiveGoods({
@@ -93,13 +108,15 @@ function ReceivingPage() {
           supplyRouteId: selectedRouteId,
           items: items.map((i) => ({
             supplyRouteItemId: i.id,
-            quantityReceived: receivedQtys[i.id] ?? i.remaining,
+            quantityReceived: receivedQtys[i.id] ?? i.quantity,
             quantityDamaged: damagedQtys[i.id] ?? 0,
+            discrepancyNotes: discrepancyNotes[i.id]?.trim() || undefined,
           })),
         },
       })
       setResults(res)
       setItems([])
+      setDiscrepancyOpen(false)
       router.invalidate()
     } catch (err) {
       console.error("Failed to receive goods:", err)
@@ -107,6 +124,19 @@ function ReceivingPage() {
       setPending(false)
     }
   }
+
+  function handleReceive() {
+    if (!selectedRouteId || items.length === 0) return
+    if (discrepantItems.length > 0) {
+      setDiscrepancyOpen(true)
+      return
+    }
+    void submitReceipt()
+  }
+
+  const allDiscrepancyNotesFilled = discrepantItems.every(
+    (i) => (discrepancyNotes[i.id] ?? "").trim().length > 0,
+  )
 
   const totalTransitLoss = results.reduce((s, r) => s + r.transitLoss, 0)
 
@@ -146,11 +176,21 @@ function ReceivingPage() {
                 <TableRow>
                   <TableHead>Product</TableHead>
                   <TableHead>Supplier</TableHead>
-                  <TableHead className="text-right">Expected</TableHead>
-                  <TableHead className="text-right">Already Rcvd</TableHead>
-                  <TableHead className="text-right">Remaining</TableHead>
-                  <TableHead className="text-right">Received</TableHead>
-                  <TableHead className="text-right">Damaged</TableHead>
+                  <TableHead className="text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      Expected <InfoTip term="col.expected" />
+                    </span>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      Received <InfoTip term="col.received" />
+                    </span>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      Damaged <InfoTip term="col.damaged" />
+                    </span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -164,16 +204,10 @@ function ReceivingPage() {
                       {item.quantity}
                     </TableCell>
                     <TableCell className="text-right">
-                      {item.alreadyReceived}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold">
-                      {item.remaining}
-                    </TableCell>
-                    <TableCell className="text-right">
                       <Input
                         type="number"
                         min={0}
-                        max={item.remaining}
+                        max={item.quantity}
                         className="w-20 ml-auto text-right"
                         value={receivedQtys[item.id] ?? ""}
                         onChange={(e) =>
@@ -221,10 +255,26 @@ function ReceivingPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Expected</TableHead>
-                    <TableHead className="text-right">Received</TableHead>
-                    <TableHead className="text-right">Damaged</TableHead>
-                    <TableHead className="text-right">Transit Loss</TableHead>
+                    <TableHead className="text-right">
+                      <span className="inline-flex items-center gap-1.5">
+                        Expected <InfoTip term="col.expected" />
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <span className="inline-flex items-center gap-1.5">
+                        Received <InfoTip term="col.received" />
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <span className="inline-flex items-center gap-1.5">
+                        Damaged <InfoTip term="col.damaged" />
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <span className="inline-flex items-center gap-1.5">
+                        Transit Loss <InfoTip term="col.transitLoss" />
+                      </span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -263,6 +313,60 @@ function ReceivingPage() {
           or "received" status.
         </p>
       )}
+
+      <Dialog open={discrepancyOpen} onOpenChange={setDiscrepancyOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Explain Discrepancies</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Fewer items arrived than expected. Record why for each item below.
+          </p>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            {discrepantItems.map((item) => {
+              const received = receivedQtys[item.id] ?? item.quantity
+              const missing = item.quantity - received
+              return (
+                <div key={item.id} className="space-y-2 rounded-md border p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{item.productName}</span>
+                    <Badge variant="destructive">{missing} missing</Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Expected {item.quantity}, received {received}
+                  </div>
+                  <Textarea
+                    rows={2}
+                    placeholder="e.g. 10 boxes held at customs"
+                    value={discrepancyNotes[item.id] ?? ""}
+                    onChange={(e) =>
+                      setDiscrepancyNotes((n) => ({
+                        ...n,
+                        [item.id]: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              )
+            })}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDiscrepancyOpen(false)}
+              disabled={pending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={submitReceipt}
+              disabled={pending || !allDiscrepancyNotesFilled}
+            >
+              {pending ? "Receiving..." : "Confirm Receipt"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

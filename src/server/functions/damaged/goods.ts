@@ -5,6 +5,7 @@ import BigNumber from "bignumber.js"
 import { db } from "#/db"
 import { shopStock, storeStock } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
+import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { computeWriteOffAmount } from "./writeoff-math"
@@ -62,6 +63,20 @@ export const markGoodsDamaged = createServerFn()
           recordedBy: userId,
           description: `Mark damaged: ${data.reason}`,
         })
+        await recordAuditLog(tx, {
+          actorUserId: userId,
+          action: "damaged.mark",
+          entityType: "shop_stock",
+          entityId: data.stockId,
+          metadata: {
+            locationType: "shop",
+            locationId: stock.shopId,
+            productName: stock.productName,
+            quantity: data.quantity,
+            costUgx: cost.toFixed(2),
+            reason: data.reason,
+          },
+        })
         return { ok: true }
       }
 
@@ -94,6 +109,20 @@ export const markGoodsDamaged = createServerFn()
         locationId: stock.storeId,
         recordedBy: userId,
         description: `Mark damaged: ${data.reason}`,
+      })
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "damaged.mark",
+        entityType: "store_stock",
+        entityId: data.stockId,
+        metadata: {
+          locationType: "store",
+          locationId: stock.storeId,
+          productName: stock.productName,
+          quantity: data.quantity,
+          costUgx: cost.toFixed(2),
+          reason: data.reason,
+        },
       })
       return { ok: true }
     })
@@ -152,6 +181,20 @@ export const writeOffDamagedGoods = createServerFn()
           recordedBy: userId,
           description: `Write-off ${data.quantity} damaged: ${data.reason}`,
         })
+        await recordAuditLog(tx, {
+          actorUserId: userId,
+          action: "damaged.writeOff",
+          entityType: "shop_stock",
+          entityId: data.stockId,
+          metadata: {
+            locationType: "shop",
+            locationId: stock.shopId,
+            productName: stock.productName,
+            quantity: data.quantity,
+            writeOffAmountUgx: writeOffAmount,
+            reason: data.reason,
+          },
+        })
         return { ok: true, writtenOff: writeOffAmount }
       }
 
@@ -187,6 +230,20 @@ export const writeOffDamagedGoods = createServerFn()
         locationId: stock.storeId,
         recordedBy: userId,
         description: `Write-off ${data.quantity} damaged: ${data.reason}`,
+      })
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "damaged.writeOff",
+        entityType: "store_stock",
+        entityId: data.stockId,
+        metadata: {
+          locationType: "store",
+          locationId: stock.storeId,
+          productName: stock.productName,
+          quantity: data.quantity,
+          writeOffAmountUgx: writeOffAmount,
+          reason: data.reason,
+        },
       })
       return { ok: true, writtenOff: writeOffAmount }
     })

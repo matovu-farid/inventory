@@ -2,8 +2,10 @@ import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
-import { Label } from "#/components/ui/label"
+import { FieldLabel } from "#/components/ui/field-label"
 import { Textarea } from "#/components/ui/textarea"
+import { Combobox } from "#/components/ui/combobox"
+import { COUNTRIES } from "#/lib/countries"
 import {
   Select,
   SelectContent,
@@ -107,6 +109,7 @@ function SuppliersPage() {
 
 function CreateSupplierForm({ onSuccess }: { onSuccess: () => void }) {
   const [pending, setPending] = useState(false)
+  const [country, setCountry] = useState("")
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -119,7 +122,7 @@ function CreateSupplierForm({ onSuccess }: { onSuccess: () => void }) {
         data: {
           name: form.get("name") as string,
           type: form.get("type") as "local" | "international",
-          country: (form.get("country") as string) || undefined,
+          country: country || undefined,
           contactName: (form.get("contactName") as string) || undefined,
           contactPhone: (form.get("contactPhone") as string) || undefined,
           contactEmail: (form.get("contactEmail") as string) || undefined,
@@ -138,12 +141,12 @@ function CreateSupplierForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Name *</Label>
+        <FieldLabel htmlFor="name" help="supplier.name">Name *</FieldLabel>
         <Input id="name" name="name" required />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="type">Type *</Label>
+        <FieldLabel htmlFor="type" help="supplier.type">Type *</FieldLabel>
         <Select name="type" defaultValue="international">
           <SelectTrigger>
             <SelectValue />
@@ -156,28 +159,36 @@ function CreateSupplierForm({ onSuccess }: { onSuccess: () => void }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="country">Country</Label>
-        <Input id="country" name="country" placeholder="e.g., China" />
+        <FieldLabel htmlFor="country" help="supplier.country">Country</FieldLabel>
+        <Combobox
+          id="country"
+          options={COUNTRIES}
+          value={country}
+          onChange={setCountry}
+          placeholder="Select country"
+          searchPlaceholder="Search countries..."
+          emptyMessage="No countries match."
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="contactName">Contact Name</Label>
+          <FieldLabel htmlFor="contactName" help="supplier.contactName">Contact Name</FieldLabel>
           <Input id="contactName" name="contactName" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="contactPhone">Phone</Label>
+          <FieldLabel htmlFor="contactPhone" help="supplier.contactPhone">Phone</FieldLabel>
           <Input id="contactPhone" name="contactPhone" />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="contactEmail">Email</Label>
+        <FieldLabel htmlFor="contactEmail" help="supplier.contactEmail">Email</FieldLabel>
         <Input id="contactEmail" name="contactEmail" type="email" />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="notes">Notes</Label>
+        <FieldLabel htmlFor="notes" help="supplier.notes">Notes</FieldLabel>
         <Textarea id="notes" name="notes" rows={2} />
       </div>
 

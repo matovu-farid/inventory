@@ -8,6 +8,7 @@ import {
 } from "#/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { Separator } from "#/components/ui/separator"
+import { InfoTip } from "#/components/ui/info-tip"
 import {
   getProfitAndLoss,
   getBalanceSheet,
@@ -37,8 +38,9 @@ function ReportsDashboard() {
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Cash on Hand
+              <InfoTip term="kpi.cashOnHand" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -49,8 +51,9 @@ function ReportsDashboard() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Bank Balance
+              <InfoTip term="kpi.bankBalance" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -61,8 +64,9 @@ function ReportsDashboard() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Total Liquidity
+              <InfoTip term="kpi.totalLiquidity" />
             </CardTitle>
           </CardHeader>
           <CardContent>

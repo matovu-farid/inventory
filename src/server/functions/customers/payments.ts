@@ -15,6 +15,7 @@ import {
 } from "#/lib/credit/payment-allocation"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
+import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
@@ -136,6 +137,24 @@ export const recordPayment = createServerFn()
         description: `Payment ${docNumber.formatted} from ${customer.name}`,
       })
 
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "customerPayment.record",
+        entityType: "customer_payment",
+        entityId: payment.id,
+        after: {
+          customerId: data.customerId,
+          shopId: data.shopId,
+          documentNumber: docNumber.formatted,
+          amountUgx: amount.toFixed(2),
+          paymentMethod: data.paymentMethod,
+        },
+        metadata: {
+          allocationCount: allocation.allocations.length,
+          bankAccountId: data.bankAccountId,
+        },
+      })
+
       return { payment, allocations: allocation.allocations }
     })
   })
@@ -196,6 +215,28 @@ export const writeOffBadDebt = createServerFn()
         locationId: sale.shopId,
         recordedBy: userId,
         description: `Bad debt write-off: ${data.reason}`,
+      })
+
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "customerPayment.writeOff",
+        entityType: "shop_sale",
+        entityId: data.saleId,
+        before: {
+          paymentStatus: sale.paymentStatus,
+          outstandingBalance: sale.outstandingBalance,
+        },
+        after: {
+          paymentStatus: "written_off",
+          outstandingBalance: "0",
+        },
+        metadata: {
+          customerId: sale.customerId,
+          shopId: sale.shopId,
+          documentNumber: sale.documentNumber,
+          writtenOffAmountUgx: remaining.toFixed(2),
+          reason: data.reason,
+        },
       })
 
       return { ok: true, writtenOff: remaining.toFixed(2) }

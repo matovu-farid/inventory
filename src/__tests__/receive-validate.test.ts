@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest"
 import fc from "fast-check"
-import { validateReceiveItem } from "#/server/functions/store/receive-validate"
+import {
+  validateDiscrepancyNotes,
+  validateReceiveItem,
+} from "#/server/functions/store/receive-validate"
 
 /**
  * Tests for BUG-1: receiveGoods computes
@@ -50,6 +53,59 @@ describe("validateReceiveItem — guard (BUG-1)", () => {
     expect(validateReceiveItem({ quantityReceived: 0, quantityDamaged: 0 })).toEqual({
       usableQty: 0,
     })
+  })
+})
+
+describe("validateDiscrepancyNotes", () => {
+  it("does nothing when received >= expected", () => {
+    expect(() =>
+      validateDiscrepancyNotes({
+        quantityExpected: 100,
+        quantityReceived: 100,
+      }),
+    ).not.toThrow()
+    expect(() =>
+      validateDiscrepancyNotes({
+        quantityExpected: 100,
+        quantityReceived: 105,
+      }),
+    ).not.toThrow()
+  })
+
+  it("throws when received < expected and notes are missing", () => {
+    expect(() =>
+      validateDiscrepancyNotes({
+        quantityExpected: 100,
+        quantityReceived: 90,
+      }),
+    ).toThrow(/discrepancy/i)
+  })
+
+  it("throws when received < expected and notes are blank/whitespace", () => {
+    expect(() =>
+      validateDiscrepancyNotes({
+        quantityExpected: 100,
+        quantityReceived: 90,
+        discrepancyNotes: "   ",
+      }),
+    ).toThrow(/discrepancy/i)
+    expect(() =>
+      validateDiscrepancyNotes({
+        quantityExpected: 100,
+        quantityReceived: 90,
+        discrepancyNotes: null,
+      }),
+    ).toThrow(/discrepancy/i)
+  })
+
+  it("passes when received < expected and notes are provided", () => {
+    expect(() =>
+      validateDiscrepancyNotes({
+        quantityExpected: 100,
+        quantityReceived: 90,
+        discrepancyNotes: "10 boxes held at customs",
+      }),
+    ).not.toThrow()
   })
 })
 

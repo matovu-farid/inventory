@@ -13,6 +13,7 @@ import {
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { computeNewSaleStatus } from "#/lib/credit/payment-allocation"
+import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { computeShopStockMutationsForReturnItem } from "./return-stock-mutations"
@@ -272,6 +273,29 @@ export const recordCustomerReturn = createServerFn()
             .where(eq(shopSales.id, data.originalSaleId))
         }
       }
+
+      await recordAuditLog(tx, {
+        actorUserId: userId,
+        action: "shopReturn.create",
+        entityType: "shop_return",
+        entityId: shopReturn.id,
+        after: {
+          shopId: data.shopId,
+          documentNumber: docNumber.formatted,
+          refundMethod: data.refundMethod,
+          totalRefundUgx: totalRefund.toFixed(2),
+          customerId: data.customerId,
+          originalSaleId: data.originalSaleId,
+          reason: data.reason,
+        },
+        metadata: {
+          itemCount: data.items.length,
+          totalCostUgx: totalCost.toFixed(2),
+          totalCostResellableUgx: totalCostResellable.toFixed(2),
+          totalCostDamagedUgx: totalCostDamaged.toFixed(2),
+          bankAccountId: data.bankAccountId,
+        },
+      })
 
       return shopReturn
     })

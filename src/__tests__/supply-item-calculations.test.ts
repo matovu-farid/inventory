@@ -20,14 +20,19 @@ function computeItemCosts(params: {
   let totalAmountUsd: string | null = null
   let totalCostUgx: string
 
+  const isUsd = params.foreignCurrency === "USD"
+  const fxToUsdStr = isUsd
+    ? params.exchangeRateForeignToUsd ?? "1"
+    : params.exchangeRateForeignToUsd
+
   if (
     params.foreignCurrency === "UGX" ||
-    !params.exchangeRateForeignToUsd ||
+    !fxToUsdStr ||
     !params.exchangeRateUsdToUgx
   ) {
     totalCostUgx = totalAmountForeign
   } else {
-    const fxToUsd = new BigNumber(params.exchangeRateForeignToUsd)
+    const fxToUsd = new BigNumber(fxToUsdStr)
     const usdToUgx = new BigNumber(params.exchangeRateUsdToUgx)
 
     totalAmountUsd = new BigNumber(totalAmountForeign)
@@ -119,6 +124,22 @@ describe("supply route item cost calculations", () => {
 
     expect(new BigNumber(result.totalCostUgx).gt(0)).toBe(true)
     expect(new BigNumber(result.totalCostUgx).isFinite()).toBe(true)
+  })
+
+  it("treats USD foreign currency as 1:1 to USD when no rate provided", () => {
+    const result = computeItemCosts({
+      unitPriceForeign: "10",
+      foreignCurrency: "USD",
+      exchangeRateUsdToUgx: "3700",
+      quantity: 5,
+    })
+
+    // totalAmountForeign = 10 * 5 = 50
+    expect(result.totalAmountForeign).toBe("50.00")
+    // totalAmountUsd should equal totalAmountForeign (rate=1)
+    expect(result.totalAmountUsd).toBe("50.00")
+    // totalCostUgx = 10 / 1 * 3700 * 5 = 185000
+    expect(result.totalCostUgx).toBe("185000.00")
   })
 
   it("matches the Excel formula exactly", () => {

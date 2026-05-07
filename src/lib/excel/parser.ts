@@ -18,7 +18,7 @@ export interface ParsedRouteItem {
   articleNumber: string | null
   quantity: number
   unitPriceForeign: string
-  foreignCurrency: "RMB" | "BHT" | "UGX"
+  foreignCurrency: "RMB" | "UGX"
   exchangeRateForeignToUsd: string | null
   exchangeRateUsdToUgx: string | null
 }

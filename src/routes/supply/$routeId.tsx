@@ -1,13 +1,16 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
+import { Textarea } from "#/components/ui/textarea"
 import { MoneyInput, RateInput } from "#/components/ui/money-input"
-import { Label } from "#/components/ui/label"
+import { FieldLabel } from "#/components/ui/field-label"
+import { InfoTip } from "#/components/ui/info-tip"
 import { Badge } from "#/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { Separator } from "#/components/ui/separator"
+import { Combobox } from "#/components/ui/combobox"
 import {
   Select,
   SelectContent,
@@ -30,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "#/components/ui/table"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, ArrowRight } from "lucide-react"
 import {
   getSupplyRoute,
   updateSupplyRoute,
@@ -58,10 +61,8 @@ export const Route = createFileRoute("/supply/$routeId")({
 
 const STATUSES = [
   "planning",
-  "purchasing",
   "in_transit",
   "received",
-  "completed",
 ] as const
 
 const EXPENSE_CATEGORIES = [
@@ -146,12 +147,32 @@ function RouteDetailPage() {
         </Select>
       </div>
 
+      {suppliers.length === 0 && (
+        <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/40 p-4">
+          <div>
+            <p className="text-sm font-medium">Add suppliers first</p>
+            <p className="text-muted-foreground text-xs">
+              You need at least one supplier before items can be added to a route.
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/supply/suppliers">
+              Manage suppliers
+              <ArrowRight className="ml-1 h-3 w-3" />
+            </Link>
+          </Button>
+        </div>
+      )}
+
+      <TripRatesSection route={route} />
+
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Item Costs
+              <InfoTip term="kpi.itemCosts" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -165,8 +186,9 @@ function RouteDetailPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Expenses
+              <InfoTip term="kpi.expenses" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -180,8 +202,9 @@ function RouteDetailPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Grand Total
+              <InfoTip term="kpi.grandTotal" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -215,6 +238,8 @@ function RouteDetailPage() {
                 suppliers={
                   routeSuppliers.length > 0 ? routeSuppliers : suppliers
                 }
+                rateUgxPerUsd={route.rateUgxPerUsd}
+                rateRmbPerUsd={route.rateRmbPerUsd}
                 onSuccess={() => {
                   setItemDialogOpen(false)
                   router.invalidate()
@@ -232,13 +257,29 @@ function RouteDetailPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
-                  <TableHead>Art #</TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1.5">
+                      Art # <InfoTip term="col.articleNumber" />
+                    </span>
+                  </TableHead>
                   <TableHead>Supplier</TableHead>
                   <TableHead className="text-right">Qty</TableHead>
                   <TableHead className="text-right">Unit Price</TableHead>
-                  <TableHead className="text-right">Total (Foreign)</TableHead>
-                  <TableHead className="text-right">Total (USD)</TableHead>
-                  <TableHead className="text-right">Total (UGX)</TableHead>
+                  <TableHead className="text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      Total (Foreign) <InfoTip term="col.totalForeign" />
+                    </span>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      Total (USD) <InfoTip term="col.totalUsd" />
+                    </span>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      Total (UGX) <InfoTip term="col.totalUgx" />
+                    </span>
+                  </TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -372,19 +413,34 @@ function RouteDetailPage() {
 function AddItemForm({
   supplyRouteId,
   suppliers,
+  rateUgxPerUsd,
+  rateRmbPerUsd,
   onSuccess,
 }: {
   supplyRouteId: string
   suppliers: Array<{ id: string; name: string }>
+  rateUgxPerUsd?: string | null
+  rateRmbPerUsd?: string | null
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
-  const [currency, setCurrency] = useState("RMB")
   const [supplierId, setSupplierId] = useState("")
   const [unitPrice, setUnitPrice] = useState("")
-  const [fxToUsd, setFxToUsd] = useState("")
-  const [usdToUgx, setUsdToUgx] = useState("")
+  const initialCurrency = "RMB"
+  const initialFxToUsd =
+    initialCurrency === "RMB"
+      ? rateRmbPerUsd ?? ""
+      : ""
+  const [currency, setCurrency] = useState<string>(initialCurrency)
+  const [fxToUsd, setFxToUsd] = useState(initialFxToUsd)
+  const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? "")
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
+  function handleCurrencyChange(next: string) {
+    setCurrency(next)
+    if (next === "RMB") setFxToUsd(rateRmbPerUsd ?? "")
+    else setFxToUsd("")
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -398,7 +454,9 @@ function AddItemForm({
     if (!quantity || quantity < 1) errs.quantity = "Quantity must be at least 1"
     if (!unitPrice || Number(unitPrice) <= 0) errs.unitPrice = "Enter a valid price"
     if (currency !== "UGX") {
-      if (!fxToUsd || Number(fxToUsd) <= 0) errs.fxToUsd = "Enter a valid rate"
+      if (currency !== "USD") {
+        if (!fxToUsd || Number(fxToUsd) <= 0) errs.fxToUsd = "Enter a valid rate"
+      }
       if (!usdToUgx || Number(usdToUgx) <= 0) errs.usdToUgx = "Enter a valid rate"
     }
     setFormErrors(errs)
@@ -416,7 +474,9 @@ function AddItemForm({
           unitPriceForeign: unitPrice,
           foreignCurrency: currency,
           exchangeRateForeignToUsd:
-            currency !== "UGX" ? fxToUsd || undefined : undefined,
+            currency !== "UGX" && currency !== "USD"
+              ? fxToUsd || undefined
+              : undefined,
           exchangeRateUsdToUgx:
             currency !== "UGX" ? usdToUgx || undefined : undefined,
         },
@@ -433,7 +493,7 @@ function AddItemForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="productName">Product Name *</Label>
+          <FieldLabel htmlFor="productName" help="item.productName">Product Name *</FieldLabel>
           <Input
             id="productName"
             name="productName"
@@ -445,25 +505,34 @@ function AddItemForm({
           )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="articleNumber">Article #</Label>
+          <FieldLabel htmlFor="articleNumber" help="item.articleNumber">Article #</FieldLabel>
           <Input id="articleNumber" name="articleNumber" />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="supplierId">Supplier *</Label>
-        <Select value={supplierId} onValueChange={setSupplierId}>
-          <SelectTrigger aria-invalid={!!formErrors.supplierId || undefined}>
-            <SelectValue placeholder="Select supplier" />
-          </SelectTrigger>
-          <SelectContent>
-            {suppliers.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FieldLabel htmlFor="supplierId" help="item.supplierId">Supplier *</FieldLabel>
+        <Combobox
+          id="supplierId"
+          options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+          value={supplierId}
+          onChange={setSupplierId}
+          placeholder="Select supplier"
+          searchPlaceholder="Search suppliers..."
+          emptyMessage={
+            <div className="space-y-1.5">
+              <p>No suppliers found.</p>
+              <Link
+                to="/supply/suppliers"
+                className="text-primary hover:underline inline-flex items-center gap-1 text-xs"
+              >
+                Add a supplier
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+          }
+          aria-invalid={!!formErrors.supplierId}
+        />
         {formErrors.supplierId && (
           <p className="text-xs text-destructive">{formErrors.supplierId}</p>
         )}
@@ -471,7 +540,7 @@ function AddItemForm({
 
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="quantity">Quantity *</Label>
+          <FieldLabel htmlFor="quantity" help="item.quantity">Quantity *</FieldLabel>
           <Input
             id="quantity"
             name="quantity"
@@ -485,7 +554,7 @@ function AddItemForm({
           )}
         </div>
         <div className="space-y-2">
-          <Label>Unit Price *</Label>
+          <FieldLabel help="item.unitPrice">Unit Price *</FieldLabel>
           <MoneyInput
             currency={currency}
             value={unitPrice}
@@ -495,14 +564,13 @@ function AddItemForm({
           />
         </div>
         <div className="space-y-2">
-          <Label>Currency</Label>
-          <Select value={currency} onValueChange={setCurrency}>
+          <FieldLabel help="item.currency">Currency</FieldLabel>
+          <Select value={currency} onValueChange={handleCurrencyChange}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="RMB">RMB</SelectItem>
-              <SelectItem value="BHT">BHT</SelectItem>
               <SelectItem value="USD">USD</SelectItem>
               <SelectItem value="UGX">UGX</SelectItem>
             </SelectContent>
@@ -512,19 +580,21 @@ function AddItemForm({
 
       {currency !== "UGX" && (
         <div className="grid grid-cols-2 gap-4">
+          {currency !== "USD" && (
+            <div className="space-y-2">
+              <FieldLabel help="item.sourceRate">{currency} per 1 USD *</FieldLabel>
+              <RateInput
+                label={`${currency}/USD`}
+                value={fxToUsd}
+                onChange={setFxToUsd}
+                decimals={6}
+                placeholder={`e.g. 7.25`}
+                error={formErrors.fxToUsd}
+              />
+            </div>
+          )}
           <div className="space-y-2">
-            <Label>{currency} per 1 USD *</Label>
-            <RateInput
-              label={`${currency}/USD`}
-              value={fxToUsd}
-              onChange={setFxToUsd}
-              decimals={6}
-              placeholder={`e.g. 7.25`}
-              error={formErrors.fxToUsd}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>UGX per 1 USD *</Label>
+            <FieldLabel help="item.ugxPerUsd">UGX per 1 USD *</FieldLabel>
             <RateInput
               label="UGX/USD"
               value={usdToUgx}
@@ -591,7 +661,7 @@ function AddExpenseForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="category">Category *</Label>
+        <FieldLabel htmlFor="category" help="expense.category">Category *</FieldLabel>
         <Select value={category} onValueChange={setCategory}>
           <SelectTrigger aria-invalid={!!formErrors.category || undefined}>
             <SelectValue placeholder="Select category" />
@@ -610,12 +680,12 @@ function AddExpenseForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
-        <Input id="description" name="description" />
+        <FieldLabel htmlFor="description" help="expense.description">Description</FieldLabel>
+        <Textarea id="description" name="description" rows={3} />
       </div>
 
       <div className="space-y-2">
-        <Label>Amount *</Label>
+        <FieldLabel help="expense.amount">Amount *</FieldLabel>
         <MoneyInput
           currency="UGX"
           value={amount}
@@ -629,5 +699,108 @@ function AddExpenseForm({
         {pending ? "Adding..." : "Add Expense"}
       </Button>
     </form>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Trip Rates Section                                                  */
+/* ------------------------------------------------------------------ */
+
+function TripRatesSection({
+  route,
+}: {
+  route: {
+    id: string
+    rateUgxPerUsd: string | null
+    rateRmbPerUsd: string | null
+  }
+}) {
+  const router = useRouter()
+  const [editing, setEditing] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [ugxPerUsd, setUgxPerUsd] = useState(route.rateUgxPerUsd ?? "")
+  const [rmbPerUsd, setRmbPerUsd] = useState(route.rateRmbPerUsd ?? "")
+
+  async function handleSave() {
+    setPending(true)
+    try {
+      await updateSupplyRoute({
+        data: {
+          id: route.id,
+          rateUgxPerUsd: ugxPerUsd || undefined,
+          rateRmbPerUsd: rmbPerUsd || undefined,
+        },
+      })
+      setEditing(false)
+      router.invalidate()
+    } catch (err) {
+      console.error("Failed to update trip rates:", err)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  function handleCancel() {
+    setUgxPerUsd(route.rateUgxPerUsd ?? "")
+    setRmbPerUsd(route.rateRmbPerUsd ?? "")
+    setEditing(false)
+  }
+
+  if (!editing) {
+    const parts = [
+      route.rateUgxPerUsd ? `UGX ${route.rateUgxPerUsd}/USD` : null,
+      route.rateRmbPerUsd ? `RMB ${route.rateRmbPerUsd}/USD` : null,
+    ].filter(Boolean)
+    return (
+      <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/40 p-4">
+        <div>
+          <p className="text-sm font-medium">Trip Rates</p>
+          <p className="text-muted-foreground text-xs">
+            {parts.length > 0
+              ? parts.join(" | ")
+              : "No trip rates set. New items will need rates entered manually."}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+          Edit
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4 rounded-lg border bg-muted/40 p-4">
+      <p className="text-sm font-medium">Trip Rates</p>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <FieldLabel>UGX per 1 USD</FieldLabel>
+          <RateInput
+            label="UGX/USD"
+            value={ugxPerUsd}
+            onChange={setUgxPerUsd}
+            decimals={2}
+            placeholder="e.g. 3750"
+          />
+        </div>
+        <div className="space-y-2">
+          <FieldLabel>RMB per 1 USD</FieldLabel>
+          <RateInput
+            label="RMB/USD"
+            value={rmbPerUsd}
+            onChange={setRmbPerUsd}
+            decimals={6}
+            placeholder="e.g. 7.25"
+          />
+        </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={handleCancel} disabled={pending}>
+          Cancel
+        </Button>
+        <Button size="sm" onClick={handleSave} disabled={pending}>
+          {pending ? "Saving..." : "Save"}
+        </Button>
+      </div>
+    </div>
   )
 }

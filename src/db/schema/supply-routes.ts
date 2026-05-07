@@ -14,10 +14,8 @@ import { suppliers } from "./suppliers"
 
 export const supplyRouteStatusEnum = pgEnum("supply_route_status", [
   "planning",
-  "purchasing",
   "in_transit",
   "received",
-  "completed",
 ])
 
 export const expenseCategoryEnum = pgEnum("expense_category", [
@@ -42,6 +40,8 @@ export const supplyRoutes = pgTable(
     departureDate: date("departure_date"),
     returnDate: date("return_date"),
     budgetUsd: numeric("budget_usd", { precision: 15, scale: 2 }),
+    rateUgxPerUsd: numeric("rate_ugx_per_usd", { precision: 10, scale: 2 }),
+    rateRmbPerUsd: numeric("rate_rmb_per_usd", { precision: 10, scale: 6 }),
     notes: text("notes"),
     externalRef: text("external_ref"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

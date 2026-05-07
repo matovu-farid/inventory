@@ -21,7 +21,9 @@ import { Route as SupplySuppliersRouteImport } from './routes/supply/suppliers'
 import { Route as SupplyRouteIdRouteImport } from './routes/supply/$routeId'
 import { Route as StoreTransfersRouteImport } from './routes/store/transfers'
 import { Route as StoreReceivingRouteImport } from './routes/store/receiving'
+import { Route as StoreOpeningBalanceRouteImport } from './routes/store/opening-balance'
 import { Route as ShopSalesRouteImport } from './routes/shop/sales'
+import { Route as ShopOpeningBalanceRouteImport } from './routes/shop/opening-balance'
 import { Route as ReportsLedgerRouteImport } from './routes/reports/ledger'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -85,9 +87,19 @@ const StoreReceivingRoute = StoreReceivingRouteImport.update({
   path: '/store/receiving',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoreOpeningBalanceRoute = StoreOpeningBalanceRouteImport.update({
+  id: '/store/opening-balance',
+  path: '/store/opening-balance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ShopSalesRoute = ShopSalesRouteImport.update({
   id: '/shop/sales',
   path: '/shop/sales',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShopOpeningBalanceRoute = ShopOpeningBalanceRouteImport.update({
+  id: '/shop/opening-balance',
+  path: '/shop/opening-balance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsLedgerRoute = ReportsLedgerRouteImport.update({
@@ -105,7 +117,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reports/ledger': typeof ReportsLedgerRoute
+  '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
+  '/store/opening-balance': typeof StoreOpeningBalanceRoute
   '/store/receiving': typeof StoreReceivingRoute
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
@@ -122,7 +136,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reports/ledger': typeof ReportsLedgerRoute
+  '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
+  '/store/opening-balance': typeof StoreOpeningBalanceRoute
   '/store/receiving': typeof StoreReceivingRoute
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
@@ -140,7 +156,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reports/ledger': typeof ReportsLedgerRoute
+  '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
+  '/store/opening-balance': typeof StoreOpeningBalanceRoute
   '/store/receiving': typeof StoreReceivingRoute
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
@@ -159,7 +177,9 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/reports/ledger'
+    | '/shop/opening-balance'
     | '/shop/sales'
+    | '/store/opening-balance'
     | '/store/receiving'
     | '/store/transfers'
     | '/supply/$routeId'
@@ -176,7 +196,9 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/reports/ledger'
+    | '/shop/opening-balance'
     | '/shop/sales'
+    | '/store/opening-balance'
     | '/store/receiving'
     | '/store/transfers'
     | '/supply/$routeId'
@@ -193,7 +215,9 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/reports/ledger'
+    | '/shop/opening-balance'
     | '/shop/sales'
+    | '/store/opening-balance'
     | '/store/receiving'
     | '/store/transfers'
     | '/supply/$routeId'
@@ -211,7 +235,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   ReportsLedgerRoute: typeof ReportsLedgerRoute
+  ShopOpeningBalanceRoute: typeof ShopOpeningBalanceRoute
   ShopSalesRoute: typeof ShopSalesRoute
+  StoreOpeningBalanceRoute: typeof StoreOpeningBalanceRoute
   StoreReceivingRoute: typeof StoreReceivingRoute
   StoreTransfersRoute: typeof StoreTransfersRoute
   SupplyRouteIdRoute: typeof SupplyRouteIdRoute
@@ -311,11 +337,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoreReceivingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/store/opening-balance': {
+      id: '/store/opening-balance'
+      path: '/store/opening-balance'
+      fullPath: '/store/opening-balance'
+      preLoaderRoute: typeof StoreOpeningBalanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/shop/sales': {
       id: '/shop/sales'
       path: '/shop/sales'
       fullPath: '/shop/sales'
       preLoaderRoute: typeof ShopSalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shop/opening-balance': {
+      id: '/shop/opening-balance'
+      path: '/shop/opening-balance'
+      fullPath: '/shop/opening-balance'
+      preLoaderRoute: typeof ShopOpeningBalanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports/ledger': {
@@ -339,7 +379,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   ReportsLedgerRoute: ReportsLedgerRoute,
+  ShopOpeningBalanceRoute: ShopOpeningBalanceRoute,
   ShopSalesRoute: ShopSalesRoute,
+  StoreOpeningBalanceRoute: StoreOpeningBalanceRoute,
   StoreReceivingRoute: StoreReceivingRoute,
   StoreTransfersRoute: StoreTransfersRoute,
   SupplyRouteIdRoute: SupplyRouteIdRoute,
