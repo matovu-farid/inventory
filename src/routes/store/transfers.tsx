@@ -5,6 +5,8 @@ import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
 import { Badge } from "#/components/ui/badge"
+import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
+import { getTransfersPrereqs } from "#/server/functions/prereqs/transfers"
 import {
   Select,
   SelectContent,
@@ -38,12 +40,13 @@ import { listShops } from "#/server/functions/admin/locations"
 
 export const Route = createFileRoute("/store/transfers")({
   loader: async () => {
-    const [transfers, stock, shops] = await Promise.all([
+    const [transfers, stock, shops, prerequisites] = await Promise.all([
       listTransfers(),
       getStoreStock(),
       listShops(),
+      getTransfersPrereqs(),
     ])
-    return { transfers, stock, shops }
+    return { transfers, stock, shops, prerequisites }
   },
   component: TransfersPage,
 })
@@ -56,7 +59,7 @@ const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "o
 }
 
 function TransfersPage() {
-  const { transfers, stock, shops } = Route.useLoaderData()
+  const { transfers, stock, shops, prerequisites } = Route.useLoaderData()
   const [createOpen, setCreateOpen] = useState(false)
   const [receiveOpen, setReceiveOpen] = useState(false)
   const router = useRouter()
@@ -65,109 +68,112 @@ function TransfersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Store Transfers</h1>
-          <p className="text-muted-foreground">
-            Transfer goods from warehouse to shops.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {dispatchedTransfers.length > 0 && (
-            <Dialog open={receiveOpen} onOpenChange={setReceiveOpen}>
+      <div>
+        <h1 className="text-2xl font-bold">Store Transfers</h1>
+        <p className="text-muted-foreground">
+          Transfer goods from warehouse to shops.
+        </p>
+      </div>
+
+      <PagePrerequisites result={prerequisites}>
+        <div className="flex items-center justify-end">
+          <div className="flex gap-2">
+            {dispatchedTransfers.length > 0 && (
+              <Dialog open={receiveOpen} onOpenChange={setReceiveOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <PackageCheck className="mr-2 h-4 w-4" />
+                    Confirm Receipt
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-xl">
+                  <DialogHeader>
+                    <DialogTitle>Confirm Transfer Receipt</DialogTitle>
+                  </DialogHeader>
+                  <ReceiveTransferForm
+                    transfers={dispatchedTransfers}
+                    onSuccess={() => {
+                      setReceiveOpen(false)
+                      router.invalidate()
+                    }}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">
-                  <PackageCheck className="mr-2 h-4 w-4" />
-                  Confirm Receipt
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Transfer
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-xl">
                 <DialogHeader>
-                  <DialogTitle>Confirm Transfer Receipt</DialogTitle>
+                  <DialogTitle>Create Transfer</DialogTitle>
                 </DialogHeader>
-                <ReceiveTransferForm
-                  transfers={dispatchedTransfers}
+                <CreateTransferForm
+                  stock={stock}
+                  shops={shops}
                   onSuccess={() => {
-                    setReceiveOpen(false)
+                    setCreateOpen(false)
                     router.invalidate()
                   }}
                 />
               </DialogContent>
             </Dialog>
-          )}
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New Transfer
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-xl">
-              <DialogHeader>
-                <DialogTitle>Create Transfer</DialogTitle>
-              </DialogHeader>
-              <CreateTransferForm
-                stock={stock}
-                shops={shops}
-                onSuccess={() => {
-                  setCreateOpen(false)
-                  router.invalidate()
-                }}
-              />
-            </DialogContent>
-          </Dialog>
+          </div>
         </div>
-      </div>
 
-      {transfers.length === 0 ? (
-        <p className="text-muted-foreground py-8 text-center">
-          No transfers yet. Create one to move goods from the warehouse to a
-          shop.
-        </p>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Shop</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Items</TableHead>
-                <TableHead className="text-right">Total (UGX)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transfers.map((t) => {
-                const total = t.items.reduce(
-                  (s, i) => s.plus(i.totalPriceUgx),
-                  new BigNumber(0),
-                )
-                return (
-                  <TableRow key={t.id}>
-                    <TableCell>
-                      {new Date(t.transferDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {t.shop.name}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_COLORS[t.status] ?? "outline"}>
-                        {t.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {t.items.length}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {total.toFormat(0)}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+        {transfers.length === 0 ? (
+          <p className="text-muted-foreground py-8 text-center">
+            No transfers yet. Create one to move goods from the warehouse to a
+            shop.
+          </p>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Shop</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Items</TableHead>
+                  <TableHead className="text-right">Total (UGX)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transfers.map((t) => {
+                  const total = t.items.reduce(
+                    (s, i) => s.plus(i.totalPriceUgx),
+                    new BigNumber(0),
+                  )
+                  return (
+                    <TableRow key={t.id}>
+                      <TableCell>
+                        {new Date(t.transferDate).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {t.shop.name}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={STATUS_COLORS[t.status] ?? "outline"}>
+                          {t.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {t.items.length}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {total.toFormat(0)}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </PagePrerequisites>
     </div>
   )
 }
@@ -253,12 +259,6 @@ function CreateTransferForm({
           </SelectContent>
         </Select>
       </div>
-
-      {shops.length === 0 && (
-        <p className="text-sm text-destructive">
-          No shops configured. Create a shop first in Settings.
-        </p>
-      )}
 
       <div className="space-y-2">
         <Label>Select Items</Label>
