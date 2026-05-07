@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth"
+import { betterAuth, APIError } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { admin } from "better-auth/plugins"
 import { tanstackStartCookies } from "better-auth/tanstack-start"
@@ -98,9 +98,10 @@ export const auth = betterAuth({
           }
 
           // Block self-signup once an admin exists
-          throw new Error(
-            "Sign-up is disabled. Ask your administrator for an invite.",
-          )
+          throw new APIError("FORBIDDEN", {
+            message:
+              "Sign-up is disabled. Ask your administrator for an invite.",
+          })
         },
       },
     },
