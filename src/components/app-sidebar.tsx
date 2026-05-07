@@ -41,6 +41,8 @@ interface AppSidebarProps {
   userName: string
   userRole: string
   onLogout: () => void
+  /** Count of system prereq pages with ≥1 hard failure. Hidden when 0. */
+  pendingHardCount?: number
 }
 
 interface NavItem {
@@ -143,10 +145,12 @@ function NavLink({
   item,
   collapsed,
   onClick,
+  badge,
 }: {
   item: NavItem
   collapsed: boolean
   onClick?: () => void
+  badge?: number
 }) {
   const Icon = item.icon
 
@@ -159,7 +163,6 @@ function NavLink({
         "group/link relative flex items-center rounded-lg text-[13px] font-medium",
         "text-sidebar-foreground/60 transition-all duration-150",
         "hover:bg-black/[0.04] hover:text-sidebar-foreground",
-        // Active state – subtle primary tint
         "[&.active]:bg-[oklch(0.546_0.245_262.88/0.08)] [&.active]:text-[oklch(0.42_0.18_262.88)] [&.active]:font-semibold",
         collapsed ? "mx-auto size-10 justify-center" : "gap-3 px-3 py-[7px]",
       )}
@@ -172,6 +175,14 @@ function NavLink({
         strokeWidth={1.75}
       />
       {!collapsed && <span className="truncate">{item.label}</span>}
+      {!collapsed && badge !== undefined && badge > 0 && (
+        <span className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+          {badge}
+        </span>
+      )}
+      {collapsed && badge !== undefined && badge > 0 && (
+        <span className="absolute right-1 top-1 size-1.5 rounded-full bg-destructive" />
+      )}
     </Link>
   )
 
@@ -325,7 +336,7 @@ function UserFooter({
 // AppSidebar
 // ---------------------------------------------------------------------------
 
-function AppSidebar({ userName, userRole, onLogout }: AppSidebarProps) {
+function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(readCollapsed)
 
   useEffect(() => {
@@ -408,7 +419,7 @@ function AppSidebar({ userName, userRole, onLogout }: AppSidebarProps) {
 
         {/* ── Settings (pinned above user) ── */}
         <div className={cn("border-t border-sidebar-border", collapsed ? "px-2 py-2" : "px-3 py-2")}>
-          <NavLink item={settingsItem} collapsed={collapsed} />
+          <NavLink item={settingsItem} collapsed={collapsed} badge={pendingHardCount} />
         </div>
 
         {/* ── User ── */}
@@ -439,7 +450,7 @@ function AppSidebar({ userName, userRole, onLogout }: AppSidebarProps) {
 // SidebarTrigger – mobile hamburger + sheet
 // ---------------------------------------------------------------------------
 
-function SidebarTrigger({ userName, userRole, onLogout }: AppSidebarProps) {
+function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppSidebarProps) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -476,6 +487,7 @@ function SidebarTrigger({ userName, userRole, onLogout }: AppSidebarProps) {
             item={settingsItem}
             collapsed={false}
             onClick={() => setOpen(false)}
+            badge={pendingHardCount}
           />
         </div>
 

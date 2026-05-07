@@ -13,6 +13,7 @@ import { AppSidebar, SidebarTrigger } from "#/components/app-sidebar"
 import { Logo } from "#/components/logo"
 import { getSession } from "#/server/middleware/auth"
 import { authClient } from "#/lib/auth-client"
+import { getSystemPrereqs } from "#/server/functions/prereqs/system"
 import appCss from "../styles.css?url"
 
 import type { QueryClient } from "@tanstack/react-query"
@@ -41,6 +42,10 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     const session = await getSession()
     return { session }
   },
+  loader: async ({ context }) => {
+    if (!context.session) return { prereqsSummary: null }
+    return { prereqsSummary: await getSystemPrereqs() }
+  },
   component: RootLayout,
   shellComponent: RootDocument,
 })
@@ -61,6 +66,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
 function RootLayout() {
   const { session } = Route.useRouteContext()
+  const { prereqsSummary } = Route.useLoaderData()
   const router = useRouter()
   const matches = useMatches()
 
@@ -77,6 +83,7 @@ function RootLayout() {
 
   const userName = (session?.user as { name?: string } | undefined)?.name ?? "User"
   const userRole = (session?.user as { role?: string } | undefined)?.role ?? ""
+  const pendingHardCount = prereqsSummary?.failingHard ?? 0
 
   async function handleLogout() {
     await authClient.signOut()
@@ -89,6 +96,7 @@ function RootLayout() {
         userName={userName}
         userRole={userRole}
         onLogout={handleLogout}
+        pendingHardCount={pendingHardCount}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile header */}
@@ -97,6 +105,7 @@ function RootLayout() {
             userName={userName}
             userRole={userRole}
             onLogout={handleLogout}
+            pendingHardCount={pendingHardCount}
           />
           <Logo className="size-7" />
           <span className="text-[15px] font-semibold tracking-[-0.01em]">
