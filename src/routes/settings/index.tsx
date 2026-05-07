@@ -55,11 +55,7 @@ function SettingsPage() {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Shops</h2>
 
-        {shops.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No shops configured yet.
-          </p>
-        ) : (
+        {shops.length > 0 && (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
