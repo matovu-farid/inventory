@@ -68,6 +68,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@react-email/render": "^2.0.8",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "latest",
     "@tanstack/eslint-config": "latest",
