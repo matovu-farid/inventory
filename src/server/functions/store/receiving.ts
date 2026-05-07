@@ -19,14 +19,30 @@ import {
 } from "./receive-validate"
 
 /**
- * List supply routes that have status "in_transit" or "received" —
- * i.e. routes whose items can be received at the store.
+ * Pure helper: given routes (with items) and the set of supply-route-item
+ * IDs that already have a StoreReceiving record, return only routes that
+ * still have ≥1 unreceived item. Empty-item routes are excluded.
+ */
+export function filterRoutesWithUnreceivedItems<
+  R extends { items: Array<{ id: string }> },
+>(routes: R[], receivedItemIds: ReadonlySet<string>): R[] {
+  return routes.filter(
+    (r) =>
+      r.items.length > 0 &&
+      r.items.some((it) => !receivedItemIds.has(it.id)),
+  )
+}
+
+/**
+ * List supply routes that still have items waiting to be received at the
+ * store. A route is "receivable" when its status is "in_transit" or
+ * "received" AND at least one of its items has no StoreReceiving record yet.
  */
 export const listReceivableRoutes = createServerFn().handler(async () => {
   const session = await requireSession()
   requireRole(session, ["admin", "supervisor"])
 
-  return db.query.supplyRoutes.findMany({
+  const routes = await db.query.supplyRoutes.findMany({
     where: (r, { inArray }) => inArray(r.status, ["in_transit", "received"]),
     with: {
       items: { with: { supplier: true } },
@@ -34,6 +50,24 @@ export const listReceivableRoutes = createServerFn().handler(async () => {
     },
     orderBy: (r, { desc }) => [desc(r.createdAt)],
   })
+
+  if (routes.length === 0) return []
+
+  const allItemIds = routes.flatMap((r) => r.items.map((it) => it.id))
+  if (allItemIds.length === 0) return []
+
+  const receivedRows = await db
+    .select({ supplyRouteItemId: storeReceivings.supplyRouteItemId })
+    .from(storeReceivings)
+    .where(
+      sql`${storeReceivings.supplyRouteItemId} IN (${sql.join(
+        allItemIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})`,
+    )
+
+  const receivedItemIds = new Set(receivedRows.map((r) => r.supplyRouteItemId))
+  return filterRoutesWithUnreceivedItems(routes, receivedItemIds)
 })
 
 /**
