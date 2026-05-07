@@ -21,20 +21,25 @@ import {
 } from "#/server/functions/store/receiving"
 import { ensureStore } from "#/server/functions/admin/locations"
 import { getSession } from "#/server/middleware/auth"
+import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
+import { getStorePrereqs } from "#/server/functions/prereqs/store"
 
 export const Route = createFileRoute("/store/")({
   loader: async () => {
     await ensureStore()
     const session = await getSession()
     const role = (session?.user as { role?: string } | undefined)?.role ?? null
-    const stock = await getStoreStock()
-    return { stock, role }
+    const [stock, prerequisites] = await Promise.all([
+      getStoreStock(),
+      getStorePrereqs(),
+    ])
+    return { stock, prerequisites, role }
   },
   component: StoreStockPage,
 })
 
 function StoreStockPage() {
-  const { stock, role } = Route.useLoaderData()
+  const { stock, prerequisites, role } = Route.useLoaderData()
   const canSeed = role === "admin" || role === "supervisor"
 
   const totalValue = stock.reduce(
@@ -63,68 +68,70 @@ function StoreStockPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 max-w-md">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-              Total Items
-              <InfoTip term="kpi.totalItemsStore" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalItems}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-              Inventory Value
-              <InfoTip term="kpi.inventoryValue" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono">
-              {totalValue.toFormat(0)}
-            </div>
-            <p className="text-xs text-muted-foreground">UGX (at cost)</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {stock.length === 0 ? (
-        <p className="text-muted-foreground py-8 text-center">
-          No stock in the warehouse. Receive goods from a supply route to get
-          started.
-        </p>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>
-                  <span className="inline-flex items-center gap-1.5">
-                    Art # <InfoTip term="col.articleNumber" />
-                  </span>
-                </TableHead>
-                <TableHead className="text-right">
-                  <span className="inline-flex items-center gap-1.5">
-                    Qty On Hand <InfoTip term="col.qtyOnHand" />
-                  </span>
-                </TableHead>
-                <TableHead className="text-right">Cost/Unit (UGX)</TableHead>
-                <TableHead className="text-right">Min Sell Price</TableHead>
-                <TableHead className="text-right">Total Value</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {stock.map((s) => (
-                <StockRow key={s.id} item={s} />
-              ))}
-            </TableBody>
-          </Table>
+      <PagePrerequisites result={prerequisites}>
+        <div className="grid grid-cols-2 gap-4 max-w-md">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                Total Items
+                <InfoTip term="kpi.totalItemsStore" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalItems}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                Inventory Value
+                <InfoTip term="kpi.inventoryValue" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono">
+                {totalValue.toFormat(0)}
+              </div>
+              <p className="text-xs text-muted-foreground">UGX (at cost)</p>
+            </CardContent>
+          </Card>
         </div>
-      )}
+
+        {stock.length === 0 ? (
+          <p className="text-muted-foreground py-8 text-center">
+            No stock in the warehouse. Receive goods from a supply route to get
+            started.
+          </p>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1.5">
+                      Art # <InfoTip term="col.articleNumber" />
+                    </span>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      Qty On Hand <InfoTip term="col.qtyOnHand" />
+                    </span>
+                  </TableHead>
+                  <TableHead className="text-right">Cost/Unit (UGX)</TableHead>
+                  <TableHead className="text-right">Min Sell Price</TableHead>
+                  <TableHead className="text-right">Total Value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stock.map((s) => (
+                  <StockRow key={s.id} item={s} />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </PagePrerequisites>
     </div>
   )
 }

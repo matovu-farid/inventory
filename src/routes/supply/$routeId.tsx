@@ -47,14 +47,17 @@ import {
   addSupplyRouteExpense,
   deleteSupplyRouteExpense,
 } from "#/server/functions/supply/expenses"
+import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
+import { getSupplyRouteDetailPrereqs } from "#/server/functions/prereqs/supply"
 
 export const Route = createFileRoute("/supply/$routeId")({
   loader: async ({ params }) => {
-    const [route, suppliers] = await Promise.all([
+    const [route, suppliers, prerequisites] = await Promise.all([
       getSupplyRoute({ data: { id: params.routeId } }),
       listSuppliersForSelect(),
+      getSupplyRouteDetailPrereqs(),
     ])
-    return { route, suppliers }
+    return { route, suppliers, prerequisites }
   },
   component: RouteDetailPage,
 })
@@ -79,7 +82,7 @@ const EXPENSE_CATEGORIES = [
 ] as const
 
 function RouteDetailPage() {
-  const { route, suppliers } = Route.useLoaderData()
+  const { route, suppliers, prerequisites } = Route.useLoaderData()
   const router = useRouter()
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
@@ -122,7 +125,7 @@ function RouteDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - outside PagePrerequisites */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">{route.name}</h1>
@@ -147,261 +150,247 @@ function RouteDetailPage() {
         </Select>
       </div>
 
-      {suppliers.length === 0 && (
-        <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/40 p-4">
-          <div>
-            <p className="text-sm font-medium">Add suppliers first</p>
-            <p className="text-muted-foreground text-xs">
-              You need at least one supplier before items can be added to a route.
-            </p>
+      <PagePrerequisites result={prerequisites}>
+
+        <TripRatesSection route={route} />
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                Item Costs
+                <InfoTip term="kpi.itemCosts" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono">
+                {totalItemCost.toFormat(0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {route.items.length} items
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                Expenses
+                <InfoTip term="kpi.expenses" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono">
+                {totalExpenses.toFormat(0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {route.expenses.length} entries
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                Grand Total
+                <InfoTip term="kpi.grandTotal" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono">
+                {grandTotal.toFormat(0)}
+              </div>
+              <p className="text-xs text-muted-foreground">UGX</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Separator />
+
+        {/* Items Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Items</h2>
+            <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="mr-1 h-4 w-4" />
+                  Add Item
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>Add Item</DialogTitle>
+                </DialogHeader>
+                <AddItemForm
+                  supplyRouteId={route.id}
+                  suppliers={
+                    routeSuppliers.length > 0 ? routeSuppliers : suppliers
+                  }
+                  rateUgxPerUsd={route.rateUgxPerUsd}
+                  rateRmbPerUsd={route.rateRmbPerUsd}
+                  onSuccess={() => {
+                    setItemDialogOpen(false)
+                    router.invalidate()
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/supply/suppliers">
-              Manage suppliers
-              <ArrowRight className="ml-1 h-3 w-3" />
-            </Link>
-          </Button>
-        </div>
-      )}
 
-      <TripRatesSection route={route} />
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-              Item Costs
-              <InfoTip term="kpi.itemCosts" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono">
-              {totalItemCost.toFormat(0)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {route.items.length} items
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-              Expenses
-              <InfoTip term="kpi.expenses" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono">
-              {totalExpenses.toFormat(0)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {route.expenses.length} entries
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-              Grand Total
-              <InfoTip term="kpi.grandTotal" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono">
-              {grandTotal.toFormat(0)}
-            </div>
-            <p className="text-xs text-muted-foreground">UGX</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Separator />
-
-      {/* Items Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Items</h2>
-          <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="mr-1 h-4 w-4" />
-                Add Item
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-xl">
-              <DialogHeader>
-                <DialogTitle>Add Item</DialogTitle>
-              </DialogHeader>
-              <AddItemForm
-                supplyRouteId={route.id}
-                suppliers={
-                  routeSuppliers.length > 0 ? routeSuppliers : suppliers
-                }
-                rateUgxPerUsd={route.rateUgxPerUsd}
-                rateRmbPerUsd={route.rateRmbPerUsd}
-                onSuccess={() => {
-                  setItemDialogOpen(false)
-                  router.invalidate()
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {route.items.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No items added yet.</p>
-        ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1.5">
-                      Art # <InfoTip term="col.articleNumber" />
-                    </span>
-                  </TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Unit Price</TableHead>
-                  <TableHead className="text-right">
-                    <span className="inline-flex items-center gap-1.5">
-                      Total (Foreign) <InfoTip term="col.totalForeign" />
-                    </span>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <span className="inline-flex items-center gap-1.5">
-                      Total (USD) <InfoTip term="col.totalUsd" />
-                    </span>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <span className="inline-flex items-center gap-1.5">
-                      Total (UGX) <InfoTip term="col.totalUgx" />
-                    </span>
-                  </TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {route.items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">
-                      {item.productName}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {item.articleNumber || "-"}
-                    </TableCell>
-                    <TableCell>{item.supplier.name}</TableCell>
-                    <TableCell className="text-right">{item.quantity}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {new BigNumber(item.unitPriceForeign).toFormat(2)}{" "}
-                      <span className="text-muted-foreground text-xs">
-                        {item.foreignCurrency}
+          {route.items.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No items added yet.</p>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1.5">
+                        Art # <InfoTip term="col.articleNumber" />
                       </span>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {new BigNumber(item.totalAmountForeign).toFormat(2)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {item.totalAmountUsd
-                        ? new BigNumber(item.totalAmountUsd).toFormat(2)
-                        : "-"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-semibold">
-                      {new BigNumber(item.totalCostUgx).toFormat(0)}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => handleDeleteItem(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+                    </TableHead>
+                    <TableHead>Supplier</TableHead>
+                    <TableHead className="text-right">Qty</TableHead>
+                    <TableHead className="text-right">Unit Price</TableHead>
+                    <TableHead className="text-right">
+                      <span className="inline-flex items-center gap-1.5">
+                        Total (Foreign) <InfoTip term="col.totalForeign" />
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <span className="inline-flex items-center gap-1.5">
+                        Total (USD) <InfoTip term="col.totalUsd" />
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <span className="inline-flex items-center gap-1.5">
+                        Total (UGX) <InfoTip term="col.totalUgx" />
+                      </span>
+                    </TableHead>
+                    <TableHead />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
-
-      <Separator />
-
-      {/* Expenses Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Expenses</h2>
-          <Dialog
-            open={expenseDialogOpen}
-            onOpenChange={setExpenseDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="mr-1 h-4 w-4" />
-                Add Expense
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Expense</DialogTitle>
-              </DialogHeader>
-              <AddExpenseForm
-                supplyRouteId={route.id}
-                onSuccess={() => {
-                  setExpenseDialogOpen(false)
-                  router.invalidate()
-                }}
-              />
-            </DialogContent>
-          </Dialog>
+                </TableHeader>
+                <TableBody>
+                  {route.items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">
+                        {item.productName}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {item.articleNumber || "-"}
+                      </TableCell>
+                      <TableCell>{item.supplier.name}</TableCell>
+                      <TableCell className="text-right">{item.quantity}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {new BigNumber(item.unitPriceForeign).toFormat(2)}{" "}
+                        <span className="text-muted-foreground text-xs">
+                          {item.foreignCurrency}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {new BigNumber(item.totalAmountForeign).toFormat(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {item.totalAmountUsd
+                          ? new BigNumber(item.totalAmountUsd).toFormat(2)
+                          : "-"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-semibold">
+                        {new BigNumber(item.totalCostUgx).toFormat(0)}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => handleDeleteItem(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
 
-        {route.expenses.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No expenses recorded yet.
-          </p>
-        ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Amount (UGX)</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {route.expenses.map((exp) => (
-                  <TableRow key={exp.id}>
-                    <TableCell>
-                      <Badge variant="outline">{exp.category}</Badge>
-                    </TableCell>
-                    <TableCell>{exp.description || "-"}</TableCell>
-                    <TableCell className="text-right font-mono font-semibold">
-                      {new BigNumber(exp.amount).toFormat(0)}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => handleDeleteExpense(exp.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <Separator />
+
+        {/* Expenses Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Expenses</h2>
+            <Dialog
+              open={expenseDialogOpen}
+              onOpenChange={setExpenseDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="mr-1 h-4 w-4" />
+                  Add Expense
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Expense</DialogTitle>
+                </DialogHeader>
+                <AddExpenseForm
+                  supplyRouteId={route.id}
+                  onSuccess={() => {
+                    setExpenseDialogOpen(false)
+                    router.invalidate()
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
           </div>
-        )}
-      </div>
+
+          {route.expenses.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No expenses recorded yet.
+            </p>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Amount (UGX)</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {route.expenses.map((exp) => (
+                    <TableRow key={exp.id}>
+                      <TableCell>
+                        <Badge variant="outline">{exp.category}</Badge>
+                      </TableCell>
+                      <TableCell>{exp.description || "-"}</TableCell>
+                      <TableCell className="text-right font-mono font-semibold">
+                        {new BigNumber(exp.amount).toFormat(0)}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => handleDeleteExpense(exp.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      </PagePrerequisites>
     </div>
   )
 }

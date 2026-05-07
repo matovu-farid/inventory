@@ -29,14 +29,17 @@ import {
   createSupplyRoute,
   listSuppliersForSelect,
 } from "#/server/functions/supply/routes"
+import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
+import { getSupplyPrereqs } from "#/server/functions/prereqs/supply"
 
 export const Route = createFileRoute("/supply/")({
   loader: async () => {
-    const [routes, suppliers] = await Promise.all([
+    const [routes, suppliers, prerequisites] = await Promise.all([
       listSupplyRoutes(),
       listSuppliersForSelect(),
+      getSupplyPrereqs(),
     ])
-    return { routes, suppliers }
+    return { routes, suppliers, prerequisites }
   },
   component: SupplyRoutesPage,
 })
@@ -48,7 +51,7 @@ const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "o
 }
 
 function SupplyRoutesPage() {
-  const { routes, suppliers } = Route.useLoaderData()
+  const { routes, prerequisites } = Route.useLoaderData()
   const [open, setOpen] = useState(false)
 
   return (
@@ -76,99 +79,85 @@ function SupplyRoutesPage() {
         </Dialog>
       </div>
 
-      {suppliers.length === 0 && (
-        <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/40 p-4">
-          <div>
-            <p className="text-sm font-medium">Add suppliers first</p>
-            <p className="text-muted-foreground text-xs">
-              Routes track procurement from suppliers. Add at least one supplier before items can be recorded.
-            </p>
-          </div>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/supply/suppliers">
-              Manage suppliers
-              <ArrowRight className="ml-1 h-3 w-3" />
-            </Link>
-          </Button>
-        </div>
-      )}
+      <PagePrerequisites result={prerequisites}>
 
-      {routes.length === 0 ? (
-        <div className="text-muted-foreground py-12 text-center">
-          No supply routes yet. Create your first route to start tracking
-          procurement.
-        </div>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Route</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Suppliers</TableHead>
-                <TableHead className="text-right">Items</TableHead>
-                <TableHead className="text-right">Total Cost (UGX)</TableHead>
-                <TableHead className="text-right">Expenses (UGX)</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {routes.map((r) => {
-                const totalCost = r.items.reduce(
-                  (sum, i) => sum.plus(i.totalCostUgx),
-                  new BigNumber(0),
-                )
-                const totalExpenses = r.expenses.reduce(
-                  (sum, e) => sum.plus(e.amount),
-                  new BigNumber(0),
-                )
-                return (
-                  <TableRow key={r.id}>
-                    <TableCell>
-                      <div>
-                        <span className="font-medium">{r.name}</span>
-                        {r.departureDate && (
-                          <span className="text-muted-foreground ml-2 text-xs">
-                            {r.departureDate}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_COLORS[r.status] ?? "outline"}>
-                        {r.status.replace("_", " ")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {r.suppliers
-                        .map((s) => s.supplier.name)
-                        .join(", ") || "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {r.items.length}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {totalCost.toFormat(0)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {totalExpenses.toFormat(0)}
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        to="/supply/$routeId"
-                        params={{ routeId: r.id }}
-                        className="text-primary hover:underline inline-flex items-center gap-1 text-sm"
-                      >
-                        View <ArrowRight className="h-3 w-3" />
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+        {routes.length === 0 ? (
+          <div className="text-muted-foreground py-12 text-center">
+            No supply routes yet. Create your first route to start tracking
+            procurement.
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Route</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Suppliers</TableHead>
+                  <TableHead className="text-right">Items</TableHead>
+                  <TableHead className="text-right">Total Cost (UGX)</TableHead>
+                  <TableHead className="text-right">Expenses (UGX)</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {routes.map((r) => {
+                  const totalCost = r.items.reduce(
+                    (sum, i) => sum.plus(i.totalCostUgx),
+                    new BigNumber(0),
+                  )
+                  const totalExpenses = r.expenses.reduce(
+                    (sum, e) => sum.plus(e.amount),
+                    new BigNumber(0),
+                  )
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell>
+                        <div>
+                          <span className="font-medium">{r.name}</span>
+                          {r.departureDate && (
+                            <span className="text-muted-foreground ml-2 text-xs">
+                              {r.departureDate}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={STATUS_COLORS[r.status] ?? "outline"}>
+                          {r.status.replace("_", " ")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {r.suppliers
+                          .map((s) => s.supplier.name)
+                          .join(", ") || "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {r.items.length}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {totalCost.toFormat(0)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {totalExpenses.toFormat(0)}
+                      </TableCell>
+                      <TableCell>
+                        <Link
+                          to="/supply/$routeId"
+                          params={{ routeId: r.id }}
+                          className="text-primary hover:underline inline-flex items-center gap-1 text-sm"
+                        >
+                          View <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </PagePrerequisites>
     </div>
   )
 }
