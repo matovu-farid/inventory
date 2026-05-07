@@ -1,23 +1,39 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
+import { z } from "zod"
 import { Logo } from "#/components/logo"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
 import { authClient } from "#/lib/auth-client"
+import { usersExist } from "#/server/functions/auth/users-exist"
+
+const searchSchema = z.object({
+  error: z.enum(["verification_failed"]).optional(),
+  reset: z.enum(["success"]).optional(),
+})
 
 export const Route = createFileRoute("/login")({
+  validateSearch: searchSchema,
+  loader: async () => {
+    const exists = await usersExist()
+    return { usersExist: exists }
+  },
   component: LoginPage,
 })
 
 function LoginPage() {
-  const [mode, setMode] = useState<"login" | "signup">("login")
+  const { usersExist: exists } = Route.useLoaderData()
+  const search = Route.useSearch()
+  const router = useRouter()
+
+  // Bootstrap only allows the first user (signup). After that, login only.
+  const showSignup = !exists
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [pending, setPending] = useState(false)
-  const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -25,31 +41,40 @@ function LoginPage() {
     setPending(true)
 
     try {
-      if (mode === "signup") {
-        const result = await authClient.signUp.email({
-          name,
-          email,
-          password,
-        })
+      if (showSignup) {
+        const result = await authClient.signUp.email({ name, email, password })
         if (result.error) {
-          setError(result.error.message ?? "Signup failed")
+          setError(result.error.message ?? "Sign-up failed")
           setPending(false)
           return
         }
-      } else {
-        const result = await authClient.signIn.email({
-          email,
-          password,
+        ;(router.navigate as any)({
+          to: "/verify-email-sent",
+          search: { email },
         })
-        if (result.error) {
-          setError(result.error.message ?? "Invalid email or password")
-          setPending(false)
+        return
+      }
+
+      const result = await authClient.signIn.email({ email, password })
+      if (result.error) {
+        const code = (result.error as { code?: string }).code
+        if (
+          code === "EMAIL_NOT_VERIFIED" ||
+          /verif/i.test(result.error.message ?? "")
+        ) {
+          ;(router.navigate as any)({
+            to: "/verify-email-sent",
+            search: { email },
+          })
           return
         }
+        setError(result.error.message ?? "Invalid email or password")
+        setPending(false)
+        return
       }
       router.navigate({ to: "/" })
     } catch {
-      setError(mode === "signup" ? "Signup failed." : "Login failed.")
+      setError(showSignup ? "Sign-up failed." : "Login failed.")
       setPending(false)
     }
   }
@@ -57,32 +82,40 @@ function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f5f5f7]">
       <div className="w-full max-w-[400px] px-6">
-        {/* Brand */}
         <div className="mb-8 flex flex-col items-center">
           <Logo className="size-12 shadow-md" />
           <h1 className="mt-4 text-[20px] font-semibold tracking-[-0.01em] text-foreground">
-            {mode === "login" ? "Welcome back" : "Create your account"}
+            {showSignup ? "Create the first admin account" : "Welcome back"}
           </h1>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            {mode === "login"
-              ? "Sign in to Inventory Management"
-              : "Get started with Inventory Management"}
+            {showSignup
+              ? "Set up the first user for Inventory Management"
+              : "Sign in to Inventory Management"}
           </p>
         </div>
 
-        {/* Form card */}
         <div
           className="rounded-2xl bg-white p-6"
           style={{ boxShadow: "var(--shadow-lg)" }}
         >
           <form onSubmit={handleSubmit} className="space-y-4">
+            {search.reset === "success" && (
+              <div className="rounded-xl bg-emerald-50 px-4 py-3 text-[13px] text-emerald-700">
+                Password updated. Sign in with your new password.
+              </div>
+            )}
+            {search.error === "verification_failed" && (
+              <div className="rounded-xl bg-amber-50 px-4 py-3 text-[13px] text-amber-700">
+                Verification link is invalid or expired. Sign in to request a new one.
+              </div>
+            )}
             {error && (
               <div className="rounded-xl bg-destructive/8 px-4 py-3 text-[13px] text-destructive">
                 {error}
               </div>
             )}
 
-            {mode === "signup" && (
+            {showSignup && (
               <div className="space-y-1.5">
                 <Label htmlFor="name" className="text-[13px]">
                   Name
@@ -114,9 +147,19 @@ function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-[13px]">
-                Password
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-[13px]">
+                  Password
+                </Label>
+                {!showSignup && (
+                  <Link
+                    to={"/forgot-password" as any}
+                    className="text-[12px] font-medium text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                )}
+              </div>
               <Input
                 id="password"
                 type="password"
@@ -133,48 +176,21 @@ function LoginPage() {
               disabled={pending}
             >
               {pending
-                ? mode === "login"
-                  ? "Signing in..."
-                  : "Creating account..."
-                : mode === "login"
-                  ? "Sign In"
-                  : "Create Account"}
+                ? showSignup
+                  ? "Creating account..."
+                  : "Signing in..."
+                : showSignup
+                  ? "Create Account"
+                  : "Sign In"}
             </Button>
           </form>
         </div>
 
-        {/* Toggle */}
-        <p className="mt-6 text-center text-[13px] text-muted-foreground">
-          {mode === "login" ? (
-            <>
-              Don't have an account?{" "}
-              <button
-                type="button"
-                className="font-medium text-primary hover:underline cursor-pointer"
-                onClick={() => {
-                  setMode("signup")
-                  setError("")
-                }}
-              >
-                Sign up
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button
-                type="button"
-                className="font-medium text-primary hover:underline cursor-pointer"
-                onClick={() => {
-                  setMode("login")
-                  setError("")
-                }}
-              >
-                Sign in
-              </button>
-            </>
-          )}
-        </p>
+        {!showSignup && (
+          <p className="mt-6 text-center text-[13px] text-muted-foreground">
+            Need access? Ask your administrator for an invite.
+          </p>
+        )}
       </div>
     </div>
   )
