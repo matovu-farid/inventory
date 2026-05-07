@@ -1,6 +1,10 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState, useEffect } from "react"
 import BigNumber from "bignumber.js"
+import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
+import { getShopPrereqs } from "#/server/functions/prereqs/shop"
+import { SATISFIED } from "#/lib/prerequisites/types"
+import type { PrerequisiteResult } from "#/lib/prerequisites/types"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { MoneyInput } from "#/components/ui/money-input"
@@ -63,6 +67,7 @@ function ShopPage() {
     }>
   >([])
   const [saleOpen, setSaleOpen] = useState(false)
+  const [prerequisites, setPrerequisites] = useState<PrerequisiteResult>(SATISFIED)
 
   async function loadStock(id: string) {
     setShopId(id)
@@ -75,6 +80,16 @@ function ShopPage() {
     if (shopId && shops.length > 0) loadStock(shopId)
   }, [shopId])
 
+  useEffect(() => {
+    let cancelled = false
+    getShopPrereqs({ data: { shopId: shopId || null } }).then((r) => {
+      if (!cancelled) setPrerequisites(r)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [shopId])
+
   const totalItems = stock.reduce((s, i) => s + i.quantityOnHand, 0)
   const totalValue = stock.reduce(
     (s, i) =>
@@ -84,158 +99,159 @@ function ShopPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Shop</h1>
-          <p className="text-muted-foreground">
-            View shop inventory and record sales.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Select value={shopId} onValueChange={loadStock}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select shop" />
-            </SelectTrigger>
-            <SelectContent>
-              {shops.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {canManage && (
-            <AddShopDialog onCreated={() => router.invalidate()} />
-          )}
-          {canManage &&
-            (shopId ? (
-              <Button asChild variant="outline" size="sm">
-                <Link to="/shop/opening-balance" search={{ shopId }}>
-                  <Plus className="mr-1 h-4 w-4" />
-                  Add Existing Stock
-                </Link>
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" disabled>
-                <Plus className="mr-1 h-4 w-4" />
-                Add Existing Stock
-              </Button>
-            ))}
-          {shopId && (
-            <Dialog open={saleOpen} onOpenChange={setSaleOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  New Sale
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-xl">
-                <DialogHeader>
-                  <DialogTitle>Record Sale</DialogTitle>
-                </DialogHeader>
-                <NewSaleForm
-                  shopId={shopId}
-                  stock={stock.filter((s) => s.quantityOnHand > 0)}
-                  onSuccess={() => {
-                    setSaleOpen(false)
-                    loadStock(shopId)
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">Shop</h1>
+        <p className="text-muted-foreground">
+          View shop inventory and record sales.
+        </p>
       </div>
 
-      {shops.length === 0 ? (
-        <p className="text-muted-foreground py-8 text-center">
-          No shops configured yet.
-          {canManage ? " Use the Add Shop button above to create one." : ""}
-        </p>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-4 max-w-md">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                  Items in Stock
-                  <InfoTip term="kpi.itemsInStockShop" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalItems}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                  Stock Value
-                  <InfoTip term="kpi.shopStockValue" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold font-mono">
-                  {totalValue.toFormat(0)}
-                </div>
-                <p className="text-xs text-muted-foreground">UGX</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {stock.length === 0 ? (
-            <p className="text-muted-foreground py-8 text-center">
-              No stock at this shop. Transfer goods from the store.
-            </p>
+      <div className="flex flex-wrap gap-2">
+        <Select value={shopId} onValueChange={loadStock}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Select shop" />
+          </SelectTrigger>
+          <SelectContent>
+            {shops.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {canManage && (
+          <AddShopDialog onCreated={() => router.invalidate()} />
+        )}
+        {canManage &&
+          (shopId ? (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/shop/opening-balance" search={{ shopId }}>
+                <Plus className="mr-1 h-4 w-4" />
+                Add Existing Stock
+              </Link>
+            </Button>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>
-                      <span className="inline-flex items-center gap-1.5">
-                        Art # <InfoTip term="col.articleNumber" />
-                      </span>
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <span className="inline-flex items-center gap-1.5">
-                        Qty <InfoTip term="col.qtyOnHand" />
-                      </span>
-                    </TableHead>
-                    <TableHead className="text-right">Cost/Unit</TableHead>
-                    <TableHead className="text-right">Min Sell</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stock.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-medium">
-                        {s.productName}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {s.articleNumber || "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {s.quantityOnHand === 0 ? (
-                          <Badge variant="outline">Out</Badge>
-                        ) : (
-                          s.quantityOnHand
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {new BigNumber(s.costPerUnitUgx).toFormat(0)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {new BigNumber(s.minimumSellPriceUgx).toFormat(0)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <Button variant="outline" size="sm" disabled>
+              <Plus className="mr-1 h-4 w-4" />
+              Add Existing Stock
+            </Button>
+          ))}
+        {shopId && (
+          <Dialog open={saleOpen} onOpenChange={setSaleOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                New Sale
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Record Sale</DialogTitle>
+              </DialogHeader>
+              <NewSaleForm
+                shopId={shopId}
+                stock={stock.filter((s) => s.quantityOnHand > 0)}
+                onSuccess={() => {
+                  setSaleOpen(false)
+                  loadStock(shopId)
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      <PagePrerequisites result={prerequisites}>
+        {shops.length === 0 ? (
+          <p className="text-muted-foreground py-8 text-center">
+            No shops configured yet.
+            {canManage ? " Use the Add Shop button above to create one." : ""}
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-4 max-w-md">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                    Items in Stock
+                    <InfoTip term="kpi.itemsInStockShop" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{totalItems}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                    Stock Value
+                    <InfoTip term="kpi.shopStockValue" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold font-mono">
+                    {totalValue.toFormat(0)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">UGX</p>
+                </CardContent>
+              </Card>
             </div>
-          )}
-        </>
-      )}
+
+            {stock.length === 0 ? (
+              <p className="text-muted-foreground py-8 text-center">
+                No stock at this shop. Transfer goods from the store.
+              </p>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>
+                        <span className="inline-flex items-center gap-1.5">
+                          Art # <InfoTip term="col.articleNumber" />
+                        </span>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <span className="inline-flex items-center gap-1.5">
+                          Qty <InfoTip term="col.qtyOnHand" />
+                        </span>
+                      </TableHead>
+                      <TableHead className="text-right">Cost/Unit</TableHead>
+                      <TableHead className="text-right">Min Sell</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stock.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium">
+                          {s.productName}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {s.articleNumber || "-"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {s.quantityOnHand === 0 ? (
+                            <Badge variant="outline">Out</Badge>
+                          ) : (
+                            s.quantityOnHand
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {new BigNumber(s.costPerUnitUgx).toFormat(0)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {new BigNumber(s.minimumSellPriceUgx).toFormat(0)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </>
+        )}
+      </PagePrerequisites>
     </div>
   )
 }

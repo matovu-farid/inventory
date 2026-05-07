@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { z } from "zod"
 import { OpeningBalanceForm } from "#/components/opening-balance/opening-balance-form"
+import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
 import { listShops } from "#/server/functions/admin/locations"
 import { getSession } from "#/server/middleware/auth"
+import { getShopOpeningBalancePrereqs } from "#/server/functions/prereqs/shop"
 
 const searchSchema = z.object({
   shopId: z.string().uuid().optional(),
@@ -17,14 +19,17 @@ export const Route = createFileRoute("/shop/opening-balance")({
     if (!session || (role !== "admin" && role !== "supervisor")) {
       throw new Error("Forbidden: admin or supervisor role required")
     }
-    const shops = await listShops()
-    return { shops, role }
+    const [shops, prerequisites] = await Promise.all([
+      listShops(),
+      getShopOpeningBalancePrereqs(),
+    ])
+    return { shops, role, prerequisites }
   },
   component: ShopOpeningBalancePage,
 })
 
 function ShopOpeningBalancePage() {
-  const { shops } = Route.useLoaderData()
+  const { shops, prerequisites } = Route.useLoaderData()
   const { shopId } = Route.useSearch()
 
   return (
@@ -39,7 +44,9 @@ function ShopOpeningBalancePage() {
         </p>
       </div>
 
-      <OpeningBalanceForm scope="shop" shops={shops} initialShopId={shopId} />
+      <PagePrerequisites result={prerequisites}>
+        <OpeningBalanceForm scope="shop" shops={shops} initialShopId={shopId} />
+      </PagePrerequisites>
     </div>
   )
 }
