@@ -8,6 +8,9 @@ export const env = createEnv({
     BETTER_AUTH_URL: z.string().url().optional(),
     ELECTRIC_URL: z.string().url().optional(),
     SENTRY_DSN: z.string().optional(),
+    RESEND_API_KEY: z.string().min(1),
+    EMAIL_FROM: z.string().min(1).optional(),
+    APP_URL: z.string().url(),
   },
   clientPrefix: "VITE_",
   client: {
