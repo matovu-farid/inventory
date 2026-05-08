@@ -33,10 +33,3 @@ export function foreignToUsd(params: {
   return new BigNumber(params.amountForeign).div(rate).dp(2, BigNumber.ROUND_HALF_UP)
 }
 
-/**
- * Format UGX amount for display.
- */
-export function formatUgx(amount: string | BigNumber): string {
-  const bn = BigNumber.isBigNumber(amount) ? amount : new BigNumber(amount)
-  return `UGX ${bn.toFormat(0)}`
-}

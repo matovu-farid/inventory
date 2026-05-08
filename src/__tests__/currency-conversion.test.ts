@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest"
-import BigNumber from "bignumber.js"
-import { foreignToUgx, foreignToUsd, formatUgx } from "../lib/currency/conversion"
+import { foreignToUgx, foreignToUsd } from "../lib/currency/conversion"
 
 describe("foreignToUgx", () => {
   it("converts RMB to UGX via USD correctly", () => {
@@ -97,23 +96,5 @@ describe("foreignToUsd", () => {
       exchangeRateForeignToUsd: "7.2",
     })
     expect(result.toFixed(2)).toBe("13.89")
-  })
-})
-
-describe("formatUgx", () => {
-  it("formats string amounts", () => {
-    expect(formatUgx("1500000")).toBe("UGX 1,500,000")
-  })
-
-  it("formats BigNumber amounts", () => {
-    expect(formatUgx(new BigNumber("2500000.50"))).toBe("UGX 2,500,001")
-  })
-
-  it("formats zero", () => {
-    expect(formatUgx("0")).toBe("UGX 0")
-  })
-
-  it("formats negative amounts", () => {
-    expect(formatUgx("-50000")).toBe("UGX -50,000")
   })
 })
