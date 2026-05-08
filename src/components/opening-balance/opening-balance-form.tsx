@@ -293,6 +293,7 @@ export function OpeningBalanceForm({
                     <TableCell>
                       <MoneyInput
                         currency="UGX"
+                        roundTo={50}
                         decimals={2}
                         value={r.costPerUnitUgx}
                         onChange={(v) => updateRow(r.id, { costPerUnitUgx: v })}

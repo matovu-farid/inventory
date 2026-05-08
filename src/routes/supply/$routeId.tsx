@@ -679,6 +679,7 @@ function AddExpenseForm({
         <FieldLabel help="expense.amount">Amount *</FieldLabel>
         <MoneyInput
           currency="UGX"
+          roundTo={50}
           value={amount}
           onChange={setAmount}
           placeholder="0"

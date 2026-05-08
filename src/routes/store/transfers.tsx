@@ -345,6 +345,7 @@ function CreateTransferForm({
                       <MoneyInput
                         id={`min-sell-${s.id}`}
                         currency="UGX"
+                        roundTo={50}
                         value={selected.minSellPriceUgx}
                         onChange={(val) => setMinSellPrice(s.id, val)}
                         placeholder="0"

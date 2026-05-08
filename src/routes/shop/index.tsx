@@ -586,6 +586,7 @@ function NewSaleForm({
                     </Label>
                     <MoneyInput
                       currency="UGX"
+                      roundTo={50}
                       value={item.price}
                       onChange={(val) =>
                         updateCart(item.stockId, "price", val)
