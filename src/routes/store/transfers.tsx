@@ -1,3 +1,4 @@
+import { roundUgxBankers50, formatUgx } from "#/lib/format"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import BigNumber from "bignumber.js"
@@ -170,7 +171,7 @@ function TransfersPage() {
                       {t.items.length}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {total.toFormat(0)}
+                      {roundUgxBankers50(total).toFormat(0)}
                     </TableCell>
                   </TableRow>
                 )
@@ -319,7 +320,7 @@ function CreateTransferForm({
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Available: {s.quantityOnHand} | Cost:{" "}
-                        {new BigNumber(s.costPerUnitUgx).toFormat(0)} UGX
+                        {formatUgx(s.costPerUnitUgx)}
                       </p>
                     </div>
                     {selected && (
