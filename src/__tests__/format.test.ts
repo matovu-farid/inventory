@@ -1,6 +1,6 @@
 import BigNumber from "bignumber.js"
 import { describe, it, expect } from "vitest"
-import { roundUgxFloor50 } from "#/lib/format"
+import { roundUgxFloor50, roundUgxBankers50 } from "#/lib/format"
 
 describe("roundUgxFloor50", () => {
   it("floors a positive non-multiple down to nearest 50", () => {
@@ -29,5 +29,28 @@ describe("roundUgxFloor50", () => {
   })
   it("accepts BigNumber input", () => {
     expect(roundUgxFloor50(new BigNumber("1234567")).toFixed(0)).toBe("1234550")
+  })
+})
+
+describe("roundUgxBankers50", () => {
+  it("rounds non-half values to the nearest multiple of 50", () => {
+    expect(roundUgxBankers50("1237").toFixed(0)).toBe("1250")
+    expect(roundUgxBankers50("1213").toFixed(0)).toBe("1200")
+    expect(roundUgxBankers50("1276").toFixed(0)).toBe("1300")
+  })
+  it("breaks ties toward the even multiple (banker's)", () => {
+    expect(roundUgxBankers50("1225").toFixed(0)).toBe("1200") // 24*50, even
+    expect(roundUgxBankers50("1275").toFixed(0)).toBe("1300") // 26*50, even
+    expect(roundUgxBankers50("1325").toFixed(0)).toBe("1300") // 26*50, even
+    expect(roundUgxBankers50("1375").toFixed(0)).toBe("1400") // 28*50, even
+  })
+  it("leaves exact multiples of 50 unchanged", () => {
+    expect(roundUgxBankers50("1250").toFixed(0)).toBe("1250")
+    expect(roundUgxBankers50("0").toFixed(0)).toBe("0")
+  })
+  it("rounds negatives by the same rule", () => {
+    expect(roundUgxBankers50("-1237").toFixed(0)).toBe("-1250")
+    expect(roundUgxBankers50("-1225").toFixed(0)).toBe("-1200")
+    expect(roundUgxBankers50("-1275").toFixed(0)).toBe("-1300")
   })
 })
