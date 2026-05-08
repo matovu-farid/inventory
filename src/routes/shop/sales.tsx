@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useState, useEffect } from "react"
 import BigNumber from "bignumber.js"
+import { roundUgxFloor50, formatUgxTotal } from "#/lib/format"
 import { Badge } from "#/components/ui/badge"
 import {
   Select,
@@ -106,7 +107,7 @@ function SalesPage() {
           <p className="text-sm text-muted-foreground">
             {sales.length} sales | Total revenue:{" "}
             <span className="font-mono font-semibold">
-              UGX {totalRevenue.toFormat(0)}
+              {formatUgxTotal(totalRevenue)}
             </span>
           </p>
         )}
@@ -144,7 +145,7 @@ function SalesPage() {
                         <Badge variant="outline">{sale.paymentMethod}</Badge>
                       </TableCell>
                       <TableCell className="text-right font-mono font-semibold">
-                        {new BigNumber(sale.totalAmount).toFormat(0)}
+                        {roundUgxFloor50(sale.totalAmount).toFormat(0)}
                       </TableCell>
                       <TableCell>
                         {hasBelowMin && (
