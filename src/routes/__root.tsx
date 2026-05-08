@@ -1,4 +1,5 @@
 import "#/sentry"
+import { useEffect } from "react"
 import {
   HeadContent,
   Outlet,
@@ -71,9 +72,15 @@ function RootLayout() {
   const matches = useMatches()
 
   const isLoginPage = matches.some((m) => m.fullPath === "/login")
+  const needsRedirect = !session && !isLoginPage
 
-  if (!session && !isLoginPage) {
-    router.navigate({ to: "/login" })
+  useEffect(() => {
+    if (needsRedirect) {
+      router.navigate({ to: "/login" })
+    }
+  }, [needsRedirect, router])
+
+  if (needsRedirect) {
     return null
   }
 

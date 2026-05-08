@@ -55,7 +55,7 @@ export function PrereqEmptyState({
         <ul className="space-y-3">
           {(items as ItemWithMaybePageRef[]).map((item) => (
             <li
-              key={item.id}
+              key={`${item.id}-${item.pageHref ?? ""}`}
               className="rounded-md border border-border/60 bg-muted/30 p-4"
             >
               <div className="flex items-start justify-between gap-4">

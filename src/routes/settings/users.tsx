@@ -16,6 +16,7 @@ import { Label } from "#/components/ui/label"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -205,6 +206,9 @@ function InviteDialog({
     <DialogContent>
       <DialogHeader>
         <DialogTitle>Invite a new user</DialogTitle>
+        <DialogDescription>
+          They&apos;ll get an email with a link to set their password and join.
+        </DialogDescription>
       </DialogHeader>
       <form onSubmit={submit} className="space-y-4">
         {error && (
