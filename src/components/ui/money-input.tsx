@@ -1,4 +1,5 @@
 import * as React from "react"
+import BigNumber from "bignumber.js"
 import { cn } from "#/lib/utils"
 
 /**
@@ -7,13 +8,12 @@ import { cn } from "#/lib/utils"
  */
 function formatWithCommas(value: string): string {
   if (!value) return ""
+  const isNegative = value.startsWith("-")
   const cleaned = value.replace(/[^0-9.]/g, "")
   const parts = cleaned.split(".")
   const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-  if (parts.length > 1) {
-    return `${intPart}.${parts[1]}`
-  }
-  return intPart
+  const formatted = parts.length > 1 ? `${intPart}.${parts[1]}` : intPart
+  return isNegative ? `-${formatted}` : formatted
 }
 
 /** Strip commas to get the raw numeric value. */
@@ -33,6 +33,8 @@ interface MoneyInputProps
   decimals?: number
   /** Error message to display below the input */
   error?: string
+  /** If set, on blur the value is floored to a multiple of this step (e.g. 50 for UGX). */
+  roundTo?: number
 }
 
 function MoneyInput({
@@ -42,6 +44,7 @@ function MoneyInput({
   onChange,
   decimals = 0,
   error,
+  roundTo,
   ...props
 }: MoneyInputProps) {
   const [display, setDisplay] = React.useState(() => formatWithCommas(value))
@@ -55,35 +58,58 @@ function MoneyInput({
   }, [value])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value.replace(/[^0-9.,]/g, "")
+    const raw = e.target.value.replace(/[^0-9.,-]/g, "")
     const stripped = stripCommas(raw)
 
-    // Validate: allow empty, or a valid number pattern
-    if (stripped === "") {
-      setDisplay("")
-      onChange("")
+    // Normalise: at most one leading minus; drop any other minus signs
+    const hasLeadingMinus = stripped.startsWith("-")
+    const digits = stripped.replace(/-/g, "")
+    const normalized = hasLeadingMinus ? `-${digits}` : digits
+
+    // Validate: allow empty, or a partially-typed number
+    if (normalized === "" || normalized === "-") {
+      setDisplay(normalized)
+      onChange(normalized === "-" ? "" : normalized)
       return
     }
 
     // Check decimal constraints
-    if (decimals === 0 && stripped.includes(".")) return
-    const parts = stripped.split(".")
+    if (decimals === 0 && normalized.includes(".")) return
+    const parts = normalized.split(".")
     if (parts.length > 2) return // multiple dots
     if (parts[1] && parts[1].length > decimals) return
 
     // Check it's a valid partial number
-    if (stripped !== "." && isNaN(Number(stripped))) return
+    if (
+      normalized !== "." &&
+      normalized !== "-" &&
+      isNaN(Number(normalized))
+    ) {
+      return
+    }
 
-    setDisplay(formatWithCommas(stripped))
-    onChange(stripped)
+    setDisplay(formatWithCommas(normalized))
+    onChange(normalized)
   }
 
   function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
-    // Clean up trailing dots on blur
-    if (display.endsWith(".")) {
-      const clean = display.slice(0, -1)
-      setDisplay(formatWithCommas(stripCommas(clean)))
-      onChange(stripCommas(clean))
+    // Strip a trailing dot left over from partial input
+    let raw = display.endsWith(".") ? display.slice(0, -1) : display
+    let stripped = stripCommas(raw)
+
+    if (roundTo && stripped !== "" && stripped !== "-") {
+      const bn = new BigNumber(stripped)
+      if (!bn.isNaN()) {
+        const sign = bn.isNegative() ? -1 : 1
+        const step = new BigNumber(roundTo)
+        const floored = bn.abs().idiv(step).times(step).times(sign)
+        stripped = floored.toFixed(0)
+      }
+    }
+
+    if (stripped !== stripCommas(display)) {
+      setDisplay(formatWithCommas(stripped))
+      onChange(stripped)
     }
     props.onBlur?.(e)
   }
