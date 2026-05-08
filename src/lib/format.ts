@@ -23,3 +23,26 @@ export function roundUgxBankers50(amount: BigNumber.Value): BigNumber {
     .integerValue(BigNumber.ROUND_HALF_EVEN)
     .times(STEP)
 }
+
+function formatRounded(rounded: BigNumber): string {
+  // Normalise negative zero to zero so toFormat produces "0" not "-0" / "-"
+  const normalised = rounded.isZero() ? new BigNumber(0) : rounded
+  return `${normalised.toFormat(0)} UGX`
+}
+
+/**
+ * Format a single UGX amount for display: floor to nearest 50, comma thousands,
+ * trailing " UGX". Use for unit prices, line totals, individual amounts.
+ */
+export function formatUgx(amount: BigNumber.Value): string {
+  return formatRounded(roundUgxFloor50(amount))
+}
+
+/**
+ * Format a UGX aggregate for display: banker's-round to nearest 50, comma
+ * thousands, trailing " UGX". Use for KPI cards, table-footer totals,
+ * "Total"-labeled summary values.
+ */
+export function formatUgxTotal(amount: BigNumber.Value): string {
+  return formatRounded(roundUgxBankers50(amount))
+}
