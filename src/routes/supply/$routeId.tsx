@@ -49,6 +49,7 @@ import {
 } from "#/server/functions/supply/expenses"
 import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
 import { getSupplyRouteDetailPrereqs } from "#/server/functions/prereqs/supply"
+import { roundUgxFloor50, roundUgxBankers50, formatUgxTotal } from "#/lib/format"
 
 export const Route = createFileRoute("/supply/$routeId")({
   loader: async ({ params }) => {
@@ -165,7 +166,7 @@ function RouteDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold font-mono">
-                {totalItemCost.toFormat(0)}
+                {formatUgxTotal(totalItemCost)}
               </div>
               <p className="text-xs text-muted-foreground">
                 {route.items.length} items
@@ -181,7 +182,7 @@ function RouteDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold font-mono">
-                {totalExpenses.toFormat(0)}
+                {formatUgxTotal(totalExpenses)}
               </div>
               <p className="text-xs text-muted-foreground">
                 {route.expenses.length} entries
@@ -197,9 +198,8 @@ function RouteDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold font-mono">
-                {grandTotal.toFormat(0)}
+                {formatUgxTotal(grandTotal)}
               </div>
-              <p className="text-xs text-muted-foreground">UGX</p>
             </CardContent>
           </Card>
         </div>
@@ -297,7 +297,7 @@ function RouteDetailPage() {
                           : "-"}
                       </TableCell>
                       <TableCell className="text-right font-mono font-semibold">
-                        {new BigNumber(item.totalCostUgx).toFormat(0)}
+                        {roundUgxBankers50(item.totalCostUgx).toFormat(0)}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -371,7 +371,7 @@ function RouteDetailPage() {
                       </TableCell>
                       <TableCell>{exp.description || "-"}</TableCell>
                       <TableCell className="text-right font-mono font-semibold">
-                        {new BigNumber(exp.amount).toFormat(0)}
+                        {roundUgxFloor50(exp.amount).toFormat(0)}
                       </TableCell>
                       <TableCell>
                         <Button

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import BigNumber from "bignumber.js"
+import { roundUgxBankers50 } from "#/lib/format"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { MoneyInput, RateInput } from "#/components/ui/money-input"
@@ -136,10 +137,10 @@ function SupplyRoutesPage() {
                         {r.items.length}
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        {totalCost.toFormat(0)}
+                        {roundUgxBankers50(totalCost).toFormat(0)}
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        {totalExpenses.toFormat(0)}
+                        {roundUgxBankers50(totalExpenses).toFormat(0)}
                       </TableCell>
                       <TableCell>
                         <Link
