@@ -21,7 +21,7 @@ function ControlledInput({ initial = "" }: { initial?: string }) {
 describe("MoneyInput with roundTo={50}", () => {
   it("floors a non-multiple value on blur", () => {
     render(<ControlledInput />)
-    const input = screen.getByRole("textbox") as HTMLInputElement
+    const input = screen.getByRole<HTMLInputElement>("textbox")
     fireEvent.change(input, { target: { value: "1237" } })
     fireEvent.blur(input)
     expect(input.value).toBe("1,200")
@@ -29,7 +29,7 @@ describe("MoneyInput with roundTo={50}", () => {
 
   it("leaves an exact multiple unchanged on blur", () => {
     render(<ControlledInput />)
-    const input = screen.getByRole("textbox") as HTMLInputElement
+    const input = screen.getByRole<HTMLInputElement>("textbox")
     fireEvent.change(input, { target: { value: "1250" } })
     fireEvent.blur(input)
     expect(input.value).toBe("1,250")
@@ -37,14 +37,14 @@ describe("MoneyInput with roundTo={50}", () => {
 
   it("does not modify an empty input on blur", () => {
     render(<ControlledInput />)
-    const input = screen.getByRole("textbox") as HTMLInputElement
+    const input = screen.getByRole<HTMLInputElement>("textbox")
     fireEvent.blur(input)
     expect(input.value).toBe("")
   })
 
   it("floors abs() and reapplies sign for negative values", () => {
     render(<ControlledInput />)
-    const input = screen.getByRole("textbox") as HTMLInputElement
+    const input = screen.getByRole<HTMLInputElement>("textbox")
     fireEvent.change(input, { target: { value: "-1237" } })
     fireEvent.blur(input)
     expect(input.value).toBe("-1,200")
@@ -55,7 +55,7 @@ describe("MoneyInput with roundTo={50}", () => {
     render(
       <MoneyInput currency="UGX" roundTo={50} value="" onChange={onChange} />,
     )
-    const input = screen.getByRole("textbox") as HTMLInputElement
+    const input = screen.getByRole<HTMLInputElement>("textbox")
     fireEvent.change(input, { target: { value: "1237" } })
     fireEvent.blur(input)
     // Last call after blur should be with the floored value

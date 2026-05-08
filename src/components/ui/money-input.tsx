@@ -94,7 +94,7 @@ function MoneyInput({
 
   function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
     // Strip a trailing dot left over from partial input
-    let raw = display.endsWith(".") ? display.slice(0, -1) : display
+    const raw = display.endsWith(".") ? display.slice(0, -1) : display
     let stripped = stripCommas(raw)
 
     if (roundTo && stripped !== "" && stripped !== "-") {
