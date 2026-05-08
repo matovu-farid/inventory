@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import BigNumber from "bignumber.js"
+import { roundUgxFloor50, roundUgxBankers50, formatUgxTotal } from "#/lib/format"
 import {
   Table,
   TableBody,
@@ -45,7 +46,7 @@ function ReportsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono">
-              {new BigNumber(cash.cashBalance).toFormat(0)}
+              {roundUgxBankers50(cash.cashBalance).toFormat(0)}
             </div>
           </CardContent>
         </Card>
@@ -58,7 +59,7 @@ function ReportsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono">
-              {new BigNumber(cash.bankBalance).toFormat(0)}
+              {roundUgxBankers50(cash.bankBalance).toFormat(0)}
             </div>
           </CardContent>
         </Card>
@@ -71,7 +72,7 @@ function ReportsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono">
-              {new BigNumber(cash.totalBalance).toFormat(0)}
+              {roundUgxBankers50(cash.totalBalance).toFormat(0)}
             </div>
           </CardContent>
         </Card>
@@ -94,14 +95,14 @@ function ReportsDashboard() {
                     <TableRow key={r.name}>
                       <TableCell>{r.name}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {new BigNumber(r.amount).toFormat(0)}
+                        {roundUgxFloor50(r.amount).toFormat(0)}
                       </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-bold">
                     <TableCell>Total Revenue</TableCell>
                     <TableCell className="text-right font-mono">
-                      {new BigNumber(pnl.totalRevenue).toFormat(0)}
+                      {roundUgxBankers50(pnl.totalRevenue).toFormat(0)}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -119,14 +120,14 @@ function ReportsDashboard() {
                     <TableRow key={e.name}>
                       <TableCell>{e.name}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {new BigNumber(e.amount).toFormat(0)}
+                        {roundUgxFloor50(e.amount).toFormat(0)}
                       </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-bold">
                     <TableCell>Total Expenses</TableCell>
                     <TableCell className="text-right font-mono">
-                      {new BigNumber(pnl.totalExpenses).toFormat(0)}
+                      {roundUgxBankers50(pnl.totalExpenses).toFormat(0)}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -145,7 +146,7 @@ function ReportsDashboard() {
                     : "text-red-600"
                 }`}
               >
-                UGX {new BigNumber(pnl.netIncome).toFormat(0)}
+                {formatUgxTotal(pnl.netIncome)}
               </span>
             </div>
           </CardContent>
@@ -169,14 +170,14 @@ function ReportsDashboard() {
                     <TableRow key={a.name}>
                       <TableCell>{a.name}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {new BigNumber(a.balance).toFormat(0)}
+                        {roundUgxFloor50(a.balance).toFormat(0)}
                       </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-bold">
                     <TableCell>Total</TableCell>
                     <TableCell className="text-right font-mono">
-                      {new BigNumber(bs.totalAssets).toFormat(0)}
+                      {roundUgxBankers50(bs.totalAssets).toFormat(0)}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -194,14 +195,14 @@ function ReportsDashboard() {
                     <TableRow key={l.name}>
                       <TableCell>{l.name}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {new BigNumber(l.balance).toFormat(0)}
+                        {roundUgxFloor50(l.balance).toFormat(0)}
                       </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-bold">
                     <TableCell>Total</TableCell>
                     <TableCell className="text-right font-mono">
-                      {new BigNumber(bs.totalLiabilities).toFormat(0)}
+                      {roundUgxBankers50(bs.totalLiabilities).toFormat(0)}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -219,14 +220,14 @@ function ReportsDashboard() {
                     <TableRow key={e.name}>
                       <TableCell>{e.name}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {new BigNumber(e.balance).toFormat(0)}
+                        {roundUgxFloor50(e.balance).toFormat(0)}
                       </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-bold">
                     <TableCell>Total</TableCell>
                     <TableCell className="text-right font-mono">
-                      {new BigNumber(bs.totalEquity).toFormat(0)}
+                      {roundUgxBankers50(bs.totalEquity).toFormat(0)}
                     </TableCell>
                   </TableRow>
                 </TableBody>

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import BigNumber from "bignumber.js"
+import { roundUgxFloor50 } from "#/lib/format"
 import { Badge } from "#/components/ui/badge"
 import {
   Table,
@@ -69,7 +69,7 @@ function LedgerPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {new BigNumber(e.amount).toFormat(0)}
+                    {roundUgxFloor50(e.amount).toFormat(0)}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground max-w-48 truncate">
                     {e.description ?? "-"}
