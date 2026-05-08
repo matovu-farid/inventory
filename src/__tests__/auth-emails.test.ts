@@ -32,10 +32,25 @@ import { hashPassword } from "better-auth/crypto"
 const TEST_PREFIX = "test-auth-emails-"
 
 /**
- * WARNING: cleanup() nukes ALL rows in session, account, verification, and user
- * tables. This is intentional — we need to ensure the "first signup" path fires
- * in each test. Only run this test against your local development DB.
+ * cleanup() nukes ALL rows in session/account/verification/user. This is
+ * required because the "first signup becomes admin" branch only fires when
+ * the user table is empty.
+ *
+ * Hard guard: refuse to run unless DATABASE_URL points at a database whose
+ * name contains "_test". Prevents the test from clobbering a working dev DB.
+ * Run with `pnpm test:integration` (which loads .env.test).
  */
+if (
+  !process.env.DATABASE_URL ||
+  !/_test(\b|$|\?)/i.test(process.env.DATABASE_URL)
+) {
+  throw new Error(
+    "auth-emails.test.ts refuses to run: DATABASE_URL must point at a *_test " +
+      "database (e.g. postgresql://.../inventory_test). Use `pnpm test:integration` " +
+      "with .env.test set up. See .env.test.example for setup.",
+  )
+}
+
 async function cleanup() {
   await db.delete(schema.session)
   await db.delete(schema.account)
