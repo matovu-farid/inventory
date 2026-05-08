@@ -2,6 +2,7 @@ import "#/sentry"
 import { useEffect } from "react"
 import {
   HeadContent,
+  Link,
   Outlet,
   Scripts,
   createRootRouteWithContext,
@@ -114,10 +115,16 @@ function RootLayout() {
             onLogout={handleLogout}
             pendingHardCount={pendingHardCount}
           />
-          <Logo className="size-7" />
-          <span className="text-[15px] font-semibold tracking-[-0.01em]">
-            Inventory
-          </span>
+          <Link
+            to="/"
+            aria-label="Go to dashboard"
+            className="flex items-center gap-3 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+          >
+            <Logo className="size-7" />
+            <span className="text-[15px] font-semibold tracking-[-0.01em]">
+              Inventory
+            </span>
+          </Link>
         </header>
 
         {/* Main content */}

@@ -413,7 +413,9 @@ function AddItemForm({
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
-  const [supplierId, setSupplierId] = useState("")
+  const [supplierId, setSupplierId] = useState(
+    suppliers.length === 1 ? suppliers[0].id : "",
+  )
   const [unitPrice, setUnitPrice] = useState("")
   const initialCurrency = "RMB"
   const initialFxToUsd =

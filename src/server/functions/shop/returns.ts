@@ -16,14 +16,12 @@ import { computeNewSaleStatus } from "#/lib/credit/payment-allocation"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
-import { computeShopStockMutationsForReturnItem } from "./return-stock-mutations"
 import { validateCreditAdjustmentRefund } from "./refund-validate"
 
 const returnItemInput = z.object({
   shopStockId: z.string().uuid(),
   quantity: z.number().int().positive(),
   unitRefundPriceUgx: z.string(),
-  condition: z.enum(["resellable", "damaged"]),
 })
 
 const recordCustomerReturnInput = z.object({
@@ -39,10 +37,9 @@ const recordCustomerReturnInput = z.object({
 
 /**
  * Record a customer returning goods to a shop. Admin/Supervisor approval
- * required. Damaged returns route to the damaged-goods bucket; resellable
- * items go back to regular shop stock. The journal entry posts:
+ * required. Returned items go back to sellable shop stock. The journal posts:
  *   DR Sales Returns (contra-revenue) / CR Cash | Bank | A/R
- *   DR Inventory - Shop | Damaged Inventory - Shop / CR Cost of Goods Sold
+ *   DR Inventory - Shop / CR Cost of Goods Sold
  */
 export const recordCustomerReturn = createServerFn()
   .inputValidator(recordCustomerReturnInput)
@@ -67,8 +64,6 @@ export const recordCustomerReturn = createServerFn()
 
       let totalRefund = new BigNumber(0)
       let totalCost = new BigNumber(0)
-      let totalCostResellable = new BigNumber(0)
-      let totalCostDamaged = new BigNumber(0)
 
       const itemDetails = []
       for (const item of data.items) {
@@ -83,11 +78,6 @@ export const recordCustomerReturn = createServerFn()
 
         totalRefund = totalRefund.plus(totalRefundForItem)
         totalCost = totalCost.plus(totalCostForItem)
-        if (item.condition === "resellable") {
-          totalCostResellable = totalCostResellable.plus(totalCostForItem)
-        } else {
-          totalCostDamaged = totalCostDamaged.plus(totalCostForItem)
-        }
 
         itemDetails.push({
           stock,
@@ -96,7 +86,6 @@ export const recordCustomerReturn = createServerFn()
           totalRefund: totalRefundForItem,
           unitCost: costPerUnit,
           totalCost: totalCostForItem,
-          condition: item.condition,
         })
       }
 
@@ -119,7 +108,7 @@ export const recordCustomerReturn = createServerFn()
         })
         .returning()
 
-      // Create return-item rows and re-stock the resellable items
+      // Create return-item rows and re-stock the returned items
       for (const detail of itemDetails) {
         await tx.insert(shopReturnItems).values({
           shopReturnId: shopReturn.id,
@@ -128,33 +117,15 @@ export const recordCustomerReturn = createServerFn()
           quantity: detail.quantity,
           unitRefundPriceUgx: detail.unitRefund.toFixed(2),
           unitCostUgx: detail.unitCost.toFixed(2),
-          condition: detail.condition,
           totalRefundUgx: detail.totalRefund.toFixed(2),
         })
 
-        const mutations = computeShopStockMutationsForReturnItem({
-          condition: detail.condition,
-          quantity: detail.quantity,
-          unitCostUgx: detail.unitCost.toFixed(2),
-        })
-        for (const m of mutations) {
-          if (m.field === "quantityOnHand") {
-            await tx
-              .update(shopStock)
-              .set({
-                quantityOnHand: sql`${shopStock.quantityOnHand} + ${m.quantityDelta}`,
-              })
-              .where(eq(shopStock.id, detail.stock.id))
-          } else {
-            await tx
-              .update(shopStock)
-              .set({
-                damagedQuantity: sql`${shopStock.damagedQuantity} + ${m.quantityDelta}`,
-                damagedValueUgx: sql`${shopStock.damagedValueUgx} + ${m.valueDelta ?? "0"}`,
-              })
-              .where(eq(shopStock.id, detail.stock.id))
-          }
-        }
+        await tx
+          .update(shopStock)
+          .set({
+            quantityOnHand: sql`${shopStock.quantityOnHand} + ${detail.quantity}`,
+          })
+          .where(eq(shopStock.id, detail.stock.id))
       }
 
       // For credit_adjustment refunds, look up the original sale and guard
@@ -213,41 +184,29 @@ export const recordCustomerReturn = createServerFn()
         description: `Refund ${docNumber.formatted}: ${data.reason}`,
       })
 
-      // COGS reversal — split between resellable and damaged buckets
-      const reversalEntries: Array<{
-        type: "debit" | "credit"
-        category: string
-        amount: string
-      }> = []
-      if (totalCostResellable.gt(0)) {
-        reversalEntries.push({
-          type: "debit",
-          category: "Inventory - Shop",
-          amount: totalCostResellable.toFixed(2),
+      // COGS reversal — returned goods go back to sellable inventory
+      if (totalCost.gt(0)) {
+        await postJournalEntry(tx, {
+          entries: [
+            {
+              type: "debit",
+              category: "Inventory - Shop",
+              amount: totalCost.toFixed(2),
+            },
+            {
+              type: "credit",
+              category: "Cost of Goods Sold",
+              amount: totalCost.toFixed(2),
+            },
+          ],
+          referenceType: "shop_return",
+          referenceId: shopReturn.id,
+          locationType: "shop",
+          locationId: data.shopId,
+          recordedBy: userId,
+          description: `Return COGS reversal ${docNumber.formatted}`,
         })
       }
-      if (totalCostDamaged.gt(0)) {
-        reversalEntries.push({
-          type: "debit",
-          category: "Damaged Inventory - Shop",
-          amount: totalCostDamaged.toFixed(2),
-        })
-      }
-      reversalEntries.push({
-        type: "credit",
-        category: "Cost of Goods Sold",
-        amount: totalCost.toFixed(2),
-      })
-
-      await postJournalEntry(tx, {
-        entries: reversalEntries,
-        referenceType: "shop_return",
-        referenceId: shopReturn.id,
-        locationType: "shop",
-        locationId: data.shopId,
-        recordedBy: userId,
-        description: `Return COGS reversal ${docNumber.formatted}`,
-      })
 
       // For credit_adjustment refunds against an open credit sale, reduce
       // that sale's outstanding balance and update its status.
@@ -291,8 +250,6 @@ export const recordCustomerReturn = createServerFn()
         metadata: {
           itemCount: data.items.length,
           totalCostUgx: totalCost.toFixed(2),
-          totalCostResellableUgx: totalCostResellable.toFixed(2),
-          totalCostDamagedUgx: totalCostDamaged.toFixed(2),
           bankAccountId: data.bankAccountId,
         },
       })

@@ -59,10 +59,15 @@ export const storeTransferItems = pgTable(
       .notNull()
       .references(() => storeStock.id, { onDelete: "restrict" }),
     productName: text("product_name").notNull(),
+    articleNumber: text("article_number"),
     quantityDispatched: integer("quantity_dispatched").notNull(),
     quantityReceived: integer("quantity_received"),
+    discrepancyNotes: text("discrepancy_notes"),
     unitPriceUgx: numeric("unit_price_ugx", { precision: 15, scale: 2 }).notNull(),
     totalPriceUgx: numeric("total_price_ugx", { precision: 15, scale: 2 }).notNull(),
+    /** Minimum sell price the shop must charge customers for this item.
+     *  Set by the dispatcher; defaults to store cost-per-unit. */
+    minimumSellPriceUgx: numeric("minimum_sell_price_ugx", { precision: 15, scale: 2 }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

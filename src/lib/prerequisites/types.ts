@@ -50,7 +50,7 @@ export interface SystemPrereqsSummary {
   failingSoft: number
   /** All missing items across all pages (hard first, then soft). */
   items: SystemPrereqItem[]
-  /** Pages that passed, listed for the "All set" section on /settings/setup. */
+  /** Pages that passed, listed for the "All set" section on /settings. */
   satisfiedPages: Array<{ pageHref: string; pageLabel: string }>
 }
 

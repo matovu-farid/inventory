@@ -59,6 +59,16 @@ function SalesPage() {
   }
 
   useEffect(() => {
+    if (shops.length === 0) {
+      if (shopId) setShopId("")
+      return
+    }
+    if (!shops.some((s) => s.id === shopId)) {
+      setShopId(shops[0].id)
+    }
+  }, [shops])
+
+  useEffect(() => {
     if (shopId && shops.length > 0) loadSales(shopId)
   }, [shopId])
 

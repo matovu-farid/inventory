@@ -20,7 +20,6 @@ const returnItemInput = z.object({
   shopStockId: z.string().uuid(),
   quantityDispatched: z.number().int().positive(),
   unitTransferPriceUgx: z.string(),
-  condition: z.enum(["resellable", "damaged"]),
 })
 
 const dispatchStoreReturnInput = z.object({
@@ -84,7 +83,6 @@ export const dispatchStoreReturn = createServerFn()
           quantityDispatched: detail.quantityDispatched,
           unitTransferPriceUgx: detail.unitTransferPriceUgx,
           unitCostUgx: detail.stock.costPerUnitUgx,
-          condition: detail.condition,
         })
 
         await tx
@@ -131,7 +129,7 @@ const receiveStoreReturnInput = z.object({
  * Store confirms receipt of returned goods. Posts reverse journal entries
  * for the original transfer (Inventory shift back, Due-from/Due-to nets,
  * Store Transfer Revenue reversal) and increments store stock for the
- * received quantities. Damaged items land in Damaged Inventory - Store.
+ * received quantities.
  */
 export const receiveStoreReturn = createServerFn()
   .inputValidator(receiveStoreReturnInput)
@@ -154,10 +152,8 @@ export const receiveStoreReturn = createServerFn()
         )
       }
 
-      let totalTransferPriceResellable = new BigNumber(0)
-      let totalTransferPriceDamaged = new BigNumber(0)
-      let totalCostResellable = new BigNumber(0)
-      let totalCostDamaged = new BigNumber(0)
+      let totalTransferPrice = new BigNumber(0)
+      let totalCost = new BigNumber(0)
       let totalCostDispatched = new BigNumber(0)
       let totalTransferDispatched = new BigNumber(0)
 
@@ -194,35 +190,26 @@ export const receiveStoreReturn = createServerFn()
           receipt.quantityReceived,
         )
 
-        if (item.condition === "resellable") {
-          totalTransferPriceResellable = totalTransferPriceResellable.plus(transferAmount)
-          totalCostResellable = totalCostResellable.plus(costAmount)
-          // Increment store stock — find the matching store_stock row by product
-          const matching = await tx.query.storeStock.findFirst({
-            where: eq(storeStock.productName, item.productName),
-          })
-          if (matching) {
-            await tx
-              .update(storeStock)
-              .set({
-                quantityOnHand: sql`${storeStock.quantityOnHand} + ${receipt.quantityReceived}`,
-              })
-              .where(eq(storeStock.id, matching.id))
-          }
-        } else {
-          totalTransferPriceDamaged = totalTransferPriceDamaged.plus(transferAmount)
-          totalCostDamaged = totalCostDamaged.plus(costAmount)
+        totalTransferPrice = totalTransferPrice.plus(transferAmount)
+        totalCost = totalCost.plus(costAmount)
+
+        // Increment store stock — find the matching store_stock row by product
+        const matching = await tx.query.storeStock.findFirst({
+          where: eq(storeStock.productName, item.productName),
+        })
+        if (matching) {
+          await tx
+            .update(storeStock)
+            .set({
+              quantityOnHand: sql`${storeStock.quantityOnHand} + ${receipt.quantityReceived}`,
+            })
+            .where(eq(storeStock.id, matching.id))
         }
       }
 
-      const totalTransferPrice = totalTransferPriceResellable.plus(
-        totalTransferPriceDamaged,
-      )
-
       // Build the (always balanced) reversal journal via the pure helper.
       const { entries } = buildStoreReturnReceiveEntries({
-        totalCostResellable: totalCostResellable.toFixed(2),
-        totalCostDamaged: totalCostDamaged.toFixed(2),
+        totalCost: totalCost.toFixed(2),
         totalTransferPrice: totalTransferPrice.toFixed(2),
         totalCostDispatched: totalCostDispatched.toFixed(2),
         totalTransferDispatched: totalTransferDispatched.toFixed(2),
@@ -255,10 +242,8 @@ export const receiveStoreReturn = createServerFn()
         metadata: {
           itemCount: data.itemReceipts.length,
           documentNumber: storeReturn.documentNumber,
-          totalTransferPriceResellableUgx: totalTransferPriceResellable.toFixed(2),
-          totalTransferPriceDamagedUgx: totalTransferPriceDamaged.toFixed(2),
-          totalCostResellableUgx: totalCostResellable.toFixed(2),
-          totalCostDamagedUgx: totalCostDamaged.toFixed(2),
+          totalTransferPriceUgx: totalTransferPrice.toFixed(2),
+          totalCostUgx: totalCost.toFixed(2),
         },
       })
 

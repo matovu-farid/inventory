@@ -77,7 +77,7 @@ function Home() {
     <div className="space-y-6">
       {summary.failingHard > 0 && (
         <Link
-          to="/settings/setup"
+          to="/settings"
           className="block rounded-md border border-destructive/40 bg-destructive/5 p-4 text-destructive transition-colors hover:bg-destructive/10"
         >
           <div className="flex items-center gap-3">

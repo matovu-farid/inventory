@@ -13,6 +13,10 @@ import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import {
+  validateDiscrepancyNotes,
+  validateQuantityReceived,
+} from "./receive-validate"
 import { buildTransferInventoryEntries } from "./transfer-entries"
 
 export const listTransfers = createServerFn().handler(async () => {
@@ -31,6 +35,9 @@ export const listTransfers = createServerFn().handler(async () => {
 const transferItemInput = z.object({
   storeStockId: z.string().uuid(),
   quantityDispatched: z.number().int().positive(),
+  /** Min sell price the shop must charge for this item. Optional;
+   *  falls back to the store's cost-per-unit when omitted. */
+  minimumSellPriceUgx: z.string().optional(),
 })
 
 const createTransferInput = z.object({
@@ -91,14 +98,29 @@ export const createTransfer = createServerFn()
         const totalPrice = unitPrice.times(item.quantityDispatched)
         const itemCost = new BigNumber(stock.costPerUnitUgx).times(item.quantityDispatched)
 
+        // Shop's minimum sell price defaults to the store's cost-per-unit
+        // when the dispatcher doesn't override it.
+        const shopMinSellRaw =
+          item.minimumSellPriceUgx && item.minimumSellPriceUgx.trim().length > 0
+            ? item.minimumSellPriceUgx
+            : stock.costPerUnitUgx
+        const shopMinSell = new BigNumber(shopMinSellRaw)
+        if (!shopMinSell.isFinite() || shopMinSell.lte(0)) {
+          throw new Error(
+            `Invalid shop minimum sell price for ${stock.productName}`,
+          )
+        }
+
         // Create transfer item
         await tx.insert(storeTransferItems).values({
           storeTransferId: transfer.id,
           storeStockId: item.storeStockId,
           productName: stock.productName,
+          articleNumber: stock.articleNumber,
           quantityDispatched: item.quantityDispatched,
           unitPriceUgx: unitPrice.toFixed(2),
           totalPriceUgx: totalPrice.toFixed(2),
+          minimumSellPriceUgx: shopMinSell.toFixed(2),
         })
 
         // Decrement store stock
@@ -175,6 +197,7 @@ const confirmReceiptInput = z.object({
     z.object({
       transferItemId: z.string().uuid(),
       quantityReceived: z.number().int().min(0),
+      discrepancyNotes: z.string().optional(),
     }),
   ),
 })
@@ -203,13 +226,23 @@ export const confirmTransferReceipt = createServerFn()
         const ti = transfer.items.find((i) => i.id === receiptItem.transferItemId)
         if (!ti) throw new Error(`Transfer item not found: ${receiptItem.transferItemId}`)
 
-        // Update transfer item with received quantity
+        validateQuantityReceived(receiptItem.quantityReceived)
+        validateDiscrepancyNotes({
+          quantityExpected: ti.quantityDispatched,
+          quantityReceived: receiptItem.quantityReceived,
+          discrepancyNotes: receiptItem.discrepancyNotes,
+        })
+
         await tx
           .update(storeTransferItems)
-          .set({ quantityReceived: receiptItem.quantityReceived })
+          .set({
+            quantityReceived: receiptItem.quantityReceived,
+            discrepancyNotes: receiptItem.discrepancyNotes,
+          })
           .where(eq(storeTransferItems.id, ti.id))
 
-        // Create or update shop stock (idempotent for re-calls)
+        // Create or update shop stock (idempotent for re-calls).
+        // Skip the insert when nothing arrived — no row needed for a 0-qty lot.
         const existingShopStock = await tx.query.shopStock.findFirst({
           where: eq(shopStock.storeTransferItemId, ti.id),
         })
@@ -218,18 +251,21 @@ export const confirmTransferReceipt = createServerFn()
             .update(shopStock)
             .set({ quantityOnHand: receiptItem.quantityReceived })
             .where(eq(shopStock.id, existingShopStock.id))
-        } else {
+        } else if (receiptItem.quantityReceived > 0) {
           await tx.insert(shopStock).values({
             shopId: transfer.shopId,
             productName: ti.productName,
+            articleNumber: ti.articleNumber,
             storeTransferItemId: ti.id,
             quantityOnHand: receiptItem.quantityReceived,
             costPerUnitUgx: ti.unitPriceUgx,
-            minimumSellPriceUgx: ti.unitPriceUgx,
+            // Honor the shop min sell price set at dispatch.
+            // Legacy rows (pre-feature) fall back to the transfer price.
+            minimumSellPriceUgx: ti.minimumSellPriceUgx ?? ti.unitPriceUgx,
           })
         }
 
-        // Detect distribution loss
+        // Distribution loss: items dispatched but never arrived at the shop.
         const loss = ti.quantityDispatched - receiptItem.quantityReceived
         if (loss > 0) {
           const lossValue = new BigNumber(ti.unitPriceUgx).times(loss)
@@ -254,6 +290,12 @@ export const confirmTransferReceipt = createServerFn()
         .set({ status: "received", receivedBy: userId })
         .where(eq(storeTransfers.id, data.transferId))
 
+      const totalLoss = data.items.reduce((sum, i) => {
+        const ti = transfer.items.find((x) => x.id === i.transferItemId)
+        if (!ti) return sum
+        return sum + (ti.quantityDispatched - i.quantityReceived)
+      }, 0)
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "transfer.receive",
@@ -264,6 +306,7 @@ export const confirmTransferReceipt = createServerFn()
         metadata: {
           itemCount: data.items.length,
           shopId: transfer.shopId,
+          totalDistributionLoss: totalLoss,
         },
       })
 

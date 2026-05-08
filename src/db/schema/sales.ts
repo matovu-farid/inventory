@@ -77,6 +77,7 @@ export const shopSaleItems = pgTable(
     unitPriceUgx: numeric("unit_price_ugx", { precision: 15, scale: 2 }).notNull(),
     minimumPriceUgx: numeric("minimum_price_ugx", { precision: 15, scale: 2 }).notNull(),
     isBelowMinimum: boolean("is_below_minimum").notNull().default(false),
+    belowMinimumReason: text("below_minimum_reason"),
     totalPriceUgx: numeric("total_price_ugx", { precision: 15, scale: 2 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },

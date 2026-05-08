@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState, useEffect } from "react"
+import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
 import { getShopPrereqs } from "#/server/functions/prereqs/shop"
@@ -32,30 +33,58 @@ import {
   TableHeader,
   TableRow,
 } from "#/components/ui/table"
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "#/components/ui/command"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { Separator } from "#/components/ui/separator"
 import { InfoTip } from "#/components/ui/info-tip"
-import { Plus, ShoppingCart } from "lucide-react"
+import { ArrowLeft, Check, Plus, ShoppingCart, PackageCheck } from "lucide-react"
 import { AddShopDialog } from "#/components/shops/add-shop-dialog"
+import { ReceiveTransferForm } from "#/components/transfers/receive-transfer-form"
 import { listShops } from "#/server/functions/admin/locations"
 import { getShopStock, recordSale } from "#/server/functions/shop/sales"
+import { listTransfers } from "#/server/functions/store/transfers"
 import { getSession } from "#/server/middleware/auth"
 
+const searchSchema = z.object({
+  shopId: z.string().uuid().optional(),
+})
+
 export const Route = createFileRoute("/shop/")({
+  validateSearch: searchSchema,
   loader: async () => {
     const session = await getSession()
     const role = (session?.user as { role?: string } | undefined)?.role ?? null
-    const shops = await listShops()
-    return { shops, role }
+    const canManage = role === "admin" || role === "supervisor"
+    const [shops, transfers] = await Promise.all([
+      listShops(),
+      canManage ? listTransfers() : Promise.resolve([]),
+    ])
+    return { shops, role, transfers }
   },
   component: ShopPage,
 })
 
 function ShopPage() {
-  const { shops, role } = Route.useLoaderData()
+  const { shops, role, transfers } = Route.useLoaderData()
+  const { shopId: shopIdFromSearch } = Route.useSearch()
   const router = useRouter()
   const canManage = role === "admin" || role === "supervisor"
-  const [shopId, setShopId] = useState(shops[0]?.id ?? "")
+  const [shopId, setShopId] = useState(
+    shopIdFromSearch && shops.some((s) => s.id === shopIdFromSearch)
+      ? shopIdFromSearch
+      : shops[0]?.id ?? "",
+  )
+  const [receiveOpen, setReceiveOpen] = useState(false)
+
+  const pendingTransfers = transfers.filter(
+    (t) => t.status === "dispatched" && t.shopId === shopId,
+  )
   const [stock, setStock] = useState<
     Array<{
       id: string
@@ -75,6 +104,16 @@ function ShopPage() {
     const s = await getShopStock({ data: { shopId: id } })
     setStock(s)
   }
+
+  useEffect(() => {
+    if (shops.length === 0) {
+      if (shopId) setShopId("")
+      return
+    }
+    if (!shops.some((s) => s.id === shopId)) {
+      setShopId(shops[0].id)
+    }
+  }, [shops])
 
   useEffect(() => {
     if (shopId && shops.length > 0) loadStock(shopId)
@@ -169,6 +208,44 @@ function ShopPage() {
           </p>
         ) : (
           <>
+            {pendingTransfers.length > 0 && canManage && (
+              <div className="rounded-md border border-amber-300/60 bg-amber-50/80 p-4 text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-100">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <PackageCheck className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
+                    <div>
+                      <p className="text-sm font-medium leading-tight">
+                        {pendingTransfers.length} transfer
+                        {pendingTransfers.length === 1 ? "" : "s"} awaiting receipt
+                      </p>
+                      <p className="text-[13px] opacity-90">
+                        Goods have been dispatched from the warehouse. Count them
+                        and confirm receipt to add them to this shop's stock.
+                      </p>
+                    </div>
+                  </div>
+                  <Dialog open={receiveOpen} onOpenChange={setReceiveOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">Confirm Receipt</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-xl">
+                      <DialogHeader>
+                        <DialogTitle>Confirm Transfer Receipt</DialogTitle>
+                      </DialogHeader>
+                      <ReceiveTransferForm
+                        transfers={pendingTransfers}
+                        onSuccess={() => {
+                          setReceiveOpen(false)
+                          router.invalidate()
+                          loadStock(shopId)
+                        }}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4 max-w-md">
               <Card>
                 <CardHeader className="pb-2">
@@ -260,42 +337,59 @@ function ShopPage() {
 /* New Sale Form                                                       */
 /* ------------------------------------------------------------------ */
 
+type StockItem = {
+  id: string
+  productName: string
+  articleNumber?: string | null
+  quantityOnHand: number
+  minimumSellPriceUgx: string
+}
+
 function NewSaleForm({
   shopId,
   stock,
   onSuccess,
 }: {
   shopId: string
-  stock: Array<{
-    id: string
-    productName: string
-    quantityOnHand: number
-    minimumSellPriceUgx: string
-  }>
+  stock: StockItem[]
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
+  const [stage, setStage] = useState<"select" | "configure">("select")
   const [cart, setCart] = useState<
-    Array<{ stockId: string; qty: number; price: string }>
+    Array<{
+      stockId: string
+      qty: number
+      price: string
+      belowMinimumReason: string
+    }>
   >([])
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "bank">("cash")
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  function addToCart(stockId: string) {
+  function toggleSelection(stockId: string) {
     const item = stock.find((s) => s.id === stockId)
     if (!item) return
-    if (cart.find((c) => c.stockId === stockId)) return
-    setCart((c) => [
-      ...c,
-      {
-        stockId,
-        qty: 1,
-        price: item.minimumSellPriceUgx,
-      },
-    ])
+    setCart((c) => {
+      const existing = c.find((x) => x.stockId === stockId)
+      if (existing) return c.filter((x) => x.stockId !== stockId)
+      return [
+        ...c,
+        {
+          stockId,
+          qty: 1,
+          price: item.minimumSellPriceUgx,
+          belowMinimumReason: "",
+        },
+      ]
+    })
   }
 
-  function updateCart(stockId: string, field: "qty" | "price", value: string) {
+  function updateCart(
+    stockId: string,
+    field: "qty" | "price" | "belowMinimumReason",
+    value: string,
+  ) {
     setCart((c) =>
       c.map((i) =>
         i.stockId === stockId
@@ -330,6 +424,14 @@ function NewSaleForm({
       if (s && item.qty > s.quantityOnHand) {
         newErrors[`qty_${item.stockId}`] = `Only ${s.quantityOnHand} available`
       }
+      if (
+        s &&
+        item.price !== "" &&
+        new BigNumber(item.price || 0).lt(s.minimumSellPriceUgx) &&
+        item.belowMinimumReason.trim().length === 0
+      ) {
+        newErrors[`reason_${item.stockId}`] = "Reason required for below-minimum sale"
+      }
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -347,6 +449,7 @@ function NewSaleForm({
             shopStockId: c.stockId,
             quantity: c.qty,
             unitPriceUgx: c.price,
+            belowMinimumReason: c.belowMinimumReason.trim() || undefined,
           })),
         },
       })
@@ -359,25 +462,81 @@ function NewSaleForm({
     }
   }
 
+  if (stage === "select") {
+    const selectedIds = new Set(cart.map((c) => c.stockId))
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Search and select one or more products to sell.
+        </p>
+        <Command className="rounded-md border" shouldFilter={true}>
+          <CommandInput placeholder="Search by product or article #..." />
+          <CommandList className="max-h-[320px]">
+            <CommandEmpty>No matching products.</CommandEmpty>
+            {stock.map((s) => {
+              const isSelected = selectedIds.has(s.id)
+              return (
+                <CommandItem
+                  key={s.id}
+                  value={`${s.productName} ${s.articleNumber ?? ""}`}
+                  onSelect={() => toggleSelection(s.id)}
+                  className="flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={`flex size-4 shrink-0 items-center justify-center rounded-sm border ${
+                        isSelected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-input"
+                      }`}
+                    >
+                      {isSelected && <Check className="size-3" />}
+                    </span>
+                    <span className="truncate font-medium">{s.productName}</span>
+                    {s.articleNumber && (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {s.articleNumber}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 gap-3 text-xs text-muted-foreground">
+                    <span>avail {s.quantityOnHand}</span>
+                    <span className="font-mono">
+                      min {new BigNumber(s.minimumSellPriceUgx).toFormat(0)}
+                    </span>
+                  </div>
+                </CommandItem>
+              )
+            })}
+          </CommandList>
+        </Command>
+
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            {cart.length} item{cart.length === 1 ? "" : "s"} selected
+          </p>
+          <Button
+            onClick={() => setStage("configure")}
+            disabled={cart.length === 0}
+          >
+            Continue
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label>Add Item</Label>
-        <Select onValueChange={addToCart}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select product..." />
-          </SelectTrigger>
-          <SelectContent>
-            {stock
-              .filter((s) => !cart.find((c) => c.stockId === s.id))
-              .map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.productName} (avail: {s.quantityOnHand})
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setStage("select")}
+        className="-ml-2 h-8 text-muted-foreground"
+      >
+        <ArrowLeft className="mr-1 h-4 w-4" />
+        Back to selection
+      </Button>
 
       {cart.length > 0 && (
         <div className="space-y-2">
@@ -432,14 +591,33 @@ function NewSaleForm({
                         updateCart(item.stockId, "price", val)
                       }
                       placeholder="0"
-                      error={
-                        isBelowMin
-                          ? `Below minimum (${new BigNumber(s.minimumSellPriceUgx).toFormat(0)})`
-                          : undefined
-                      }
                     />
                   </div>
                 </div>
+                {isBelowMin && (
+                  <div className="space-y-1 pt-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Reason for selling below{" "}
+                      {new BigNumber(s.minimumSellPriceUgx).toFormat(0)}
+                    </Label>
+                    <Input
+                      value={item.belowMinimumReason}
+                      onChange={(e) =>
+                        updateCart(
+                          item.stockId,
+                          "belowMinimumReason",
+                          e.target.value,
+                        )
+                      }
+                      placeholder="e.g. damaged, customer haggled, clearance"
+                    />
+                    {errors[`reason_${item.stockId}`] && (
+                      <p className="text-xs text-destructive">
+                        {errors[`reason_${item.stockId}`]}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}

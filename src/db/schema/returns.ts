@@ -23,11 +23,6 @@ export const refundMethodEnum = pgEnum("refund_method", [
   "credit_adjustment",
 ])
 
-export const returnConditionEnum = pgEnum("return_condition", [
-  "resellable",
-  "damaged",
-])
-
 export const storeReturnStatusEnum = pgEnum("store_return_status", [
   "dispatched",
   "received",
@@ -94,7 +89,6 @@ export const shopReturnItems = pgTable(
       scale: 2,
     }).notNull(),
     unitCostUgx: numeric("unit_cost_ugx", { precision: 15, scale: 2 }).notNull(),
-    condition: returnConditionEnum("condition").notNull(),
     totalRefundUgx: numeric("total_refund_ugx", {
       precision: 15,
       scale: 2,
@@ -168,7 +162,6 @@ export const storeReturnItems = pgTable(
       precision: 15,
       scale: 2,
     }).notNull(),
-    condition: returnConditionEnum("condition").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index("idx_storeri_return").on(table.storeReturnId)],

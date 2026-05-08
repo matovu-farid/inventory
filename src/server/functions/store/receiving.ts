@@ -15,7 +15,7 @@ import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import {
   validateDiscrepancyNotes,
-  validateReceiveItem,
+  validateQuantityReceived,
 } from "./receive-validate"
 
 /**
@@ -107,7 +107,6 @@ export const getUnreceivedItems = createServerFn()
 const receiveItemInput = z.object({
   supplyRouteItemId: z.string().uuid(),
   quantityReceived: z.number().int().min(0),
-  quantityDamaged: z.number().int().min(0).default(0),
   discrepancyNotes: z.string().optional(),
 })
 
@@ -140,7 +139,6 @@ export const receiveGoods = createServerFn()
         productName: string
         expected: number
         received: number
-        damaged: number
         transitLoss: number
       }> = []
 
@@ -161,10 +159,7 @@ export const receiveGoods = createServerFn()
           )
         }
 
-        const { usableQty } = validateReceiveItem({
-          quantityReceived: item.quantityReceived,
-          quantityDamaged: item.quantityDamaged,
-        })
+        validateQuantityReceived(item.quantityReceived)
         validateDiscrepancyNotes({
           quantityExpected: sri.quantity,
           quantityReceived: item.quantityReceived,
@@ -179,7 +174,6 @@ export const receiveGoods = createServerFn()
           receivedDate: new Date(),
           quantityExpected: sri.quantity,
           quantityReceived: item.quantityReceived,
-          quantityDamaged: item.quantityDamaged,
           discrepancyNotes: item.discrepancyNotes,
           receivedBy: (session.user as { id: string }).id,
         })
@@ -201,23 +195,23 @@ export const receiveGoods = createServerFn()
           await tx
             .update(storeStock)
             .set({
-              quantityOnHand: sql`${storeStock.quantityOnHand} + ${usableQty}`,
+              quantityOnHand: sql`${storeStock.quantityOnHand} + ${item.quantityReceived}`,
             })
             .where(eq(storeStock.id, existing.id))
-        } else {
+        } else if (item.quantityReceived > 0) {
           await tx.insert(storeStock).values({
             storeId: store.id,
             productName: sri.productName,
             articleNumber: sri.articleNumber,
             supplyRouteItemId: sri.id,
-            quantityOnHand: usableQty,
+            quantityOnHand: item.quantityReceived,
             costPerUnitUgx: costPerUnit.toFixed(2),
             minimumSellPriceUgx: costPerUnit.toFixed(2), // default; admin sets real price later
           })
         }
 
         // 3. Post ledger entry for received goods
-        const receivedValue = costPerUnit.times(usableQty)
+        const receivedValue = costPerUnit.times(item.quantityReceived)
         if (receivedValue.gt(0)) {
           await postJournalEntry(tx, {
             entries: [
@@ -230,7 +224,7 @@ export const receiveGoods = createServerFn()
             locationId: store.id,
             depositLocation: "cash",
             recordedBy: (session.user as { id: string }).id,
-            description: `Received ${usableQty}x ${sri.productName} from route`,
+            description: `Received ${item.quantityReceived}x ${sri.productName} from route`,
           })
         }
 
@@ -256,7 +250,6 @@ export const receiveGoods = createServerFn()
           productName: sri.productName,
           expected: sri.quantity,
           received: item.quantityReceived,
-          damaged: item.quantityDamaged,
           transitLoss,
         })
       }
@@ -267,15 +260,11 @@ export const receiveGoods = createServerFn()
         .set({ status: "received" })
         .where(eq(supplyRoutes.id, data.supplyRouteId))
 
-      const totalUsableQty = results.reduce(
-        (sum, r) => sum + (r.received - r.damaged),
-        0,
-      )
+      const totalReceived = results.reduce((sum, r) => sum + r.received, 0)
       const totalTransitLoss = results.reduce(
         (sum, r) => sum + r.transitLoss,
         0,
       )
-      const totalDamaged = results.reduce((sum, r) => sum + r.damaged, 0)
 
       await recordAuditLog(tx, {
         actorUserId: (session.user as { id: string }).id,
@@ -284,9 +273,8 @@ export const receiveGoods = createServerFn()
         entityId: data.supplyRouteId,
         metadata: {
           itemCount: data.items.length,
-          totalUsableQty,
+          totalReceived,
           totalTransitLoss,
-          totalDamaged,
         },
       })
 

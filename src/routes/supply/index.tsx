@@ -179,9 +179,15 @@ function CreateRouteForm({
     const form = new FormData(e.currentTarget)
     const name = (form.get("name") as string).trim()
 
+    const departureDate = (form.get("departureDate") as string) || ""
+    const returnDate = (form.get("returnDate") as string) || ""
+
     const errs: Record<string, string> = {}
     if (!name) errs.name = "Route name is required"
     if (budgetUsd && isNaN(Number(budgetUsd))) errs.budget = "Invalid budget amount"
+    if (departureDate && returnDate && departureDate > returnDate) {
+      errs.returnDate = "Return date must be on or after departure date"
+    }
     setFormErrors(errs)
     if (Object.keys(errs).length > 0) return
 
@@ -231,6 +237,9 @@ function CreateRouteForm({
         <div className="space-y-2">
           <FieldLabel htmlFor="returnDate" help="supplyRoute.returnDate">Return Date</FieldLabel>
           <DatePicker id="returnDate" name="returnDate" />
+          {formErrors.returnDate && (
+            <p className="text-xs text-destructive">{formErrors.returnDate}</p>
+          )}
         </div>
       </div>
 

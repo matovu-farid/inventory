@@ -14,7 +14,7 @@ interface PrereqEmptyStateProps {
   subtitle?: string
   /**
    * If true, each row may render a secondary "Open page →" link using
-   * `pageHref`/`pageLabel` extras attached to the items. Used by /settings/setup.
+   * `pageHref`/`pageLabel` extras attached to the items. Used by /settings.
    */
   showPageLinks?: boolean
   className?: string

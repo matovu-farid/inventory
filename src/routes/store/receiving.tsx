@@ -1,10 +1,9 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
 import { Badge } from "#/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { InfoTip } from "#/components/ui/info-tip"
 import { Textarea } from "#/components/ui/textarea"
 import {
@@ -64,26 +63,22 @@ function ReceivingPage() {
     }>
   >([])
   const [receivedQtys, setReceivedQtys] = useState<Record<string, number>>({})
-  const [damagedQtys, setDamagedQtys] = useState<Record<string, number>>({})
   const [discrepancyNotes, setDiscrepancyNotes] = useState<
     Record<string, string>
   >({})
   const [discrepancyOpen, setDiscrepancyOpen] = useState(false)
   const [pending, setPending] = useState(false)
-  const [results, setResults] = useState<
-    Array<{
-      productName: string
-      expected: number
-      received: number
-      damaged: number
-      transitLoss: number
-    }>
-  >([])
   const router = useRouter()
+
+  useEffect(() => {
+    if (routes.length === 1 && !selectedRouteId) {
+      void loadItems(routes[0].id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routes])
 
   async function loadItems(routeId: string) {
     setSelectedRouteId(routeId)
-    setResults([])
     if (!routeId) {
       setItems([])
       return
@@ -97,7 +92,6 @@ function ReceivingPage() {
       qtys[i.id] = i.quantity
     }
     setReceivedQtys(qtys)
-    setDamagedQtys({})
     setDiscrepancyNotes({})
   }
 
@@ -108,21 +102,19 @@ function ReceivingPage() {
   async function submitReceipt() {
     setPending(true)
     try {
-      const res = await receiveGoods({
+      await receiveGoods({
         data: {
           supplyRouteId: selectedRouteId,
           items: items.map((i) => ({
             supplyRouteItemId: i.id,
             quantityReceived: receivedQtys[i.id] ?? i.quantity,
-            quantityDamaged: damagedQtys[i.id] ?? 0,
             discrepancyNotes: discrepancyNotes[i.id]?.trim() || undefined,
           })),
         },
       })
-      setResults(res)
-      setItems([])
       setDiscrepancyOpen(false)
       router.invalidate()
+      await router.navigate({ to: "/store" })
     } catch (err) {
       console.error("Failed to receive goods:", err)
     } finally {
@@ -142,8 +134,6 @@ function ReceivingPage() {
   const allDiscrepancyNotesFilled = discrepantItems.every(
     (i) => (discrepancyNotes[i.id] ?? "").trim().length > 0,
   )
-
-  const totalTransitLoss = results.reduce((s, r) => s + r.transitLoss, 0)
 
   return (
     <div className="space-y-6">
@@ -192,11 +182,6 @@ function ReceivingPage() {
                         Received <InfoTip term="col.received" />
                       </span>
                     </TableHead>
-                    <TableHead className="text-right">
-                      <span className="inline-flex items-center gap-1.5">
-                        Damaged <InfoTip term="col.damaged" />
-                      </span>
-                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -224,20 +209,6 @@ function ReceivingPage() {
                           }
                         />
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Input
-                          type="number"
-                          min={0}
-                          className="w-20 ml-auto text-right"
-                          value={damagedQtys[item.id] ?? ""}
-                          onChange={(e) =>
-                            setDamagedQtys((q) => ({
-                              ...q,
-                              [item.id]: Number(e.target.value),
-                            }))
-                          }
-                        />
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -248,69 +219,6 @@ function ReceivingPage() {
               {pending ? "Receiving..." : "Confirm Receipt"}
             </Button>
           </div>
-        )}
-
-        {results.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Receipt Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead className="text-right">
-                        <span className="inline-flex items-center gap-1.5">
-                          Expected <InfoTip term="col.expected" />
-                        </span>
-                      </TableHead>
-                      <TableHead className="text-right">
-                        <span className="inline-flex items-center gap-1.5">
-                          Received <InfoTip term="col.received" />
-                        </span>
-                      </TableHead>
-                      <TableHead className="text-right">
-                        <span className="inline-flex items-center gap-1.5">
-                          Damaged <InfoTip term="col.damaged" />
-                        </span>
-                      </TableHead>
-                      <TableHead className="text-right">
-                        <span className="inline-flex items-center gap-1.5">
-                          Transit Loss <InfoTip term="col.transitLoss" />
-                        </span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {results.map((r, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-medium">
-                          {r.productName}
-                        </TableCell>
-                        <TableCell className="text-right">{r.expected}</TableCell>
-                        <TableCell className="text-right">{r.received}</TableCell>
-                        <TableCell className="text-right">{r.damaged}</TableCell>
-                        <TableCell className="text-right">
-                          {r.transitLoss > 0 ? (
-                            <Badge variant="destructive">{r.transitLoss}</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">0</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              {totalTransitLoss > 0 && (
-                <p className="mt-3 text-sm text-destructive font-medium">
-                  Total transit loss: {totalTransitLoss} items
-                </p>
-              )}
-            </CardContent>
-          </Card>
         )}
 
         <Dialog open={discrepancyOpen} onOpenChange={setDiscrepancyOpen}>

@@ -9,7 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyEmailSentRouteImport } from './routes/verify-email-sent'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SupplyIndexRouteImport } from './routes/supply/index'
 import { Route as StoreIndexRouteImport } from './routes/store/index'
@@ -24,13 +28,33 @@ import { Route as StoreReceivingRouteImport } from './routes/store/receiving'
 import { Route as StoreOpeningBalanceRouteImport } from './routes/store/opening-balance'
 import { Route as ShopSalesRouteImport } from './routes/shop/sales'
 import { Route as ShopOpeningBalanceRouteImport } from './routes/shop/opening-balance'
-import { Route as SettingsSetupRouteImport } from './routes/settings/setup'
+import { Route as SettingsUsersRouteImport } from './routes/settings/users'
 import { Route as ReportsLedgerRouteImport } from './routes/reports/ledger'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
+const VerifyEmailSentRoute = VerifyEmailSentRouteImport.update({
+  id: '/verify-email-sent',
+  path: '/verify-email-sent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptInviteRoute = AcceptInviteRouteImport.update({
+  id: '/accept-invite',
+  path: '/accept-invite',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -103,9 +127,9 @@ const ShopOpeningBalanceRoute = ShopOpeningBalanceRouteImport.update({
   path: '/shop/opening-balance',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsSetupRoute = SettingsSetupRouteImport.update({
-  id: '/settings/setup',
-  path: '/settings/setup',
+const SettingsUsersRoute = SettingsUsersRouteImport.update({
+  id: '/settings/users',
+  path: '/settings/users',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsLedgerRoute = ReportsLedgerRouteImport.update({
@@ -121,9 +145,13 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/accept-invite': typeof AcceptInviteRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/verify-email-sent': typeof VerifyEmailSentRoute
   '/reports/ledger': typeof ReportsLedgerRoute
-  '/settings/setup': typeof SettingsSetupRoute
+  '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -141,9 +169,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/accept-invite': typeof AcceptInviteRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/verify-email-sent': typeof VerifyEmailSentRoute
   '/reports/ledger': typeof ReportsLedgerRoute
-  '/settings/setup': typeof SettingsSetupRoute
+  '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -162,9 +194,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/accept-invite': typeof AcceptInviteRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/verify-email-sent': typeof VerifyEmailSentRoute
   '/reports/ledger': typeof ReportsLedgerRoute
-  '/settings/setup': typeof SettingsSetupRoute
+  '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -184,9 +220,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accept-invite'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
+    | '/verify-email-sent'
     | '/reports/ledger'
-    | '/settings/setup'
+    | '/settings/users'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -204,9 +244,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accept-invite'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
+    | '/verify-email-sent'
     | '/reports/ledger'
-    | '/settings/setup'
+    | '/settings/users'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -224,9 +268,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/accept-invite'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
+    | '/verify-email-sent'
     | '/reports/ledger'
-    | '/settings/setup'
+    | '/settings/users'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -245,9 +293,13 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AcceptInviteRoute: typeof AcceptInviteRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  VerifyEmailSentRoute: typeof VerifyEmailSentRoute
   ReportsLedgerRoute: typeof ReportsLedgerRoute
-  SettingsSetupRoute: typeof SettingsSetupRoute
+  SettingsUsersRoute: typeof SettingsUsersRoute
   ShopOpeningBalanceRoute: typeof ShopOpeningBalanceRoute
   ShopSalesRoute: typeof ShopSalesRoute
   StoreOpeningBalanceRoute: typeof StoreOpeningBalanceRoute
@@ -266,11 +318,39 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-email-sent': {
+      id: '/verify-email-sent'
+      path: '/verify-email-sent'
+      fullPath: '/verify-email-sent'
+      preLoaderRoute: typeof VerifyEmailSentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accept-invite': {
+      id: '/accept-invite'
+      path: '/accept-invite'
+      fullPath: '/accept-invite'
+      preLoaderRoute: typeof AcceptInviteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -371,11 +451,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShopOpeningBalanceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/setup': {
-      id: '/settings/setup'
-      path: '/settings/setup'
-      fullPath: '/settings/setup'
-      preLoaderRoute: typeof SettingsSetupRouteImport
+    '/settings/users': {
+      id: '/settings/users'
+      path: '/settings/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof SettingsUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports/ledger': {
@@ -397,9 +477,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AcceptInviteRoute: AcceptInviteRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  VerifyEmailSentRoute: VerifyEmailSentRoute,
   ReportsLedgerRoute: ReportsLedgerRoute,
-  SettingsSetupRoute: SettingsSetupRoute,
+  SettingsUsersRoute: SettingsUsersRoute,
   ShopOpeningBalanceRoute: ShopOpeningBalanceRoute,
   ShopSalesRoute: ShopSalesRoute,
   StoreOpeningBalanceRoute: StoreOpeningBalanceRoute,

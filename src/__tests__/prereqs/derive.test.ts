@@ -16,13 +16,13 @@ describe("deriveReceivingPrereqs", () => {
     expect(result.missing).toEqual([])
   })
 
-  it("returns hard 'no-receivable-routes' when count is zero", () => {
+  it("returns soft 'no-receivable-routes' suggestion when count is zero", () => {
     const result = deriveReceivingPrereqs({ receivableRouteCount: 0 })
-    expect(result.satisfied).toBe(false)
+    expect(result.satisfied).toBe(true)
     expect(result.missing).toHaveLength(1)
     expect(result.missing[0]).toMatchObject({
       id: "no-receivable-routes",
-      severity: "hard",
+      severity: "soft",
     })
     expect(result.missing[0]!.actions[0]!.href).toBe("/supply")
   })

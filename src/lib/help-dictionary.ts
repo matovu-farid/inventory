@@ -220,15 +220,19 @@ export const helpDict = {
     description: "Quantity that was meant to arrive, based on the supply route.",
   },
   "col.received": {
-    description: "Quantity actually counted as good, sellable stock on arrival.",
-  },
-  "col.damaged": {
-    description:
-      "Units that arrived broken or unsellable. They go to the damaged-goods bucket, not into sellable stock.",
+    description: "Quantity actually counted on arrival.",
   },
   "col.transitLoss": {
     description:
       "Units that left the supplier but never arrived — lost or stolen in transit. Written off as a loss.",
+  },
+  "col.dispatched": {
+    description:
+      "Quantity that was sent out from the warehouse on this transfer. Compare against Received to detect distribution loss.",
+  },
+  "transferItem.minSellPrice": {
+    description:
+      "The lowest price the shop is allowed to charge customers for this item. Defaults to the warehouse's cost-per-unit; the dispatcher can raise it to enforce a margin floor.",
   },
 
   // ─── Workflow status values ──────────────────────────────────────────

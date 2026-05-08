@@ -42,13 +42,13 @@ export function deriveReceivingPrereqs(
 ): PrerequisiteResult {
   if (input.receivableRouteCount > 0) return SATISFIED
   return {
-    satisfied: false,
+    satisfied: true,
     missing: [
       {
         id: "no-receivable-routes",
-        severity: "hard",
+        severity: "soft",
         title: "No supply routes ready to receive",
-        why: "Create a supply route, add items to it, and mark it 'in transit' or 'received'. Then come back here.",
+        why: "Nothing is in transit right now. When you mark a supply route 'in transit' or 'received', it will show up here for receiving.",
         actions: [{ label: "Go to Supply Routes", href: "/supply" }],
       },
     ],

@@ -6,8 +6,6 @@ const DEFAULT_CATEGORIES = [
   { name: "Bank", type: "asset" },
   { name: "Inventory - Store", type: "asset" },
   { name: "Inventory - Shop", type: "asset" },
-  { name: "Damaged Inventory - Store", type: "asset" },
-  { name: "Damaged Inventory - Shop", type: "asset" },
   { name: "Accounts Receivable", type: "asset" },
   { name: "Due from Shop", type: "asset" },
 
@@ -33,7 +31,6 @@ const DEFAULT_CATEGORIES = [
   { name: "Salary Expense", type: "expense" },
   { name: "Tax Expense", type: "expense" },
   { name: "Inventory Loss", type: "expense" },
-  { name: "Damaged Goods Write-off", type: "expense" },
   { name: "Bad Debt Expense", type: "expense" },
   { name: "Miscellaneous Expense", type: "expense" },
 ] as const

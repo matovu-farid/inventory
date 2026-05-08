@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext } from "react"
 import { Link } from "@tanstack/react-router"
 import {
+  LayoutDashboard,
   Package,
   Truck,
   Users,
@@ -88,6 +89,12 @@ const navGroups: NavGroup[] = [
     ],
   },
 ]
+
+const dashboardItem: NavItem = {
+  label: "Dashboard",
+  to: "/",
+  icon: LayoutDashboard,
+}
 
 const settingsItem: NavItem = {
   label: "Settings",
@@ -216,6 +223,13 @@ function SidebarNav({
 }) {
   return (
     <nav className={cn("flex flex-col", collapsed ? "gap-1 px-2" : "gap-5 px-3")}>
+      <div className="flex flex-col gap-0.5">
+        <NavLink
+          item={dashboardItem}
+          collapsed={collapsed}
+          onClick={onItemClick}
+        />
+      </div>
       {navGroups.map((group) => (
         <div key={group.title}>
           {!collapsed && (
@@ -362,14 +376,18 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
           )}
         >
           {/* Brand */}
-          <div className="flex items-center gap-2.5 overflow-hidden">
+          <Link
+            to="/"
+            aria-label="Go to dashboard"
+            className="flex items-center gap-2.5 overflow-hidden rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <Logo className="size-8" />
             {!collapsed && (
               <span className="text-[15px] font-semibold tracking-[-0.01em] text-sidebar-foreground">
                 Inventory
               </span>
             )}
-          </div>
+          </Link>
 
           {/* Collapse toggle – always visible */}
           {!collapsed && (
@@ -469,12 +487,17 @@ function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppS
         <SheetTitle className="sr-only">Navigation</SheetTitle>
 
         {/* Brand */}
-        <div className="flex h-14 items-center gap-2.5 px-5">
+        <Link
+          to="/"
+          aria-label="Go to dashboard"
+          onClick={() => setOpen(false)}
+          className="flex h-14 items-center gap-2.5 px-5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <Logo className="size-8" />
           <span className="text-[15px] font-semibold tracking-[-0.01em] text-sidebar-foreground">
             Inventory
           </span>
-        </div>
+        </Link>
 
         {/* Navigation */}
         <ScrollArea className="flex-1 py-2">

@@ -1,11 +1,13 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
+import { MoneyInput } from "#/components/ui/money-input"
 import { Label } from "#/components/ui/label"
 import { Badge } from "#/components/ui/badge"
-import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
+import { InfoTip } from "#/components/ui/info-tip"
+import { PrereqBanner } from "#/components/prerequisites/prereq-banner"
 import { getTransfersPrereqs } from "#/server/functions/prereqs/transfers"
 import {
   Select,
@@ -33,8 +35,8 @@ import { Plus, PackageCheck } from "lucide-react"
 import {
   listTransfers,
   createTransfer,
-  confirmTransferReceipt,
 } from "#/server/functions/store/transfers"
+import { ReceiveTransferForm } from "#/components/transfers/receive-transfer-form"
 import { getStoreStock } from "#/server/functions/store/receiving"
 import { listShops } from "#/server/functions/admin/locations"
 
@@ -75,105 +77,108 @@ function TransfersPage() {
         </p>
       </div>
 
-      <PagePrerequisites result={prerequisites}>
-        <div className="flex items-center justify-end">
-          <div className="flex gap-2">
-            {dispatchedTransfers.length > 0 && (
-              <Dialog open={receiveOpen} onOpenChange={setReceiveOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <PackageCheck className="mr-2 h-4 w-4" />
-                    Confirm Receipt
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-xl">
-                  <DialogHeader>
-                    <DialogTitle>Confirm Transfer Receipt</DialogTitle>
-                  </DialogHeader>
-                  <ReceiveTransferForm
-                    transfers={dispatchedTransfers}
-                    onSuccess={() => {
-                      setReceiveOpen(false)
-                      router.invalidate()
-                    }}
-                  />
-                </DialogContent>
-              </Dialog>
-            )}
-            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <div className="flex items-center justify-end">
+        <div className="flex gap-2">
+          {dispatchedTransfers.length > 0 && (
+            <Dialog open={receiveOpen} onOpenChange={setReceiveOpen}>
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Transfer
+                <Button variant="outline">
+                  <PackageCheck className="mr-2 h-4 w-4" />
+                  Confirm Receipt
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-xl">
                 <DialogHeader>
-                  <DialogTitle>Create Transfer</DialogTitle>
+                  <DialogTitle>Confirm Transfer Receipt</DialogTitle>
                 </DialogHeader>
-                <CreateTransferForm
-                  stock={stock}
-                  shops={shops}
+                <ReceiveTransferForm
+                  transfers={dispatchedTransfers}
                   onSuccess={() => {
-                    setCreateOpen(false)
+                    setReceiveOpen(false)
                     router.invalidate()
                   }}
                 />
               </DialogContent>
             </Dialog>
-          </div>
+          )}
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={!prerequisites.satisfied}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Transfer
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Create Transfer</DialogTitle>
+              </DialogHeader>
+              <CreateTransferForm
+                stock={stock}
+                shops={shops}
+                onSuccess={(shopId) => {
+                  setCreateOpen(false)
+                  router.invalidate()
+                  void router.navigate({ to: "/shop", search: { shopId } })
+                }}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
+      </div>
 
-        {transfers.length === 0 ? (
-          <p className="text-muted-foreground py-8 text-center">
-            No transfers yet. Create one to move goods from the warehouse to a
-            shop.
-          </p>
-        ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Shop</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Items</TableHead>
-                  <TableHead className="text-right">Total (UGX)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transfers.map((t) => {
-                  const total = t.items.reduce(
-                    (s, i) => s.plus(i.totalPriceUgx),
-                    new BigNumber(0),
-                  )
-                  return (
-                    <TableRow key={t.id}>
-                      <TableCell>
-                        {new Date(t.transferDate).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {t.shop.name}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={STATUS_COLORS[t.status] ?? "outline"}>
-                          {t.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {t.items.length}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {total.toFormat(0)}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </PagePrerequisites>
+      {!prerequisites.satisfied && (
+        <PrereqBanner items={prerequisites.missing} />
+      )}
+
+      {transfers.length === 0 ? (
+        <p className="text-muted-foreground py-8 text-center">
+          No transfers yet. Create one to move goods from the warehouse to a
+          shop.
+        </p>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Shop</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Items</TableHead>
+                <TableHead className="text-right">Total (UGX)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {transfers.map((t) => {
+                const total = t.items.reduce(
+                  (s, i) => s.plus(i.totalPriceUgx),
+                  new BigNumber(0),
+                )
+                return (
+                  <TableRow key={t.id}>
+                    <TableCell>
+                      {new Date(t.transferDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {t.shop.name}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_COLORS[t.status] ?? "outline"}>
+                        {t.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {t.items.length}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {total.toFormat(0)}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   )
 }
@@ -191,15 +196,16 @@ function CreateTransferForm({
     id: string
     productName: string
     quantityOnHand: number
+    costPerUnitUgx: string
     minimumSellPriceUgx: string
   }>
   shops: Array<{ id: string; name: string }>
-  onSuccess: () => void
+  onSuccess: (shopId: string) => void
 }) {
   const [pending, setPending] = useState(false)
-  const [shopId, setShopId] = useState("")
+  const [shopId, setShopId] = useState(shops[0]?.id ?? "")
   const [selectedItems, setSelectedItems] = useState<
-    Array<{ storeStockId: string; qty: number }>
+    Array<{ storeStockId: string; qty: number; minSellPriceUgx: string }>
   >([])
 
   const availableStock = stock.filter((s) => s.quantityOnHand > 0)
@@ -209,7 +215,16 @@ function CreateTransferForm({
       const exists = prev.find((i) => i.storeStockId === stockId)
       if (exists) return prev.filter((i) => i.storeStockId !== stockId)
       const item = stock.find((s) => s.id === stockId)
-      return [...prev, { storeStockId: stockId, qty: item?.quantityOnHand ?? 1 }]
+      return [
+        ...prev,
+        {
+          storeStockId: stockId,
+          qty: item?.quantityOnHand ?? 1,
+          // Default the shop's minimum sell price to the store's cost-per-unit;
+          // dispatcher can edit before submitting.
+          minSellPriceUgx: item?.costPerUnitUgx ?? "",
+        },
+      ]
     })
   }
 
@@ -221,8 +236,22 @@ function CreateTransferForm({
     )
   }
 
+  function setMinSellPrice(stockId: string, val: string) {
+    setSelectedItems((prev) =>
+      prev.map((i) =>
+        i.storeStockId === stockId ? { ...i, minSellPriceUgx: val } : i,
+      ),
+    )
+  }
+
+  const allMinPricesValid = selectedItems.every((i) => {
+    const n = new BigNumber(i.minSellPriceUgx || 0)
+    return n.isFinite() && n.gt(0)
+  })
+
   async function handleSubmit() {
     if (!shopId || selectedItems.length === 0) return
+    if (!allMinPricesValid) return
     setPending(true)
     try {
       await createTransfer({
@@ -231,10 +260,11 @@ function CreateTransferForm({
           items: selectedItems.map((i) => ({
             storeStockId: i.storeStockId,
             quantityDispatched: i.qty,
+            minimumSellPriceUgx: i.minSellPriceUgx,
           })),
         },
       })
-      onSuccess()
+      onSuccess(shopId)
     } catch (err) {
       console.error("Failed to create transfer:", err)
     } finally {
@@ -275,31 +305,56 @@ function CreateTransferForm({
               return (
                 <div
                   key={s.id}
-                  className="flex items-center gap-3 p-3 border-b last:border-b-0"
+                  className="space-y-3 p-3 border-b last:border-b-0"
                 >
-                  <input
-                    type="checkbox"
-                    checked={!!selected}
-                    onChange={() => toggleItem(s.id)}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {s.productName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Available: {s.quantityOnHand} | Min:{" "}
-                      {new BigNumber(s.minimumSellPriceUgx).toFormat(0)} UGX
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={!!selected}
+                      onChange={() => toggleItem(s.id)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {s.productName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Available: {s.quantityOnHand} | Cost:{" "}
+                        {new BigNumber(s.costPerUnitUgx).toFormat(0)} UGX
+                      </p>
+                    </div>
+                    {selected && (
+                      <Input
+                        type="number"
+                        min={1}
+                        max={s.quantityOnHand}
+                        className="w-20 text-right"
+                        value={selected.qty}
+                        onChange={(e) => setQty(s.id, Number(e.target.value))}
+                      />
+                    )}
                   </div>
                   {selected && (
-                    <Input
-                      type="number"
-                      min={1}
-                      max={s.quantityOnHand}
-                      className="w-20 text-right"
-                      value={selected.qty}
-                      onChange={(e) => setQty(s.id, Number(e.target.value))}
-                    />
+                    <div className="ml-7 space-y-1">
+                      <Label
+                        htmlFor={`min-sell-${s.id}`}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                      >
+                        Shop Min Sell Price (UGX)
+                        <InfoTip term="transferItem.minSellPrice" />
+                      </Label>
+                      <MoneyInput
+                        id={`min-sell-${s.id}`}
+                        currency="UGX"
+                        value={selected.minSellPriceUgx}
+                        onChange={(val) => setMinSellPrice(s.id, val)}
+                        placeholder="0"
+                        error={
+                          new BigNumber(selected.minSellPriceUgx || 0).lte(0)
+                            ? "Required"
+                            : undefined
+                        }
+                      />
+                    </div>
                   )}
                 </div>
               )
@@ -311,7 +366,12 @@ function CreateTransferForm({
       <Button
         className="w-full"
         onClick={handleSubmit}
-        disabled={pending || !shopId || selectedItems.length === 0}
+        disabled={
+          pending ||
+          !shopId ||
+          selectedItems.length === 0 ||
+          !allMinPricesValid
+        }
       >
         {pending ? "Creating..." : `Dispatch ${selectedItems.length} items`}
       </Button>
@@ -319,143 +379,4 @@ function CreateTransferForm({
   )
 }
 
-/* ------------------------------------------------------------------ */
-/* Receive Transfer Form                                               */
-/* ------------------------------------------------------------------ */
 
-function ReceiveTransferForm({
-  transfers,
-  onSuccess,
-}: {
-  transfers: Array<{
-    id: string
-    shop: { name: string }
-    transferDate: Date
-    items: Array<{
-      id: string
-      productName: string
-      quantityDispatched: number
-    }>
-  }>
-  onSuccess: () => void
-}) {
-  const [pending, setPending] = useState(false)
-  const [transferId, setTransferId] = useState(transfers[0]?.id ?? "")
-  const [receivedQtys, setReceivedQtys] = useState<Record<string, number>>({})
-
-  const transfer = transfers.find((t) => t.id === transferId)
-
-  function initQtys(tid: string) {
-    const t = transfers.find((x) => x.id === tid)
-    if (!t) return
-    const qtys: Record<string, number> = {}
-    for (const item of t.items) {
-      qtys[item.id] = item.quantityDispatched
-    }
-    setReceivedQtys(qtys)
-    setTransferId(tid)
-  }
-
-  useEffect(() => {
-    if (transfer && transfer.items.length > 0) {
-      const qtys: Record<string, number> = {}
-      for (const item of transfer.items) {
-        qtys[item.id] = item.quantityDispatched
-      }
-      setReceivedQtys(qtys)
-    }
-  }, [transferId])
-
-  async function handleConfirm() {
-    if (!transfer) return
-    setPending(true)
-    try {
-      await confirmTransferReceipt({
-        data: {
-          transferId: transfer.id,
-          items: transfer.items.map((i) => ({
-            transferItemId: i.id,
-            quantityReceived: receivedQtys[i.id] ?? i.quantityDispatched,
-          })),
-        },
-      })
-      onSuccess()
-    } catch (err) {
-      console.error("Failed to confirm receipt:", err)
-    } finally {
-      setPending(false)
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {transfers.length > 1 && (
-        <div className="space-y-2">
-          <Label>Select Transfer</Label>
-          <Select value={transferId} onValueChange={initQtys}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {transfers.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.shop.name} —{" "}
-                  {new Date(t.transferDate).toLocaleDateString()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {transfer && (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead className="text-right">Dispatched</TableHead>
-                <TableHead className="text-right">Received</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transfer.items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">
-                    {item.productName}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {item.quantityDispatched}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={item.quantityDispatched}
-                      className="w-20 ml-auto text-right"
-                      value={receivedQtys[item.id] ?? ""}
-                      onChange={(e) =>
-                        setReceivedQtys((q) => ({
-                          ...q,
-                          [item.id]: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          <Button
-            className="w-full"
-            onClick={handleConfirm}
-            disabled={pending}
-          >
-            {pending ? "Confirming..." : "Confirm Receipt at Shop"}
-          </Button>
-        </>
-      )}
-    </div>
-  )
-}

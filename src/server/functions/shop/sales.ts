@@ -9,6 +9,7 @@ import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { validateBelowMinimumSale } from "./sale-validate"
 
 export const getShopStock = createServerFn()
   .inputValidator(z.object({ shopId: z.string().uuid() }))
@@ -40,6 +41,7 @@ const saleItemInput = z.object({
   shopStockId: z.string().uuid(),
   quantity: z.number().int().positive(),
   unitPriceUgx: z.string(),
+  belowMinimumReason: z.string().optional(),
 })
 
 const recordSaleInput = z.object({
@@ -102,6 +104,7 @@ export const recordSale = createServerFn()
         totalPrice: BigNumber
         costPerUnit: BigNumber
         isBelowMinimum: boolean
+        belowMinimumReason: string | null
       }> = []
 
       for (const item of data.items) {
@@ -115,20 +118,17 @@ export const recordSale = createServerFn()
           )
         }
 
+        const { isBelowMinimum, reason: belowMinimumReason } =
+          validateBelowMinimumSale({
+            unitPriceUgx: item.unitPriceUgx,
+            minimumSellPriceUgx: stock.minimumSellPriceUgx,
+            userRole,
+            reason: item.belowMinimumReason ?? "",
+            productName: stock.productName,
+          })
+        if (isBelowMinimum) hasBelowMinimum = true
+
         const unitPrice = new BigNumber(item.unitPriceUgx)
-        const minPrice = new BigNumber(stock.minimumSellPriceUgx)
-        const isBelowMinimum = unitPrice.lt(minPrice)
-
-        if (isBelowMinimum) {
-          hasBelowMinimum = true
-          // Below-minimum sales always require explicit approval from admin/supervisor
-          if (userRole === "sales") {
-            throw new Error(
-              `Sale price ${unitPrice.toFixed(0)} is below minimum ${minPrice.toFixed(0)} for ${stock.productName}. Requires supervisor approval.`,
-            )
-          }
-        }
-
         const tp = unitPrice.times(item.quantity)
         totalAmount = totalAmount.plus(tp)
         totalCost = totalCost.plus(
@@ -142,6 +142,7 @@ export const recordSale = createServerFn()
           totalPrice: tp,
           costPerUnit: new BigNumber(stock.costPerUnitUgx),
           isBelowMinimum,
+          belowMinimumReason,
         })
       }
 
@@ -176,6 +177,7 @@ export const recordSale = createServerFn()
           unitPriceUgx: detail.unitPrice.toFixed(2),
           minimumPriceUgx: detail.stock.minimumSellPriceUgx,
           isBelowMinimum: detail.isBelowMinimum,
+          belowMinimumReason: detail.belowMinimumReason,
           totalPriceUgx: detail.totalPrice.toFixed(2),
         })
 

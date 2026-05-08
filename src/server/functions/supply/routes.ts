@@ -54,16 +54,24 @@ export const getSupplyRoute = createServerFn()
     return route
   })
 
-const createRouteInput = z.object({
-  name: z.string().min(1),
-  departureDate: z.string().optional(),
-  returnDate: z.string().optional(),
-  budgetUsd: z.string().optional(),
-  rateUgxPerUsd: z.string().optional(),
-  rateRmbPerUsd: z.string().optional(),
-  notes: z.string().optional(),
-  supplierIds: z.array(z.string().uuid()).optional(),
-})
+const createRouteInput = z
+  .object({
+    name: z.string().min(1),
+    departureDate: z.string().optional(),
+    returnDate: z.string().optional(),
+    budgetUsd: z.string().optional(),
+    rateUgxPerUsd: z.string().optional(),
+    rateRmbPerUsd: z.string().optional(),
+    notes: z.string().optional(),
+    supplierIds: z.array(z.string().uuid()).optional(),
+  })
+  .refine(
+    (d) => !d.departureDate || !d.returnDate || d.departureDate <= d.returnDate,
+    {
+      message: "Return date must be on or after departure date",
+      path: ["returnDate"],
+    },
+  )
 
 export const createSupplyRoute = createServerFn()
   .inputValidator(createRouteInput)
@@ -92,19 +100,27 @@ export const createSupplyRoute = createServerFn()
     })
   })
 
-const updateRouteInput = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1).optional(),
-  status: z
-    .enum(["planning", "in_transit", "received"])
-    .optional(),
-  departureDate: z.string().optional(),
-  returnDate: z.string().optional(),
-  budgetUsd: z.string().optional(),
-  rateUgxPerUsd: z.string().optional(),
-  rateRmbPerUsd: z.string().optional(),
-  notes: z.string().optional(),
-})
+const updateRouteInput = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string().min(1).optional(),
+    status: z
+      .enum(["planning", "in_transit", "received"])
+      .optional(),
+    departureDate: z.string().optional(),
+    returnDate: z.string().optional(),
+    budgetUsd: z.string().optional(),
+    rateUgxPerUsd: z.string().optional(),
+    rateRmbPerUsd: z.string().optional(),
+    notes: z.string().optional(),
+  })
+  .refine(
+    (d) => !d.departureDate || !d.returnDate || d.departureDate <= d.returnDate,
+    {
+      message: "Return date must be on or after departure date",
+      path: ["returnDate"],
+    },
+  )
 
 export const updateSupplyRoute = createServerFn()
   .inputValidator(updateRouteInput)

@@ -7,8 +7,7 @@ export interface JournalEntry {
 }
 
 export interface BuildStoreReturnReceiveEntriesInput {
-  totalCostResellable: string
-  totalCostDamaged: string
+  totalCost: string
   totalTransferPrice: string
   /** Cost (UGX) of all units originally dispatched in the return. */
   totalCostDispatched?: string
@@ -26,32 +25,24 @@ export interface BuildStoreReturnReceiveEntriesResult {
  * sum of credits).
  *
  * Legs:
- *   DR Inventory - Store           (totalCostResellable)   when > 0
- *   DR Damaged Inventory - Store   (totalCostDamaged)      when > 0
+ *   DR Inventory - Store           (totalCost)             when > 0
  *   CR Inventory - Shop            (totalTransferPrice)
  *   DR Due to Store                (totalTransferPrice)
  *   CR Due from Shop               (totalTransferPrice)
  *   DR Store Transfer Revenue      (margin)                when margin > 0
  *   CR Store Transfer Revenue      (-margin)               when margin < 0
  *
- *   margin = totalTransferPrice - (totalCostResellable + totalCostDamaged)
- *
- * The Store Transfer Revenue leg is what makes the entry balance:
- *   - margin > 0 means the original transfer recognised revenue, reverse with DR.
- *   - margin < 0 means the original transfer recognised a loss, reverse with CR.
- *   - margin = 0 means no revenue/loss leg is needed (the rest already balances).
+ *   margin = totalTransferPrice - totalCost
  */
 export function buildStoreReturnReceiveEntries(
   input: BuildStoreReturnReceiveEntriesInput,
 ): BuildStoreReturnReceiveEntriesResult {
-  const totalCostResellable = new BigNumber(input.totalCostResellable)
-  const totalCostDamaged = new BigNumber(input.totalCostDamaged)
+  const totalCost = new BigNumber(input.totalCost)
   const totalTransferPrice = new BigNumber(input.totalTransferPrice)
   const totalCostDispatched = new BigNumber(input.totalCostDispatched ?? "0")
   const totalTransferDispatched = new BigNumber(
     input.totalTransferDispatched ?? "0",
   )
-  const totalCost = totalCostResellable.plus(totalCostDamaged)
   const totalMargin = totalTransferPrice.minus(totalCost)
   const totalReceived = totalCost.plus(totalTransferPrice)
 
@@ -85,18 +76,11 @@ export function buildStoreReturnReceiveEntries(
     return { entries }
   }
 
-  if (totalCostResellable.gt(0)) {
+  if (totalCost.gt(0)) {
     entries.push({
       type: "debit",
       category: "Inventory - Store",
-      amount: totalCostResellable.toFixed(2),
-    })
-  }
-  if (totalCostDamaged.gt(0)) {
-    entries.push({
-      type: "debit",
-      category: "Damaged Inventory - Store",
-      amount: totalCostDamaged.toFixed(2),
+      amount: totalCost.toFixed(2),
     })
   }
 
