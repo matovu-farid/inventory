@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import BigNumber from "bignumber.js"
+import { roundUgxFloor50, roundUgxBankers50, formatUgxTotal } from "#/lib/format"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Badge } from "#/components/ui/badge"
@@ -90,9 +91,9 @@ function StoreStockPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold font-mono">
-                {totalValue.toFormat(0)}
+                {formatUgxTotal(totalValue)}
               </div>
-              <p className="text-xs text-muted-foreground">UGX (at cost)</p>
+              <p className="text-xs text-muted-foreground">at cost</p>
             </CardContent>
           </Card>
         </div>
@@ -187,7 +188,7 @@ function StockRow({
         )}
       </TableCell>
       <TableCell className="text-right font-mono">
-        {new BigNumber(item.costPerUnitUgx).toFormat(0)}
+        {roundUgxFloor50(item.costPerUnitUgx).toFormat(0)}
       </TableCell>
       <TableCell className="text-right">
         {editing ? (
@@ -211,12 +212,12 @@ function StockRow({
             className="font-mono hover:underline cursor-pointer"
             onClick={() => setEditing(true)}
           >
-            {new BigNumber(item.minimumSellPriceUgx).toFormat(0)}
+            {roundUgxFloor50(item.minimumSellPriceUgx).toFormat(0)}
           </button>
         )}
       </TableCell>
       <TableCell className="text-right font-mono font-semibold">
-        {totalValue.toFormat(0)}
+        {roundUgxBankers50(totalValue).toFormat(0)}
       </TableCell>
     </TableRow>
   )
