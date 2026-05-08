@@ -16,6 +16,20 @@ export const env = createEnv({
   client: {
     VITE_APP_TITLE: z.string().min(1).optional(),
   },
-  runtimeEnv: { ...process.env, ...import.meta.env },
+  // Server keys come from process.env (loaded by dotenv-cli in dev, from Worker
+  // bindings in prod). VITE_* client keys are statically replaced by Vite via
+  // import.meta.env at build time. Per t3-oss docs, the canonical pattern when
+  // a bundler does static replacement is to destructure each key explicitly.
+  runtimeEnv: {
+    DATABASE_URL: process.env.DATABASE_URL,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+    ELECTRIC_URL: process.env.ELECTRIC_URL,
+    SENTRY_DSN: process.env.SENTRY_DSN,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
+    APP_URL: process.env.APP_URL,
+    VITE_APP_TITLE: import.meta.env.VITE_APP_TITLE,
+  },
   emptyStringAsUndefined: true,
 })
