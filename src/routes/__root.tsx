@@ -1,4 +1,4 @@
-import "#/sentry.client"
+import "#/sentry"
 import {
   HeadContent,
   Outlet,
