@@ -2,6 +2,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState, useEffect } from "react"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
+import { roundUgxFloor50, formatUgx, formatUgxTotal } from "#/lib/format"
 import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
 import { getShopPrereqs } from "#/server/functions/prereqs/shop"
 import { SATISFIED } from "#/lib/prerequisites/types"
@@ -267,9 +268,8 @@ function ShopPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold font-mono">
-                    {totalValue.toFormat(0)}
+                    {formatUgxTotal(totalValue)}
                   </div>
-                  <p className="text-xs text-muted-foreground">UGX</p>
                 </CardContent>
               </Card>
             </div>
@@ -294,8 +294,8 @@ function ShopPage() {
                           Qty <InfoTip term="col.qtyOnHand" />
                         </span>
                       </TableHead>
-                      <TableHead className="text-right">Cost/Unit</TableHead>
-                      <TableHead className="text-right">Min Sell</TableHead>
+                      <TableHead className="text-right">Cost/Unit (UGX)</TableHead>
+                      <TableHead className="text-right">Min Sell (UGX)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -315,10 +315,10 @@ function ShopPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {new BigNumber(s.costPerUnitUgx).toFormat(0)}
+                          {roundUgxFloor50(s.costPerUnitUgx).toFormat(0)}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {new BigNumber(s.minimumSellPriceUgx).toFormat(0)}
+                          {roundUgxFloor50(s.minimumSellPriceUgx).toFormat(0)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -502,7 +502,7 @@ function NewSaleForm({
                   <div className="flex shrink-0 gap-3 text-xs text-muted-foreground">
                     <span>avail {s.quantityOnHand}</span>
                     <span className="font-mono">
-                      min {new BigNumber(s.minimumSellPriceUgx).toFormat(0)}
+                      min {formatUgx(s.minimumSellPriceUgx)}
                     </span>
                   </div>
                 </CommandItem>
@@ -581,8 +581,7 @@ function NewSaleForm({
                   <span className="pb-2 text-muted-foreground">x</span>
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs text-muted-foreground">
-                      Price (min:{" "}
-                      {new BigNumber(s.minimumSellPriceUgx).toFormat(0)})
+                      Price (min: {formatUgx(s.minimumSellPriceUgx)})
                     </Label>
                     <MoneyInput
                       currency="UGX"
@@ -599,7 +598,7 @@ function NewSaleForm({
                   <div className="space-y-1 pt-1">
                     <Label className="text-xs text-muted-foreground">
                       Reason for selling below{" "}
-                      {new BigNumber(s.minimumSellPriceUgx).toFormat(0)}
+                      {formatUgx(s.minimumSellPriceUgx)}
                     </Label>
                     <Input
                       value={item.belowMinimumReason}
@@ -646,7 +645,7 @@ function NewSaleForm({
         <div className="text-right">
           <p className="text-sm text-muted-foreground">Total</p>
           <p className="text-xl font-bold font-mono">
-            UGX {total.toFormat(0)}
+            {formatUgxTotal(total)}
           </p>
         </div>
       </div>
