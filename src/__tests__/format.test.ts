@@ -1,29 +1,33 @@
+import BigNumber from "bignumber.js"
 import { describe, it, expect } from "vitest"
-import { formatUgx } from "#/lib/format"
+import { roundUgxFloor50 } from "#/lib/format"
 
-describe("formatUgx", () => {
-  it("formats whole numbers with comma thousands and 'UGX' suffix", () => {
-    expect(formatUgx("1000")).toBe("1,000 UGX")
-    expect(formatUgx("1000000")).toBe("1,000,000 UGX")
+describe("roundUgxFloor50", () => {
+  it("floors a positive non-multiple down to nearest 50", () => {
+    expect(roundUgxFloor50("1237").toFixed(0)).toBe("1200")
+    expect(roundUgxFloor50("1249").toFixed(0)).toBe("1200")
+    expect(roundUgxFloor50("1299").toFixed(0)).toBe("1250")
   })
-
-  it("strips trailing .00 for whole-shilling amounts", () => {
-    expect(formatUgx("1000.00")).toBe("1,000 UGX")
+  it("leaves an exact multiple of 50 unchanged", () => {
+    expect(roundUgxFloor50("1250").toFixed(0)).toBe("1250")
+    expect(roundUgxFloor50("0").toFixed(0)).toBe("0")
   })
-
-  it("preserves cents when non-zero", () => {
-    expect(formatUgx("1000.50")).toBe("1,000.50 UGX")
+  it("returns zero for values strictly below 50", () => {
+    expect(roundUgxFloor50("49").toFixed(0)).toBe("0")
+    expect(roundUgxFloor50("1").toFixed(0)).toBe("0")
+    expect(roundUgxFloor50("50").toFixed(0)).toBe("50") // boundary
   })
-
-  it("handles zero", () => {
-    expect(formatUgx("0")).toBe("0 UGX")
+  it("floors abs(x) for negatives, then reapplies the sign", () => {
+    expect(roundUgxFloor50("-1237").toFixed(0)).toBe("-1200")
+    expect(roundUgxFloor50("-1250").toFixed(0)).toBe("-1250")
+    expect(roundUgxFloor50("-49").toFixed(0)).toBe("0")
+    expect(roundUgxFloor50("-0").toFixed(0)).toBe("0")
   })
-
-  it("handles negative amounts", () => {
-    expect(formatUgx("-500")).toBe("-500 UGX")
+  it("ignores fractional shillings in input", () => {
+    expect(roundUgxFloor50("1237.99").toFixed(0)).toBe("1200")
+    expect(roundUgxFloor50("1250.01").toFixed(0)).toBe("1250")
   })
-
-  it("accepts BigNumber-string input including very large numbers", () => {
-    expect(formatUgx("1234567890.12")).toBe("1,234,567,890.12 UGX")
+  it("accepts BigNumber input", () => {
+    expect(roundUgxFloor50(new BigNumber("1234567")).toFixed(0)).toBe("1234550")
   })
 })

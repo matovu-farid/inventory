@@ -1,11 +1,13 @@
 import BigNumber from "bignumber.js"
 
-export function formatUgx(amount: string): string {
-  const n = new BigNumber(amount)
-  const isWhole = n.isInteger()
-  const fixed = isWhole ? n.toFixed(0) : n.toFixed(2)
-  // Add comma separators to the integer portion only
-  const [intPart, decPart] = fixed.split(".")
-  const withCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-  return `${decPart ? `${withCommas}.${decPart}` : withCommas} UGX`
+const STEP = new BigNumber(50)
+
+/**
+ * Floor a UGX amount to the nearest multiple of 50 shillings, preserving sign.
+ * Rounds toward zero (so −1,237 → −1,200, not −1,250).
+ */
+export function roundUgxFloor50(amount: BigNumber.Value): BigNumber {
+  const bn = new BigNumber(amount)
+  const sign = bn.isNegative() ? -1 : 1
+  return bn.abs().idiv(STEP).times(STEP).times(sign)
 }
