@@ -1,4 +1,4 @@
-import { formatUgx } from "#/lib/format"
+import { formatUgx, formatUgxTotal } from "#/lib/format"
 
 interface SaleItemForReceipt {
   productName: string
@@ -80,7 +80,7 @@ export function renderSaleReceipt(sale: SaleForReceipt): string {
         ${itemRows}
       </tbody>
     </table>
-    <div class="total">Total: ${formatUgx(sale.totalAmount)}</div>
+    <div class="total">Total: ${formatUgxTotal(sale.totalAmount)}</div>
     <div class="payment">Payment: ${escapeHtml(sale.paymentMethod)}</div>
     <button onclick="window.print()" style="margin-top:24px;padding:8px 16px;">Print</button>
   </body>
