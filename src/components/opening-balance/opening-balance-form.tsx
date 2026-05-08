@@ -35,6 +35,7 @@ import {
   addStoreOpeningBalance,
   addShopOpeningBalance,
 } from "#/server/functions/admin/opening-balance"
+import { roundUgxBankers50 } from "#/lib/format"
 
 interface DraftRow {
   id: string
@@ -206,7 +207,7 @@ export function OpeningBalanceForm({
             Posted {summary.itemCount} item{summary.itemCount === 1 ? "" : "s"}{" "}
             worth{" "}
             <span className="font-mono font-semibold">
-              {new BigNumber(summary.totalValueUgx).toFormat(0)}
+              {roundUgxBankers50(summary.totalValueUgx).toFormat(0)}
             </span>{" "}
             UGX as opening balance for{" "}
             {summary.scope === "store" ? "the Warehouse" : "the selected Shop"}.
@@ -300,7 +301,7 @@ export function OpeningBalanceForm({
                       />
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {lineTotal ? lineTotal.toFormat(0) : "-"}
+                      {lineTotal ? roundUgxBankers50(lineTotal).toFormat(0) : "-"}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -329,7 +330,7 @@ export function OpeningBalanceForm({
           <div className="text-sm text-muted-foreground">
             {validCount} of {rows.length} rows valid · Total:{" "}
             <span className="font-mono font-semibold text-foreground">
-              {total.toFormat(0)}
+              {roundUgxBankers50(total).toFormat(0)}
             </span>{" "}
             UGX
           </div>
@@ -353,7 +354,7 @@ export function OpeningBalanceForm({
                 <span className="font-semibold">{rows.length}</span> item
                 {rows.length === 1 ? "" : "s"} worth{" "}
                 <span className="font-mono font-semibold">
-                  {total.toFormat(0)}
+                  {roundUgxBankers50(total).toFormat(0)}
                 </span>{" "}
                 UGX to{" "}
                 {scope === "store"
