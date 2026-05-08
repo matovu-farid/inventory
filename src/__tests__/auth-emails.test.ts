@@ -32,13 +32,12 @@ import { hashPassword } from "better-auth/crypto"
 const TEST_PREFIX = "test-auth-emails-"
 
 /**
- * cleanup() nukes ALL rows in session/account/verification/user. This is
- * required because the "first signup becomes admin" branch only fires when
- * the user table is empty.
+ * cleanup() nukes ALL rows in session/account/verification/user — required
+ * because the "first signup becomes admin" branch only fires when the user
+ * table is empty. `pnpm test` loads .env.test which points at a separate
+ * inventory_test database, so this never touches dev data.
  *
- * Hard guard: refuse to run unless DATABASE_URL points at a database whose
- * name contains "_test". Prevents the test from clobbering a working dev DB.
- * Run with `pnpm test:integration` (which loads .env.test).
+ * Belt-and-suspenders: refuse to start if DATABASE_URL doesn't end in _test.
  */
 if (
   !process.env.DATABASE_URL ||
@@ -46,8 +45,7 @@ if (
 ) {
   throw new Error(
     "auth-emails.test.ts refuses to run: DATABASE_URL must point at a *_test " +
-      "database (e.g. postgresql://.../inventory_test). Use `pnpm test:integration` " +
-      "with .env.test set up. See .env.test.example for setup.",
+      "database. Run via `pnpm test` (which loads .env.test).",
   )
 }
 
