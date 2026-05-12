@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { requireUiPermission } from "#/lib/permissions"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
-import { roundUgxFloor50, formatUgx, formatUgxTotal } from "#/lib/format"
+import { formatUgx, formatUgxTotal } from "#/lib/format"
 import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
 import { getShopPrereqs } from "#/server/functions/prereqs/shop"
 import { SATISFIED } from "#/lib/prerequisites/types"
@@ -12,7 +12,6 @@ import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { MoneyInput } from "#/components/ui/money-input"
 import { Label } from "#/components/ui/label"
-import { Badge } from "#/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -27,14 +26,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "#/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table"
 import {
   Command,
   CommandEmpty,
@@ -53,12 +44,16 @@ import {
   PackageCheck,
   Trash2,
 } from "lucide-react"
+import { ProductCard } from "#/components/products/product-card"
+import { aggregateStockByArticle } from "#/lib/products"
 import { AddShopDialog } from "#/components/shops/add-shop-dialog"
 import { ReceiveTransferForm } from "#/components/transfers/receive-transfer-form"
 import { listShops } from "#/server/functions/admin/locations"
 import { getShopStock, recordSale } from "#/server/functions/shop/sales"
 import { listTransfers } from "#/server/functions/store/transfers"
 import { getSession } from "#/server/middleware/auth"
+
+type ShopStockItem = Awaited<ReturnType<typeof getShopStock>>[number]
 
 const searchSchema = z.object({
   shopId: z.string().uuid().optional(),
@@ -95,16 +90,7 @@ function ShopPage() {
   const pendingTransfers = transfers.filter(
     (t) => t.status === "dispatched" && t.shopId === shopId,
   )
-  const [stock, setStock] = useState<
-    Array<{
-      id: string
-      productName: string
-      articleNumber: string | null
-      quantityOnHand: number
-      costPerUnitUgx: string
-      minimumSellPriceUgx: string
-    }>
-  >([])
+  const [stock, setStock] = useState<ShopStockItem[]>([])
   const [saleOpen, setSaleOpen] = useState(false)
   const [prerequisites, setPrerequisites] = useState<PrerequisiteResult>(SATISFIED)
 
@@ -145,6 +131,9 @@ function ShopPage() {
       s.plus(new BigNumber(i.costPerUnitUgx).times(i.quantityOnHand)),
     new BigNumber(0),
   )
+  const aggregated = aggregateStockByArticle(stock)
+  const currentShopName =
+    shops.find((s) => s.id === shopId)?.name ?? "Shop"
 
   return (
     <div className="space-y-6">
@@ -287,57 +276,37 @@ function ShopPage() {
               </div>
             )}
 
-            {stock.length === 0 ? (
+            {aggregated.length === 0 ? (
               <p className="text-muted-foreground py-8 text-center">
                 No stock at this shop. Transfer goods from the store.
               </p>
             ) : (
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>
-                        <span className="inline-flex items-center gap-1.5">
-                          Art # <InfoTip term="col.articleNumber" />
-                        </span>
-                      </TableHead>
-                      <TableHead className="text-right">
-                        <span className="inline-flex items-center gap-1.5">
-                          Qty <InfoTip term="col.qtyOnHand" />
-                        </span>
-                      </TableHead>
-                      <TableHead className="text-right">Cost/Unit (UGX)</TableHead>
-                      <TableHead className="text-right">Min Sell (UGX)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stock.map((s) => (
-                      <TableRow key={s.id}>
-                        <TableCell className="font-medium">
-                          {s.productName}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {s.articleNumber || "-"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {s.quantityOnHand === 0 ? (
-                            <Badge variant="outline">Out</Badge>
-                          ) : (
-                            s.quantityOnHand
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {roundUgxFloor50(s.costPerUnitUgx).toFormat(0)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {roundUgxFloor50(s.minimumSellPriceUgx).toFormat(0)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    {aggregated.length} product
+                    {aggregated.length === 1 ? "" : "s"} ·{" "}
+                    {aggregated.reduce((s, a) => s + a.total, 0)} units
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {aggregated.map((a) => (
+                    <ProductCard
+                      key={a.product.articleNumber}
+                      data={{
+                        articleNumber: a.product.articleNumber,
+                        name: a.product.name,
+                        sizes: a.product.sizes,
+                        colors: a.colors,
+                        totalQuantity: a.total,
+                        locationCounts: [
+                          { label: currentShopName, qty: a.total },
+                        ],
+                      }}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </>
         )}
@@ -350,12 +319,8 @@ function ShopPage() {
 /* New Sale Form                                                       */
 /* ------------------------------------------------------------------ */
 
-type StockItem = {
-  id: string
-  productName: string
-  articleNumber?: string | null
-  quantityOnHand: number
-  minimumSellPriceUgx: string
+function productLabel(s: ShopStockItem): string {
+  return `${s.productColor.product.name} — ${s.productColor.colorName} / ${s.size}`
 }
 
 function NewSaleForm({
@@ -364,7 +329,7 @@ function NewSaleForm({
   onSuccess,
 }: {
   shopId: string
-  stock: StockItem[]
+  stock: ShopStockItem[]
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
@@ -491,10 +456,12 @@ function NewSaleForm({
             <CommandEmpty>No matching products.</CommandEmpty>
             {stock.map((s) => {
               const isSelected = selectedIds.has(s.id)
+              const label = productLabel(s)
+              const article = s.productColor.product.articleNumber
               return (
                 <CommandItem
                   key={s.id}
-                  value={`${s.productName} ${s.articleNumber ?? ""}`}
+                  value={`${label} ${article}`}
                   onSelect={() => toggleSelection(s.id)}
                   className="flex min-h-12 items-center justify-between gap-3"
                 >
@@ -508,12 +475,10 @@ function NewSaleForm({
                     >
                       {isSelected && <Check className="size-3.5" />}
                     </span>
-                    <span className="truncate font-medium">{s.productName}</span>
-                    {s.articleNumber && (
-                      <span className="truncate text-xs text-muted-foreground">
-                        {s.articleNumber}
-                      </span>
-                    )}
+                    <span className="truncate font-medium">{label}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {article}
+                    </span>
                   </div>
                   <div className="flex shrink-0 gap-3 text-xs text-muted-foreground">
                     <span>avail {s.quantityOnHand}</span>
@@ -582,14 +547,14 @@ function NewSaleForm({
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="truncate text-sm font-medium">
-                    {s.productName}
+                    {productLabel(s)}
                   </p>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="size-10 shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={() => removeFromCart(item.stockId)}
-                    aria-label={`Remove ${s.productName}`}
+                    aria-label={`Remove ${productLabel(s)}`}
                   >
                     <Trash2 className="size-4" strokeWidth={1.75} />
                   </Button>

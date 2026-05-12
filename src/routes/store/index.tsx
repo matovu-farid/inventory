@@ -1,26 +1,14 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import { requireUiPermission } from "#/lib/permissions"
 import BigNumber from "bignumber.js"
-import { roundUgxFloor50, roundUgxBankers50, formatUgxTotal } from "#/lib/format"
+import { formatUgxTotal } from "#/lib/format"
 import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { Badge } from "#/components/ui/badge"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { InfoTip } from "#/components/ui/info-tip"
-import { Check, Plus } from "lucide-react"
-import {
-  getStoreStock,
-  setMinimumSellPrice,
-} from "#/server/functions/store/receiving"
+import { Plus } from "lucide-react"
+import { ProductCard } from "#/components/products/product-card"
+import { aggregateStockByArticle } from "#/lib/products"
+import { getStoreStock } from "#/server/functions/store/receiving"
 import { ensureStore } from "#/server/functions/admin/locations"
 import { getSession } from "#/server/middleware/auth"
 import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
@@ -52,6 +40,7 @@ function StoreStockPage() {
     new BigNumber(0),
   )
   const totalItems = stock.reduce((sum, s) => sum + s.quantityOnHand, 0)
+  const aggregated = aggregateStockByArticle(stock)
 
   return (
     <div className="space-y-6">
@@ -101,127 +90,37 @@ function StoreStockPage() {
           </Card>
         </div>
 
-        {stock.length === 0 ? (
+        {aggregated.length === 0 ? (
           <p className="text-muted-foreground py-8 text-center">
             No stock in the warehouse. Receive goods from a supply route to get
             started.
           </p>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1.5">
-                      Art # <InfoTip term="col.articleNumber" />
-                    </span>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <span className="inline-flex items-center gap-1.5">
-                      Qty On Hand <InfoTip term="col.qtyOnHand" />
-                    </span>
-                  </TableHead>
-                  <TableHead className="text-right">Cost/Unit (UGX)</TableHead>
-                  <TableHead className="text-right">Min Sell Price</TableHead>
-                  <TableHead className="text-right">Total Value</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stock.map((s) => (
-                  <StockRow key={s.id} item={s} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <>
+            <div className="flex items-baseline justify-between">
+              <p className="text-sm text-muted-foreground">
+                {aggregated.length} product{aggregated.length === 1 ? "" : "s"} ·{" "}
+                {aggregated.reduce((s, a) => s + a.total, 0)} units
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {aggregated.map((a) => (
+                <ProductCard
+                  key={a.product.articleNumber}
+                  data={{
+                    articleNumber: a.product.articleNumber,
+                    name: a.product.name,
+                    sizes: a.product.sizes,
+                    colors: a.colors,
+                    totalQuantity: a.total,
+                    locationCounts: [{ label: "Store", qty: a.total }],
+                  }}
+                />
+              ))}
+            </div>
+          </>
         )}
       </PagePrerequisites>
     </div>
-  )
-}
-
-function StockRow({
-  item,
-}: {
-  item: {
-    id: string
-    productName: string
-    articleNumber: string | null
-    quantityOnHand: number
-    costPerUnitUgx: string
-    minimumSellPriceUgx: string
-  }
-}) {
-  const router = useRouter()
-  const [editing, setEditing] = useState(false)
-  const [minPrice, setMinPrice] = useState(item.minimumSellPriceUgx)
-  const [saving, setSaving] = useState(false)
-
-  const totalValue = new BigNumber(item.costPerUnitUgx).times(
-    item.quantityOnHand,
-  )
-
-  async function saveMinPrice() {
-    setSaving(true)
-    try {
-      await setMinimumSellPrice({
-        data: {
-          storeStockId: item.id,
-          minimumSellPriceUgx: minPrice,
-        },
-      })
-      setEditing(false)
-      router.invalidate()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <TableRow>
-      <TableCell className="font-medium">{item.productName}</TableCell>
-      <TableCell className="text-muted-foreground">
-        {item.articleNumber || "-"}
-      </TableCell>
-      <TableCell className="text-right">
-        {item.quantityOnHand === 0 ? (
-          <Badge variant="outline">Out of stock</Badge>
-        ) : (
-          item.quantityOnHand
-        )}
-      </TableCell>
-      <TableCell className="text-right font-mono">
-        {roundUgxFloor50(item.costPerUnitUgx).toFormat(0)}
-      </TableCell>
-      <TableCell className="text-right">
-        {editing ? (
-          <div className="flex items-center justify-end gap-1">
-            <Input
-              className="w-28 text-right"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-            />
-            <Button
-              size="icon"
-              className="h-8 w-8"
-              onClick={saveMinPrice}
-              disabled={saving}
-            >
-              <Check className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : (
-          <button
-            className="font-mono hover:underline cursor-pointer"
-            onClick={() => setEditing(true)}
-          >
-            {roundUgxFloor50(item.minimumSellPriceUgx).toFormat(0)}
-          </button>
-        )}
-      </TableCell>
-      <TableCell className="text-right font-mono font-semibold">
-        {roundUgxBankers50(totalValue).toFormat(0)}
-      </TableCell>
-    </TableRow>
   )
 }
