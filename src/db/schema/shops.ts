@@ -6,9 +6,11 @@ import {
   numeric,
   timestamp,
   index,
+  unique,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { user } from "./auth"
+import { productColors } from "./products"
 
 export const shops = pgTable("shops", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -29,10 +31,10 @@ export const shopStock = pgTable(
     shopId: uuid("shop_id")
       .notNull()
       .references(() => shops.id, { onDelete: "restrict" }),
-    productName: text("product_name").notNull(),
-    articleNumber: text("article_number"),
-    // FK to storeTransferItems omitted here to avoid circular import (shops <-> transfers).
-    // Nullable: opening-balance stock rows have no originating transfer.
+    productColorId: uuid("product_color_id")
+      .notNull()
+      .references(() => productColors.id, { onDelete: "restrict" }),
+    size: text("size").notNull(),
     storeTransferItemId: uuid("store_transfer_item_id"),
     quantityOnHand: integer("quantity_on_hand").notNull().default(0),
     costPerUnitUgx: numeric("cost_per_unit_ugx", { precision: 15, scale: 2 }).notNull(),
@@ -46,6 +48,8 @@ export const shopStock = pgTable(
   (table) => [
     index("idx_shst_shop").on(table.shopId),
     index("idx_shst_transfer_item").on(table.storeTransferItemId),
+    index("idx_shst_pc").on(table.productColorId),
+    unique("uq_shst_variant").on(table.shopId, table.productColorId, table.size),
   ],
 )
 
@@ -59,5 +63,9 @@ export const shopStockRelations = relations(shopStock, ({ one }) => ({
   shop: one(shops, {
     fields: [shopStock.shopId],
     references: [shops.id],
+  }),
+  productColor: one(productColors, {
+    fields: [shopStock.productColorId],
+    references: [productColors.id],
   }),
 }))
