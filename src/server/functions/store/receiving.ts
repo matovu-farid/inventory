@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
-import { eq, and, sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
@@ -45,7 +45,12 @@ export const listReceivableRoutes = createServerFn().handler(async () => {
   const routes = await db.query.supplyRoutes.findMany({
     where: (r, { inArray }) => inArray(r.status, ["in_transit", "received"]),
     with: {
-      items: { with: { supplier: true } },
+      items: {
+        with: {
+          supplier: true,
+          productColor: { with: { product: true } },
+        },
+      },
       suppliers: { with: { supplier: true } },
     },
     orderBy: (r, { desc }) => [desc(r.createdAt)],
@@ -82,7 +87,10 @@ export const getUnreceivedItems = createServerFn()
 
     const items = await db.query.supplyRouteItems.findMany({
       where: eq(supplyRouteItems.supplyRouteId, data.supplyRouteId),
-      with: { supplier: true },
+      with: {
+        supplier: true,
+        productColor: { with: { product: true } },
+      },
     })
 
     if (items.length === 0) return []
@@ -136,18 +144,21 @@ export const receiveGoods = createServerFn()
     return db.transaction(async (tx) => {
       const results: Array<{
         itemId: string
-        productName: string
+        productLabel: string
         expected: number
         received: number
         transitLoss: number
       }> = []
 
       for (const item of data.items) {
-        // Get the supply route item
+        // Get the supply route item with product chain for log strings
         const sri = await tx.query.supplyRouteItems.findFirst({
           where: eq(supplyRouteItems.id, item.supplyRouteItemId),
+          with: { productColor: { with: { product: true } } },
         })
         if (!sri) throw new Error(`Supply route item not found: ${item.supplyRouteItemId}`)
+
+        const productLabel = `${sri.productColor.product.articleNumber} ${sri.productColor.colorName}/${sri.size}`
 
         // One receipt per item — refuse if already received
         const prior = await tx.query.storeReceivings.findFirst({
@@ -155,7 +166,7 @@ export const receiveGoods = createServerFn()
         })
         if (prior) {
           throw new Error(
-            `${sri.productName} has already been received on this route`,
+            `${productLabel} has already been received on this route`,
           )
         }
 
@@ -178,36 +189,30 @@ export const receiveGoods = createServerFn()
           receivedBy: (session.user as { id: string }).id,
         })
 
-        // 2. Create or update StoreStock
+        // 2. Upsert StoreStock — merge into existing (storeId, productColorId, size) row
         if (sri.quantity <= 0) throw new Error("Invalid supply route item quantity")
         const costPerUnit = new BigNumber(sri.totalCostUgx)
           .div(sri.quantity)
           .dp(2, BigNumber.ROUND_HALF_UP)
 
-        const existing = await tx.query.storeStock.findFirst({
-          where: and(
-            eq(storeStock.storeId, store.id),
-            eq(storeStock.supplyRouteItemId, sri.id),
-          ),
-        })
-
-        if (existing) {
+        if (item.quantityReceived > 0) {
           await tx
-            .update(storeStock)
-            .set({
-              quantityOnHand: sql`${storeStock.quantityOnHand} + ${item.quantityReceived}`,
+            .insert(storeStock)
+            .values({
+              storeId: store.id,
+              productColorId: sri.productColorId,
+              size: sri.size,
+              supplyRouteItemId: sri.id,
+              quantityOnHand: item.quantityReceived,
+              costPerUnitUgx: costPerUnit.toFixed(2),
+              minimumSellPriceUgx: costPerUnit.toFixed(2), // default; admin sets real price later
             })
-            .where(eq(storeStock.id, existing.id))
-        } else if (item.quantityReceived > 0) {
-          await tx.insert(storeStock).values({
-            storeId: store.id,
-            productName: sri.productName,
-            articleNumber: sri.articleNumber,
-            supplyRouteItemId: sri.id,
-            quantityOnHand: item.quantityReceived,
-            costPerUnitUgx: costPerUnit.toFixed(2),
-            minimumSellPriceUgx: costPerUnit.toFixed(2), // default; admin sets real price later
-          })
+            .onConflictDoUpdate({
+              target: [storeStock.storeId, storeStock.productColorId, storeStock.size],
+              set: {
+                quantityOnHand: sql`${storeStock.quantityOnHand} + ${item.quantityReceived}`,
+              },
+            })
         }
 
         // 3. Post ledger entry for received goods
@@ -224,7 +229,7 @@ export const receiveGoods = createServerFn()
             locationId: store.id,
             depositLocation: "cash",
             recordedBy: (session.user as { id: string }).id,
-            description: `Received ${item.quantityReceived}x ${sri.productName} from route`,
+            description: `Received ${item.quantityReceived}× ${productLabel} from route`,
           })
         }
 
@@ -241,13 +246,13 @@ export const receiveGoods = createServerFn()
             locationType: "store",
             locationId: store.id,
             recordedBy: (session.user as { id: string }).id,
-            description: `Transit loss: ${transitLoss}x ${sri.productName}`,
+            description: `Transit loss: ${transitLoss}× ${productLabel}`,
           })
         }
 
         results.push({
           itemId: sri.id,
-          productName: sri.productName,
+          productLabel,
           expected: sri.quantity,
           received: item.quantityReceived,
           transitLoss,
@@ -294,7 +299,7 @@ export const getStoreStock = createServerFn().handler(async () => {
 
   return db.query.storeStock.findMany({
     where: eq(storeStock.storeId, store.id),
-    orderBy: (s, { asc }) => [asc(s.productName)],
+    with: { productColor: { with: { product: true } } },
   })
 })
 

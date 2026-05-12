@@ -58,11 +58,15 @@ function ReceivingPage() {
   const [items, setItems] = useState<
     Array<{
       id: string
-      productName: string
-      articleNumber: string | null
+      size: string
       quantity: number
       totalCostUgx: string
       supplier: { name: string }
+      productColor: {
+        colorName: string
+        colorHex: string
+        product: { name: string; articleNumber: string }
+      }
     }>
   >([])
   const [receivedQtys, setReceivedQtys] = useState<Record<string, number>>({})
@@ -191,7 +195,24 @@ function ReceivingPage() {
                   {items.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">
-                        {item.productName}
+                        <div className="flex flex-col gap-0.5">
+                          <span>
+                            {item.productColor.product.articleNumber}{" "}
+                            <span className="text-muted-foreground">
+                              {item.productColor.product.name}
+                            </span>
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <span
+                              className="size-3 rounded-full border"
+                              style={{
+                                backgroundColor: item.productColor.colorHex,
+                              }}
+                              aria-hidden
+                            />
+                            {item.productColor.colorName} · {item.size}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>{item.supplier.name}</TableCell>
                       <TableCell className="text-right">
@@ -238,8 +259,25 @@ function ReceivingPage() {
                 const missing = item.quantity - received
                 return (
                   <div key={item.id} className="space-y-2 rounded-md border p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{item.productName}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium">
+                          {item.productColor.product.articleNumber}{" "}
+                          <span className="text-muted-foreground">
+                            {item.productColor.product.name}
+                          </span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <span
+                            className="size-3 rounded-full border"
+                            style={{
+                              backgroundColor: item.productColor.colorHex,
+                            }}
+                            aria-hidden
+                          />
+                          {item.productColor.colorName} · {item.size}
+                        </span>
+                      </div>
                       <Badge variant="destructive">{missing} missing</Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">
