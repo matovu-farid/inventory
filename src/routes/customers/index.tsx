@@ -1,5 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
+import { requireUiPermission } from "#/lib/permissions"
 import { Plus } from "lucide-react"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
@@ -26,6 +27,8 @@ import {
 } from "#/server/functions/customers/customers"
 
 export const Route = createFileRoute("/customers/")({
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, "customers.view"),
   loader: async () => {
     const customers = await listCustomers()
     return { customers }

@@ -3,7 +3,7 @@ import { useState } from "react"
 import { z } from "zod"
 import { Logo } from "#/components/logo"
 import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
+import { PasswordInput } from "#/components/ui/password-input"
 import { Label } from "#/components/ui/label"
 import { authClient } from "#/lib/auth-client"
 
@@ -83,9 +83,8 @@ function ResetPasswordPage() {
                 <Label htmlFor="password" className="text-[13px]">
                   New password
                 </Label>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-10 rounded-xl"
@@ -97,9 +96,8 @@ function ResetPasswordPage() {
                 <Label htmlFor="confirm" className="text-[13px]">
                   Confirm password
                 </Label>
-                <Input
+                <PasswordInput
                   id="confirm"
-                  type="password"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   className="h-10 rounded-xl"

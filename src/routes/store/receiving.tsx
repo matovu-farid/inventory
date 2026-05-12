@@ -1,4 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { requireUiPermission } from "#/lib/permissions"
 import { useEffect, useState } from "react"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
@@ -38,6 +39,8 @@ import { ensureStore } from "#/server/functions/admin/locations"
 import { getReceivingPrereqs } from "#/server/functions/prereqs/receiving"
 
 export const Route = createFileRoute("/store/receiving")({
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, "warehouse.receiving"),
   loader: async () => {
     await ensureStore()
     const [routes, prerequisites] = await Promise.all([

@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
+import { requireUiPermission } from "#/lib/permissions"
 import BigNumber from "bignumber.js"
 import { roundUgxFloor50, roundUgxBankers50, formatUgxTotal } from "#/lib/format"
 import { Button } from "#/components/ui/button"
@@ -26,6 +27,8 @@ import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites
 import { getStorePrereqs } from "#/server/functions/prereqs/store"
 
 export const Route = createFileRoute("/store/")({
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, "warehouse.stock"),
   loader: async () => {
     await ensureStore()
     const session = await getSession()

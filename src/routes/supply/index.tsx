@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import { requireUiPermission } from "#/lib/permissions"
 import { useState } from "react"
 import BigNumber from "bignumber.js"
 import { roundUgxBankers50 } from "#/lib/format"
@@ -34,6 +35,8 @@ import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites
 import { getSupplyPrereqs } from "#/server/functions/prereqs/supply"
 
 export const Route = createFileRoute("/supply/")({
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, "procurement.view"),
   loader: async () => {
     const [routes, suppliers, prerequisites] = await Promise.all([
       listSupplyRoutes(),

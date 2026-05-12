@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { roundUgxFloor50 } from "#/lib/format"
+import { requireUiPermission } from "#/lib/permissions"
 import { Badge } from "#/components/ui/badge"
 import {
   Table,
@@ -12,6 +13,7 @@ import {
 import { getLedgerEntries } from "#/server/functions/accounting/reports"
 
 export const Route = createFileRoute("/reports/ledger")({
+  beforeLoad: ({ context }) => requireUiPermission(context, "reports.view"),
   loader: () => getLedgerEntries({ data: { limit: 100, offset: 0 } }),
   component: LedgerPage,
 })

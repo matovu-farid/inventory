@@ -40,7 +40,7 @@ export function filterRoutesWithUnreceivedItems<
  */
 export const listReceivableRoutes = createServerFn().handler(async () => {
   const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  requireRole(session, ["admin"])
 
   const routes = await db.query.supplyRoutes.findMany({
     where: (r, { inArray }) => inArray(r.status, ["in_transit", "received"]),
@@ -78,7 +78,7 @@ export const getUnreceivedItems = createServerFn()
   .inputValidator(z.object({ supplyRouteId: z.string().uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     const items = await db.query.supplyRouteItems.findMany({
       where: eq(supplyRouteItems.supplyRouteId, data.supplyRouteId),
@@ -128,7 +128,7 @@ export const receiveGoods = createServerFn()
   .inputValidator(receiveGoodsInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     const store = await db.query.stores.findFirst()
     if (!store) throw new Error("Store not configured")

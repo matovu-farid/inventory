@@ -77,24 +77,17 @@ export const auth = betterAuth({
             return { data: { ...userData, role: "admin" } }
           }
 
-          // Allow admin-created users (admin plugin path) — these arrive
-          // with an active admin session in the request context
-          // better-auth ctx shape varies across minor versions; cast intentional
-          const headers = (ctx as any)?.context?.request?.headers
-          if (headers) {
-            try {
-              const session = await auth.api.getSession({ headers })
-              const role = (session?.user as { role?: string } | undefined)
-                ?.role
-              if (role === "admin") {
-                if (!userData.role || userData.role === "user") {
-                  return { data: { ...userData, role: "sales" } }
-                }
-                return { data: userData }
-              }
-            } catch {
-              // fall through to rejection
+          // Allow admin-created users (admin plugin path) — the resolved
+          // session of the caller is exposed on ctx.context.session.
+          const session = (ctx as any)?.context?.session as
+            | { user?: { role?: string } }
+            | undefined
+          const role = session?.user?.role
+          if (role === "admin") {
+            if (!userData.role || userData.role === "user") {
+              return { data: { ...userData, role: "sales" } }
             }
+            return { data: userData }
           }
 
           // Block self-signup once an admin exists

@@ -12,7 +12,7 @@ import { requireRole } from "#/server/middleware/rbac"
 
 export const listSupplyRoutes = createServerFn().handler(async () => {
   const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  requireRole(session, ["admin"])
 
   const routes = await db.query.supplyRoutes.findMany({
     orderBy: (r, { desc }) => [desc(r.createdAt)],
@@ -32,7 +32,7 @@ export const getSupplyRoute = createServerFn()
   .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     const route = await db.query.supplyRoutes.findFirst({
       where: eq(supplyRoutes.id, data.id),
@@ -77,7 +77,7 @@ export const createSupplyRoute = createServerFn()
   .inputValidator(createRouteInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     const { supplierIds, ...routeData } = data
 
@@ -126,7 +126,7 @@ export const updateSupplyRoute = createServerFn()
   .inputValidator(updateRouteInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     const { id, ...fields } = data
     const route = (await db
@@ -148,7 +148,7 @@ export const addSupplierToRoute = createServerFn()
   .inputValidator(addSupplierToRouteInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     const [link] = await db
       .insert(supplyRouteSuppliers)
@@ -166,7 +166,7 @@ export const removeSupplierFromRoute = createServerFn()
   .inputValidator(removeSupplierFromRouteInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     await db
       .delete(supplyRouteSuppliers)
@@ -175,7 +175,7 @@ export const removeSupplierFromRoute = createServerFn()
 
 export const listSuppliersForSelect = createServerFn().handler(async () => {
   const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  requireRole(session, ["admin"])
 
   return db
     .select({ id: suppliers.id, name: suppliers.name, type: suppliers.type })

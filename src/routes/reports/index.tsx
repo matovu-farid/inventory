@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import BigNumber from "bignumber.js"
+import { requireUiPermission } from "#/lib/permissions"
 import { roundUgxFloor50, roundUgxBankers50, formatUgxTotal } from "#/lib/format"
 import {
   Table,
@@ -17,6 +18,7 @@ import {
 } from "#/server/functions/accounting/reports"
 
 export const Route = createFileRoute("/reports/")({
+  beforeLoad: ({ context }) => requireUiPermission(context, "reports.view"),
   loader: async () => {
     const [pnl, bs, cash] = await Promise.all([
       getProfitAndLoss({ data: {} }),

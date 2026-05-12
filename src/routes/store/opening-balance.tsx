@@ -1,20 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { OpeningBalanceForm } from "#/components/opening-balance/opening-balance-form"
-import { getSession } from "#/server/middleware/auth"
+import { requireUiPermission } from "#/lib/permissions"
 
 // No PagePrerequisites wrapper here by design: the opening-balance form is
 // the bootstrap mechanism for an empty warehouse, so it must always be
 // reachable. Auth/role is the only gate. The page is therefore omitted
 // from getSystemPrereqs.
 export const Route = createFileRoute("/store/opening-balance")({
-  loader: async () => {
-    const session = await getSession()
-    const role = (session?.user as { role?: string } | undefined)?.role
-    if (!session || (role !== "admin" && role !== "supervisor")) {
-      throw new Error("Forbidden: admin or supervisor role required")
-    }
-    return { role }
-  },
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, "warehouse.openingBalance"),
   component: StoreOpeningBalancePage,
 })
 

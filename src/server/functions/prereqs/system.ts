@@ -1,6 +1,5 @@
 // src/server/functions/prereqs/system.ts
 import { createServerFn } from "@tanstack/react-start"
-import { getReceivingPrereqs } from "./receiving"
 import { getTransfersPrereqs } from "./transfers"
 import {
   getShopSalesPrereqs,
@@ -23,8 +22,9 @@ interface PageCheck {
   fn: () => Promise<PrerequisiteResult>
 }
 
+// Note: getReceivingPrereqs is intentionally excluded — having no
+// in-transit routes is a normal operating state, not a setup gap.
 const pageChecks: PageCheck[] = [
-  { pageHref: "/store/receiving", pageLabel: "Receiving", fn: getReceivingPrereqs },
   { pageHref: "/store/transfers", pageLabel: "Transfers", fn: getTransfersPrereqs },
   { pageHref: "/shop/sales", pageLabel: "Sales", fn: getShopSalesPrereqs },
   { pageHref: "/shop/opening-balance", pageLabel: "Shop Opening Balance", fn: getShopOpeningBalancePrereqs },

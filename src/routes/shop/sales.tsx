@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useState, useEffect } from "react"
+import { requireUiPermission } from "#/lib/permissions"
 import BigNumber from "bignumber.js"
 import { roundUgxFloor50, formatUgxTotal } from "#/lib/format"
 import { Badge } from "#/components/ui/badge"
@@ -19,14 +20,14 @@ import {
   TableRow,
 } from "#/components/ui/table"
 import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
-import { listShops } from "#/server/functions/admin/locations"
-import { listShopSales } from "#/server/functions/shop/sales"
+import { listShopsWithSales, listShopSales } from "#/server/functions/shop/sales"
 import { getShopSalesPrereqs } from "#/server/functions/prereqs/shop"
 
 export const Route = createFileRoute("/shop/sales")({
+  beforeLoad: ({ context }) => requireUiPermission(context, "sales.view"),
   loader: async () => {
     const [shops, prerequisites] = await Promise.all([
-      listShops(),
+      listShopsWithSales(),
       getShopSalesPrereqs(),
     ])
     return { shops, prerequisites }
@@ -87,21 +88,23 @@ function SalesPage() {
         </p>
       </div>
       <PagePrerequisites result={prerequisites}>
-        <div className="flex items-center justify-between">
-          <div />
-          <Select value={shopId} onValueChange={loadSales}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select shop" />
-            </SelectTrigger>
-            <SelectContent>
-              {shops.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {shops.length > 1 && (
+          <div className="flex items-center justify-between">
+            <div />
+            <Select value={shopId} onValueChange={loadSales}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select shop" />
+              </SelectTrigger>
+              <SelectContent>
+                {shops.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {sales.length > 0 && (
           <p className="text-sm text-muted-foreground">
@@ -112,9 +115,13 @@ function SalesPage() {
           </p>
         )}
 
-        {sales.length === 0 ? (
+        {shops.length === 0 ? (
           <p className="text-muted-foreground py-8 text-center">
             No sales recorded yet.
+          </p>
+        ) : sales.length === 0 ? (
+          <p className="text-muted-foreground py-8 text-center">
+            No sales recorded yet for this shop.
           </p>
         ) : (
           <div className="rounded-md border">

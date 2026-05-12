@@ -56,7 +56,8 @@ export const updateStore = createServerFn()
 
 export const listShops = createServerFn().handler(async () => {
   const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  // Sales reps need the shop list to record sales / view their sales history.
+  requireRole(session, ["admin", "supervisor", "sales"])
 
   return db.select().from(shops).orderBy(shops.name)
 })

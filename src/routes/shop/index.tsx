@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState, useEffect } from "react"
+import { requireUiPermission } from "#/lib/permissions"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { roundUgxFloor50, formatUgx, formatUgxTotal } from "#/lib/format"
@@ -42,9 +43,16 @@ import {
   CommandList,
 } from "#/components/ui/command"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
-import { Separator } from "#/components/ui/separator"
 import { InfoTip } from "#/components/ui/info-tip"
-import { ArrowLeft, Check, Plus, ShoppingCart, PackageCheck } from "lucide-react"
+import {
+  ArrowLeft,
+  Check,
+  Minus,
+  Plus,
+  ShoppingCart,
+  PackageCheck,
+  Trash2,
+} from "lucide-react"
 import { AddShopDialog } from "#/components/shops/add-shop-dialog"
 import { ReceiveTransferForm } from "#/components/transfers/receive-transfer-form"
 import { listShops } from "#/server/functions/admin/locations"
@@ -57,6 +65,7 @@ const searchSchema = z.object({
 })
 
 export const Route = createFileRoute("/shop/")({
+  beforeLoad: ({ context }) => requireUiPermission(context, "shop.view"),
   validateSearch: searchSchema,
   loader: async () => {
     const session = await getSession()
@@ -146,9 +155,9 @@ function ShopPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Select value={shopId} onValueChange={loadStock}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="h-11 w-48">
             <SelectValue placeholder="Select shop" />
           </SelectTrigger>
           <SelectContent>
@@ -159,7 +168,7 @@ function ShopPage() {
             ))}
           </SelectContent>
         </Select>
-        {canManage && (
+        {role === "admin" && (
           <AddShopDialog onCreated={() => router.invalidate()} />
         )}
         {canManage &&
@@ -179,12 +188,12 @@ function ShopPage() {
         {shopId && (
           <Dialog open={saleOpen} onOpenChange={setSaleOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="h-11">
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 New Sale
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-xl">
+            <DialogContent className="sm:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Record Sale</DialogTitle>
               </DialogHeader>
@@ -205,7 +214,9 @@ function ShopPage() {
         {shops.length === 0 ? (
           <p className="text-muted-foreground py-8 text-center">
             No shops configured yet.
-            {canManage ? " Use the Add Shop button above to create one." : ""}
+            {role === "admin"
+              ? " Use the Add Shop button above to create one."
+              : ""}
           </p>
         ) : (
           <>
@@ -247,39 +258,41 @@ function ShopPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4 max-w-md">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                    Items in Stock
-                    <InfoTip term="kpi.itemsInStockShop" />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalItems}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                    Stock Value
-                    <InfoTip term="kpi.shopStockValue" />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold font-mono">
-                    {formatUgxTotal(totalValue)}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            {role === "admin" && (
+              <div className="grid grid-cols-2 gap-4 max-w-md">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                      Items in Stock
+                      <InfoTip term="kpi.itemsInStockShop" />
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{totalItems}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                      Stock Value
+                      <InfoTip term="kpi.shopStockValue" />
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold font-mono">
+                      {formatUgxTotal(totalValue)}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {stock.length === 0 ? (
               <p className="text-muted-foreground py-8 text-center">
                 No stock at this shop. Transfer goods from the store.
               </p>
             ) : (
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -470,8 +483,11 @@ function NewSaleForm({
           Search and select one or more products to sell.
         </p>
         <Command className="rounded-md border" shouldFilter={true}>
-          <CommandInput placeholder="Search by product or article #..." />
-          <CommandList className="max-h-[320px]">
+          <CommandInput
+            className="h-12 text-base"
+            placeholder="Search by product or article #..."
+          />
+          <CommandList className="max-h-[50vh]">
             <CommandEmpty>No matching products.</CommandEmpty>
             {stock.map((s) => {
               const isSelected = selectedIds.has(s.id)
@@ -480,17 +496,17 @@ function NewSaleForm({
                   key={s.id}
                   value={`${s.productName} ${s.articleNumber ?? ""}`}
                   onSelect={() => toggleSelection(s.id)}
-                  className="flex items-center justify-between gap-3"
+                  className="flex min-h-12 items-center justify-between gap-3"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex min-w-0 items-center gap-3">
                     <span
-                      className={`flex size-4 shrink-0 items-center justify-center rounded-sm border ${
+                      className={`flex size-5 shrink-0 items-center justify-center rounded border ${
                         isSelected
                           ? "border-primary bg-primary text-primary-foreground"
                           : "border-input"
                       }`}
                     >
-                      {isSelected && <Check className="size-3" />}
+                      {isSelected && <Check className="size-3.5" />}
                     </span>
                     <span className="truncate font-medium">{s.productName}</span>
                     {s.articleNumber && (
@@ -511,11 +527,12 @@ function NewSaleForm({
           </CommandList>
         </Command>
 
-        <div className="flex items-center justify-between">
+        <div className="sticky bottom-0 -mx-6 -mb-6 flex items-center justify-between border-t bg-background px-6 py-4">
           <p className="text-sm text-muted-foreground">
             {cart.length} item{cart.length === 1 ? "" : "s"} selected
           </p>
           <Button
+            className="h-11"
             onClick={() => setStage("configure")}
             disabled={cart.length === 0}
           >
@@ -532,60 +549,98 @@ function NewSaleForm({
         variant="ghost"
         size="sm"
         onClick={() => setStage("select")}
-        className="-ml-2 h-8 text-muted-foreground"
+        className="-ml-2 h-9 text-muted-foreground"
       >
         <ArrowLeft className="mr-1 h-4 w-4" />
         Back to selection
       </Button>
 
       {cart.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3 pb-4">
           {cart.map((item) => {
             const s = stock.find((x) => x.id === item.stockId)
             if (!s) return null
             const isBelowMin =
               item.price !== "" &&
               new BigNumber(item.price || 0).lt(s.minimumSellPriceUgx)
+            const decQty = () =>
+              updateCart(
+                item.stockId,
+                "qty",
+                String(Math.max(1, item.qty - 1)),
+              )
+            const incQty = () =>
+              updateCart(
+                item.stockId,
+                "qty",
+                String(Math.min(s.quantityOnHand, item.qty + 1)),
+              )
             return (
               <div
                 key={item.stockId}
-                className="space-y-1 p-3 border rounded-lg"
+                className="space-y-3 rounded-lg border p-3"
               >
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium truncate">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-medium">
                     {s.productName}
                   </p>
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                    size="icon"
+                    className="size-10 shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={() => removeFromCart(item.stockId)}
+                    aria-label={`Remove ${s.productName}`}
                   >
-                    x
+                    <Trash2 className="size-4" strokeWidth={1.75} />
                   </Button>
                 </div>
-                <div className="flex items-end gap-2">
-                  <div className="w-20 space-y-1">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Qty</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={s.quantityOnHand}
-                      className="text-right"
-                      value={item.qty}
-                      onChange={(e) =>
-                        updateCart(item.stockId, "qty", e.target.value)
-                      }
-                    />
+                    <div className="flex items-stretch">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="size-11 rounded-r-none"
+                        onClick={decQty}
+                        disabled={item.qty <= 1}
+                        aria-label="Decrease quantity"
+                      >
+                        <Minus className="size-4" strokeWidth={1.75} />
+                      </Button>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={s.quantityOnHand}
+                        className="h-11 w-16 rounded-none border-x-0 text-center text-base"
+                        value={item.qty}
+                        onChange={(e) =>
+                          updateCart(item.stockId, "qty", e.target.value)
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="size-11 rounded-l-none"
+                        onClick={incQty}
+                        disabled={item.qty >= s.quantityOnHand}
+                        aria-label="Increase quantity"
+                      >
+                        <Plus className="size-4" strokeWidth={1.75} />
+                      </Button>
+                    </div>
                   </div>
-                  <span className="pb-2 text-muted-foreground">x</span>
-                  <div className="flex-1 space-y-1">
+                  <div className="min-w-[10rem] flex-1 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
                       Price (min: {formatUgx(s.minimumSellPriceUgx)})
                     </Label>
                     <MoneyInput
                       currency="UGX"
                       roundTo={50}
+                      className="h-11 text-base"
                       value={item.price}
                       onChange={(val) =>
                         updateCart(item.stockId, "price", val)
@@ -595,12 +650,13 @@ function NewSaleForm({
                   </div>
                 </div>
                 {isBelowMin && (
-                  <div className="space-y-1 pt-1">
+                  <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
                       Reason for selling below{" "}
                       {formatUgx(s.minimumSellPriceUgx)}
                     </Label>
                     <Input
+                      className="h-11 text-base"
                       value={item.belowMinimumReason}
                       onChange={(e) =>
                         updateCart(
@@ -624,43 +680,44 @@ function NewSaleForm({
         </div>
       )}
 
-      <Separator />
+      {/* Sticky footer — pinned within the scrollable DialogContent */}
+      <div className="sticky bottom-0 -mx-6 -mb-6 space-y-3 border-t bg-background px-6 py-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="space-y-1.5">
+            <Label>Payment</Label>
+            <Select
+              value={paymentMethod}
+              onValueChange={(v) => setPaymentMethod(v as "cash" | "bank")}
+            >
+              <SelectTrigger className="h-11 w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="bank">Bank</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-muted-foreground">Total</p>
+            <p className="font-mono text-2xl font-bold">
+              {formatUgxTotal(total)}
+            </p>
+          </div>
+        </div>
 
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <Label>Payment</Label>
-          <Select
-            value={paymentMethod}
-            onValueChange={(v) => setPaymentMethod(v as "cash" | "bank")}
-          >
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="cash">Cash</SelectItem>
-              <SelectItem value="bank">Bank</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="text-right">
-          <p className="text-sm text-muted-foreground">Total</p>
-          <p className="text-xl font-bold font-mono">
-            {formatUgxTotal(total)}
-          </p>
-        </div>
+        {errors.cart && (
+          <p className="text-center text-sm text-destructive">{errors.cart}</p>
+        )}
+
+        <Button
+          className="h-12 w-full text-base"
+          onClick={handleSubmit}
+          disabled={pending || cart.length === 0}
+        >
+          {pending ? "Recording..." : "Record Sale"}
+        </Button>
       </div>
-
-      {errors.cart && (
-        <p className="text-sm text-destructive text-center">{errors.cart}</p>
-      )}
-
-      <Button
-        className="w-full"
-        onClick={handleSubmit}
-        disabled={pending || cart.length === 0}
-      >
-        {pending ? "Recording..." : "Record Sale"}
-      </Button>
     </div>
   )
 }

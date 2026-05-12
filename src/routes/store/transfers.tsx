@@ -1,6 +1,7 @@
 import { roundUgxBankers50, formatUgx } from "#/lib/format"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
+import { requireUiPermission } from "#/lib/permissions"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
@@ -42,6 +43,8 @@ import { getStoreStock } from "#/server/functions/store/receiving"
 import { listShops } from "#/server/functions/admin/locations"
 
 export const Route = createFileRoute("/store/transfers")({
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, "warehouse.transfers"),
   loader: async () => {
     const [transfers, stock, shops, prerequisites] = await Promise.all([
       listTransfers(),

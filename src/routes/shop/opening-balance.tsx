@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router"
 import { z } from "zod"
 import { OpeningBalanceForm } from "#/components/opening-balance/opening-balance-form"
 import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
+import { requireUiPermission } from "#/lib/permissions"
 import { listShops } from "#/server/functions/admin/locations"
-import { getSession } from "#/server/middleware/auth"
 import { getShopOpeningBalancePrereqs } from "#/server/functions/prereqs/shop"
 
 const searchSchema = z.object({
@@ -11,19 +11,16 @@ const searchSchema = z.object({
 })
 
 export const Route = createFileRoute("/shop/opening-balance")({
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, "shop.openingBalance"),
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => ({ shopId: search.shopId }),
   loader: async () => {
-    const session = await getSession()
-    const role = (session?.user as { role?: string } | undefined)?.role
-    if (!session || (role !== "admin" && role !== "supervisor")) {
-      throw new Error("Forbidden: admin or supervisor role required")
-    }
     const [shops, prerequisites] = await Promise.all([
       listShops(),
       getShopOpeningBalancePrereqs(),
     ])
-    return { shops, role, prerequisites }
+    return { shops, prerequisites }
   },
   component: ShopOpeningBalancePage,
 })

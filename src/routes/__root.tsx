@@ -72,8 +72,15 @@ function RootLayout() {
   const router = useRouter()
   const matches = useMatches()
 
-  const isLoginPage = matches.some((m) => m.fullPath === "/login")
-  const needsRedirect = !session && !isLoginPage
+  const publicPaths = new Set([
+    "/login",
+    "/accept-invite",
+    "/forgot-password",
+    "/reset-password",
+    "/verify-email-sent",
+  ])
+  const isPublicPage = matches.some((m) => publicPaths.has(m.fullPath))
+  const needsRedirect = !session && !isPublicPage
 
   useEffect(() => {
     if (needsRedirect) {
@@ -85,7 +92,7 @@ function RootLayout() {
     return null
   }
 
-  if (isLoginPage) {
+  if (isPublicPage) {
     return <Outlet />
   }
 

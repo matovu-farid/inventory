@@ -1,5 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
+import { requireUiPermission } from "#/lib/permissions"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { FieldLabel } from "#/components/ui/field-label"
@@ -36,6 +37,8 @@ import {
 } from "#/server/functions/supply/suppliers"
 
 export const Route = createFileRoute("/supply/suppliers")({
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, "procurement.view"),
   loader: () => listSuppliers(),
   component: SuppliersPage,
 })

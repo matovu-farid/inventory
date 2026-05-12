@@ -8,7 +8,7 @@ import { requireRole } from "#/server/middleware/rbac"
 
 export const listSuppliers = createServerFn().handler(async () => {
   const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  requireRole(session, ["admin"])
 
   return db.select().from(suppliers).orderBy(suppliers.name)
 })

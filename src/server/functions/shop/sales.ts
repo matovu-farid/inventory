@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start"
-import { eq, sql } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
+import { inArray } from "drizzle-orm"
 import { db } from "#/db"
-import { shopSales, shopSaleItems, shopStock, customers } from "#/db/schema"
+import { shops, shopSales, shopSaleItems, shopStock, customers } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { recordAuditLog } from "#/server/middleware/audit-store"
@@ -23,14 +24,47 @@ export const getShopStock = createServerFn()
     })
   })
 
+/**
+ * Shops with at least one recorded sale visible to the caller.
+ * For sales reps, "visible" means sales they personally recorded.
+ * Used by the Sales page to keep the shop dropdown free of empty options.
+ */
+export const listShopsWithSales = createServerFn().handler(async () => {
+  const session = await requireSession()
+  requireRole(session, ["admin", "supervisor", "sales"])
+  const userId = (session.user as { id: string }).id
+  const role = (session.user as { role?: string }).role
+
+  const rows = await db
+    .selectDistinct({ shopId: shopSales.shopId })
+    .from(shopSales)
+    .where(role === "sales" ? eq(shopSales.soldBy, userId) : undefined)
+
+  if (rows.length === 0) return []
+
+  return db
+    .select()
+    .from(shops)
+    .where(inArray(shops.id, rows.map((r) => r.shopId)))
+    .orderBy(shops.name)
+})
+
 export const listShopSales = createServerFn()
   .inputValidator(z.object({ shopId: z.string().uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor", "sales"])
+    const userId = (session.user as { id: string }).id
+    const role = (session.user as { role?: string }).role
+
+    // Sales reps see only their own sales. Admin/supervisor see everything.
+    const where =
+      role === "sales"
+        ? and(eq(shopSales.shopId, data.shopId), eq(shopSales.soldBy, userId))
+        : eq(shopSales.shopId, data.shopId)
 
     return db.query.shopSales.findMany({
-      where: eq(shopSales.shopId, data.shopId),
+      where,
       with: { items: true },
       orderBy: (s, { desc }) => [desc(s.saleDate)],
       limit: 100,

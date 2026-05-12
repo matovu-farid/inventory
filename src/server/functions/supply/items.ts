@@ -23,7 +23,7 @@ export const addSupplyRouteItem = createServerFn()
   .inputValidator(addItemInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     const unitPrice = new BigNumber(data.unitPriceForeign)
     const qty = data.quantity
@@ -99,7 +99,7 @@ export const updateSupplyRouteItem = createServerFn()
   .inputValidator(updateItemInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     const { id, ...fields } = data
 
@@ -162,7 +162,7 @@ export const deleteSupplyRouteItem = createServerFn()
   .inputValidator(deleteItemInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     await db.delete(supplyRouteItems).where(eq(supplyRouteItems.id, data.id))
   })
@@ -175,7 +175,7 @@ export const getProductNameSuggestions = createServerFn()
   .inputValidator(z.object({ query: z.string().min(1) }))
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     const rows = await db
       .selectDistinct({ productName: supplyRouteItems.productName })

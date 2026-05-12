@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router"
+import { createFileRoute, Link, redirect, useLoaderData, useRouteContext } from "@tanstack/react-router"
 import {
   Package,
   ShoppingCart,
@@ -10,8 +10,15 @@ import {
   ArrowRight,
 } from "lucide-react"
 import { getSystemPrereqs } from "#/server/functions/prereqs/system"
+import { can, type Permission } from "#/lib/permissions"
 
 export const Route = createFileRoute("/")({
+  beforeLoad: ({ context }) => {
+    // Sales reps land directly on the shop floor — there's no dashboard
+    // content meaningful to them.
+    const role = (context.session?.user as { role?: string } | undefined)?.role
+    if (role === "sales") throw redirect({ to: "/shop" })
+  },
   loader: async () => {
     const summary = await getSystemPrereqs()
     return { summary }
@@ -19,59 +26,78 @@ export const Route = createFileRoute("/")({
   component: Home,
 })
 
-const quickActions = [
+type QuickAction = {
+  to: string
+  icon: React.ElementType
+  title: string
+  description: string
+  color: string
+  iconColor: string
+  permission: Permission
+}
+
+const quickActions: QuickAction[] = [
   {
-    to: "/supply" as const,
+    to: "/supply",
     icon: Truck,
     title: "Supply Routes",
     description: "Manage buying trips and track procurement costs",
     color: "from-blue-500/10 to-blue-600/5",
     iconColor: "text-blue-600",
+    permission: "procurement.view",
   },
   {
-    to: "/supply/suppliers" as const,
+    to: "/supply/suppliers",
     icon: Users,
     title: "Suppliers",
     description: "Manage local and international suppliers",
     color: "from-violet-500/10 to-violet-600/5",
     iconColor: "text-violet-600",
+    permission: "procurement.view",
   },
   {
-    to: "/store" as const,
+    to: "/store",
     icon: Package,
     title: "Store Stock",
     description: "View warehouse inventory and stock levels",
     color: "from-emerald-500/10 to-emerald-600/5",
     iconColor: "text-emerald-600",
+    permission: "warehouse.stock",
   },
   {
-    to: "/store/transfers" as const,
+    to: "/store/transfers",
     icon: ArrowLeftRight,
     title: "Transfers",
     description: "Transfer goods between locations",
     color: "from-amber-500/10 to-amber-600/5",
     iconColor: "text-amber-600",
+    permission: "warehouse.transfers",
   },
   {
-    to: "/shop" as const,
+    to: "/shop",
     icon: ShoppingCart,
     title: "Shop & Sales",
     description: "View shop inventory and record retail sales",
     color: "from-rose-500/10 to-rose-600/5",
     iconColor: "text-rose-600",
+    permission: "shop.view",
   },
   {
-    to: "/reports" as const,
+    to: "/reports",
     icon: BarChart3,
     title: "Reports",
     description: "P&L, balance sheet, and cash position",
     color: "from-cyan-500/10 to-cyan-600/5",
     iconColor: "text-cyan-600",
+    permission: "reports.view",
   },
 ]
 
 function Home() {
   const { summary } = useLoaderData({ from: "/" })
+  const { session } = useRouteContext({ from: "__root__" })
+  const role = (session?.user as { role?: string } | undefined)?.role
+  const visibleActions = quickActions.filter((a) => can(role, a.permission))
 
   return (
     <div className="space-y-6">
@@ -113,7 +139,7 @@ function Home() {
           Quick Access
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {quickActions.map((action) => (
+          {visibleActions.map((action) => (
             <Link
               key={action.to}
               to={action.to}

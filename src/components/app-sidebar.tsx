@@ -12,12 +12,14 @@ import {
   BarChart3,
   BookOpen,
   Settings,
+  UserCog,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeft,
 } from "lucide-react"
 import { cn } from "#/lib/utils"
+import { can, type Permission } from "#/lib/permissions"
 import { Logo } from "#/components/logo"
 import { Button } from "#/components/ui/button"
 import { ScrollArea } from "#/components/ui/scroll-area"
@@ -50,6 +52,8 @@ interface NavItem {
   label: string
   to: string
   icon: React.ElementType
+  /** When set, the link is only rendered for roles holding this permission. */
+  permission?: Permission
 }
 
 interface NavGroup {
@@ -61,34 +65,43 @@ const navGroups: NavGroup[] = [
   {
     title: "Procurement",
     items: [
-      { label: "Supply Routes", to: "/supply", icon: Truck },
-      { label: "Suppliers", to: "/supply/suppliers", icon: Users },
+      { label: "Supply Routes", to: "/supply", icon: Truck, permission: "procurement.view" },
+      { label: "Suppliers", to: "/supply/suppliers", icon: Users, permission: "procurement.view" },
     ],
   },
   {
     title: "Warehouse",
     items: [
-      { label: "Stock", to: "/store", icon: Package },
-      { label: "Receiving", to: "/store/receiving", icon: ClipboardList },
-      { label: "Transfers", to: "/store/transfers", icon: ArrowLeftRight },
+      { label: "Stock", to: "/store", icon: Package, permission: "warehouse.stock" },
+      { label: "Receiving", to: "/store/receiving", icon: ClipboardList, permission: "warehouse.receiving" },
+      { label: "Transfers", to: "/store/transfers", icon: ArrowLeftRight, permission: "warehouse.transfers" },
     ],
   },
   {
     title: "Retail",
     items: [
-      { label: "Shop", to: "/shop", icon: Store },
-      { label: "Sales", to: "/shop/sales", icon: ShoppingCart },
-      { label: "Customers", to: "/customers", icon: Users },
+      { label: "Shop", to: "/shop", icon: Store, permission: "shop.view" },
+      { label: "Sales", to: "/shop/sales", icon: ShoppingCart, permission: "sales.view" },
+      { label: "Customers", to: "/customers", icon: Users, permission: "customers.view" },
     ],
   },
   {
     title: "Finance",
     items: [
-      { label: "Reports", to: "/reports", icon: BarChart3 },
-      { label: "Ledger", to: "/reports/ledger", icon: BookOpen },
+      { label: "Reports", to: "/reports", icon: BarChart3, permission: "reports.view" },
+      { label: "Ledger", to: "/reports/ledger", icon: BookOpen, permission: "reports.view" },
     ],
   },
 ]
+
+function visibleGroups(role: string): NavGroup[] {
+  return navGroups
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((i) => !i.permission || can(role, i.permission)),
+    }))
+    .filter((g) => g.items.length > 0)
+}
 
 const dashboardItem: NavItem = {
   label: "Dashboard",
@@ -100,6 +113,12 @@ const settingsItem: NavItem = {
   label: "Settings",
   to: "/settings",
   icon: Settings,
+}
+
+const usersItem: NavItem = {
+  label: "Users",
+  to: "/settings/users",
+  icon: UserCog,
 }
 
 // ---------------------------------------------------------------------------
@@ -217,20 +236,26 @@ function NavLink({
 function SidebarNav({
   collapsed,
   onItemClick,
+  groups,
+  showDashboard,
 }: {
   collapsed: boolean
   onItemClick?: () => void
+  groups: NavGroup[]
+  showDashboard: boolean
 }) {
   return (
     <nav className={cn("flex flex-col", collapsed ? "gap-1 px-2" : "gap-5 px-3")}>
-      <div className="flex flex-col gap-0.5">
-        <NavLink
-          item={dashboardItem}
-          collapsed={collapsed}
-          onClick={onItemClick}
-        />
-      </div>
-      {navGroups.map((group) => (
+      {showDashboard && (
+        <div className="flex flex-col gap-0.5">
+          <NavLink
+            item={dashboardItem}
+            collapsed={collapsed}
+            onClick={onItemClick}
+          />
+        </div>
+      )}
+      {groups.map((group) => (
         <div key={group.title}>
           {!collapsed && (
             <p className="mb-1 px-3 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/35 select-none">
@@ -352,6 +377,8 @@ function UserFooter({
 
 function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(readCollapsed)
+  const groups = visibleGroups(userRole)
+  const showDashboard = userRole !== "sales"
 
   useEffect(() => {
     writeCollapsed(collapsed)
@@ -432,11 +459,23 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
 
         {/* ── Navigation ── */}
         <ScrollArea className="flex-1 py-2">
-          <SidebarNav collapsed={collapsed} />
+          <SidebarNav
+            collapsed={collapsed}
+            groups={groups}
+            showDashboard={showDashboard}
+          />
         </ScrollArea>
 
-        {/* ── Settings (pinned above user) ── */}
-        <div className={cn("border-t border-sidebar-border", collapsed ? "px-2 py-2" : "px-3 py-2")}>
+        {/* ── Admin (pinned above user) ── */}
+        <div
+          className={cn(
+            "flex flex-col gap-0.5 border-t border-sidebar-border",
+            collapsed ? "px-2 py-2" : "px-3 py-2",
+          )}
+        >
+          {userRole === "admin" && (
+            <NavLink item={usersItem} collapsed={collapsed} />
+          )}
           <NavLink item={settingsItem} collapsed={collapsed} badge={pendingHardCount} />
         </div>
 
@@ -470,6 +509,8 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
 
 function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppSidebarProps) {
   const [open, setOpen] = useState(false)
+  const groups = visibleGroups(userRole)
+  const showDashboard = userRole !== "sales"
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -501,11 +542,23 @@ function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppS
 
         {/* Navigation */}
         <ScrollArea className="flex-1 py-2">
-          <SidebarNav collapsed={false} onItemClick={() => setOpen(false)} />
+          <SidebarNav
+            collapsed={false}
+            onItemClick={() => setOpen(false)}
+            groups={groups}
+            showDashboard={showDashboard}
+          />
         </ScrollArea>
 
-        {/* Settings */}
-        <div className="border-t border-sidebar-border px-3 py-2">
+        {/* Admin */}
+        <div className="flex flex-col gap-0.5 border-t border-sidebar-border px-3 py-2">
+          {userRole === "admin" && (
+            <NavLink
+              item={usersItem}
+              collapsed={false}
+              onClick={() => setOpen(false)}
+            />
+          )}
           <NavLink
             item={settingsItem}
             collapsed={false}

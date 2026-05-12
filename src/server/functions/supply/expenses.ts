@@ -46,7 +46,7 @@ export const addSupplyRouteExpense = createServerFn()
   .inputValidator(addExpenseInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
     const userId = (session.user as { id: string }).id
 
     const store = await db.query.stores.findFirst()
@@ -106,7 +106,7 @@ export const updateSupplyRouteExpense = createServerFn()
   .inputValidator(updateExpenseInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     const { id, ...fields } = data
     const expense = (await db
@@ -125,7 +125,7 @@ export const deleteSupplyRouteExpense = createServerFn()
   .inputValidator(deleteExpenseInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ["admin"])
 
     await db
       .delete(supplyRouteExpenses)

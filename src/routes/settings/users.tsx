@@ -1,5 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { requireUiPermission } from "#/lib/permissions"
 import { z } from "zod"
 import {
   Table,
@@ -33,13 +34,16 @@ import {
   inviteUser,
   resendInvite,
   removeUser,
+  setUserRole,
   listUsers,
 } from "#/server/functions/admin/users"
+import { getSession } from "#/server/middleware/auth"
 
 export const Route = createFileRoute("/settings/users")({
+  beforeLoad: ({ context }) => requireUiPermission(context, "users.manage"),
   loader: async () => {
-    const result = await listUsers()
-    return { result }
+    const [result, session] = await Promise.all([listUsers(), getSession()])
+    return { result, currentUserId: session?.user.id ?? null }
   },
   component: UsersPage,
 })
@@ -53,7 +57,7 @@ type Row = {
 }
 
 function UsersPage() {
-  const { result } = Route.useLoaderData()
+  const { result, currentUserId } = Route.useLoaderData()
   const router = useRouter()
   // better-auth listUsers returns { users: [...] }
   const list: Row[] = ((result as any).users ?? result) as Row[]
@@ -61,8 +65,24 @@ function UsersPage() {
 
   const [resendingId, setResendingId] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
+  const [roleChangingId, setRoleChangingId] = useState<string | null>(null)
   const [invitePending, setInvitePending] = useState(false)
   const [inviteError, setInviteError] = useState<string | undefined>()
+
+  async function handleRoleChange(
+    userId: string,
+    role: "admin" | "supervisor" | "sales",
+  ) {
+    setRoleChangingId(userId)
+    try {
+      await setUserRole({ data: { userId, role } })
+      router.invalidate()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to change role")
+    } finally {
+      setRoleChangingId(null)
+    }
+  }
 
   async function handleInvite(values: {
     email: string
@@ -110,11 +130,18 @@ function UsersPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Users</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(next) => {
+            setOpen(next)
+            if (!next) setInviteError(undefined)
+          }}
+        >
           <DialogTrigger asChild>
             <Button>Invite user</Button>
           </DialogTrigger>
           <InviteDialog
+            open={open}
             onSubmit={handleInvite}
             pending={invitePending}
             error={inviteError}
@@ -138,36 +165,71 @@ function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {list.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell>{u.name ?? "—"}</TableCell>
-                  <TableCell>{u.email}</TableCell>
-                  <TableCell>{u.role ?? "sales"}</TableCell>
-                  <TableCell>
-                    {u.emailVerified ? "Active" : "Invited"}
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    {!u.emailVerified && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleResend(u.id)}
-                        disabled={resendingId === u.id}
-                      >
-                        {resendingId === u.id ? "Sending..." : "Resend invite"}
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemove(u)}
-                      disabled={removingId === u.id}
-                    >
-                      Remove
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {list.map((u) => {
+                const isSelf = u.id === currentUserId
+                const role = (u.role ?? "sales") as
+                  | "admin"
+                  | "supervisor"
+                  | "sales"
+                return (
+                  <TableRow key={u.id}>
+                    <TableCell>{u.name ?? "—"}</TableCell>
+                    <TableCell>{u.email}</TableCell>
+                    <TableCell>
+                      {isSelf ? (
+                        <span className="text-muted-foreground">{role}</span>
+                      ) : (
+                        <Select
+                          value={role}
+                          onValueChange={(v) =>
+                            handleRoleChange(
+                              u.id,
+                              v as "admin" | "supervisor" | "sales",
+                            )
+                          }
+                          disabled={roleChangingId === u.id}
+                        >
+                          <SelectTrigger className="h-8 w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="sales">Sales</SelectItem>
+                            <SelectItem value="supervisor">
+                              Supervisor
+                            </SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {u.emailVerified ? "Active" : "Invited"}
+                    </TableCell>
+                    <TableCell className="space-x-2 text-right">
+                      {!u.emailVerified && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResend(u.id)}
+                          disabled={resendingId === u.id}
+                        >
+                          {resendingId === u.id ? "Sending..." : "Resend invite"}
+                        </Button>
+                      )}
+                      {!isSelf && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemove(u)}
+                          disabled={removingId === u.id}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -183,10 +245,12 @@ const inviteSchema = z.object({
 })
 
 function InviteDialog({
+  open,
   onSubmit,
   pending,
   error,
 }: {
+  open: boolean
   onSubmit: (v: z.infer<typeof inviteSchema>) => void
   pending: boolean
   error?: string
@@ -194,6 +258,14 @@ function InviteDialog({
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
   const [role, setRole] = useState<"admin" | "supervisor" | "sales">("sales")
+
+  useEffect(() => {
+    if (!open) {
+      setEmail("")
+      setName("")
+      setRole("sales")
+    }
+  }, [open])
 
   function submit(e: React.FormEvent) {
     e.preventDefault()

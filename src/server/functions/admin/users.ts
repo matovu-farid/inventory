@@ -149,6 +149,26 @@ export const peekInviteServer = createServerFn()
     }
   })
 
+export const setUserRole = createServerFn()
+  .inputValidator(
+    z.object({
+      userId: z.string(),
+      role: z.enum(["admin", "supervisor", "sales"]),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireSession()
+    requireRole(session, ["admin"])
+    if (session.user.id === data.userId) {
+      throw new Error("You cannot change your own role")
+    }
+    await auth.api.setRole({
+      headers: getRequestHeaders(),
+      body: { userId: data.userId, role: data.role as any },
+    })
+    return { ok: true as const }
+  })
+
 export const removeUser = createServerFn()
   .inputValidator(z.object({ userId: z.string() }))
   .handler(async ({ data }) => {
