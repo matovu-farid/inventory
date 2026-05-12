@@ -1,4 +1,18 @@
 import pg from "pg"
+import { drizzle } from "drizzle-orm/node-postgres"
+import { eq, sql } from "drizzle-orm"
+import * as schema from "./schema"
+import {
+  products,
+  productColors,
+  suppliers,
+  stores,
+  shops,
+  supplyRoutes,
+  supplyRouteSuppliers,
+  supplyRouteItems,
+  storeStock,
+} from "./schema"
 
 const DEFAULT_CATEGORIES = [
   // Assets
@@ -44,9 +58,11 @@ async function seed() {
 
   const client = new pg.Client({ connectionString: url })
   await client.connect()
-  console.log("Seeding transaction categories...")
+  const db = drizzle(client, { schema })
 
   try {
+    // ─── 1. Transaction categories (idempotent) ────────────────────────
+    console.log("Seeding transaction categories...")
     for (const cat of DEFAULT_CATEGORIES) {
       await client.query(
         `INSERT INTO transaction_categories (name, type, is_default)
@@ -55,7 +71,270 @@ async function seed() {
         [cat.name, cat.type],
       )
     }
-    console.log(`Seeded ${DEFAULT_CATEGORIES.length} transaction categories.`)
+    console.log(`  ${DEFAULT_CATEGORIES.length} transaction categories.`)
+
+    // ─── 2. Suppliers, stores, shops (idempotent on natural keys) ──────
+    console.log("Seeding suppliers, stores, and shops...")
+    const [supplier] = await db
+      .insert(suppliers)
+      .values({
+        name: "Guangzhou Mei Da Trading Co.",
+        type: "international",
+        country: "China",
+        contactName: "Mr. Li Wei",
+      })
+      .onConflictDoNothing({ target: suppliers.name })
+      .returning()
+
+    const existingSupplier =
+      supplier ??
+      (await db.query.suppliers.findFirst({
+        where: eq(suppliers.name, "Guangzhou Mei Da Trading Co."),
+      }))
+
+    if (!existingSupplier) {
+      throw new Error("Failed to create or find seed supplier")
+    }
+
+    // Stores / shops don't have unique constraints on name, so we look first.
+    let store = await db.query.stores.findFirst({
+      where: eq(stores.name, "Central Warehouse"),
+    })
+    if (!store) {
+      ;[store] = await db
+        .insert(stores)
+        .values({ name: "Central Warehouse", location: "Kampala" })
+        .returning()
+    }
+
+    let shopA = await db.query.shops.findFirst({
+      where: eq(shops.name, "Owino Branch"),
+    })
+    if (!shopA) {
+      ;[shopA] = await db
+        .insert(shops)
+        .values({ name: "Owino Branch", location: "Kampala" })
+        .returning()
+    }
+
+    let shopB = await db.query.shops.findFirst({
+      where: eq(shops.name, "Nakawa Branch"),
+    })
+    if (!shopB) {
+      ;[shopB] = await db
+        .insert(shops)
+        .values({ name: "Nakawa Branch", location: "Kampala" })
+        .returning()
+    }
+    console.log(`  1 supplier, 1 store, 2 shops.`)
+
+    // ─── 3. Products + colors ──────────────────────────────────────────
+    console.log("Seeding products and color variants...")
+
+    async function upsertProduct(args: {
+      articleNumber: string
+      name: string
+      sizes: string[]
+    }) {
+      const existing = await db.query.products.findFirst({
+        where: eq(products.articleNumber, args.articleNumber),
+      })
+      if (existing) return existing
+      const [created] = await db.insert(products).values(args).returning()
+      return created
+    }
+
+    const tshirt = await upsertProduct({
+      articleNumber: "TR-001",
+      name: "Crew-neck T-shirt",
+      sizes: ["S", "M", "L"],
+    })
+    const jacket = await upsertProduct({
+      articleNumber: "JK-100",
+      name: "Bomber Jacket",
+      sizes: ["M", "L", "XL"],
+    })
+    const trouser = await upsertProduct({
+      articleNumber: "PT-200",
+      name: "Chino Trousers",
+      sizes: ["30", "32", "34"],
+    })
+
+    async function upsertColor(args: {
+      productId: string
+      colorName: string
+      colorHex: string
+    }) {
+      const existing = await db.query.productColors.findFirst({
+        where: sql`${productColors.productId} = ${args.productId} AND ${productColors.colorName} = ${args.colorName}`,
+      })
+      if (existing) return existing
+      const [created] = await db
+        .insert(productColors)
+        .values({ ...args, imageS3Key: null })
+        .returning()
+      return created
+    }
+
+    const tshirtBlack = await upsertColor({
+      productId: tshirt.id,
+      colorName: "Black",
+      colorHex: "#0a0a0a",
+    })
+    const tshirtBurgundy = await upsertColor({
+      productId: tshirt.id,
+      colorName: "Burgundy",
+      colorHex: "#7b1f2b",
+    })
+    const jacketNavy = await upsertColor({
+      productId: jacket.id,
+      colorName: "Navy",
+      colorHex: "#0b1f44",
+    })
+    const jacketOlive = await upsertColor({
+      productId: jacket.id,
+      colorName: "Olive",
+      colorHex: "#6a6a2a",
+    })
+    const trouserKhaki = await upsertColor({
+      productId: trouser.id,
+      colorName: "Khaki",
+      colorHex: "#b5a26b",
+    })
+
+    console.log(`  3 products, 5 color variants.`)
+
+    // ─── 4. Supply route + variant items ───────────────────────────────
+    console.log("Seeding supply route...")
+
+    const routeName = "China Trip — Seed Demo"
+    let route = await db.query.supplyRoutes.findFirst({
+      where: eq(supplyRoutes.name, routeName),
+    })
+    if (!route) {
+      ;[route] = await db
+        .insert(supplyRoutes)
+        .values({
+          name: routeName,
+          status: "received",
+          rateUgxPerUsd: "3750",
+          rateRmbPerUsd: "7.25",
+          notes: "Auto-generated by db:seed for dev/demo.",
+        })
+        .returning()
+
+      await db
+        .insert(supplyRouteSuppliers)
+        .values({
+          supplyRouteId: route.id,
+          supplierId: existingSupplier.id,
+        })
+        .onConflictDoNothing()
+
+      // One row per (color, size).
+      type RouteItemSeed = {
+        productColorId: string
+        size: string
+        quantity: number
+        unitPriceForeign: string
+      }
+      const routeItemSeeds: RouteItemSeed[] = [
+        // T-shirts: 85 RMB
+        ...["S", "M", "L"].flatMap((size): RouteItemSeed[] => [
+          { productColorId: tshirtBlack.id, size, quantity: 20, unitPriceForeign: "85.00" },
+          { productColorId: tshirtBurgundy.id, size, quantity: 15, unitPriceForeign: "85.00" },
+        ]),
+        // Jackets: 320 RMB
+        ...["M", "L", "XL"].flatMap((size): RouteItemSeed[] => [
+          { productColorId: jacketNavy.id, size, quantity: 10, unitPriceForeign: "320.00" },
+          { productColorId: jacketOlive.id, size, quantity: 8, unitPriceForeign: "320.00" },
+        ]),
+        // Trousers: 140 RMB
+        ...["30", "32", "34"].map((size): RouteItemSeed => ({
+          productColorId: trouserKhaki.id,
+          size,
+          quantity: 12,
+          unitPriceForeign: "140.00",
+        })),
+      ]
+
+      const rmbPerUsd = 7.25
+      const ugxPerUsd = 3750
+      const rows = routeItemSeeds.map((s) => {
+        const unitForeign = Number(s.unitPriceForeign)
+        const totalForeign = unitForeign * s.quantity
+        const totalUsd = totalForeign / rmbPerUsd
+        const totalUgx = totalUsd * ugxPerUsd
+        return {
+          supplyRouteId: route!.id,
+          supplierId: existingSupplier.id,
+          productColorId: s.productColorId,
+          size: s.size,
+          quantity: s.quantity,
+          unitPriceForeign: s.unitPriceForeign,
+          foreignCurrency: "RMB",
+          exchangeRateForeignToUsd: rmbPerUsd.toFixed(6),
+          exchangeRateUsdToUgx: ugxPerUsd.toFixed(2),
+          totalAmountForeign: totalForeign.toFixed(2),
+          totalAmountUsd: totalUsd.toFixed(2),
+          totalCostUgx: totalUgx.toFixed(2),
+        }
+      })
+      await db.insert(supplyRouteItems).values(rows)
+      console.log(`  1 supply route, ${rows.length} variant items.`)
+    } else {
+      console.log(`  supply route already seeded; skipping.`)
+    }
+
+    // ─── 5. Store opening stock (one row per variant) ──────────────────
+    console.log("Seeding store stock...")
+    const stockSeeds: Array<{
+      productColorId: string
+      size: string
+      qty: number
+      costUgx: string
+    }> = [
+      // T-shirts ~ 44k UGX cost, sell floor 80k
+      ...["S", "M", "L"].flatMap((size) => [
+        { productColorId: tshirtBlack.id, size, qty: 20, costUgx: "44000.00" },
+        { productColorId: tshirtBurgundy.id, size, qty: 15, costUgx: "44000.00" },
+      ]),
+      // Jackets ~ 165k UGX cost
+      ...["M", "L", "XL"].flatMap((size) => [
+        { productColorId: jacketNavy.id, size, qty: 10, costUgx: "165500.00" },
+        { productColorId: jacketOlive.id, size, qty: 8, costUgx: "165500.00" },
+      ]),
+      // Trousers ~ 72k UGX cost
+      ...["30", "32", "34"].map((size) => ({
+        productColorId: trouserKhaki.id,
+        size,
+        qty: 12,
+        costUgx: "72400.00",
+      })),
+    ]
+
+    let stockInserted = 0
+    for (const s of stockSeeds) {
+      const sellFloor = (Number(s.costUgx) * 1.8).toFixed(2)
+      const result = await db
+        .insert(storeStock)
+        .values({
+          storeId: store.id,
+          productColorId: s.productColorId,
+          size: s.size,
+          quantityOnHand: s.qty,
+          costPerUnitUgx: s.costUgx,
+          minimumSellPriceUgx: sellFloor,
+        })
+        .onConflictDoNothing({
+          target: [storeStock.storeId, storeStock.productColorId, storeStock.size],
+        })
+        .returning()
+      stockInserted += result.length
+    }
+    console.log(`  ${stockInserted} store stock rows inserted (others already present).`)
+
+    console.log("Seed complete.")
   } finally {
     await client.end()
   }
