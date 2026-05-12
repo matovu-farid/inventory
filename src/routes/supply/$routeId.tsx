@@ -3,7 +3,6 @@ import { useState } from "react"
 import { requireUiPermission } from "#/lib/permissions"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
 import { Textarea } from "#/components/ui/textarea"
 import { MoneyInput, RateInput } from "#/components/ui/money-input"
 import { FieldLabel } from "#/components/ui/field-label"
@@ -41,9 +40,17 @@ import {
   listSuppliersForSelect,
 } from "#/server/functions/supply/routes"
 import {
-  addSupplyRouteItem,
+  addSupplyRouteVariants,
   deleteSupplyRouteItem,
 } from "#/server/functions/supply/items"
+import {
+  ProductPicker,
+  type ProductSummary,
+} from "#/components/products/product-picker"
+import { ProductEditor } from "#/components/products/product-editor"
+import { ColorEditor } from "#/components/products/color-editor"
+import { VariantGrid } from "#/components/products/variant-grid"
+import { getProductByArticle } from "#/server/functions/products/products"
 import {
   addSupplyRouteExpense,
   deleteSupplyRouteExpense,
@@ -250,9 +257,10 @@ function RouteDetailPage() {
                     <TableHead>Product</TableHead>
                     <TableHead>
                       <span className="inline-flex items-center gap-1.5">
-                        Art # <InfoTip term="col.articleNumber" />
+                        Article <InfoTip term="col.articleNumber" />
                       </span>
                     </TableHead>
+                    <TableHead>Color · Size</TableHead>
                     <TableHead>Supplier</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
                     <TableHead className="text-right">Unit Price</TableHead>
@@ -278,10 +286,20 @@ function RouteDetailPage() {
                   {route.items.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">
-                        {item.productName}
+                        {item.productColor.product.name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground font-mono text-xs">
+                        {item.productColor.product.articleNumber}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {item.articleNumber || "-"}
+                        <span className="inline-flex items-center gap-1.5">
+                          <span
+                            className="inline-block size-3 rounded-full border"
+                            style={{ backgroundColor: item.productColor.colorHex }}
+                            aria-hidden
+                          />
+                          {item.productColor.colorName} · {item.size}
+                        </span>
                       </TableCell>
                       <TableCell>{item.supplier.name}</TableCell>
                       <TableCell className="text-right">{item.quantity}</TableCell>
@@ -419,6 +437,10 @@ function AddItemForm({
   const [supplierId, setSupplierId] = useState(
     suppliers.length === 1 ? suppliers[0].id : "",
   )
+  const [product, setProduct] = useState<ProductSummary | undefined>()
+  const [productEditorOpen, setProductEditorOpen] = useState(false)
+  const [colorEditorOpen, setColorEditorOpen] = useState(false)
+  const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [unitPrice, setUnitPrice] = useState("")
   const initialCurrency = "RMB"
   const initialFxToUsd =
@@ -436,16 +458,24 @@ function AddItemForm({
     else setFxToUsd("")
   }
 
+  async function refreshProduct(articleNumber: string) {
+    const p = await getProductByArticle({ data: { articleNumber } })
+    if (p) setProduct(p as ProductSummary)
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    const productName = (form.get("productName") as string).trim()
-    const quantity = Number(form.get("quantity"))
+    const cells = Object.entries(quantities)
+      .filter(([, q]) => q > 0)
+      .map(([key, q]) => {
+        const [productColorId, size] = key.split("|")
+        return { productColorId, size, quantity: q }
+      })
 
     const errs: Record<string, string> = {}
-    if (!productName) errs.productName = "Product name is required"
     if (!supplierId) errs.supplierId = "Select a supplier"
-    if (!quantity || quantity < 1) errs.quantity = "Quantity must be at least 1"
+    if (!product) errs.product = "Pick a product"
+    if (cells.length === 0) errs.quantities = "Enter at least one quantity"
     if (!unitPrice || Number(unitPrice) <= 0) errs.unitPrice = "Enter a valid price"
     if (currency !== "UGX") {
       if (currency !== "USD") {
@@ -458,13 +488,10 @@ function AddItemForm({
 
     setPending(true)
     try {
-      await addSupplyRouteItem({
+      await addSupplyRouteVariants({
         data: {
           supplyRouteId,
           supplierId,
-          productName,
-          articleNumber: (form.get("articleNumber") as string) || undefined,
-          quantity,
           unitPriceForeign: unitPrice,
           foreignCurrency: currency,
           exchangeRateForeignToUsd:
@@ -473,11 +500,14 @@ function AddItemForm({
               : undefined,
           exchangeRateUsdToUgx:
             currency !== "UGX" ? usdToUgx || undefined : undefined,
+          cells,
         },
       })
       onSuccess()
     } catch (err) {
-      console.error("Failed to add item:", err)
+      setFormErrors({
+        form: err instanceof Error ? err.message : "Failed to save",
+      })
     } finally {
       setPending(false)
     }
@@ -485,25 +515,6 @@ function AddItemForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <FieldLabel htmlFor="productName" help="item.productName">Product Name *</FieldLabel>
-          <Input
-            id="productName"
-            name="productName"
-            required
-            aria-invalid={!!formErrors.productName || undefined}
-          />
-          {formErrors.productName && (
-            <p className="text-xs text-destructive">{formErrors.productName}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <FieldLabel htmlFor="articleNumber" help="item.articleNumber">Article #</FieldLabel>
-          <Input id="articleNumber" name="articleNumber" />
-        </div>
-      </div>
-
       <div className="space-y-2">
         <FieldLabel htmlFor="supplierId" help="item.supplierId">Supplier *</FieldLabel>
         <Combobox
@@ -532,21 +543,49 @@ function AddItemForm({
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="space-y-2">
+        <FieldLabel help="item.productName">Product *</FieldLabel>
+        <ProductPicker
+          value={product?.id}
+          onChange={(_, p) => {
+            setProduct(p)
+            setQuantities({})
+          }}
+          onCreateNew={() => setProductEditorOpen(true)}
+        />
+        {formErrors.product && (
+          <p className="text-xs text-destructive">{formErrors.product}</p>
+        )}
+      </div>
+
+      {product && (
         <div className="space-y-2">
-          <FieldLabel htmlFor="quantity" help="item.quantity">Quantity *</FieldLabel>
-          <Input
-            id="quantity"
-            name="quantity"
-            type="number"
-            min="1"
-            required
-            aria-invalid={!!formErrors.quantity || undefined}
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">
+              {product.articleNumber} — {product.name}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setColorEditorOpen(true)}
+            >
+              <Plus className="mr-1 size-3" /> Add color
+            </Button>
+          </div>
+          <VariantGrid
+            sizes={product.sizes}
+            colors={product.colors}
+            quantities={quantities}
+            onChange={setQuantities}
           />
-          {formErrors.quantity && (
-            <p className="text-xs text-destructive">{formErrors.quantity}</p>
+          {formErrors.quantities && (
+            <p className="text-xs text-destructive">{formErrors.quantities}</p>
           )}
         </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <FieldLabel help="item.unitPrice">Unit Price *</FieldLabel>
           <MoneyInput
@@ -601,9 +640,44 @@ function AddItemForm({
         </div>
       )}
 
+      {formErrors.form && (
+        <p className="text-sm text-destructive">{formErrors.form}</p>
+      )}
+
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Adding..." : "Add Item"}
+        {pending ? "Adding..." : "Add Items"}
       </Button>
+
+      <Dialog open={productEditorOpen} onOpenChange={setProductEditorOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New product</DialogTitle>
+          </DialogHeader>
+          <ProductEditor
+            onCreated={(_id, articleNumber) => {
+              setProductEditorOpen(false)
+              void refreshProduct(articleNumber)
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={colorEditorOpen} onOpenChange={setColorEditorOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add color</DialogTitle>
+          </DialogHeader>
+          {product && (
+            <ColorEditor
+              productId={product.id}
+              onCreated={() => {
+                setColorEditorOpen(false)
+                void refreshProduct(product.articleNumber)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </form>
   )
 }
