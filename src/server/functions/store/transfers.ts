@@ -27,7 +27,13 @@ export const listTransfers = createServerFn().handler(async () => {
     orderBy: (t, { desc }) => [desc(t.transferDate)],
     with: {
       shop: true,
-      items: true,
+      items: {
+        with: {
+          storeStockItem: {
+            with: { productColor: { with: { product: true } } },
+          },
+        },
+      },
     },
   })
 })
@@ -88,10 +94,12 @@ export const createTransfer = createServerFn()
         // Validate stock
         const stock = await tx.query.storeStock.findFirst({
           where: eq(storeStock.id, item.storeStockId),
+          with: { productColor: { with: { product: true } } },
         })
         if (!stock) throw new Error(`Store stock not found: ${item.storeStockId}`)
+        const productLabel = `${stock.productColor.product.articleNumber} ${stock.productColor.colorName}/${stock.size}`
         if (stock.quantityOnHand < item.quantityDispatched) {
-          throw new Error(`Insufficient stock for ${stock.productName}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`)
+          throw new Error(`Insufficient stock for ${productLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`)
         }
 
         const unitPrice = new BigNumber(stock.minimumSellPriceUgx)
@@ -107,7 +115,7 @@ export const createTransfer = createServerFn()
         const shopMinSell = new BigNumber(shopMinSellRaw)
         if (!shopMinSell.isFinite() || shopMinSell.lte(0)) {
           throw new Error(
-            `Invalid shop minimum sell price for ${stock.productName}`,
+            `Invalid shop minimum sell price for ${productLabel}`,
           )
         }
 
@@ -115,8 +123,6 @@ export const createTransfer = createServerFn()
         await tx.insert(storeTransferItems).values({
           storeTransferId: transfer.id,
           storeStockId: item.storeStockId,
-          productName: stock.productName,
-          articleNumber: stock.articleNumber,
           quantityDispatched: item.quantityDispatched,
           unitPriceUgx: unitPrice.toFixed(2),
           totalPriceUgx: totalPrice.toFixed(2),
@@ -212,7 +218,15 @@ export const confirmTransferReceipt = createServerFn()
     return db.transaction(async (tx) => {
       const transfer = await tx.query.storeTransfers.findFirst({
         where: eq(storeTransfers.id, data.transferId),
-        with: { items: true },
+        with: {
+          items: {
+            with: {
+              storeStockItem: {
+                with: { productColor: { with: { product: true } } },
+              },
+            },
+          },
+        },
       })
       if (!transfer) throw new Error("Transfer not found")
       if (transfer.status !== "dispatched") {
@@ -225,6 +239,13 @@ export const confirmTransferReceipt = createServerFn()
       for (const receiptItem of data.items) {
         const ti = transfer.items.find((i) => i.id === receiptItem.transferItemId)
         if (!ti) throw new Error(`Transfer item not found: ${receiptItem.transferItemId}`)
+
+        // Idempotency guard — aggregate ON CONFLICT means we can't safely re-apply
+        if (ti.quantityReceived !== null) {
+          throw new Error("This transfer item has already been received. Use a return flow to adjust.")
+        }
+
+        const productLabel = `${ti.storeStockItem.productColor.product.articleNumber} ${ti.storeStockItem.productColor.colorName}/${ti.storeStockItem.size}`
 
         validateQuantityReceived(receiptItem.quantityReceived)
         validateDiscrepancyNotes({
@@ -241,28 +262,28 @@ export const confirmTransferReceipt = createServerFn()
           })
           .where(eq(storeTransferItems.id, ti.id))
 
-        // Create or update shop stock (idempotent for re-calls).
-        // Skip the insert when nothing arrived — no row needed for a 0-qty lot.
-        const existingShopStock = await tx.query.shopStock.findFirst({
-          where: eq(shopStock.storeTransferItemId, ti.id),
-        })
-        if (existingShopStock) {
+        // Upsert shop stock — merge into existing (shopId, productColorId, size) row.
+        // The unique constraint forces aggregation across multiple transfers.
+        if (receiptItem.quantityReceived > 0) {
           await tx
-            .update(shopStock)
-            .set({ quantityOnHand: receiptItem.quantityReceived })
-            .where(eq(shopStock.id, existingShopStock.id))
-        } else if (receiptItem.quantityReceived > 0) {
-          await tx.insert(shopStock).values({
-            shopId: transfer.shopId,
-            productName: ti.productName,
-            articleNumber: ti.articleNumber,
-            storeTransferItemId: ti.id,
-            quantityOnHand: receiptItem.quantityReceived,
-            costPerUnitUgx: ti.unitPriceUgx,
-            // Honor the shop min sell price set at dispatch.
-            // Legacy rows (pre-feature) fall back to the transfer price.
-            minimumSellPriceUgx: ti.minimumSellPriceUgx ?? ti.unitPriceUgx,
-          })
+            .insert(shopStock)
+            .values({
+              shopId: transfer.shopId,
+              productColorId: ti.storeStockItem.productColorId,
+              size: ti.storeStockItem.size,
+              storeTransferItemId: ti.id,
+              quantityOnHand: receiptItem.quantityReceived,
+              costPerUnitUgx: ti.unitPriceUgx,
+              // Honor the shop min sell price set at dispatch.
+              // Legacy rows (pre-feature) fall back to the transfer price.
+              minimumSellPriceUgx: ti.minimumSellPriceUgx ?? ti.unitPriceUgx,
+            })
+            .onConflictDoUpdate({
+              target: [shopStock.shopId, shopStock.productColorId, shopStock.size],
+              set: {
+                quantityOnHand: sql`${shopStock.quantityOnHand} + ${receiptItem.quantityReceived}`,
+              },
+            })
         }
 
         // Distribution loss: items dispatched but never arrived at the shop.
@@ -279,7 +300,7 @@ export const confirmTransferReceipt = createServerFn()
             locationType: "shop",
             locationId: transfer.shopId,
             recordedBy: userId,
-            description: `Distribution loss: ${loss}x ${ti.productName}`,
+            description: `Distribution loss: ${loss}× ${productLabel}`,
           })
         }
       }

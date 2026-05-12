@@ -28,8 +28,15 @@ export interface ReceivableTransfer {
   transferDate: Date
   items: Array<{
     id: string
-    productName: string
     quantityDispatched: number
+    storeStockItem: {
+      size: string
+      productColor: {
+        colorName: string
+        colorHex: string
+        product: { name: string; articleNumber: string }
+      }
+    }
   }>
 }
 
@@ -153,7 +160,21 @@ export function ReceiveTransferForm({
                 return (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">
-                      {item.productName}
+                      <div className="flex flex-col">
+                        <span>{item.storeStockItem.productColor.product.name}</span>
+                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+                          <span
+                            className="size-3 rounded-full border"
+                            style={{
+                              backgroundColor:
+                                item.storeStockItem.productColor.colorHex,
+                            }}
+                            aria-hidden
+                          />
+                          {item.storeStockItem.productColor.colorName} ·{" "}
+                          {item.storeStockItem.size}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       {item.quantityDispatched}
@@ -191,7 +212,9 @@ export function ReceiveTransferForm({
                   <div key={item.id} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">
-                        {item.productName}
+                        {item.storeStockItem.productColor.product.name} ·{" "}
+                        {item.storeStockItem.productColor.colorName} ·{" "}
+                        {item.storeStockItem.size}
                       </span>
                       <Badge variant="destructive">{missing} missing</Badge>
                     </div>

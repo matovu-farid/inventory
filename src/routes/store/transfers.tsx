@@ -198,10 +198,15 @@ function CreateTransferForm({
 }: {
   stock: Array<{
     id: string
-    productName: string
+    size: string
     quantityOnHand: number
     costPerUnitUgx: string
     minimumSellPriceUgx: string
+    productColor: {
+      colorName: string
+      colorHex: string
+      product: { name: string; articleNumber: string }
+    }
   }>
   shops: Array<{ id: string; name: string }>
   onSuccess: (shopId: string) => void
@@ -319,7 +324,18 @@ function CreateTransferForm({
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {s.productName}
+                        {s.productColor.product.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+                        <span
+                          className="size-3 rounded-full border"
+                          style={{ backgroundColor: s.productColor.colorHex }}
+                          aria-hidden
+                        />
+                        {s.productColor.colorName} · {s.size}
+                        <span className="ml-1 font-mono">
+                          [{s.productColor.product.articleNumber}]
+                        </span>
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Available: {s.quantityOnHand} | Cost:{" "}
