@@ -65,7 +65,14 @@ export const recordCustomerReturn = createServerFn()
       let totalRefund = new BigNumber(0)
       let totalCost = new BigNumber(0)
 
-      const itemDetails = []
+      const itemDetails: Array<{
+        stockId: string
+        quantity: number
+        unitRefund: BigNumber
+        totalRefund: BigNumber
+        unitCost: BigNumber
+        totalCost: BigNumber
+      }> = []
       for (const item of data.items) {
         const stock = await tx.query.shopStock.findFirst({
           where: eq(shopStock.id, item.shopStockId),
@@ -80,7 +87,7 @@ export const recordCustomerReturn = createServerFn()
         totalCost = totalCost.plus(totalCostForItem)
 
         itemDetails.push({
-          stock,
+          stockId: stock.id,
           quantity: item.quantity,
           unitRefund,
           totalRefund: totalRefundForItem,
@@ -112,8 +119,7 @@ export const recordCustomerReturn = createServerFn()
       for (const detail of itemDetails) {
         await tx.insert(shopReturnItems).values({
           shopReturnId: shopReturn.id,
-          shopStockId: detail.stock.id,
-          productName: detail.stock.productName,
+          shopStockId: detail.stockId,
           quantity: detail.quantity,
           unitRefundPriceUgx: detail.unitRefund.toFixed(2),
           unitCostUgx: detail.unitCost.toFixed(2),
@@ -125,7 +131,7 @@ export const recordCustomerReturn = createServerFn()
           .set({
             quantityOnHand: sql`${shopStock.quantityOnHand} + ${detail.quantity}`,
           })
-          .where(eq(shopStock.id, detail.stock.id))
+          .where(eq(shopStock.id, detail.stockId))
       }
 
       // For credit_adjustment refunds, look up the original sale and guard

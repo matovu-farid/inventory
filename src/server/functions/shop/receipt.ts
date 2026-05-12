@@ -22,7 +22,15 @@ export const getSaleReceiptHtml = createServerFn()
 
     const sale = await db.query.shopSales.findFirst({
       where: eq(shopSales.id, data.saleId),
-      with: { items: true },
+      with: {
+        items: {
+          with: {
+            shopStockItem: {
+              with: { productColor: { with: { product: true } } },
+            },
+          },
+        },
+      },
     })
     if (!sale) throw new Error(`Sale not found: ${data.saleId}`)
 
@@ -42,11 +50,15 @@ export const getSaleReceiptHtml = createServerFn()
       totalAmount: sale.totalAmount,
       paymentMethod: sale.paymentMethod,
       customerName: customer?.name ?? null,
-      items: sale.items.map((i) => ({
-        productName: i.productName,
-        quantity: i.quantity,
-        unitPriceUgx: i.unitPriceUgx,
-        totalPriceUgx: i.totalPriceUgx,
-      })),
+      items: sale.items.map((i) => {
+        const pc = i.shopStockItem.productColor
+        const productName = `${pc.product.articleNumber} ${pc.product.name} · ${pc.colorName} / ${i.shopStockItem.size}`
+        return {
+          productName,
+          quantity: i.quantity,
+          unitPriceUgx: i.unitPriceUgx,
+          totalPriceUgx: i.totalPriceUgx,
+        }
+      }),
     })
   })

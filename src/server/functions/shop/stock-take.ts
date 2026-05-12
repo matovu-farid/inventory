@@ -63,12 +63,14 @@ export const startStockTake = createServerFn()
       if (data.locationType === "store") {
         const items = await tx.query.storeStock.findMany({
           where: eq(storeStock.storeId, data.locationId),
+          with: { productColor: { with: { product: true } } },
         })
         for (const item of items) {
+          const productLabel = `${item.productColor.product.articleNumber} ${item.productColor.colorName}/${item.size}`
           await tx.insert(stockTakeItems).values({
             stockTakeId: st.id,
             storeStockId: item.id,
-            productName: item.productName,
+            productName: productLabel,
             systemQuantity: item.quantityOnHand,
             physicalQuantity: item.quantityOnHand, // default to matching
             discrepancy: 0,
@@ -78,12 +80,14 @@ export const startStockTake = createServerFn()
       } else {
         const items = await tx.query.shopStock.findMany({
           where: eq(shopStock.shopId, data.locationId),
+          with: { productColor: { with: { product: true } } },
         })
         for (const item of items) {
+          const productLabel = `${item.productColor.product.articleNumber} ${item.productColor.colorName}/${item.size}`
           await tx.insert(stockTakeItems).values({
             stockTakeId: st.id,
             shopStockId: item.id,
-            productName: item.productName,
+            productName: productLabel,
             systemQuantity: item.quantityOnHand,
             physicalQuantity: item.quantityOnHand,
             discrepancy: 0,

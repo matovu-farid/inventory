@@ -45,10 +45,20 @@ function SalesPage() {
       totalAmount: string
       paymentMethod: string
       items: Array<{
-        productName: string
         quantity: number
         unitPriceUgx: string
         isBelowMinimum: boolean
+        shopStockItem: {
+          size: string
+          productColor: {
+            colorName: string
+            colorHex: string
+            product: {
+              articleNumber: string
+              name: string
+            }
+          }
+        }
       }>
     }>
   >([])
@@ -144,9 +154,32 @@ function SalesPage() {
                         {new Date(sale.saleDate).toLocaleString()}
                       </TableCell>
                       <TableCell>
-                        {sale.items
-                          .map((i) => `${i.quantity}x ${i.productName}`)
-                          .join(", ")}
+                        <div className="flex flex-col gap-1">
+                          {sale.items.map((i, idx) => {
+                            const pc = i.shopStockItem.productColor
+                            return (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2 text-sm"
+                              >
+                                <span className="font-mono">
+                                  {i.quantity}x {pc.product.articleNumber}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {pc.product.name}
+                                </span>
+                                <span
+                                  className="inline-block h-3 w-3 rounded-full border"
+                                  style={{ backgroundColor: pc.colorHex }}
+                                  aria-hidden
+                                />
+                                <span className="text-muted-foreground text-xs">
+                                  {pc.colorName} / {i.shopStockItem.size}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{sale.paymentMethod}</Badge>

@@ -20,7 +20,8 @@ export const getShopStock = createServerFn()
 
     return db.query.shopStock.findMany({
       where: eq(shopStock.shopId, data.shopId),
-      orderBy: (s, { asc }) => [asc(s.productName)],
+      with: { productColor: { with: { product: true } } },
+      orderBy: (s, { asc }) => [asc(s.size)],
     })
   })
 
@@ -65,7 +66,15 @@ export const listShopSales = createServerFn()
 
     return db.query.shopSales.findMany({
       where,
-      with: { items: true },
+      with: {
+        items: {
+          with: {
+            shopStockItem: {
+              with: { productColor: { with: { product: true } } },
+            },
+          },
+        },
+      },
       orderBy: (s, { desc }) => [desc(s.saleDate)],
       limit: 100,
     })
@@ -132,7 +141,9 @@ export const recordSale = createServerFn()
 
       // Validate all items first
       const itemDetails: Array<{
-        stock: typeof shopStock.$inferSelect
+        stockId: string
+        costPerUnitUgx: string
+        minimumSellPriceUgx: string
         quantity: number
         unitPrice: BigNumber
         totalPrice: BigNumber
@@ -144,11 +155,13 @@ export const recordSale = createServerFn()
       for (const item of data.items) {
         const stock = await tx.query.shopStock.findFirst({
           where: eq(shopStock.id, item.shopStockId),
+          with: { productColor: { with: { product: true } } },
         })
         if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
+        const productLabel = `${stock.productColor.product.articleNumber} ${stock.productColor.colorName}/${stock.size}`
         if (stock.quantityOnHand < item.quantity) {
           throw new Error(
-            `Insufficient stock for ${stock.productName}: have ${stock.quantityOnHand}, need ${item.quantity}`,
+            `Insufficient stock for ${productLabel}: have ${stock.quantityOnHand}, need ${item.quantity}`,
           )
         }
 
@@ -158,7 +171,7 @@ export const recordSale = createServerFn()
             minimumSellPriceUgx: stock.minimumSellPriceUgx,
             userRole,
             reason: item.belowMinimumReason ?? "",
-            productName: stock.productName,
+            productName: productLabel,
           })
         if (isBelowMinimum) hasBelowMinimum = true
 
@@ -170,7 +183,9 @@ export const recordSale = createServerFn()
         )
 
         itemDetails.push({
-          stock,
+          stockId: stock.id,
+          costPerUnitUgx: stock.costPerUnitUgx,
+          minimumSellPriceUgx: stock.minimumSellPriceUgx,
           quantity: item.quantity,
           unitPrice,
           totalPrice: tp,
@@ -205,11 +220,10 @@ export const recordSale = createServerFn()
       for (const detail of itemDetails) {
         await tx.insert(shopSaleItems).values({
           shopSaleId: sale.id,
-          shopStockId: detail.stock.id,
-          productName: detail.stock.productName,
+          shopStockId: detail.stockId,
           quantity: detail.quantity,
           unitPriceUgx: detail.unitPrice.toFixed(2),
-          minimumPriceUgx: detail.stock.minimumSellPriceUgx,
+          minimumPriceUgx: detail.minimumSellPriceUgx,
           isBelowMinimum: detail.isBelowMinimum,
           belowMinimumReason: detail.belowMinimumReason,
           totalPriceUgx: detail.totalPrice.toFixed(2),
@@ -220,7 +234,7 @@ export const recordSale = createServerFn()
           .set({
             quantityOnHand: sql`${shopStock.quantityOnHand} - ${detail.quantity}`,
           })
-          .where(eq(shopStock.id, detail.stock.id))
+          .where(eq(shopStock.id, detail.stockId))
       }
 
       const debitCategory = isCredit
