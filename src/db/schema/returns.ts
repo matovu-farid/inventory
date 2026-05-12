@@ -82,7 +82,6 @@ export const shopReturnItems = pgTable(
     shopStockId: uuid("shop_stock_id")
       .notNull()
       .references(() => shopStock.id, { onDelete: "restrict" }),
-    productName: text("product_name").notNull(),
     quantity: integer("quantity").notNull(),
     unitRefundPriceUgx: numeric("unit_refund_price_ugx", {
       precision: 15,
@@ -151,7 +150,6 @@ export const storeReturnItems = pgTable(
     shopStockId: uuid("shop_stock_id")
       .notNull()
       .references(() => shopStock.id, { onDelete: "restrict" }),
-    productName: text("product_name").notNull(),
     quantityDispatched: integer("quantity_dispatched").notNull(),
     quantityReceived: integer("quantity_received"),
     unitTransferPriceUgx: numeric("unit_transfer_price_ugx", {

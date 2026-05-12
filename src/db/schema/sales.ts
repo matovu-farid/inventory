@@ -72,7 +72,6 @@ export const shopSaleItems = pgTable(
     shopStockId: uuid("shop_stock_id")
       .notNull()
       .references(() => shopStock.id, { onDelete: "restrict" }),
-    productName: text("product_name").notNull(),
     quantity: integer("quantity").notNull(),
     unitPriceUgx: numeric("unit_price_ugx", { precision: 15, scale: 2 }).notNull(),
     minimumPriceUgx: numeric("minimum_price_ugx", { precision: 15, scale: 2 }).notNull(),

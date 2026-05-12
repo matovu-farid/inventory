@@ -58,8 +58,6 @@ export const storeTransferItems = pgTable(
     storeStockId: uuid("store_stock_id")
       .notNull()
       .references(() => storeStock.id, { onDelete: "restrict" }),
-    productName: text("product_name").notNull(),
-    articleNumber: text("article_number"),
     quantityDispatched: integer("quantity_dispatched").notNull(),
     quantityReceived: integer("quantity_received"),
     discrepancyNotes: text("discrepancy_notes"),
