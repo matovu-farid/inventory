@@ -8,9 +8,11 @@ import {
   integer,
   timestamp,
   index,
+  unique,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { suppliers } from "./suppliers"
+import { productColors } from "./products"
 
 export const supplyRouteStatusEnum = pgEnum("supply_route_status", [
   "planning",
@@ -81,8 +83,10 @@ export const supplyRouteItems = pgTable(
     supplierId: uuid("supplier_id")
       .notNull()
       .references(() => suppliers.id, { onDelete: "restrict" }),
-    productName: text("product_name").notNull(),
-    articleNumber: text("article_number"),
+    productColorId: uuid("product_color_id")
+      .notNull()
+      .references(() => productColors.id, { onDelete: "restrict" }),
+    size: text("size").notNull(),
     quantity: integer("quantity").notNull(),
     unitPriceForeign: numeric("unit_price_foreign", { precision: 15, scale: 2 }).notNull(),
     foreignCurrency: text("foreign_currency").notNull().default("RMB"),
@@ -106,6 +110,13 @@ export const supplyRouteItems = pgTable(
   (table) => [
     index("idx_sri_route").on(table.supplyRouteId),
     index("idx_sri_supplier").on(table.supplierId),
+    index("idx_sri_pc").on(table.productColorId),
+    unique("uq_sri_variant").on(
+      table.supplyRouteId,
+      table.supplierId,
+      table.productColorId,
+      table.size,
+    ),
   ],
 )
 
@@ -156,6 +167,10 @@ export const supplyRouteItemRelations = relations(supplyRouteItems, ({ one }) =>
   supplier: one(suppliers, {
     fields: [supplyRouteItems.supplierId],
     references: [suppliers.id],
+  }),
+  productColor: one(productColors, {
+    fields: [supplyRouteItems.productColorId],
+    references: [productColors.id],
   }),
 }))
 
