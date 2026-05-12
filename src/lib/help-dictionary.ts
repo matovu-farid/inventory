@@ -249,16 +249,45 @@ export const helpDict = {
       "Goods have arrived and been received into the warehouse. The route is closed for further edits.",
   },
 
+  // ─── Product / Variant catalog ───────────────────────────────────────
+  "product.articleNumber": {
+    description:
+      "Unique code for the product (e.g. TR-001). The same article in different colors is one product with multiple color variants.",
+    example: "TR-001",
+  },
+  "product.colorName": {
+    description:
+      "Friendly name of the color (e.g. Burgundy, Navy). Auto-suggested from the uploaded image; you can override from the palette, the eyedropper, or type your own.",
+    example: "Burgundy",
+  },
+  "product.colorHex": {
+    description:
+      "Hex code that drives the on-screen swatch (e.g. #7b1f2b). Matched to the nearest palette tile.",
+    example: "#7b1f2b",
+  },
+  "product.sizes": {
+    description:
+      "Sizes this product comes in (e.g. S, M, L). Each variant grid row is one color × one size.",
+    example: "S, M, L",
+  },
+  "product.image": {
+    description:
+      "One image per color. Click the image after upload to eyedrop a different pixel as the color sample.",
+  },
+  "col.variant": {
+    description: "Color × size combination held by this stock row.",
+    example: "Burgundy / M",
+  },
+
   // ─── Opening Balance form ────────────────────────────────────────────
   "openingBalance.productName": {
     description:
-      "What you call this product. Used in stock lists and on receipts. Use the same name customers and staff already use so it's easy to find later.",
-    example: "Men's Casual Shoes",
+      "Pick the product whose stock you're seeding. Use the dropdown or create a new product on the fly.",
   },
   "openingBalance.articleNumber": {
     description:
-      "Optional supplier or internal SKU/article code. Helps disambiguate similar products and matches what's printed on box labels.",
-    example: "SH-4839384",
+      "Legacy: use `product.articleNumber` going forward. Kept as a stale alias so older references still resolve.",
+    example: "TR-001",
   },
   "openingBalance.quantity": {
     description:
