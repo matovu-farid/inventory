@@ -3,10 +3,8 @@ import { useState } from "react"
 import BigNumber from "bignumber.js"
 import { Plus, Trash2 } from "lucide-react"
 import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
 import { MoneyInput } from "#/components/ui/money-input"
 import { FieldLabel } from "#/components/ui/field-label"
-import { InfoTip } from "#/components/ui/info-tip"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import {
   Select,
@@ -24,25 +22,26 @@ import {
   DialogTitle,
 } from "#/components/ui/dialog"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table"
-import {
   addStoreOpeningBalance,
   addShopOpeningBalance,
 } from "#/server/functions/admin/opening-balance"
 import { roundUgxBankers50 } from "#/lib/format"
+import {
+  ProductPicker,
+  type ProductSummary,
+} from "#/components/products/product-picker"
+import { ProductEditor } from "#/components/products/product-editor"
+import { ColorEditor } from "#/components/products/color-editor"
+import { VariantGrid } from "#/components/products/variant-grid"
+import { getProductByArticle } from "#/server/functions/products/products"
 
-interface DraftRow {
+interface DraftBlock {
   id: string
-  productName: string
-  articleNumber: string
-  quantity: string // raw text so empty state is allowed
-  costPerUnitUgx: string
+  product?: ProductSummary
+  unitCostUgx: string
+  quantities: Record<string, number> // keyed by `${productColorId}|${size}`
+  productEditorOpen: boolean
+  colorEditorOpen: boolean
 }
 
 interface SubmitSummary {
@@ -51,36 +50,39 @@ interface SubmitSummary {
   totalValueUgx: string
 }
 
-function newRow(): DraftRow {
+function newBlock(): DraftBlock {
   return {
     id: crypto.randomUUID(),
-    productName: "",
-    articleNumber: "",
-    quantity: "",
-    costPerUnitUgx: "",
+    product: undefined,
+    unitCostUgx: "",
+    quantities: {},
+    productEditorOpen: false,
+    colorEditorOpen: false,
   }
 }
 
-function parseQty(s: string): number {
-  const n = parseInt(s, 10)
-  return Number.isFinite(n) ? n : 0
+function blockUnitTotal(b: DraftBlock): number {
+  return Object.values(b.quantities).reduce((s, q) => s + q, 0)
 }
 
-function rowIsValid(r: DraftRow): boolean {
-  if (!r.productName.trim()) return false
-  const qty = parseQty(r.quantity)
-  if (qty <= 0) return false
-  const cost = new BigNumber(r.costPerUnitUgx || "0")
+function blockIsValid(b: DraftBlock): boolean {
+  if (!b.product) return false
+  const cost = new BigNumber(b.unitCostUgx || "0")
   if (!cost.isFinite() || cost.lte(0)) return false
-  return true
+  return blockUnitTotal(b) > 0
 }
 
-function rowsTotal(rows: DraftRow[]): BigNumber {
-  return rows.reduce((sum, r) => {
-    if (!rowIsValid(r)) return sum
-    const cost = new BigNumber(r.costPerUnitUgx || "0")
-    return sum.plus(cost.times(parseQty(r.quantity)))
-  }, new BigNumber(0))
+function blockValue(b: DraftBlock): BigNumber {
+  if (!blockIsValid(b)) return new BigNumber(0)
+  const cost = new BigNumber(b.unitCostUgx || "0")
+  return cost.times(blockUnitTotal(b))
+}
+
+function blocksTotal(blocks: DraftBlock[]): BigNumber {
+  return blocks.reduce(
+    (sum, b) => sum.plus(blockValue(b)),
+    new BigNumber(0),
+  )
 }
 
 export type OpeningBalanceShop = {
@@ -103,7 +105,7 @@ export function OpeningBalanceForm({
   initialShopId,
 }: OpeningBalanceFormProps) {
   const router = useRouter()
-  const [rows, setRows] = useState<DraftRow[]>([newRow()])
+  const [blocks, setBlocks] = useState<DraftBlock[]>([newBlock()])
   const [shopId, setShopId] = useState<string>(
     initialShopId ?? shops[0]?.id ?? "",
   )
@@ -112,34 +114,52 @@ export function OpeningBalanceForm({
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<SubmitSummary | null>(null)
 
-  const total = rowsTotal(rows)
-  const validCount = rows.filter(rowIsValid).length
-  const allRowsValid = rows.length > 0 && rows.every(rowIsValid)
+  const total = blocksTotal(blocks)
+  const validBlocks = blocks.filter(blockIsValid)
+  const validCount = validBlocks.length
+  const totalUnits = validBlocks.reduce(
+    (s, b) => s + blockUnitTotal(b),
+    0,
+  )
+  const allBlocksValid = blocks.length > 0 && blocks.every(blockIsValid)
   const canSubmit =
-    allRowsValid && (scope === "store" || (scope === "shop" && !!shopId))
+    allBlocksValid && (scope === "store" || (scope === "shop" && !!shopId))
 
-  function updateRow(id: string, patch: Partial<DraftRow>) {
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+  function updateBlock(id: string, patch: Partial<DraftBlock>) {
+    setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, ...patch } : b)))
   }
 
-  function removeRow(id: string) {
-    setRows((rs) => (rs.length === 1 ? rs : rs.filter((r) => r.id !== id)))
+  function removeBlock(id: string) {
+    setBlocks((bs) => (bs.length === 1 ? bs : bs.filter((b) => b.id !== id)))
   }
 
-  function addRow() {
-    setRows((rs) => [...rs, newRow()])
+  function addBlock() {
+    setBlocks((bs) => [...bs, newBlock()])
+  }
+
+  async function refreshBlockProduct(id: string, articleNumber: string) {
+    const p = await getProductByArticle({ data: { articleNumber } })
+    if (p) {
+      updateBlock(id, { product: p as ProductSummary })
+    }
   }
 
   async function performSubmit() {
     setPending(true)
     setError(null)
     try {
-      const items = rows.map((r) => ({
-        productName: r.productName.trim(),
-        articleNumber: r.articleNumber.trim() || undefined,
-        quantity: parseQty(r.quantity),
-        costPerUnitUgx: new BigNumber(r.costPerUnitUgx).toFixed(2),
-      }))
+      const items = blocks
+        .filter(blockIsValid)
+        .map((b) => ({
+          productId: b.product!.id,
+          unitCostUgx: new BigNumber(b.unitCostUgx).toFixed(2),
+          cells: Object.entries(b.quantities)
+            .filter(([, q]) => q > 0)
+            .map(([key, q]) => {
+              const [productColorId, size] = key.split("|")
+              return { productColorId, size, quantity: q }
+            }),
+        }))
 
       const result =
         scope === "store"
@@ -151,7 +171,7 @@ export function OpeningBalanceForm({
         itemCount: result.itemCount,
         totalValueUgx: result.totalValueUgx,
       })
-      setRows([newRow()])
+      setBlocks([newBlock()])
       setConfirmOpen(false)
       router.invalidate()
     } catch (err) {
@@ -220,115 +240,171 @@ export function OpeningBalanceForm({
           </div>
         )}
 
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <span className="inline-flex items-center gap-1.5">
-                    Product Name * <InfoTip term="openingBalance.productName" />
-                  </span>
-                </TableHead>
-                <TableHead>
-                  <span className="inline-flex items-center gap-1.5">
-                    Article # <InfoTip term="openingBalance.articleNumber" />
-                  </span>
-                </TableHead>
-                <TableHead className="text-right w-32">
-                  <span className="inline-flex items-center gap-1.5 justify-end">
-                    Quantity * <InfoTip term="openingBalance.quantity" />
-                  </span>
-                </TableHead>
-                <TableHead className="text-right w-48">
-                  <span className="inline-flex items-center gap-1.5 justify-end">
-                    Cost / Unit (UGX) *{" "}
-                    <InfoTip term="openingBalance.costPerUnit" />
-                  </span>
-                </TableHead>
-                <TableHead className="text-right w-40">
-                  <span className="inline-flex items-center gap-1.5 justify-end">
-                    Line Total <InfoTip term="openingBalance.lineTotal" />
-                  </span>
-                </TableHead>
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => {
-                const lineTotal = rowIsValid(r)
-                  ? new BigNumber(r.costPerUnitUgx).times(parseQty(r.quantity))
-                  : null
-                return (
-                  <TableRow key={r.id}>
-                    <TableCell>
-                      <Input
-                        value={r.productName}
-                        onChange={(e) =>
-                          updateRow(r.id, { productName: e.target.value })
-                        }
-                        placeholder="e.g. Cotton T-Shirt"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        value={r.articleNumber}
-                        onChange={(e) =>
-                          updateRow(r.id, { articleNumber: e.target.value })
-                        }
-                        placeholder="optional"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={1}
-                        step={1}
-                        inputMode="numeric"
-                        value={r.quantity}
-                        onChange={(e) =>
-                          updateRow(r.id, { quantity: e.target.value })
-                        }
-                        className="text-right font-mono"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <MoneyInput
-                        currency="UGX"
-                        roundTo={50}
-                        decimals={2}
-                        value={r.costPerUnitUgx}
-                        onChange={(v) => updateRow(r.id, { costPerUnitUgx: v })}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {lineTotal ? roundUgxBankers50(lineTotal).toFormat(0) : "-"}
-                    </TableCell>
-                    <TableCell>
+        <div className="space-y-4">
+          {blocks.map((b, idx) => {
+            const units = blockUnitTotal(b)
+            const value = blockValue(b)
+            return (
+              <div
+                key={b.id}
+                className="rounded-md border bg-card p-4 space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">
+                    Product {idx + 1}
+                    {b.product ? (
+                      <span className="ml-2 font-normal text-muted-foreground">
+                        — {b.product.articleNumber} · {b.product.name}
+                      </span>
+                    ) : null}
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive"
+                    onClick={() => removeBlock(b.id)}
+                    disabled={blocks.length === 1}
+                    aria-label="Remove product block"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <FieldLabel help="openingBalance.productName">
+                    Product *
+                  </FieldLabel>
+                  <ProductPicker
+                    value={b.product?.id}
+                    onChange={(_, p) =>
+                      updateBlock(b.id, { product: p, quantities: {} })
+                    }
+                    onCreateNew={() =>
+                      updateBlock(b.id, { productEditorOpen: true })
+                    }
+                  />
+                </div>
+
+                {b.product && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        {b.product.articleNumber} — {b.product.name}
+                      </span>
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => removeRow(r.id)}
-                        disabled={rows.length === 1}
-                        aria-label="Remove row"
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          updateBlock(b.id, { colorEditorOpen: true })
+                        }
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Plus className="mr-1 size-3" /> Add color
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+                    </div>
+                    <VariantGrid
+                      sizes={b.product.sizes}
+                      colors={b.product.colors}
+                      quantities={b.quantities}
+                      onChange={(next) =>
+                        updateBlock(b.id, { quantities: next })
+                      }
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <FieldLabel help="openingBalance.costPerUnit">
+                      Unit cost (UGX) *
+                    </FieldLabel>
+                    <MoneyInput
+                      currency="UGX"
+                      roundTo={50}
+                      decimals={2}
+                      value={b.unitCostUgx}
+                      onChange={(v) => updateBlock(b.id, { unitCostUgx: v })}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <FieldLabel>Block total</FieldLabel>
+                    <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                      <span className="font-mono">{units}</span>{" "}
+                      <span className="text-muted-foreground">units ×</span>{" "}
+                      <span className="font-mono">
+                        {b.unitCostUgx
+                          ? roundUgxBankers50(b.unitCostUgx).toFormat(0)
+                          : "0"}
+                      </span>{" "}
+                      <span className="text-muted-foreground">=</span>{" "}
+                      <span className="font-mono font-semibold">
+                        {roundUgxBankers50(value).toFormat(0)}
+                      </span>{" "}
+                      <span className="text-muted-foreground">UGX</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Per-block dialogs */}
+                <Dialog
+                  open={b.productEditorOpen}
+                  onOpenChange={(open) =>
+                    updateBlock(b.id, { productEditorOpen: open })
+                  }
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>New product</DialogTitle>
+                    </DialogHeader>
+                    <ProductEditor
+                      onCreated={(_id, articleNumber) => {
+                        updateBlock(b.id, { productEditorOpen: false })
+                        void refreshBlockProduct(b.id, articleNumber)
+                      }}
+                    />
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog
+                  open={b.colorEditorOpen}
+                  onOpenChange={(open) =>
+                    updateBlock(b.id, { colorEditorOpen: open })
+                  }
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add color</DialogTitle>
+                    </DialogHeader>
+                    {b.product && (
+                      <ColorEditor
+                        productId={b.product.id}
+                        onCreated={() => {
+                          updateBlock(b.id, { colorEditorOpen: false })
+                          if (b.product) {
+                            void refreshBlockProduct(
+                              b.id,
+                              b.product.articleNumber,
+                            )
+                          }
+                        }}
+                      />
+                    )}
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )
+          })}
         </div>
 
         <div className="flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={addRow}>
+          <Button variant="outline" size="sm" onClick={addBlock}>
             <Plus className="mr-1 h-4 w-4" />
-            Add Row
+            Add Product
           </Button>
           <div className="text-sm text-muted-foreground">
-            {validCount} of {rows.length} rows valid · Total:{" "}
+            {validCount} of {blocks.length} product
+            {blocks.length === 1 ? "" : "s"} valid · {totalUnits} units · Total:{" "}
             <span className="font-mono font-semibold text-foreground">
               {roundUgxBankers50(total).toFormat(0)}
             </span>{" "}
@@ -351,16 +427,19 @@ export function OpeningBalanceForm({
               <DialogTitle>Confirm opening balance</DialogTitle>
               <DialogDescription>
                 This will add{" "}
-                <span className="font-semibold">{rows.length}</span> item
-                {rows.length === 1 ? "" : "s"} worth{" "}
+                <span className="font-semibold">{validCount}</span> product
+                {validCount === 1 ? "" : "s"} totaling{" "}
+                <span className="font-mono font-semibold">{totalUnits}</span>{" "}
+                units (worth{" "}
                 <span className="font-mono font-semibold">
                   {roundUgxBankers50(total).toFormat(0)}
                 </span>{" "}
-                UGX to{" "}
+                UGX) to{" "}
                 {scope === "store"
                   ? scopeLabel
                   : `${scopeLabel}${selectedShopName ? ` "${selectedShopName}"` : ""}`}{" "}
-                as opening balance. This permanently affects the books. Continue?
+                as opening balance. This permanently affects the books.
+                Continue?
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
