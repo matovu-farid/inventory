@@ -47,6 +47,7 @@
     "@tanstack/react-start": "^1.167.65",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/router-plugin": "^1.167.35",
+    "aws4fetch": "^1.0.20",
     "better-auth": "^1.5.3",
     "bignumber.js": "^11.0.0",
     "class-variance-authority": "^0.7.1",
