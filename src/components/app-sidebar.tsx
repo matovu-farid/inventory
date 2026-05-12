@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router"
 import {
   LayoutDashboard,
   Package,
+  Tags,
   Truck,
   Users,
   ClipboardList,
@@ -67,6 +68,12 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Supply Routes", to: "/supply", icon: Truck, permission: "procurement.view" },
       { label: "Suppliers", to: "/supply/suppliers", icon: Users, permission: "procurement.view" },
+    ],
+  },
+  {
+    title: "Catalog",
+    items: [
+      { label: "Products", to: "/products", icon: Tags, permission: "products.view" },
     ],
   },
   {

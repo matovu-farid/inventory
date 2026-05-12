@@ -20,6 +20,7 @@ import { Route as StoreIndexRouteImport } from './routes/store/index'
 import { Route as ShopIndexRouteImport } from './routes/shop/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReportsIndexRouteImport } from './routes/reports/index'
+import { Route as ProductsIndexRouteImport } from './routes/products/index'
 import { Route as CustomersIndexRouteImport } from './routes/customers/index'
 import { Route as SupplySuppliersRouteImport } from './routes/supply/suppliers'
 import { Route as SupplyRouteIdRouteImport } from './routes/supply/$routeId'
@@ -30,6 +31,7 @@ import { Route as ShopSalesRouteImport } from './routes/shop/sales'
 import { Route as ShopOpeningBalanceRouteImport } from './routes/shop/opening-balance'
 import { Route as SettingsUsersRouteImport } from './routes/settings/users'
 import { Route as ReportsLedgerRouteImport } from './routes/reports/ledger'
+import { Route as ProductsArticleNumberRouteImport } from './routes/products/$articleNumber'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const VerifyEmailSentRoute = VerifyEmailSentRouteImport.update({
@@ -87,6 +89,11 @@ const ReportsIndexRoute = ReportsIndexRouteImport.update({
   path: '/reports/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProductsIndexRoute = ProductsIndexRouteImport.update({
+  id: '/products/',
+  path: '/products/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CustomersIndexRoute = CustomersIndexRouteImport.update({
   id: '/customers/',
   path: '/customers/',
@@ -137,6 +144,11 @@ const ReportsLedgerRoute = ReportsLedgerRouteImport.update({
   path: '/reports/ledger',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProductsArticleNumberRoute = ProductsArticleNumberRouteImport.update({
+  id: '/products/$articleNumber',
+  path: '/products/$articleNumber',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -150,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
+  '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
@@ -160,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
   '/customers/': typeof CustomersIndexRoute
+  '/products/': typeof ProductsIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/shop/': typeof ShopIndexRoute
@@ -174,6 +188,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
+  '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
@@ -184,6 +199,7 @@ export interface FileRoutesByTo {
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
   '/customers': typeof CustomersIndexRoute
+  '/products': typeof ProductsIndexRoute
   '/reports': typeof ReportsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/shop': typeof ShopIndexRoute
@@ -199,6 +215,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
+  '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
@@ -209,6 +226,7 @@ export interface FileRoutesById {
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
   '/customers/': typeof CustomersIndexRoute
+  '/products/': typeof ProductsIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/shop/': typeof ShopIndexRoute
@@ -225,6 +243,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/verify-email-sent'
+    | '/products/$articleNumber'
     | '/reports/ledger'
     | '/settings/users'
     | '/shop/opening-balance'
@@ -235,6 +254,7 @@ export interface FileRouteTypes {
     | '/supply/$routeId'
     | '/supply/suppliers'
     | '/customers/'
+    | '/products/'
     | '/reports/'
     | '/settings/'
     | '/shop/'
@@ -249,6 +269,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/verify-email-sent'
+    | '/products/$articleNumber'
     | '/reports/ledger'
     | '/settings/users'
     | '/shop/opening-balance'
@@ -259,6 +280,7 @@ export interface FileRouteTypes {
     | '/supply/$routeId'
     | '/supply/suppliers'
     | '/customers'
+    | '/products'
     | '/reports'
     | '/settings'
     | '/shop'
@@ -273,6 +295,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/verify-email-sent'
+    | '/products/$articleNumber'
     | '/reports/ledger'
     | '/settings/users'
     | '/shop/opening-balance'
@@ -283,6 +306,7 @@ export interface FileRouteTypes {
     | '/supply/$routeId'
     | '/supply/suppliers'
     | '/customers/'
+    | '/products/'
     | '/reports/'
     | '/settings/'
     | '/shop/'
@@ -298,6 +322,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailSentRoute: typeof VerifyEmailSentRoute
+  ProductsArticleNumberRoute: typeof ProductsArticleNumberRoute
   ReportsLedgerRoute: typeof ReportsLedgerRoute
   SettingsUsersRoute: typeof SettingsUsersRoute
   ShopOpeningBalanceRoute: typeof ShopOpeningBalanceRoute
@@ -308,6 +333,7 @@ export interface RootRouteChildren {
   SupplyRouteIdRoute: typeof SupplyRouteIdRoute
   SupplySuppliersRoute: typeof SupplySuppliersRoute
   CustomersIndexRoute: typeof CustomersIndexRoute
+  ProductsIndexRoute: typeof ProductsIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   ShopIndexRoute: typeof ShopIndexRoute
@@ -395,6 +421,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/products/': {
+      id: '/products/'
+      path: '/products'
+      fullPath: '/products/'
+      preLoaderRoute: typeof ProductsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/customers/': {
       id: '/customers/'
       path: '/customers'
@@ -465,6 +498,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsLedgerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/products/$articleNumber': {
+      id: '/products/$articleNumber'
+      path: '/products/$articleNumber'
+      fullPath: '/products/$articleNumber'
+      preLoaderRoute: typeof ProductsArticleNumberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -482,6 +522,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailSentRoute: VerifyEmailSentRoute,
+  ProductsArticleNumberRoute: ProductsArticleNumberRoute,
   ReportsLedgerRoute: ReportsLedgerRoute,
   SettingsUsersRoute: SettingsUsersRoute,
   ShopOpeningBalanceRoute: ShopOpeningBalanceRoute,
@@ -492,6 +533,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupplyRouteIdRoute: SupplyRouteIdRoute,
   SupplySuppliersRoute: SupplySuppliersRoute,
   CustomersIndexRoute: CustomersIndexRoute,
+  ProductsIndexRoute: ProductsIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   ShopIndexRoute: ShopIndexRoute,
