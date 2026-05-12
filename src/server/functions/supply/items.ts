@@ -1,188 +1,101 @@
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { eq, ilike } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
-import { supplyRouteItems } from "#/db/schema"
+import { supplyRouteItems, products } from "#/db/schema"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
-const addItemInput = z.object({
+const cellSchema = z.object({
+  productColorId: z.string().uuid(),
+  size: z.string().min(1),
+  quantity: z.number().int().positive(),
+})
+
+const variantInput = z.object({
   supplyRouteId: z.string().uuid(),
   supplierId: z.string().uuid(),
-  productName: z.string().min(1),
-  articleNumber: z.string().optional(),
-  quantity: z.number().int().positive(),
   unitPriceForeign: z.string(),
   foreignCurrency: z.string().default("RMB"),
   exchangeRateForeignToUsd: z.string().optional(),
   exchangeRateUsdToUgx: z.string().optional(),
+  cells: z.array(cellSchema).min(1),
 })
 
-export const addSupplyRouteItem = createServerFn()
-  .inputValidator(addItemInput)
-  .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+export type MaterializedRow = {
+  supplyRouteId: string
+  supplierId: string
+  productColorId: string
+  size: string
+  quantity: number
+  unitPriceForeign: string
+  foreignCurrency: string
+  exchangeRateForeignToUsd?: string
+  exchangeRateUsdToUgx?: string
+  totalAmountForeign: string
+  totalAmountUsd: string | null
+  totalCostUgx: string
+}
 
-    const unitPrice = new BigNumber(data.unitPriceForeign)
-    const qty = data.quantity
+export function materializeVariantRows(input: z.infer<typeof variantInput>): MaterializedRow[] {
+  const cells = input.cells.filter((c) => c.quantity > 0)
+  const unitPrice = new BigNumber(input.unitPriceForeign)
+  const isUsd = input.foreignCurrency === "USD"
+  const fxToUsdStr = isUsd ? input.exchangeRateForeignToUsd ?? "1" : input.exchangeRateForeignToUsd
 
-    const totalAmountForeign = unitPrice.times(qty).toFixed(2)
-
+  return cells.map((cell) => {
+    const totalAmountForeign = unitPrice.times(cell.quantity).toFixed(2)
     let totalAmountUsd: string | null = null
     let totalCostUgx: string
-
-    const isUsd = data.foreignCurrency === "USD"
-    const fxToUsdStr = isUsd
-      ? data.exchangeRateForeignToUsd ?? "1"
-      : data.exchangeRateForeignToUsd
-
-    if (
-      data.foreignCurrency === "UGX" ||
-      !fxToUsdStr ||
-      !data.exchangeRateUsdToUgx
-    ) {
-      // Local purchase — already in UGX
+    if (input.foreignCurrency === "UGX" || !fxToUsdStr || !input.exchangeRateUsdToUgx) {
       totalCostUgx = totalAmountForeign
     } else {
       const fxToUsd = new BigNumber(fxToUsdStr)
       if (fxToUsd.isZero()) throw new Error("Exchange rate cannot be zero")
-      const usdToUgx = new BigNumber(data.exchangeRateUsdToUgx)
-
-      totalAmountUsd = new BigNumber(totalAmountForeign)
-        .div(fxToUsd)
-        .dp(2, BigNumber.ROUND_HALF_UP)
-        .toFixed(2)
-
-      totalCostUgx = unitPrice
-        .div(fxToUsd)
-        .times(usdToUgx)
-        .times(qty)
-        .dp(2, BigNumber.ROUND_HALF_UP)
-        .toFixed(2)
+      const usdToUgx = new BigNumber(input.exchangeRateUsdToUgx)
+      totalAmountUsd = new BigNumber(totalAmountForeign).div(fxToUsd).dp(2, BigNumber.ROUND_HALF_UP).toFixed(2)
+      totalCostUgx = unitPrice.div(fxToUsd).times(usdToUgx).times(cell.quantity).dp(2, BigNumber.ROUND_HALF_UP).toFixed(2)
     }
-
-    const [item] = await db
-      .insert(supplyRouteItems)
-      .values({
-        supplyRouteId: data.supplyRouteId,
-        supplierId: data.supplierId,
-        productName: data.productName,
-        articleNumber: data.articleNumber,
-        quantity: qty,
-        unitPriceForeign: data.unitPriceForeign,
-        foreignCurrency: data.foreignCurrency,
-        exchangeRateForeignToUsd: data.exchangeRateForeignToUsd,
-        exchangeRateUsdToUgx: data.exchangeRateUsdToUgx,
-        totalAmountForeign,
-        totalAmountUsd,
-        totalCostUgx,
-      })
-      .returning()
-
-    return item
+    return {
+      supplyRouteId: input.supplyRouteId,
+      supplierId: input.supplierId,
+      productColorId: cell.productColorId,
+      size: cell.size,
+      quantity: cell.quantity,
+      unitPriceForeign: input.unitPriceForeign,
+      foreignCurrency: input.foreignCurrency,
+      exchangeRateForeignToUsd: input.exchangeRateForeignToUsd,
+      exchangeRateUsdToUgx: input.exchangeRateUsdToUgx,
+      totalAmountForeign,
+      totalAmountUsd,
+      totalCostUgx,
+    }
   })
+}
 
-const updateItemInput = z.object({
-  id: z.string().uuid(),
-  productName: z.string().min(1).optional(),
-  articleNumber: z.string().optional(),
-  quantity: z.number().int().positive().optional(),
-  unitPriceForeign: z.string().optional(),
-  foreignCurrency: z.string().optional(),
-  exchangeRateForeignToUsd: z.string().optional(),
-  exchangeRateUsdToUgx: z.string().optional(),
-})
-
-export const updateSupplyRouteItem = createServerFn()
-  .inputValidator(updateItemInput)
+export const addSupplyRouteVariants = createServerFn()
+  .inputValidator(variantInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
-
-    const { id, ...fields } = data
-
-    // If price/quantity/exchange rate fields changed, recompute totals
-    const existing = await db.query.supplyRouteItems.findFirst({
-      where: eq(supplyRouteItems.id, id),
-    })
-    if (!existing) throw new Error("Item not found")
-
-    const unitPrice = new BigNumber(fields.unitPriceForeign ?? existing.unitPriceForeign)
-    const qty = fields.quantity ?? existing.quantity
-    const currency = fields.foreignCurrency ?? existing.foreignCurrency
-    const rawFxToUsdStr = fields.exchangeRateForeignToUsd ?? existing.exchangeRateForeignToUsd
-    const fxToUsdStr =
-      currency === "USD" ? rawFxToUsdStr ?? "1" : rawFxToUsdStr
-    const usdToUgxStr = fields.exchangeRateUsdToUgx ?? existing.exchangeRateUsdToUgx
-
-    const totalAmountForeign = unitPrice.times(qty).toFixed(2)
-
-    let totalAmountUsd: string | null = null
-    let totalCostUgx: string
-
-    if (currency === "UGX" || !fxToUsdStr || !usdToUgxStr) {
-      totalCostUgx = totalAmountForeign
-    } else {
-      const fxToUsd = new BigNumber(fxToUsdStr)
-      if (fxToUsd.isZero()) throw new Error("Exchange rate cannot be zero")
-      const usdToUgx = new BigNumber(usdToUgxStr)
-
-      totalAmountUsd = new BigNumber(totalAmountForeign)
-        .div(fxToUsd)
-        .dp(2, BigNumber.ROUND_HALF_UP)
-        .toFixed(2)
-
-      totalCostUgx = unitPrice
-        .div(fxToUsd)
-        .times(usdToUgx)
-        .times(qty)
-        .dp(2, BigNumber.ROUND_HALF_UP)
-        .toFixed(2)
-    }
-
-    const [item] = await db
-      .update(supplyRouteItems)
-      .set({
-        ...fields,
-        totalAmountForeign,
-        totalAmountUsd,
-        totalCostUgx,
-      })
-      .where(eq(supplyRouteItems.id, id))
-      .returning()
-
-    return item
+    const rows = materializeVariantRows(data)
+    return db.insert(supplyRouteItems).values(rows).returning()
   })
-
-const deleteItemInput = z.object({ id: z.string().uuid() })
 
 export const deleteSupplyRouteItem = createServerFn()
-  .inputValidator(deleteItemInput)
+  .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
-
     await db.delete(supplyRouteItems).where(eq(supplyRouteItems.id, data.id))
   })
 
-/**
- * Get distinct product names used in previous supply route items,
- * for autocomplete suggestions.
- */
 export const getProductNameSuggestions = createServerFn()
   .inputValidator(z.object({ query: z.string().min(1) }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
-
-    const rows = await db
-      .selectDistinct({ productName: supplyRouteItems.productName })
-      .from(supplyRouteItems)
-      .limit(20)
-
-    return rows
-      .map((r) => r.productName)
-      .filter((name) => name.toLowerCase().includes(data.query.toLowerCase()))
+    const like = `%${data.query}%`
+    return db.query.products.findMany({ where: ilike(products.name, like), limit: 20 })
   })
