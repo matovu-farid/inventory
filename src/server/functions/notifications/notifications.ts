@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, desc, eq, isNull, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
-import { notifications, user, shopSales, shopStock } from "#/db/schema"
+import { notifications, user, shopSales } from "#/db/schema"
 import {
   DEFAULT_THRESHOLDS,
   shouldNotifyLowStock,
@@ -94,13 +94,16 @@ export const runThresholdChecks = createServerFn()
       let overdueEmitted = 0
 
       // Low-stock per shop_stock row
-      const allShopStock = await tx.select().from(shopStock)
+      const allShopStock = await tx.query.shopStock.findMany({
+        with: { productColor: { with: { product: true } } },
+      })
       for (const s of allShopStock) {
         if (shouldNotifyLowStock(s.quantityOnHand, thresholds)) {
+          const productLabel = `${s.productColor.product.articleNumber} ${s.productColor.colorName}/${s.size}`
           await emitNotification(tx, {
             kind: "low_stock",
-            title: `Low stock: ${s.productName}`,
-            body: `${s.productName} has ${s.quantityOnHand} units left at this shop.`,
+            title: `Low stock: ${productLabel}`,
+            body: `${productLabel} has ${s.quantityOnHand} units left at this shop.`,
             audience: { roles: ["admin", "supervisor"] },
             entityType: "shop_stock",
             entityId: s.id,

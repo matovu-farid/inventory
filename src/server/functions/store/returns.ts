@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
-import { eq, sql } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
@@ -48,14 +48,16 @@ export const dispatchStoreReturn = createServerFn()
       for (const item of data.items) {
         const stock = await tx.query.shopStock.findFirst({
           where: eq(shopStock.id, item.shopStockId),
+          with: { productColor: { with: { product: true } } },
         })
         if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
+        const productLabel = `${stock.productColor.product.articleNumber} ${stock.productColor.colorName}/${stock.size}`
         if (stock.quantityOnHand < item.quantityDispatched) {
           throw new Error(
-            `Insufficient stock for ${stock.productName}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`,
+            `Insufficient stock for ${productLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`,
           )
         }
-        itemDetails.push({ stock, ...item })
+        itemDetails.push({ stock, productLabel, ...item })
       }
 
       const docNumber = await nextDocumentNumber(tx, "STR-RET")
@@ -79,7 +81,6 @@ export const dispatchStoreReturn = createServerFn()
         await tx.insert(storeReturnItems).values({
           storeReturnId: storeReturn.id,
           shopStockId: detail.stock.id,
-          productName: detail.stock.productName,
           quantityDispatched: detail.quantityDispatched,
           unitTransferPriceUgx: detail.unitTransferPriceUgx,
           unitCostUgx: detail.stock.costPerUnitUgx,
@@ -141,7 +142,15 @@ export const receiveStoreReturn = createServerFn()
     return db.transaction(async (tx) => {
       const storeReturn = await tx.query.storeReturns.findFirst({
         where: eq(storeReturns.id, data.storeReturnId),
-        with: { items: true },
+        with: {
+          items: {
+            with: {
+              shopStock: {
+                with: { productColor: { with: { product: true } } },
+              },
+            },
+          },
+        },
       })
       if (!storeReturn) {
         throw new Error(`Store return not found: ${data.storeReturnId}`)
@@ -173,9 +182,10 @@ export const receiveStoreReturn = createServerFn()
         if (!item) {
           throw new Error(`Return item not found: ${receipt.storeReturnItemId}`)
         }
+        const productLabel = `${item.shopStock.productColor.product.articleNumber} ${item.shopStock.productColor.colorName}/${item.shopStock.size}`
         if (receipt.quantityReceived > item.quantityDispatched) {
           throw new Error(
-            `Received ${receipt.quantityReceived} > dispatched ${item.quantityDispatched} for ${item.productName}`,
+            `Received ${receipt.quantityReceived} > dispatched ${item.quantityDispatched} for ${productLabel}`,
           )
         }
         await tx
@@ -193,9 +203,13 @@ export const receiveStoreReturn = createServerFn()
         totalTransferPrice = totalTransferPrice.plus(transferAmount)
         totalCost = totalCost.plus(costAmount)
 
-        // Increment store stock — find the matching store_stock row by product
+        // Increment store stock — find the matching store_stock variant
         const matching = await tx.query.storeStock.findFirst({
-          where: eq(storeStock.productName, item.productName),
+          where: and(
+            eq(storeStock.storeId, storeReturn.storeId),
+            eq(storeStock.productColorId, item.shopStock.productColorId),
+            eq(storeStock.size, item.shopStock.size),
+          ),
         })
         if (matching) {
           await tx

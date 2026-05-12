@@ -200,4 +200,8 @@ export const storeReturnItemRelations = relations(storeReturnItems, ({ one }) =>
     fields: [storeReturnItems.storeReturnId],
     references: [storeReturns.id],
   }),
+  shopStock: one(shopStock, {
+    fields: [storeReturnItems.shopStockId],
+    references: [shopStock.id],
+  }),
 }))
