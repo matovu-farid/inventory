@@ -1,44 +1,33 @@
 import BigNumber from "bignumber.js"
 
-export interface OpeningBalanceItem {
-  productName: string
-  articleNumber?: string
+export interface OpeningBalanceCell {
+  productColorId: string
+  size: string
   quantity: number
-  costPerUnitUgx: string
 }
 
-/**
- * Validate a single opening-balance line. Throws with a clear, indexable
- * message when the line is invalid. The (optional) index is used to make the
- * error message refer to a specific row in the user's input.
- */
-export function validateOpeningBalanceItem(
-  item: OpeningBalanceItem,
-  index?: number,
-): void {
-  const where = index !== undefined ? `Row ${index + 1}: ` : ""
-  if (!item.productName || item.productName.trim() === "") {
-    throw new Error(`${where}Product name is required`)
+export interface OpeningBalanceProductEntry {
+  productId: string
+  unitCostUgx: string
+  cells: OpeningBalanceCell[]
+}
+
+export function validateOpeningBalanceCell(cell: OpeningBalanceCell, unitCostUgx: string): void {
+  if (!cell.productColorId) throw new Error("productColorId is required")
+  if (!cell.size) throw new Error("size is required")
+  if (!Number.isInteger(cell.quantity) || cell.quantity <= 0) {
+    throw new Error("quantity must be a positive integer")
   }
-  if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-    throw new Error(`${where}Quantity must be a positive integer`)
-  }
-  const cost = new BigNumber(item.costPerUnitUgx)
+  const cost = new BigNumber(unitCostUgx)
   if (!cost.isFinite() || cost.lte(0)) {
-    throw new Error(`${where}Cost per unit must be greater than zero`)
+    throw new Error("unitCostUgx must be greater than zero")
   }
 }
 
-/**
- * Compute the total UGX value of a list of opening-balance items.
- * Returns a BigNumber. Does not validate — callers should validate first.
- */
-export function computeOpeningBalanceTotal(
-  items: OpeningBalanceItem[],
-): BigNumber {
-  return items.reduce(
-    (sum, i) =>
-      sum.plus(new BigNumber(i.costPerUnitUgx).times(i.quantity)),
-    new BigNumber(0),
-  )
+export function computeOpeningBalanceTotal(entries: OpeningBalanceProductEntry[]): BigNumber {
+  return entries.reduce((sum, entry) => {
+    const cost = new BigNumber(entry.unitCostUgx)
+    const cellTotal = entry.cells.reduce((s, c) => s + c.quantity, 0)
+    return sum.plus(cost.times(cellTotal))
+  }, new BigNumber(0))
 }

@@ -8,33 +8,26 @@ import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
-import { validateOpeningBalanceItem } from "./opening-balance-validate"
+import { validateOpeningBalanceCell } from "./opening-balance-validate"
 
-// ── Zod schemas ───────────────────────────────────────────────────
-
-const itemInput = z.object({
-  productName: z.string().min(1),
-  articleNumber: z.string().optional(),
+const cellSchema = z.object({
+  productColorId: z.string().uuid(),
+  size: z.string().min(1),
   quantity: z.number().int().positive(),
-  costPerUnitUgx: z.string().min(1),
 })
 
-const storeOpeningInput = z.object({
-  items: z.array(itemInput).min(1),
+const productEntry = z.object({
+  productId: z.string().uuid(),
+  unitCostUgx: z.string().min(1),
+  cells: z.array(cellSchema).min(1),
 })
 
+const storeOpeningInput = z.object({ items: z.array(productEntry).min(1) })
 const shopOpeningInput = z.object({
   shopId: z.string().uuid(),
-  items: z.array(itemInput).min(1),
+  items: z.array(productEntry).min(1),
 })
 
-// ── Server functions ──────────────────────────────────────────────
-
-/**
- * Seed StoreStock with opening-balance items. For each item, posts:
- *   DR Inventory - Store / CR Owner's Equity
- * referenceType = "opening_balance", referenceId = the new stock row's id.
- */
 export const addStoreOpeningBalance = createServerFn()
   .inputValidator(storeOpeningInput)
   .handler(async ({ data }) => {
@@ -42,8 +35,12 @@ export const addStoreOpeningBalance = createServerFn()
     requireRole(session, ["admin", "supervisor"])
     const userId = (session.user as { id: string }).id
 
-    // Validate up-front so we fail before opening a transaction.
-    data.items.forEach((item, idx) => validateOpeningBalanceItem(item, idx))
+    // Validate before opening a transaction.
+    for (const entry of data.items) {
+      for (const cell of entry.cells) {
+        validateOpeningBalanceCell(cell, entry.unitCostUgx)
+      }
+    }
 
     const store = await db.query.stores.findFirst()
     if (!store) throw new Error("Store not configured")
@@ -52,51 +49,43 @@ export const addStoreOpeningBalance = createServerFn()
       const createdIds: string[] = []
       let totalValue = new BigNumber(0)
 
-      for (const item of data.items) {
-        const cost = new BigNumber(item.costPerUnitUgx).dp(
-          2,
-          BigNumber.ROUND_HALF_UP,
-        )
-        const lineValue = cost.times(item.quantity)
+      for (const entry of data.items) {
+        const cost = new BigNumber(entry.unitCostUgx).dp(2, BigNumber.ROUND_HALF_UP)
+        let entryValue = new BigNumber(0)
+        const entryRowIds: string[] = []
 
-        const [row] = await tx
-          .insert(storeStock)
-          .values({
-            storeId: store.id,
-            productName: item.productName,
-            articleNumber: item.articleNumber,
-            // Nullable for opening balances — no originating supply route.
-            supplyRouteItemId: null,
-            quantityOnHand: item.quantity,
-            costPerUnitUgx: cost.toFixed(2),
-            // Default minimum sell price to cost; admin can adjust later.
-            minimumSellPriceUgx: cost.toFixed(2),
-          })
-          .returning()
+        for (const cell of entry.cells) {
+          const [row] = await tx
+            .insert(storeStock)
+            .values({
+              storeId: store.id,
+              productColorId: cell.productColorId,
+              size: cell.size,
+              supplyRouteItemId: null,
+              quantityOnHand: cell.quantity,
+              costPerUnitUgx: cost.toFixed(2),
+              minimumSellPriceUgx: cost.toFixed(2),
+            })
+            .returning()
+          entryRowIds.push(row.id)
+          createdIds.push(row.id)
+          entryValue = entryValue.plus(cost.times(cell.quantity))
+        }
 
         await postJournalEntry(tx, {
           entries: [
-            {
-              type: "debit",
-              category: "Inventory - Store",
-              amount: lineValue.toFixed(2),
-            },
-            {
-              type: "credit",
-              category: "Owner's Equity",
-              amount: lineValue.toFixed(2),
-            },
+            { type: "debit",  category: "Inventory - Store", amount: entryValue.toFixed(2) },
+            { type: "credit", category: "Owner's Equity",     amount: entryValue.toFixed(2) },
           ],
           referenceType: "opening_balance",
-          referenceId: row.id,
+          referenceId: entryRowIds[0],
           locationType: "store",
           locationId: store.id,
           recordedBy: userId,
-          description: `Opening balance: ${item.quantity}x ${item.productName}`,
+          description: `Opening balance: ${entry.cells.length} variants of product ${entry.productId}`,
         })
 
-        createdIds.push(row.id)
-        totalValue = totalValue.plus(lineValue)
+        totalValue = totalValue.plus(entryValue)
       }
 
       await recordAuditLog(tx, {
@@ -105,25 +94,20 @@ export const addStoreOpeningBalance = createServerFn()
         entityType: "store_stock",
         entityId: createdIds[0],
         metadata: {
-          itemCount: data.items.length,
+          itemCount: createdIds.length,
           totalValueUgx: totalValue.toFixed(2),
           stockIds: createdIds,
         },
       })
 
       return {
-        itemCount: data.items.length,
+        itemCount: createdIds.length,
         totalValueUgx: totalValue.toFixed(2),
         stockIds: createdIds,
       }
     })
   })
 
-/**
- * Seed ShopStock with opening-balance items. For each item, posts:
- *   DR Inventory - Shop / CR Owner's Equity
- * referenceType = "opening_balance", referenceId = the new stock row's id.
- */
 export const addShopOpeningBalance = createServerFn()
   .inputValidator(shopOpeningInput)
   .handler(async ({ data }) => {
@@ -131,61 +115,56 @@ export const addShopOpeningBalance = createServerFn()
     requireRole(session, ["admin", "supervisor"])
     const userId = (session.user as { id: string }).id
 
-    data.items.forEach((item, idx) => validateOpeningBalanceItem(item, idx))
+    for (const entry of data.items) {
+      for (const cell of entry.cells) {
+        validateOpeningBalanceCell(cell, entry.unitCostUgx)
+      }
+    }
 
-    const shop = await db.query.shops.findFirst({
-      where: eq(shops.id, data.shopId),
-    })
+    const shop = await db.query.shops.findFirst({ where: eq(shops.id, data.shopId) })
     if (!shop) throw new Error(`Shop not found: ${data.shopId}`)
 
     return db.transaction(async (tx) => {
       const createdIds: string[] = []
       let totalValue = new BigNumber(0)
 
-      for (const item of data.items) {
-        const cost = new BigNumber(item.costPerUnitUgx).dp(
-          2,
-          BigNumber.ROUND_HALF_UP,
-        )
-        const lineValue = cost.times(item.quantity)
+      for (const entry of data.items) {
+        const cost = new BigNumber(entry.unitCostUgx).dp(2, BigNumber.ROUND_HALF_UP)
+        let entryValue = new BigNumber(0)
+        const entryRowIds: string[] = []
 
-        const [row] = await tx
-          .insert(shopStock)
-          .values({
-            shopId: shop.id,
-            productName: item.productName,
-            articleNumber: item.articleNumber,
-            // Nullable for opening balances — no originating transfer.
-            storeTransferItemId: null,
-            quantityOnHand: item.quantity,
-            costPerUnitUgx: cost.toFixed(2),
-            minimumSellPriceUgx: cost.toFixed(2),
-          })
-          .returning()
+        for (const cell of entry.cells) {
+          const [row] = await tx
+            .insert(shopStock)
+            .values({
+              shopId: shop.id,
+              productColorId: cell.productColorId,
+              size: cell.size,
+              storeTransferItemId: null,
+              quantityOnHand: cell.quantity,
+              costPerUnitUgx: cost.toFixed(2),
+              minimumSellPriceUgx: cost.toFixed(2),
+            })
+            .returning()
+          entryRowIds.push(row.id)
+          createdIds.push(row.id)
+          entryValue = entryValue.plus(cost.times(cell.quantity))
+        }
 
         await postJournalEntry(tx, {
           entries: [
-            {
-              type: "debit",
-              category: "Inventory - Shop",
-              amount: lineValue.toFixed(2),
-            },
-            {
-              type: "credit",
-              category: "Owner's Equity",
-              amount: lineValue.toFixed(2),
-            },
+            { type: "debit",  category: "Inventory - Shop", amount: entryValue.toFixed(2) },
+            { type: "credit", category: "Owner's Equity",    amount: entryValue.toFixed(2) },
           ],
           referenceType: "opening_balance",
-          referenceId: row.id,
+          referenceId: entryRowIds[0],
           locationType: "shop",
           locationId: shop.id,
           recordedBy: userId,
-          description: `Opening balance: ${item.quantity}x ${item.productName}`,
+          description: `Opening balance: ${entry.cells.length} variants of product ${entry.productId}`,
         })
 
-        createdIds.push(row.id)
-        totalValue = totalValue.plus(lineValue)
+        totalValue = totalValue.plus(entryValue)
       }
 
       await recordAuditLog(tx, {
@@ -195,14 +174,14 @@ export const addShopOpeningBalance = createServerFn()
         entityId: createdIds[0],
         metadata: {
           shopId: shop.id,
-          itemCount: data.items.length,
+          itemCount: createdIds.length,
           totalValueUgx: totalValue.toFixed(2),
           stockIds: createdIds,
         },
       })
 
       return {
-        itemCount: data.items.length,
+        itemCount: createdIds.length,
         totalValueUgx: totalValue.toFixed(2),
         stockIds: createdIds,
       }
