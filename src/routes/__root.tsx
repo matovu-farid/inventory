@@ -92,6 +92,23 @@ function RootLayout() {
     return null
   }
 
+  const userRoleForRedirect = (session?.user as { role?: string } | undefined)?.role ?? ""
+  const isOnPosPath = matches.some((m) => {
+    const p = m.pathname ?? ""
+    return p === "/pos" || p.startsWith("/pos/")
+  })
+  const needsPosRedirect =
+    !!session &&
+    userRoleForRedirect === "sales" &&
+    !isPublicPage &&
+    !isOnPosPath
+
+  useEffect(() => {
+    if (needsPosRedirect) router.navigate({ to: "/pos" as unknown as never })
+  }, [needsPosRedirect, router])
+
+  if (needsPosRedirect) return null
+
   if (isPublicPage) {
     return <Outlet />
   }
