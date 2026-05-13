@@ -28,6 +28,7 @@ export type Permission =
   | "products.view"
   | "products.manage"
   | "pos.view"
+  | "security.manage"
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   admin: [
@@ -45,6 +46,7 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "products.view",
     "products.manage",
     "pos.view",
+    "security.manage",
   ],
   supervisor: [
     "warehouse.transfers",
@@ -91,6 +93,7 @@ export const PERMISSION_SERVER_GATES: Record<Permission, readonly string[]> = {
     "src/server/functions/accounting/fund-transfers.ts",
   ],
   "users.manage": ["src/server/functions/admin/users.ts"],
+  "security.manage": ["src/server/functions/admin/ip-allowlist.ts"],
   "products.view": [
     "src/server/functions/products/products.ts",
     "src/server/functions/products/colors.ts",
