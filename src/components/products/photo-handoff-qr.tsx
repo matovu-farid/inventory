@@ -1,14 +1,17 @@
 import * as React from "react"
-// Import the browser entry directly — the default "qrcode" entry pulls in
-// node "fs"/"stream", which Vite externalizes for the browser and triggers
-// "Module 'events' has been externalized" at runtime.
+// Browser entry skips qrcode's node fs/stream transitive path.
 // @ts-expect-error – no type declarations for the /lib/browser.js subpath
 import QRCode from "qrcode/lib/browser.js"
 import { Button } from "#/components/ui/button"
+import { useIsMobile } from "#/lib/hooks/use-is-mobile"
+import { shrinkImage } from "#/lib/images/shrink-image"
 import {
   createPhotoUploadToken,
   getPhotoUploadStatus,
 } from "#/server/functions/products/photo-handoff"
+import { getProductImageUploadUrl } from "#/server/functions/products/uploads"
+import { setProductColorImage } from "#/server/functions/products/colors"
+import { productImageUrl } from "#/lib/products"
 
 interface Props {
   productColorId: string
@@ -16,11 +19,98 @@ interface Props {
 }
 
 /**
- * Renders a QR code that a phone can scan to take and upload a product photo.
- * Polls the server every 2s for token consumption; once consumed, calls
- * onUploaded and clears the QR. Token expires after 15 minutes.
+ * Device-aware product-photo capture.
+ *
+ * Desktop: shows a QR code; user scans with phone and uploads through the
+ * /upload-photo/:token route. We poll for completion every 2s.
+ *
+ * Mobile: shows a "Take photo" button that opens the camera directly,
+ * shrinks the file client-side, and uploads via a presigned URL.
  */
-export function PhotoHandoffQR({ productColorId, onUploaded }: Props) {
+export function PhotoCapture(props: Props) {
+  const isMobile = useIsMobile()
+  return isMobile ? <MobileCapture {...props} /> : <DesktopHandoff {...props} />
+}
+
+// Backwards-compatible alias for the previous name.
+export const PhotoHandoffQR = PhotoCapture
+
+// ---------------------------------------------------------------------------
+// Mobile — direct camera capture + presigned upload
+// ---------------------------------------------------------------------------
+
+type MobileState = "idle" | "shrinking" | "uploading" | "error"
+
+function MobileCapture({ productColorId, onUploaded }: Props) {
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const [state, setState] = React.useState<MobileState>("idle")
+  const [error, setError] = React.useState<string | null>(null)
+
+  async function onFile(file: File) {
+    setError(null)
+    try {
+      setState("shrinking")
+      const blob = await shrinkImage(file)
+
+      setState("uploading")
+      const { uploadUrl, s3Key } = await getProductImageUploadUrl({
+        data: { productColorId, contentType: "image/jpeg" },
+      })
+      const res = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "image/jpeg" },
+        body: blob,
+      })
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`)
+      await setProductColorImage({ data: { id: productColorId, imageS3Key: s3Key } })
+
+      const url = productImageUrl(s3Key)
+      if (url) onUploaded(url)
+      setState("idle")
+    } catch (e) {
+      setState("error")
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) void onFile(f)
+          e.target.value = ""
+        }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => inputRef.current?.click()}
+        disabled={state === "shrinking" || state === "uploading"}
+      >
+        {state === "shrinking"
+          ? "Preparing…"
+          : state === "uploading"
+            ? "Uploading…"
+            : "Take photo"}
+      </Button>
+      {state === "error" && error && (
+        <div className="text-xs text-red-600">{error}</div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Desktop — QR handoff to phone, poll for upload completion
+// ---------------------------------------------------------------------------
+
+function DesktopHandoff({ productColorId, onUploaded }: Props) {
   const [dataUrl, setDataUrl] = React.useState<string | null>(null)
   const [token, setToken] = React.useState<string | null>(null)
   const [expiresAt, setExpiresAt] = React.useState<Date | null>(null)

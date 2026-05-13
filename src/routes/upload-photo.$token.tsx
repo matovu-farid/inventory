@@ -4,6 +4,7 @@ import {
   redeemPhotoUploadToken,
   confirmPhotoUpload,
 } from "#/server/functions/products/photo-handoff"
+import { shrinkImage } from "#/lib/images/shrink-image"
 import { Button } from "#/components/ui/button"
 
 export const Route = createFileRoute("/upload-photo/$token")({
@@ -11,7 +12,7 @@ export const Route = createFileRoute("/upload-photo/$token")({
   component: UploadPhotoPage,
 })
 
-type UiState = "idle" | "uploading" | "done" | "error"
+type UiState = "idle" | "shrinking" | "uploading" | "done" | "error"
 
 function UploadPhotoPage() {
   const { token } = Route.useLoaderData()
@@ -20,16 +21,19 @@ function UploadPhotoPage() {
   const [error, setError] = React.useState<string | null>(null)
 
   async function onFile(file: File) {
-    setState("uploading")
     setError(null)
     try {
+      setState("shrinking")
+      const blob = await shrinkImage(file)
+
+      setState("uploading")
       const { uploadUrl } = await redeemPhotoUploadToken({
-        data: { token, contentType: file.type },
+        data: { token, contentType: "image/jpeg" },
       })
       const put = await fetch(uploadUrl, {
         method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
+        headers: { "Content-Type": "image/jpeg" },
+        body: blob,
       })
       if (!put.ok) throw new Error(`Upload failed (${put.status})`)
       await confirmPhotoUpload({ data: { token } })
@@ -59,6 +63,9 @@ function UploadPhotoPage() {
           <Button size="lg" onClick={() => inputRef.current?.click()}>
             Take photo
           </Button>
+        )}
+        {state === "shrinking" && (
+          <div className="text-muted-foreground">Preparing photo…</div>
         )}
         {state === "uploading" && (
           <div className="text-muted-foreground">Uploading…</div>
