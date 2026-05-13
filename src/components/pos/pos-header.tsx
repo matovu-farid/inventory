@@ -1,15 +1,20 @@
 import { Search } from "lucide-react"
 import { Input } from "#/components/ui/input"
 import { AvatarMenu } from "#/components/pos/avatar-menu"
+import { OfflineIndicator } from "#/components/pos/offline-indicator"
 
 type Props = {
   query: string
   onQueryChange: (q: string) => void
   userName: string
   userEmail: string
+  isOnline: boolean
+  queued: number
+  failed: number
+  onOpenQueue: () => void
 }
 
-export function PosHeader({ query, onQueryChange, userName, userEmail }: Props) {
+export function PosHeader({ query, onQueryChange, userName, userEmail, isOnline, queued, failed, onOpenQueue }: Props) {
   return (
     <header className="sticky top-0 z-20 flex items-center gap-3 border-b bg-background px-3 py-2">
       <div className="relative flex-1">
@@ -22,6 +27,12 @@ export function PosHeader({ query, onQueryChange, userName, userEmail }: Props) 
           className="h-11 pl-9 text-base"
         />
       </div>
+      <OfflineIndicator
+        isOnline={isOnline}
+        queued={queued}
+        failed={failed}
+        onOpen={onOpenQueue}
+      />
       <AvatarMenu userName={userName} userEmail={userEmail} />
     </header>
   )

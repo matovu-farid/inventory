@@ -12,6 +12,9 @@ import { CartBar } from "#/components/pos/cart-bar"
 import { CartSheet } from "#/components/pos/cart-sheet"
 import { CheckoutSheet } from "#/components/pos/checkout-sheet"
 import { VariantPickerSheet } from "#/components/pos/variant-picker-sheet"
+import { QueuedSalesSheet } from "#/components/pos/queued-sales-sheet"
+import { useSyncEngine } from "#/lib/offline/sync"
+import { useOnline } from "#/lib/offline/use-online"
 import type { AggregatedProduct } from "#/lib/products"
 
 export const Route = createFileRoute("/pos")({
@@ -53,6 +56,10 @@ function PosInner() {
   const [pickerOpen, setPickerOpen] = React.useState(false)
   const [cartOpen, setCartOpen] = React.useState(false)
   const [checkoutOpen, setCheckoutOpen] = React.useState(false)
+  const [queueOpen, setQueueOpen] = React.useState(false)
+
+  const isOnline = useOnline()
+  const { queued, failed, refresh } = useSyncEngine()
 
 
   const aggregated = React.useMemo(() => aggregateStockByArticle(stock), [stock])
@@ -79,7 +86,18 @@ function PosInner() {
 
   return (
     <PosLayout
-      header={<PosHeader query={query} onQueryChange={setQuery} userName={userName} userEmail={userEmail} />}
+      header={
+        <PosHeader
+          query={query}
+          onQueryChange={setQuery}
+          userName={userName}
+          userEmail={userEmail}
+          isOnline={isOnline}
+          queued={queued}
+          failed={failed}
+          onOpenQueue={() => setQueueOpen(true)}
+        />
+      }
       footer={<CartBar onOpenCart={() => setCartOpen(true)} />}
     >
       <ProductGrid products={aggregated} query={query} onPick={handlePick} />
@@ -103,6 +121,11 @@ function PosInner() {
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
         onSaleComplete={handleSaleComplete}
+      />
+      <QueuedSalesSheet
+        open={queueOpen}
+        onOpenChange={setQueueOpen}
+        onSyncComplete={refresh}
       />
     </PosLayout>
   )

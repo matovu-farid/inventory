@@ -1,6 +1,6 @@
 // src/components/pos/checkout-sheet.tsx
 import * as React from "react"
-import { ArrowLeft, ArrowRight, Banknote, Landmark, CheckCircle2, Plus, Printer } from "lucide-react"
+import { ArrowLeft, ArrowRight, Banknote, Landmark, CheckCircle2, Plus, Printer, Clock } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -12,11 +12,12 @@ import { useCart } from "#/components/pos/cart-context"
 import { computeTotal } from "#/lib/pos/cart-reducer"
 import { validateCartForCheckout } from "#/lib/pos/checkout-validate"
 import { formatUgxTotal } from "#/lib/format"
-import { recordSale } from "#/server/functions/shop/sales"
 import { printSaleReceipt } from "#/lib/pos/print-receipt"
 import { cn } from "#/lib/utils"
+import { submitSaleOfflineAware } from "#/lib/offline/offline-record-sale"
 
 type Stage = "payment" | "confirm" | "success"
+type SaleMode = "online" | "queued"
 
 type Props = {
   shopId: string
@@ -31,6 +32,7 @@ export function CheckoutSheet({ shopId, open, onOpenChange, onSaleComplete }: Pr
   const [paymentMethod, setPaymentMethod] = React.useState<"cash" | "bank">("cash")
   const [submitting, setSubmitting] = React.useState(false)
   const [completedSaleId, setCompletedSaleId] = React.useState<string | null>(null)
+  const [saleMode, setSaleMode] = React.useState<SaleMode>("online")
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -52,20 +54,25 @@ export function CheckoutSheet({ shopId, open, onOpenChange, onSaleComplete }: Pr
     setSubmitting(true)
     setErrorMsg(null)
     try {
-      const res = await recordSale({
-        data: {
-          shopId,
-          paymentMethod,
-          items: state.items.map((i) => ({
-            shopStockId: i.shopStockId,
-            quantity: i.qty,
-            unitPriceUgx: i.unitPriceUgx,
-            belowMinimumReason: i.belowMinimumReason.trim() || undefined,
-          })),
-        },
-      })
-      setCompletedSaleId(res.id ?? "unknown")
-      setStage("success")
+      const input = {
+        shopId,
+        paymentMethod,
+        items: state.items.map((i) => ({
+          shopStockId: i.shopStockId,
+          quantity: i.qty,
+          unitPriceUgx: i.unitPriceUgx,
+          belowMinimumReason: i.belowMinimumReason.trim() || undefined,
+        })),
+      }
+      const result = await submitSaleOfflineAware(input)
+      if (result.ok) {
+        setSaleMode(result.mode)
+        setCompletedSaleId(result.mode === "online" ? result.saleId : result.localId)
+        setStage("success")
+      } else {
+        // Business/validation error — surface message, stay on confirm
+        setErrorMsg(result.reason)
+      }
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Failed to record sale")
     } finally {
@@ -159,12 +166,31 @@ export function CheckoutSheet({ shopId, open, onOpenChange, onSaleComplete }: Pr
 
         {stage === "success" && (
           <div className="space-y-4 px-4 py-6 text-center">
-            <div className="mx-auto grid size-16 place-items-center rounded-full bg-green-600 text-white">
-              <CheckCircle2 className="size-9" />
+            <div
+              className={cn(
+                "mx-auto grid size-16 place-items-center rounded-full text-white",
+                saleMode === "queued" ? "bg-blue-500" : "bg-green-600",
+              )}
+            >
+              {saleMode === "queued" ? (
+                <Clock className="size-9" />
+              ) : (
+                <CheckCircle2 className="size-9" />
+              )}
             </div>
             <div>
-              <p className="text-lg font-bold">Sale recorded</p>
-              <p className="font-mono text-xs text-muted-foreground">#{completedSaleId?.slice(0, 8) ?? "—"}</p>
+              <p className="text-lg font-bold">
+                {saleMode === "queued" ? "Sale queued (offline)" : "Sale recorded"}
+              </p>
+              {saleMode === "queued" ? (
+                <p className="text-xs text-muted-foreground">
+                  Will sync automatically when connectivity returns
+                </p>
+              ) : (
+                <p className="font-mono text-xs text-muted-foreground">
+                  #{completedSaleId?.slice(0, 8) ?? "—"}
+                </p>
+              )}
             </div>
             <div className="space-y-1 rounded-lg border bg-muted/30 p-3 text-left text-sm">
               <div className="flex justify-between">
@@ -181,21 +207,28 @@ export function CheckoutSheet({ shopId, open, onOpenChange, onSaleComplete }: Pr
               </div>
             </div>
             <div className="space-y-2">
-              <Button
-                variant="outline"
-                className="h-12 w-full"
-                disabled={!completedSaleId}
-                onClick={async () => {
-                  if (!completedSaleId) return
-                  try {
-                    await printSaleReceipt(completedSaleId)
-                  } catch (e) {
-                    setErrorMsg(e instanceof Error ? e.message : "Could not open receipt")
-                  }
-                }}
-              >
-                <Printer className="mr-2 size-4" /> Print receipt
-              </Button>
+              {saleMode === "online" ? (
+                <Button
+                  variant="outline"
+                  className="h-12 w-full"
+                  disabled={!completedSaleId}
+                  onClick={async () => {
+                    if (!completedSaleId) return
+                    try {
+                      await printSaleReceipt(completedSaleId)
+                    } catch (e) {
+                      setErrorMsg(e instanceof Error ? e.message : "Could not open receipt")
+                    }
+                  }}
+                >
+                  <Printer className="mr-2 size-4" /> Print receipt
+                </Button>
+              ) : (
+                <div className="flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                  <Clock className="size-3.5 shrink-0" />
+                  Print receipt available after sync
+                </div>
+              )}
               <Button className="h-12 w-full" onClick={handleNewSale}>
                 <Plus className="mr-2 size-4" /> New sale
               </Button>
