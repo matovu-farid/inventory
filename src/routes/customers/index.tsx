@@ -6,20 +6,13 @@ import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { FieldLabel } from "#/components/ui/field-label"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "#/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table"
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+} from "#/components/ui/responsive-dialog"
+import { DialogTrigger } from "#/components/ui/dialog"
+import { ResponsiveTable } from "#/components/ui/responsive-table"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import {
   listCustomers,
@@ -145,36 +138,33 @@ function CustomersPage() {
           <CardTitle>{customers.length} customer{customers.length === 1 ? "" : "s"}</CardTitle>
         </CardHeader>
         <CardContent>
-          {customers.length === 0 ? (
-            <p className="text-muted-foreground py-8 text-center">
-              No customers yet.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead>Added</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customers.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell>{c.phone ?? "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {c.notes ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(c.createdAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <ResponsiveTable
+            data={customers}
+            getRowKey={(c) => c.id}
+            columns={[
+              {
+                header: "Name",
+                cell: (c) => <span className="font-medium">{c.name}</span>,
+              },
+              {
+                header: "Phone",
+                cell: (c) => c.phone ?? "—",
+              },
+              {
+                header: "Notes",
+                cell: (c) => (
+                  <span className="text-muted-foreground">{c.notes ?? "—"}</span>
+                ),
+                hideOnMobile: true,
+              },
+              {
+                header: "Added",
+                cell: (c) => new Date(c.createdAt).toLocaleDateString(),
+                hideOnMobile: true,
+              },
+            ]}
+            emptyMessage="No customers yet."
+          />
         </CardContent>
       </Card>
     </div>
