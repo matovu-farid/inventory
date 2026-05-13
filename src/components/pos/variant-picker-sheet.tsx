@@ -44,6 +44,7 @@ export function VariantPickerSheet({ product, stock, open, onOpenChange }: Props
   const [price, setPrice] = React.useState("")
   const [reason, setReason] = React.useState("")
 
+  // All useEffect hooks must be called unconditionally before any early returns.
   React.useEffect(() => {
     if (!open) return
     setStep(1)
@@ -54,26 +55,29 @@ export function VariantPickerSheet({ product, stock, open, onOpenChange }: Props
     setReason("")
   }, [open, product?.product.articleNumber])
 
-  if (!product) return null
-
-  const availableColors = product.colors
-  const availableSizes = product.product.sizes
-  const variantRow = (cid: string | null, sz: string | null) =>
-    cid && sz
-      ? stock.find((s) => s.productColorId === cid && s.size === sz) ?? null
-      : null
-
+  // currentRow is derived below, but we need the id for the effect dep.
+  // Compute it eagerly so we can reference it before the early return.
+  const variantRow = React.useCallback(
+    (cid: string | null, sz: string | null) =>
+      cid && sz
+        ? stock.find((s) => s.productColorId === cid && s.size === sz) ?? null
+        : null,
+    [stock],
+  )
   const currentRow = variantRow(colorId, size)
-  const stockForColor = (cid: string) => stock.filter((s) => s.productColorId === cid && s.quantityOnHand > 0)
-  const sizeAvailableForColor = (cid: string, sz: string) => {
-    const r = stock.find((s) => s.productColorId === cid && s.size === sz)
-    return r ? r.quantityOnHand > 0 : false
-  }
 
   React.useEffect(() => {
     if (!currentRow) return
     if (price === "") setPrice(currentRow.minimumSellPriceUgx)
   }, [currentRow?.id])
+
+  const availableColors = product?.colors ?? []
+  const availableSizes = product?.product.sizes ?? []
+  const stockForColor = (cid: string) => stock.filter((s) => s.productColorId === cid && s.quantityOnHand > 0)
+  const sizeAvailableForColor = (cid: string, sz: string) => {
+    const r = stock.find((s) => s.productColorId === cid && s.size === sz)
+    return r ? r.quantityOnHand > 0 : false
+  }
 
   function pickColor(cid: string) {
     setColorId(cid)
@@ -118,7 +122,7 @@ export function VariantPickerSheet({ product, stock, open, onOpenChange }: Props
       <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>
-            {product.product.name} · {product.product.articleNumber}
+            {product ? `${product.product.name} · ${product.product.articleNumber}` : ""}
           </SheetTitle>
           <p className="text-xs text-muted-foreground">Step {step} of 3</p>
         </SheetHeader>

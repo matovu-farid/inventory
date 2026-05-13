@@ -8,6 +8,7 @@ import {
   createRootRouteWithContext,
   useRouter,
   useMatches,
+  useLocation,
 } from "@tanstack/react-router"
 
 import { TooltipProvider } from "#/components/ui/tooltip"
@@ -82,30 +83,29 @@ function RootLayout() {
   const isPublicPage = matches.some((m) => publicPaths.has(m.fullPath))
   const needsRedirect = !session && !isPublicPage
 
-  useEffect(() => {
-    if (needsRedirect) {
-      router.navigate({ to: "/login" })
-    }
-  }, [needsRedirect, router])
-
-  if (needsRedirect) {
-    return null
-  }
-
+  const location = useLocation()
   const userRoleForRedirect = (session?.user as { role?: string } | undefined)?.role ?? ""
-  const isOnPosPath = matches.some((m) => {
-    const p = m.pathname ?? ""
-    return p === "/pos" || p.startsWith("/pos/")
-  })
+  const isOnPosPath = location.pathname === "/pos" || location.pathname.startsWith("/pos/")
   const needsPosRedirect =
     !!session &&
     userRoleForRedirect === "sales" &&
     !isPublicPage &&
     !isOnPosPath
 
+  // All useEffect hooks must be called unconditionally before any early returns
+  useEffect(() => {
+    if (needsRedirect) {
+      router.navigate({ to: "/login" })
+    }
+  }, [needsRedirect, router])
+
   useEffect(() => {
     if (needsPosRedirect) router.navigate({ to: "/pos" })
   }, [needsPosRedirect, router])
+
+  if (needsRedirect) {
+    return null
+  }
 
   if (needsPosRedirect) return null
 

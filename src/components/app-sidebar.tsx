@@ -479,7 +479,7 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
         )}
 
         {/* ── Navigation ── */}
-        <ScrollArea className="flex-1 py-2">
+        <ScrollArea className="min-h-0 flex-1 py-2">
           <SidebarNav
             collapsed={collapsed}
             groups={groups}
@@ -491,7 +491,7 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
         {userRole !== "sales" && (
           <div
             className={cn(
-              "flex flex-col gap-0.5 border-t border-sidebar-border",
+              "shrink-0 flex flex-col gap-0.5 border-t border-sidebar-border",
               collapsed ? "px-2 py-2" : "px-3 py-2",
             )}
           >
@@ -503,7 +503,7 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
         )}
 
         {/* ── User ── */}
-        <div className="border-t border-sidebar-border">
+        <div className="shrink-0 border-t border-sidebar-border">
           <UserFooter
             userName={userName}
             userRole={userRole}
@@ -545,7 +545,7 @@ function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppS
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="w-[280px] p-0 bg-sidebar border-r-0"
+        className="flex w-[280px] flex-col p-0 bg-sidebar border-r-0"
         showCloseButton={false}
       >
         <SheetTitle className="sr-only">Navigation</SheetTitle>
@@ -555,7 +555,7 @@ function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppS
           to="/"
           aria-label="Go to dashboard"
           onClick={() => setOpen(false)}
-          className="flex h-14 items-center gap-2.5 px-5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-14 shrink-0 items-center gap-2.5 px-5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Logo className="size-8" />
           <span className="text-[15px] font-semibold tracking-[-0.01em] text-sidebar-foreground">
@@ -564,7 +564,7 @@ function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppS
         </Link>
 
         {/* Navigation */}
-        <ScrollArea className="flex-1 py-2">
+        <ScrollArea className="min-h-0 flex-1 py-2">
           <SidebarNav
             collapsed={false}
             onItemClick={() => setOpen(false)}
@@ -575,7 +575,7 @@ function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppS
 
         {/* Admin */}
         {userRole !== "sales" && (
-          <div className="flex flex-col gap-0.5 border-t border-sidebar-border px-3 py-2">
+          <div className="shrink-0 flex flex-col gap-0.5 border-t border-sidebar-border px-3 py-2">
             {userRole === "admin" && (
               <NavLink
                 item={usersItem}
@@ -593,7 +593,7 @@ function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppS
         )}
 
         {/* User */}
-        <div className="border-t border-sidebar-border">
+        <div className="shrink-0 border-t border-sidebar-border">
           <UserFooter
             userName={userName}
             userRole={userRole}

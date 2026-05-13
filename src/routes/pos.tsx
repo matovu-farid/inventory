@@ -51,6 +51,7 @@ function PosInner() {
   const [cartOpen, setCartOpen] = React.useState(false)
   const [checkoutOpen, setCheckoutOpen] = React.useState(false)
 
+
   const aggregated = React.useMemo(() => aggregateStockByArticle(stock), [stock])
   const stockRows = React.useMemo(
     () =>

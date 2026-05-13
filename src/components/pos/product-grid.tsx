@@ -39,6 +39,7 @@ export function ProductGrid({ products, query, onPick }: Props) {
           <li key={p.product.articleNumber}>
             <button
               type="button"
+              data-testid="product-card"
               onClick={() => onPick(p)}
               className="group block w-full overflow-hidden rounded-xl border bg-card text-left transition active:scale-[0.98]"
             >
