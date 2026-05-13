@@ -19,20 +19,13 @@ import {
   SelectValue,
 } from "#/components/ui/select"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "#/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table"
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+} from "#/components/ui/responsive-dialog"
+import { DialogTrigger } from "#/components/ui/dialog"
+import { ResponsiveTable } from "#/components/ui/responsive-table"
 import { Plus, Trash2, ArrowRight } from "lucide-react"
 import {
   getSupplyRoute,
@@ -247,95 +240,111 @@ function RouteDetailPage() {
             </Dialog>
           </div>
 
-          {route.items.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No items added yet.</p>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>
-                      <span className="inline-flex items-center gap-1.5">
-                        Article <InfoTip term="col.articleNumber" />
-                      </span>
-                    </TableHead>
-                    <TableHead>Color · Size</TableHead>
-                    <TableHead>Supplier</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
-                    <TableHead className="text-right">Unit Price</TableHead>
-                    <TableHead className="text-right">
-                      <span className="inline-flex items-center gap-1.5">
-                        Total (Foreign) <InfoTip term="col.totalForeign" />
-                      </span>
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <span className="inline-flex items-center gap-1.5">
-                        Total (USD) <InfoTip term="col.totalUsd" />
-                      </span>
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <span className="inline-flex items-center gap-1.5">
-                        Total (UGX) <InfoTip term="col.totalUgx" />
-                      </span>
-                    </TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {route.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">
-                        {item.productColor.product.name}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground font-mono text-xs">
-                        {item.productColor.product.articleNumber}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span
-                            className="inline-block size-3 rounded-full border"
-                            style={{ backgroundColor: item.productColor.colorHex }}
-                            aria-hidden
-                          />
-                          {item.productColor.colorName} · {item.size}
-                        </span>
-                      </TableCell>
-                      <TableCell>{item.supplier.name}</TableCell>
-                      <TableCell className="text-right">{item.quantity}</TableCell>
-                      <TableCell className="text-right font-mono">
-                        {new BigNumber(item.unitPriceForeign).toFormat(2)}{" "}
-                        <span className="text-muted-foreground text-xs">
-                          {item.foreignCurrency}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {new BigNumber(item.totalAmountForeign).toFormat(2)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {item.totalAmountUsd
-                          ? new BigNumber(item.totalAmountUsd).toFormat(2)
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-semibold">
-                        {roundUgxBankers50(item.totalCostUgx).toFormat(0)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => handleDeleteItem(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <ResponsiveTable
+            data={route.items}
+            getRowKey={(item) => item.id}
+            emptyMessage="No items added yet."
+            columns={[
+              {
+                header: "Product",
+                cell: (item) => (
+                  <span className="font-medium">
+                    {item.productColor.product.name}
+                  </span>
+                ),
+              },
+              {
+                header: "Article",
+                hideOnMobile: true,
+                cell: (item) => (
+                  <span className="text-muted-foreground font-mono text-xs">
+                    {item.productColor.product.articleNumber}
+                    <InfoTip term="col.articleNumber" />
+                  </span>
+                ),
+              },
+              {
+                header: "Color · Size",
+                cell: (item) => (
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <span
+                      className="inline-block size-3 rounded-full border"
+                      style={{ backgroundColor: item.productColor.colorHex }}
+                      aria-hidden
+                    />
+                    {item.productColor.colorName} · {item.size}
+                  </span>
+                ),
+              },
+              {
+                header: "Supplier",
+                hideOnMobile: true,
+                cell: (item) => item.supplier.name,
+              },
+              {
+                header: "Qty",
+                align: "right",
+                cell: (item) => item.quantity,
+              },
+              {
+                header: "Unit Price",
+                align: "right",
+                hideOnMobile: true,
+                cell: (item) => (
+                  <span className="font-mono">
+                    {new BigNumber(item.unitPriceForeign).toFormat(2)}{" "}
+                    <span className="text-muted-foreground text-xs">
+                      {item.foreignCurrency}
+                    </span>
+                  </span>
+                ),
+              },
+              {
+                header: "Total (Foreign)",
+                align: "right",
+                hideOnMobile: true,
+                cell: (item) => (
+                  <span className="font-mono">
+                    {new BigNumber(item.totalAmountForeign).toFormat(2)}
+                  </span>
+                ),
+              },
+              {
+                header: "Total (USD)",
+                align: "right",
+                hideOnMobile: true,
+                cell: (item) => (
+                  <span className="font-mono">
+                    {item.totalAmountUsd
+                      ? new BigNumber(item.totalAmountUsd).toFormat(2)
+                      : "-"}
+                  </span>
+                ),
+              },
+              {
+                header: "Total (UGX)",
+                align: "right",
+                cell: (item) => (
+                  <span className="font-mono font-semibold">
+                    {roundUgxBankers50(item.totalCostUgx).toFormat(0)}
+                  </span>
+                ),
+              },
+              {
+                header: "",
+                cell: (item) => (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive"
+                    onClick={() => handleDeleteItem(item.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                ),
+              },
+            ]}
+          />
         </div>
 
         <Separator />
@@ -369,47 +378,45 @@ function RouteDetailPage() {
             </Dialog>
           </div>
 
-          {route.expenses.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No expenses recorded yet.
-            </p>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-right">Amount (UGX)</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {route.expenses.map((exp) => (
-                    <TableRow key={exp.id}>
-                      <TableCell>
-                        <Badge variant="outline">{exp.category}</Badge>
-                      </TableCell>
-                      <TableCell>{exp.description || "-"}</TableCell>
-                      <TableCell className="text-right font-mono font-semibold">
-                        {roundUgxFloor50(exp.amount).toFormat(0)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => handleDeleteExpense(exp.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <ResponsiveTable
+            data={route.expenses}
+            getRowKey={(exp) => exp.id}
+            emptyMessage="No expenses recorded yet."
+            columns={[
+              {
+                header: "Category",
+                cell: (exp) => (
+                  <Badge variant="outline">{exp.category}</Badge>
+                ),
+              },
+              {
+                header: "Description",
+                cell: (exp) => exp.description || "-",
+              },
+              {
+                header: "Amount (UGX)",
+                align: "right",
+                cell: (exp) => (
+                  <span className="font-mono font-semibold">
+                    {roundUgxFloor50(exp.amount).toFormat(0)}
+                  </span>
+                ),
+              },
+              {
+                header: "",
+                cell: (exp) => (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive"
+                    onClick={() => handleDeleteExpense(exp.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                ),
+              },
+            ]}
+          />
         </div>
       </PagePrerequisites>
     </div>

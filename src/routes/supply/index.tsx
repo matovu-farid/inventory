@@ -11,20 +11,13 @@ import { Textarea } from "#/components/ui/textarea"
 import { Badge } from "#/components/ui/badge"
 import { DatePicker } from "#/components/ui/date-picker"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "#/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table"
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+} from "#/components/ui/responsive-dialog"
+import { DialogTrigger } from "#/components/ui/dialog"
+import { ResponsiveTable } from "#/components/ui/responsive-table"
 import { Plus, ArrowRight } from "lucide-react"
 import {
   listSupplyRoutes,
@@ -85,82 +78,86 @@ function SupplyRoutesPage() {
 
       <PagePrerequisites result={prerequisites}>
 
-        {routes.length === 0 ? (
-          <div className="text-muted-foreground py-12 text-center">
-            No supply routes yet. Create your first route to start tracking
-            procurement.
-          </div>
-        ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Route</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Suppliers</TableHead>
-                  <TableHead className="text-right">Items</TableHead>
-                  <TableHead className="text-right">Total Cost (UGX)</TableHead>
-                  <TableHead className="text-right">Expenses (UGX)</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {routes.map((r) => {
-                  const totalCost = r.items.reduce(
-                    (sum, i) => sum.plus(i.totalCostUgx),
-                    new BigNumber(0),
-                  )
-                  const totalExpenses = r.expenses.reduce(
-                    (sum, e) => sum.plus(e.amount),
-                    new BigNumber(0),
-                  )
-                  return (
-                    <TableRow key={r.id}>
-                      <TableCell>
-                        <div>
-                          <span className="font-medium">{r.name}</span>
-                          {r.departureDate && (
-                            <span className="text-muted-foreground ml-2 text-xs">
-                              {r.departureDate}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={STATUS_COLORS[r.status] ?? "outline"}>
-                          {r.status.replace("_", " ")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {r.suppliers
-                          .map((s) => s.supplier.name)
-                          .join(", ") || "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {r.items.length}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {roundUgxBankers50(totalCost).toFormat(0)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {roundUgxBankers50(totalExpenses).toFormat(0)}
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          to="/supply/$routeId"
-                          params={{ routeId: r.id }}
-                          className="text-primary hover:underline inline-flex items-center gap-1 text-sm"
-                        >
-                          View <ArrowRight className="h-3 w-3" />
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        <ResponsiveTable
+          data={routes}
+          getRowKey={(r) => r.id}
+          emptyMessage="No supply routes yet. Create your first route to start tracking procurement."
+          columns={[
+            {
+              header: "Route",
+              cell: (r) => (
+                <div>
+                  <span className="font-medium">{r.name}</span>
+                  {r.departureDate && (
+                    <span className="text-muted-foreground ml-2 text-xs">
+                      {r.departureDate}
+                    </span>
+                  )}
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              cell: (r) => (
+                <Badge variant={STATUS_COLORS[r.status] ?? "outline"}>
+                  {r.status.replace("_", " ")}
+                </Badge>
+              ),
+            },
+            {
+              header: "Suppliers",
+              cell: (r) =>
+                r.suppliers.map((s) => s.supplier.name).join(", ") || "-",
+              hideOnMobile: true,
+            },
+            {
+              header: "Items",
+              align: "right",
+              cell: (r) => r.items.length,
+            },
+            {
+              header: "Total Cost (UGX)",
+              align: "right",
+              cell: (r) => (
+                <span className="font-mono">
+                  {roundUgxBankers50(
+                    r.items.reduce(
+                      (sum, i) => sum.plus(i.totalCostUgx),
+                      new BigNumber(0),
+                    ),
+                  ).toFormat(0)}
+                </span>
+              ),
+            },
+            {
+              header: "Expenses (UGX)",
+              align: "right",
+              hideOnMobile: true,
+              cell: (r) => (
+                <span className="font-mono">
+                  {roundUgxBankers50(
+                    r.expenses.reduce(
+                      (sum, e) => sum.plus(e.amount),
+                      new BigNumber(0),
+                    ),
+                  ).toFormat(0)}
+                </span>
+              ),
+            },
+            {
+              header: "",
+              cell: (r) => (
+                <Link
+                  to="/supply/$routeId"
+                  params={{ routeId: r.id }}
+                  className="text-primary hover:underline inline-flex items-center gap-1 text-sm"
+                >
+                  View <ArrowRight className="h-3 w-3" />
+                </Link>
+              ),
+            },
+          ]}
+        />
       </PagePrerequisites>
     </div>
   )

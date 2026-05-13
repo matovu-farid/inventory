@@ -2,7 +2,6 @@ import { useEffect, useState } from "react"
 import { Badge } from "#/components/ui/badge"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
-import { InfoTip } from "#/components/ui/info-tip"
 import { Label } from "#/components/ui/label"
 import { Textarea } from "#/components/ui/textarea"
 import {
@@ -12,14 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "#/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table"
+import { ResponsiveTable } from "#/components/ui/responsive-table"
 import { confirmTransferReceipt } from "#/server/functions/store/transfers"
 
 export interface ReceivableTransfer {
@@ -138,67 +130,62 @@ export function ReceiveTransferForm({
 
       {transfer && (
         <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead className="text-right">
-                  <span className="inline-flex items-center gap-1.5 justify-end">
-                    Dispatched <InfoTip term="col.dispatched" />
-                  </span>
-                </TableHead>
-                <TableHead className="text-right">
-                  <span className="inline-flex items-center gap-1.5 justify-end">
-                    Received <InfoTip term="col.received" />
-                  </span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transfer.items.map((item) => {
-                const received = receivedQtys[item.id] ?? item.quantityDispatched
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex flex-col">
-                        <span>{item.storeStockItem.productColor.product.name}</span>
-                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-                          <span
-                            className="size-3 rounded-full border"
-                            style={{
-                              backgroundColor:
-                                item.storeStockItem.productColor.colorHex,
-                            }}
-                            aria-hidden
-                          />
-                          {item.storeStockItem.productColor.colorName} ·{" "}
-                          {item.storeStockItem.size}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {item.quantityDispatched}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Input
-                        type="number"
-                        min={0}
-                        max={item.quantityDispatched}
-                        className="w-20 ml-auto text-right"
-                        value={received}
-                        onChange={(e) =>
-                          setReceivedQtys((q) => ({
-                            ...q,
-                            [item.id]: Number(e.target.value),
-                          }))
-                        }
+          <ResponsiveTable
+            data={transfer.items}
+            getRowKey={(item) => item.id}
+            columns={[
+              {
+                header: "Product",
+                cell: (item) => (
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {item.storeStockItem.productColor.product.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+                      <span
+                        className="size-3 rounded-full border"
+                        style={{
+                          backgroundColor:
+                            item.storeStockItem.productColor.colorHex,
+                        }}
+                        aria-hidden
                       />
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+                      {item.storeStockItem.productColor.colorName} ·{" "}
+                      {item.storeStockItem.size}
+                    </span>
+                  </div>
+                ),
+              },
+              {
+                header: "Dispatched",
+                align: "right",
+                cell: (item) => item.quantityDispatched,
+              },
+              {
+                header: "Received",
+                align: "right",
+                cell: (item) => {
+                  const received =
+                    receivedQtys[item.id] ?? item.quantityDispatched
+                  return (
+                    <Input
+                      type="number"
+                      min={0}
+                      max={item.quantityDispatched}
+                      className="h-11 w-20 ml-auto text-right text-base"
+                      value={received}
+                      onChange={(e) =>
+                        setReceivedQtys((q) => ({
+                          ...q,
+                          [item.id]: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  )
+                },
+              },
+            ]}
+          />
 
           {discrepantItems.length > 0 && (
             <div className="space-y-3 rounded-md border border-amber-300/60 bg-amber-50/60 p-4 dark:border-amber-400/30 dark:bg-amber-950/20">
@@ -235,13 +222,15 @@ export function ReceiveTransferForm({
             </div>
           )}
 
-          <Button
-            className="w-full"
-            onClick={handleConfirm}
-            disabled={pending || !allDiscrepancyNotesFilled}
-          >
-            {pending ? "Confirming..." : "Confirm Receipt at Shop"}
-          </Button>
+          <div className="sticky bottom-0 -mx-6 -mb-6 border-t bg-background px-6 py-3 md:static md:mx-0 md:mb-0 md:border-t-0 md:bg-transparent md:p-0">
+            <Button
+              className="h-12 w-full md:h-10"
+              onClick={handleConfirm}
+              disabled={pending || !allDiscrepancyNotesFilled}
+            >
+              {pending ? "Confirming..." : "Confirm Receipt at Shop"}
+            </Button>
+          </div>
         </>
       )}
     </div>

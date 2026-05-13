@@ -19,20 +19,13 @@ import {
   SelectValue,
 } from "#/components/ui/select"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "#/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table"
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+} from "#/components/ui/responsive-dialog"
+import { DialogTrigger } from "#/components/ui/dialog"
+import { ResponsiveTable } from "#/components/ui/responsive-table"
 import { Plus, PackageCheck } from "lucide-react"
 import {
   listTransfers,
@@ -134,55 +127,50 @@ function TransfersPage() {
         <PrereqBanner items={prerequisites.missing} />
       )}
 
-      {transfers.length === 0 ? (
-        <p className="text-muted-foreground py-8 text-center">
-          No transfers yet. Create one to move goods from the warehouse to a
-          shop.
-        </p>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Shop</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Items</TableHead>
-                <TableHead className="text-right">Total (UGX)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transfers.map((t) => {
-                const total = t.items.reduce(
-                  (s, i) => s.plus(i.totalPriceUgx),
-                  new BigNumber(0),
-                )
-                return (
-                  <TableRow key={t.id}>
-                    <TableCell>
-                      {new Date(t.transferDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {t.shop.name}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_COLORS[t.status] ?? "outline"}>
-                        {t.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {t.items.length}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {roundUgxBankers50(total).toFormat(0)}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <ResponsiveTable
+        data={transfers}
+        getRowKey={(t) => t.id}
+        emptyMessage="No transfers yet. Create one to move goods from the warehouse to a shop."
+        columns={[
+          {
+            header: "Date",
+            cell: (t) => new Date(t.transferDate).toLocaleDateString(),
+          },
+          {
+            header: "Shop",
+            cell: (t) => (
+              <span className="font-medium">{t.shop.name}</span>
+            ),
+          },
+          {
+            header: "Status",
+            cell: (t) => (
+              <Badge variant={STATUS_COLORS[t.status] ?? "outline"}>
+                {t.status}
+              </Badge>
+            ),
+          },
+          {
+            header: "Items",
+            align: "right",
+            cell: (t) => t.items.length,
+          },
+          {
+            header: "Total (UGX)",
+            align: "right",
+            cell: (t) => (
+              <span className="font-mono">
+                {roundUgxBankers50(
+                  t.items.reduce(
+                    (s, i) => s.plus(i.totalPriceUgx),
+                    new BigNumber(0),
+                  ),
+                ).toFormat(0)}
+              </span>
+            ),
+          },
+        ]}
+      />
     </div>
   )
 }

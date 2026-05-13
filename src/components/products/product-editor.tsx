@@ -38,15 +38,15 @@ export function ProductEditor({ onCreated }: Props) {
     <div className="space-y-4">
       <div className="space-y-1">
         <label className="text-sm font-medium">Article number</label>
-        <Input value={articleNumber} onChange={(e) => setArticleNumber(e.target.value)} placeholder="TR-001" />
+        <Input className="h-11 text-base" value={articleNumber} onChange={(e) => setArticleNumber(e.target.value)} placeholder="TR-001" />
       </div>
       <div className="space-y-1">
         <label className="text-sm font-medium">Product name</label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Crew-neck T-shirt" />
+        <Input className="h-11 text-base" value={name} onChange={(e) => setName(e.target.value)} placeholder="Crew-neck T-shirt" />
       </div>
       <div className="space-y-1">
         <label className="text-sm font-medium">Description (optional)</label>
-        <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
+        <Textarea className="text-base" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Sizes</label>
@@ -62,6 +62,7 @@ export function ProductEditor({ onCreated }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <Input
+            className="h-11 text-base"
             value={sizeDraft}
             onChange={(e) => setSizeDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSize(sizeDraft) } }}

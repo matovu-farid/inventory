@@ -14,13 +14,13 @@ import {
   SelectValue,
 } from "#/components/ui/select"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "#/components/ui/dialog"
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+} from "#/components/ui/responsive-dialog"
 import {
   addStoreOpeningBalance,
   addShopOpeningBalance,
@@ -302,14 +302,16 @@ export function OpeningBalanceForm({
                         <Plus className="mr-1 size-3" /> Add color
                       </Button>
                     </div>
-                    <VariantGrid
-                      sizes={b.product.sizes}
-                      colors={b.product.colors}
-                      quantities={b.quantities}
-                      onChange={(next) =>
-                        updateBlock(b.id, { quantities: next })
-                      }
-                    />
+                    <div className="-mx-3 overflow-x-auto px-3 md:mx-0 md:px-0">
+                      <VariantGrid
+                        sizes={b.product.sizes}
+                        colors={b.product.colors}
+                        quantities={b.quantities}
+                        onChange={(next) =>
+                          updateBlock(b.id, { quantities: next })
+                        }
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -412,8 +414,9 @@ export function OpeningBalanceForm({
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="sticky bottom-0 -mx-6 -mb-6 border-t bg-background px-6 py-3 md:static md:mx-0 md:mb-0 md:border-t-0 md:bg-transparent md:p-0 md:flex md:justify-end">
           <Button
+            className="h-12 w-full md:h-10 md:w-auto"
             disabled={!canSubmit || pending}
             onClick={() => setConfirmOpen(true)}
           >
