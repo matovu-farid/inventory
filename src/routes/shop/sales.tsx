@@ -53,6 +53,7 @@ function SalesPage() {
           }
         }
       }>
+      soldByUser: { id: string; name: string } | null
     }>
   >([])
 
@@ -159,6 +160,11 @@ function SalesPage() {
               {
                 header: "Payment",
                 cell: (s) => <Badge variant="outline">{s.paymentMethod}</Badge>,
+              },
+              {
+                header: "Clerk",
+                cell: (s) => s.soldByUser?.name ?? "—",
+                hideOnMobile: true,
               },
               {
                 header: "Amount (UGX)",

@@ -73,6 +73,7 @@ export const listShopSales = createServerFn()
             },
           },
         },
+        soldByUser: { columns: { id: true, name: true } },
       },
       orderBy: (s, { desc }) => [desc(s.saleDate)],
       limit: 100,

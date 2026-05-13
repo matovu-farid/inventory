@@ -18,13 +18,16 @@ export const Route = createFileRoute("/pos")({
   beforeLoad: ({ context }) => requireUiPermission(context, "pos.view"),
   loader: async () => {
     const session = await getSession()
-    const user = session?.user as { name?: string; email?: string; shopId?: string | null } | undefined
+    const user = session?.user as
+      | { id?: string; name?: string; email?: string; shopId?: string | null }
+      | undefined
     if (!user?.shopId) {
       throw new Error("No shop assigned to this user. Ask an admin to assign you a shop.")
     }
     const stock = await getShopStock({ data: { shopId: user.shopId } })
     return {
       shopId: user.shopId,
+      userId: user.id ?? "anon",
       userName: user.name ?? "User",
       userEmail: user.email ?? "",
       stock,
@@ -34,9 +37,9 @@ export const Route = createFileRoute("/pos")({
 })
 
 function PosPage() {
-  const { shopId } = Route.useLoaderData()
+  const { shopId, userId } = Route.useLoaderData()
   return (
-    <CartProvider storageKey={`pos-cart:${shopId}`}>
+    <CartProvider storageKey={`pos-cart:${userId}:${shopId}`}>
       <PosInner />
     </CartProvider>
   )
