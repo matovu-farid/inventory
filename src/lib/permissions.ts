@@ -27,6 +27,7 @@ export type Permission =
   | "users.manage"
   | "products.view"
   | "products.manage"
+  | "pos.view"
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   admin: [
@@ -43,6 +44,7 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "users.manage",
     "products.view",
     "products.manage",
+    "pos.view",
   ],
   supervisor: [
     "warehouse.transfers",
@@ -54,8 +56,9 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "reports.view",
     "products.view",
     "products.manage",
+    "pos.view",
   ],
-  sales: ["shop.view", "sales.view", "products.view"],
+  sales: ["shop.view", "sales.view", "products.view", "pos.view"],
 }
 
 // Map each Permission → server files that enforce it via `requireRole`.
@@ -97,6 +100,7 @@ export const PERMISSION_SERVER_GATES: Record<Permission, readonly string[]> = {
     "src/server/functions/products/colors.ts",
     "src/server/functions/products/uploads.ts",
   ],
+  "pos.view": ["src/server/functions/shop/sales.ts"],
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
