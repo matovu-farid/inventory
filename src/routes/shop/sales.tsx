@@ -11,14 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "#/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table"
+import { ResponsiveTable } from "#/components/ui/responsive-table"
 import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
 import { listShopsWithSales, listShopSales } from "#/server/functions/shop/sales"
 import { getShopSalesPrereqs } from "#/server/functions/prereqs/shop"
@@ -129,75 +122,60 @@ function SalesPage() {
           <p className="text-muted-foreground py-8 text-center">
             No sales recorded yet.
           </p>
-        ) : sales.length === 0 ? (
-          <p className="text-muted-foreground py-8 text-center">
-            No sales recorded yet for this shop.
-          </p>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead className="text-right">Amount (UGX)</TableHead>
-                  <TableHead>Flags</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sales.map((sale) => {
-                  const hasBelowMin = sale.items.some((i) => i.isBelowMinimum)
-                  return (
-                    <TableRow key={sale.id}>
-                      <TableCell>
-                        {new Date(sale.saleDate).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          {sale.items.map((i, idx) => {
-                            const pc = i.shopStockItem.productColor
-                            return (
-                              <div
-                                key={idx}
-                                className="flex items-center gap-2 text-sm"
-                              >
-                                <span className="font-mono">
-                                  {i.quantity}x {pc.product.articleNumber}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  {pc.product.name}
-                                </span>
-                                <span
-                                  className="inline-block h-3 w-3 rounded-full border"
-                                  style={{ backgroundColor: pc.colorHex }}
-                                  aria-hidden
-                                />
-                                <span className="text-muted-foreground text-xs">
-                                  {pc.colorName} / {i.shopStockItem.size}
-                                </span>
-                              </div>
-                            )
-                          })}
+          <ResponsiveTable
+            data={sales}
+            getRowKey={(s) => s.id}
+            columns={[
+              {
+                header: "Date",
+                cell: (s) => new Date(s.saleDate).toLocaleString(),
+              },
+              {
+                header: "Items",
+                align: "left",
+                cell: (s) => (
+                  <div className="flex flex-col gap-1">
+                    {s.items.map((i, idx) => {
+                      const pc = i.shopStockItem.productColor
+                      return (
+                        <div key={idx} className="flex items-center gap-2 text-sm">
+                          <span className="font-mono">{i.quantity}x {pc.product.articleNumber}</span>
+                          <span className="text-muted-foreground">{pc.product.name}</span>
+                          <span
+                            className="inline-block h-3 w-3 rounded-full border"
+                            style={{ backgroundColor: pc.colorHex }}
+                            aria-hidden
+                          />
+                          <span className="text-muted-foreground text-xs">
+                            {pc.colorName} / {i.shopStockItem.size}
+                          </span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{sale.paymentMethod}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-semibold">
-                        {roundUgxFloor50(sale.totalAmount).toFormat(0)}
-                      </TableCell>
-                      <TableCell>
-                        {hasBelowMin && (
-                          <Badge variant="destructive">Below min</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                      )
+                    })}
+                  </div>
+                ),
+              },
+              {
+                header: "Payment",
+                cell: (s) => <Badge variant="outline">{s.paymentMethod}</Badge>,
+              },
+              {
+                header: "Amount (UGX)",
+                align: "right",
+                cell: (s) => (
+                  <span className="font-mono font-semibold">
+                    {roundUgxFloor50(s.totalAmount).toFormat(0)}
+                  </span>
+                ),
+              },
+              {
+                header: "Flags",
+                cell: (s) => s.items.some((i) => i.isBelowMinimum) ? <Badge variant="destructive">Below min</Badge> : null,
+              },
+            ]}
+            emptyMessage="No sales recorded yet for this shop."
+          />
         )}
       </PagePrerequisites>
     </div>

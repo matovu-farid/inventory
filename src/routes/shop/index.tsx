@@ -20,12 +20,12 @@ import {
   SelectValue,
 } from "#/components/ui/select"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "#/components/ui/dialog"
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+} from "#/components/ui/responsive-dialog"
+import { DialogTrigger } from "#/components/ui/dialog"
 import {
   Command,
   CommandEmpty,
