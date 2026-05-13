@@ -30,6 +30,7 @@ export const getSaleReceiptHtml = createServerFn()
             },
           },
         },
+        soldByUser: { columns: { id: true, name: true } },
       },
     })
     if (!sale) throw new Error(`Sale not found: ${data.saleId}`)
@@ -50,6 +51,7 @@ export const getSaleReceiptHtml = createServerFn()
       totalAmount: sale.totalAmount,
       paymentMethod: sale.paymentMethod,
       customerName: customer?.name ?? null,
+      clerkName: sale.soldByUser?.name ?? null,
       items: sale.items.map((i) => {
         const pc = i.shopStockItem.productColor
         const productName = `${pc.product.articleNumber} ${pc.product.name} · ${pc.colorName} / ${i.shopStockItem.size}`

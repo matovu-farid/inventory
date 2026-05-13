@@ -13,6 +13,7 @@ import { computeTotal } from "#/lib/pos/cart-reducer"
 import { validateCartForCheckout } from "#/lib/pos/checkout-validate"
 import { formatUgxTotal } from "#/lib/format"
 import { recordSale } from "#/server/functions/shop/sales"
+import { printSaleReceipt } from "#/lib/pos/print-receipt"
 import { cn } from "#/lib/utils"
 
 type Stage = "payment" | "confirm" | "success"
@@ -180,12 +181,27 @@ export function CheckoutSheet({ shopId, open, onOpenChange, onSaleComplete }: Pr
               </div>
             </div>
             <div className="space-y-2">
-              <Button variant="outline" className="h-12 w-full" disabled>
-                <Printer className="mr-2 size-4" /> Print receipt (next feature)
+              <Button
+                variant="outline"
+                className="h-12 w-full"
+                disabled={!completedSaleId}
+                onClick={async () => {
+                  if (!completedSaleId) return
+                  try {
+                    await printSaleReceipt(completedSaleId)
+                  } catch (e) {
+                    setErrorMsg(e instanceof Error ? e.message : "Could not open receipt")
+                  }
+                }}
+              >
+                <Printer className="mr-2 size-4" /> Print receipt
               </Button>
               <Button className="h-12 w-full" onClick={handleNewSale}>
                 <Plus className="mr-2 size-4" /> New sale
               </Button>
+              {errorMsg && (
+                <p className="text-center text-sm text-destructive">{errorMsg}</p>
+              )}
             </div>
           </div>
         )}

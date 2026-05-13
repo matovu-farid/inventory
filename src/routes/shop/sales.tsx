@@ -4,6 +4,8 @@ import { requireUiPermission } from "#/lib/permissions"
 import BigNumber from "bignumber.js"
 import { roundUgxFloor50, formatUgxTotal } from "#/lib/format"
 import { Badge } from "#/components/ui/badge"
+import { Button } from "#/components/ui/button"
+import { Printer } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -15,6 +17,7 @@ import { ResponsiveTable } from "#/components/ui/responsive-table"
 import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
 import { listShopsWithSales, listShopSales } from "#/server/functions/shop/sales"
 import { getShopSalesPrereqs } from "#/server/functions/prereqs/shop"
+import { printSaleReceipt } from "#/lib/pos/print-receipt"
 
 export const Route = createFileRoute("/shop/sales")({
   beforeLoad: ({ context }) => requireUiPermission(context, "sales.view"),
@@ -178,6 +181,26 @@ function SalesPage() {
               {
                 header: "Flags",
                 cell: (s) => s.items.some((i) => i.isBelowMinimum) ? <Badge variant="destructive">Below min</Badge> : null,
+              },
+              {
+                header: "Receipt",
+                cell: (s) => (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-9"
+                    aria-label={`Print receipt for sale ${s.id}`}
+                    onClick={() => {
+                      printSaleReceipt(s.id).catch((e) => {
+                        console.error("print failed:", e)
+                        alert(e instanceof Error ? e.message : "Could not print receipt")
+                      })
+                    }}
+                  >
+                    <Printer className="size-4" strokeWidth={1.75} />
+                  </Button>
+                ),
               },
             ]}
             emptyMessage="No sales recorded yet for this shop."

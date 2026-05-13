@@ -14,6 +14,7 @@ interface SaleForReceipt {
   totalAmount: string
   paymentMethod: "cash" | "bank" | "credit"
   customerName?: string | null
+  clerkName?: string | null
   items: SaleItemForReceipt[]
 }
 
@@ -43,13 +44,18 @@ export function renderSaleReceipt(sale: SaleForReceipt): string {
     ? `<div><strong>Customer:</strong> ${escapeHtml(sale.customerName)}</div>`
     : ""
 
+  const clerkLine = sale.clerkName
+    ? `<div><strong>Clerk:</strong> ${escapeHtml(sale.clerkName)}</div>`
+    : ""
+
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <title>${escapeHtml(sale.documentNumber ?? "Receipt")}</title>
     <style>
-      body { font-family: system-ui, sans-serif; margin: 24px; color: #111; }
+      /* Screen: A4-friendly preview */
+      body { font-family: system-ui, sans-serif; margin: 24px; color: #111; max-width: 720px; }
       h1 { font-size: 18px; margin: 0 0 12px 0; }
       .meta { font-size: 12px; color: #444; margin-bottom: 16px; }
       table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -57,7 +63,30 @@ export function renderSaleReceipt(sale: SaleForReceipt): string {
       th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
       .total { margin-top: 12px; text-align: right; font-weight: bold; font-size: 14px; }
       .payment { margin-top: 4px; font-size: 12px; color: #444; text-align: right; }
-      @media print { body { margin: 0; } button { display: none; } }
+      .toolbar { margin-top: 24px; display: flex; gap: 8px; }
+      .toolbar button { padding: 8px 14px; cursor: pointer; }
+
+      /* 80mm thermal printer layout */
+      @media print {
+        @page { size: 80mm auto; margin: 0; }
+        body {
+          margin: 0;
+          padding: 4mm;
+          width: 72mm;
+          font-family: ui-monospace, "SF Mono", Menlo, monospace;
+          font-size: 11px;
+          color: #000;
+        }
+        h1 { font-size: 13px; margin: 0 0 4px 0; text-align: center; }
+        .meta { margin-bottom: 6px; font-size: 10px; }
+        .meta div { display: block; }
+        table { font-size: 10px; }
+        th, td { padding: 2px 0; border: 0; border-bottom: 1px dashed #888; }
+        thead tr { border-bottom: 1px solid #000; }
+        .total { font-size: 12px; margin-top: 4px; border-top: 1px solid #000; padding-top: 4px; }
+        .payment { font-size: 10px; }
+        .toolbar { display: none; }
+      }
     </style>
   </head>
   <body>
@@ -65,6 +94,7 @@ export function renderSaleReceipt(sale: SaleForReceipt): string {
     <div class="meta">
       <div><strong>Receipt:</strong> ${escapeHtml(sale.documentNumber ?? "—")}</div>
       <div><strong>Date:</strong> ${dateStr}</div>
+      ${clerkLine}
       ${customerLine}
     </div>
     <table>
@@ -72,7 +102,7 @@ export function renderSaleReceipt(sale: SaleForReceipt): string {
         <tr>
           <th>Item</th>
           <th class="num">Qty</th>
-          <th class="num">Unit Price</th>
+          <th class="num">Unit</th>
           <th class="num">Total</th>
         </tr>
       </thead>
@@ -82,7 +112,10 @@ export function renderSaleReceipt(sale: SaleForReceipt): string {
     </table>
     <div class="total">Total: ${formatUgxTotal(sale.totalAmount)}</div>
     <div class="payment">Payment: ${escapeHtml(sale.paymentMethod)}</div>
-    <button onclick="window.print()" style="margin-top:24px;padding:8px 16px;">Print</button>
+    <div class="toolbar">
+      <button onclick="window.print()">Print</button>
+      <button onclick="window.close()">Close</button>
+    </div>
   </body>
 </html>`
 }
