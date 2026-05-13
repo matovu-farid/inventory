@@ -307,6 +307,22 @@ export const helpDict = {
     description:
       "Which shop these existing items are sitting in. Each shop's opening balance is entered separately.",
   },
+
+  // ─── POS (point-of-sale) UI ──────────────────────────────────────────
+  "pos.search": {
+    description: "Type article number or product name to filter the grid.",
+  },
+  "pos.cart": {
+    description: "Items added but not yet checked out. Tap to expand.",
+  },
+  "pos.variant": {
+    description:
+      "A specific color and size combination. Stock is tracked per variant.",
+  },
+  "pos.belowMin": {
+    description:
+      "Selling below the recommended minimum price. A reason is required so the admin can review.",
+  },
 } as const satisfies Record<string, HelpEntry>
 
 export type HelpKey = keyof typeof helpDict

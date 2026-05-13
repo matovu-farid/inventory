@@ -12,6 +12,7 @@ import { Button } from "#/components/ui/button"
 import { Label } from "#/components/ui/label"
 import { Input } from "#/components/ui/input"
 import { MoneyInput } from "#/components/ui/money-input"
+import { InfoTip } from "#/components/ui/info-tip"
 import { useCart } from "#/components/pos/cart-context"
 import { productImageUrl } from "#/lib/products"
 import { formatUgx, formatUgxTotal } from "#/lib/format"
@@ -228,7 +229,10 @@ export function VariantPickerSheet({ product, stock, open, onOpenChange }: Props
 
             {isBelowMin && (
               <div className="space-y-1.5 rounded-lg border border-amber-300 bg-amber-50 p-3">
-                <Label className="text-xs text-amber-900">Reason for selling below {formatUgx(currentRow.minimumSellPriceUgx)}</Label>
+                <Label className="flex items-center gap-1 text-xs text-amber-900">
+                  Reason for selling below {formatUgx(currentRow.minimumSellPriceUgx)}
+                  <InfoTip term="pos.belowMin" />
+                </Label>
                 <Input
                   className="h-10 bg-background text-sm"
                   placeholder="e.g. customer haggled"
