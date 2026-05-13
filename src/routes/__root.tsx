@@ -104,7 +104,7 @@ function RootLayout() {
     !isOnPosPath
 
   useEffect(() => {
-    if (needsPosRedirect) router.navigate({ to: "/pos" as unknown as never })
+    if (needsPosRedirect) router.navigate({ to: "/pos" })
   }, [needsPosRedirect, router])
 
   if (needsPosRedirect) return null

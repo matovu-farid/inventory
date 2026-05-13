@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEmailSentRouteImport } from './routes/verify-email-sent'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PosRouteImport } from './routes/pos'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
@@ -42,6 +43,11 @@ const VerifyEmailSentRoute = VerifyEmailSentRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PosRoute = PosRouteImport.update({
+  id: '/pos',
+  path: '/pos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/accept-invite': typeof AcceptInviteRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/pos': typeof PosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/products/$articleNumber': typeof ProductsArticleNumberRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/accept-invite': typeof AcceptInviteRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/pos': typeof PosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/products/$articleNumber': typeof ProductsArticleNumberRoute
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/accept-invite': typeof AcceptInviteRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/pos': typeof PosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/products/$articleNumber': typeof ProductsArticleNumberRoute
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/accept-invite'
     | '/forgot-password'
     | '/login'
+    | '/pos'
     | '/reset-password'
     | '/verify-email-sent'
     | '/products/$articleNumber'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/accept-invite'
     | '/forgot-password'
     | '/login'
+    | '/pos'
     | '/reset-password'
     | '/verify-email-sent'
     | '/products/$articleNumber'
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
     | '/accept-invite'
     | '/forgot-password'
     | '/login'
+    | '/pos'
     | '/reset-password'
     | '/verify-email-sent'
     | '/products/$articleNumber'
@@ -320,6 +332,7 @@ export interface RootRouteChildren {
   AcceptInviteRoute: typeof AcceptInviteRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  PosRoute: typeof PosRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailSentRoute: typeof VerifyEmailSentRoute
   ProductsArticleNumberRoute: typeof ProductsArticleNumberRoute
@@ -356,6 +369,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pos': {
+      id: '/pos'
+      path: '/pos'
+      fullPath: '/pos'
+      preLoaderRoute: typeof PosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -520,6 +540,7 @@ const rootRouteChildren: RootRouteChildren = {
   AcceptInviteRoute: AcceptInviteRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  PosRoute: PosRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailSentRoute: VerifyEmailSentRoute,
   ProductsArticleNumberRoute: ProductsArticleNumberRoute,
