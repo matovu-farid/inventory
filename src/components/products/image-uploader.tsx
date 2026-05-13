@@ -59,6 +59,7 @@ export function ImageUploader({ initialUrl, onBlobReady, onSuggestColor, onEyedr
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          capture="environment"
           className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f) }}
         />
