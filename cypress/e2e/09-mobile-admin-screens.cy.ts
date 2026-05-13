@@ -68,4 +68,20 @@ describe("Admin screens on mobile", () => {
     cy.contains(/opening balance/i, { timeout: 5000 }).should("be.visible")
     assertNoHorizontalOverflow()
   })
+
+  it("reports/x renders without horizontal scroll", () => {
+    cy.task(
+      "dbQuery",
+      `INSERT INTO shops (name, location) VALUES ('Mobile X Shop', 'Kampala') ON CONFLICT DO NOTHING`,
+    )
+    cy.visit("/reports/x")
+    cy.wait(800)
+    assertNoHorizontalOverflow()
+  })
+
+  it("reports/z renders without horizontal scroll", () => {
+    cy.visit("/reports/z")
+    cy.wait(800)
+    assertNoHorizontalOverflow()
+  })
 })
