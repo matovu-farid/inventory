@@ -1,15 +1,27 @@
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 
+/**
+ * A "cell" is one slot in the procurement entry grid. Three shapes are valid:
+ *
+ *   aggregate     — neither productColorId nor size is set; the productId on
+ *                   the variantInput identifies the product.
+ *   color-only    — productColorId is set, size is omitted.
+ *   color + size  — both are set.
+ *
+ * Aggregate and color-only rows must later be "split" into full
+ * (color + size) variants before goods can be received against them.
+ */
 export const cellSchema = z.object({
-  productColorId: z.string().uuid(),
-  size: z.string().min(1),
+  productColorId: z.string().uuid().optional(),
+  size: z.string().min(1).optional(),
   quantity: z.number().int().positive(),
 })
 
 export const variantInput = z.object({
   supplyRouteId: z.string().uuid(),
   supplierId: z.string().uuid(),
+  productId: z.string().uuid(),
   unitPriceForeign: z.string(),
   foreignCurrency: z.string().default("RMB"),
   exchangeRateForeignToUsd: z.string().optional(),
@@ -20,8 +32,9 @@ export const variantInput = z.object({
 export type MaterializedRow = {
   supplyRouteId: string
   supplierId: string
-  productColorId: string
-  size: string
+  productId: string
+  productColorId: string | null
+  size: string | null
   quantity: number
   unitPriceForeign: string
   foreignCurrency: string
@@ -32,30 +45,47 @@ export type MaterializedRow = {
   totalCostUgx: string
 }
 
-export function materializeVariantRows(input: z.infer<typeof variantInput>): MaterializedRow[] {
+export function materializeVariantRows(
+  input: z.infer<typeof variantInput>,
+): MaterializedRow[] {
   const cells = input.cells.filter((c) => c.quantity > 0)
   const unitPrice = new BigNumber(input.unitPriceForeign)
   const isUsd = input.foreignCurrency === "USD"
-  const fxToUsdStr = isUsd ? input.exchangeRateForeignToUsd ?? "1" : input.exchangeRateForeignToUsd
+  const fxToUsdStr = isUsd
+    ? input.exchangeRateForeignToUsd ?? "1"
+    : input.exchangeRateForeignToUsd
 
   return cells.map((cell) => {
     const totalAmountForeign = unitPrice.times(cell.quantity).toFixed(2)
     let totalAmountUsd: string | null = null
     let totalCostUgx: string
-    if (input.foreignCurrency === "UGX" || !fxToUsdStr || !input.exchangeRateUsdToUgx) {
+    if (
+      input.foreignCurrency === "UGX" ||
+      !fxToUsdStr ||
+      !input.exchangeRateUsdToUgx
+    ) {
       totalCostUgx = totalAmountForeign
     } else {
       const fxToUsd = new BigNumber(fxToUsdStr)
       if (fxToUsd.isZero()) throw new Error("Exchange rate cannot be zero")
       const usdToUgx = new BigNumber(input.exchangeRateUsdToUgx)
-      totalAmountUsd = new BigNumber(totalAmountForeign).div(fxToUsd).dp(2, BigNumber.ROUND_HALF_UP).toFixed(2)
-      totalCostUgx = unitPrice.div(fxToUsd).times(usdToUgx).times(cell.quantity).dp(2, BigNumber.ROUND_HALF_UP).toFixed(2)
+      totalAmountUsd = new BigNumber(totalAmountForeign)
+        .div(fxToUsd)
+        .dp(2, BigNumber.ROUND_HALF_UP)
+        .toFixed(2)
+      totalCostUgx = unitPrice
+        .div(fxToUsd)
+        .times(usdToUgx)
+        .times(cell.quantity)
+        .dp(2, BigNumber.ROUND_HALF_UP)
+        .toFixed(2)
     }
     return {
       supplyRouteId: input.supplyRouteId,
       supplierId: input.supplierId,
-      productColorId: cell.productColorId,
-      size: cell.size,
+      productId: input.productId,
+      productColorId: cell.productColorId ?? null,
+      size: cell.size ?? null,
       quantity: cell.quantity,
       unitPriceForeign: input.unitPriceForeign,
       foreignCurrency: input.foreignCurrency,
@@ -65,5 +95,58 @@ export function materializeVariantRows(input: z.infer<typeof variantInput>): Mat
       totalAmountUsd,
       totalCostUgx,
     }
+  })
+}
+
+/**
+ * Pure function for the split (Task 2) flow: takes one existing row plus a
+ * list of new (color [+ size]) cells with quantities, and returns the rows
+ * that should replace it. Per-row cost numbers are recomputed from the
+ * original currency settings so the new variants stay consistent with the
+ * trip's exchange rates.
+ *
+ * Throws if the cells don't sum to the original quantity.
+ */
+export interface SplitSourceRow {
+  supplyRouteId: string
+  supplierId: string
+  productId: string | null
+  quantity: number
+  unitPriceForeign: string
+  foreignCurrency: string
+  exchangeRateForeignToUsd: string | null
+  exchangeRateUsdToUgx: string | null
+}
+
+export interface SplitCell {
+  productColorId: string
+  size?: string
+  quantity: number
+}
+
+export function materializeSplitRows(
+  source: SplitSourceRow,
+  productIdFallback: string,
+  cells: SplitCell[],
+): MaterializedRow[] {
+  const totalNew = cells.reduce((sum, c) => sum + c.quantity, 0)
+  if (totalNew !== source.quantity) {
+    throw new Error(
+      `Split quantities (${totalNew}) must equal original quantity (${source.quantity})`,
+    )
+  }
+  return materializeVariantRows({
+    supplyRouteId: source.supplyRouteId,
+    supplierId: source.supplierId,
+    productId: source.productId ?? productIdFallback,
+    unitPriceForeign: source.unitPriceForeign,
+    foreignCurrency: source.foreignCurrency,
+    exchangeRateForeignToUsd: source.exchangeRateForeignToUsd ?? undefined,
+    exchangeRateUsdToUgx: source.exchangeRateUsdToUgx ?? undefined,
+    cells: cells.map((c) => ({
+      productColorId: c.productColorId,
+      size: c.size,
+      quantity: c.quantity,
+    })),
   })
 }

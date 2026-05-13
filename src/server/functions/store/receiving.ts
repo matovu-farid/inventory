@@ -144,7 +144,19 @@ export const receiveGoods = createServerFn()
         })
         if (!sri) throw new Error(`Supply route item not found: ${item.supplyRouteItemId}`)
 
-        const productLabel = `${sri.productColor.product.articleNumber} ${sri.productColor.colorName}/${sri.size}`
+        // Receiving requires a fully-resolved variant. Aggregate/color-only
+        // procurement rows (Task 1) must be split into color+size variants
+        // by an admin before they can land in store stock.
+        const productColor = sri.productColor
+        const sriSize = sri.size
+        const sriProductColorId = sri.productColorId
+        if (!productColor || !sriSize || !sriProductColorId) {
+          throw new Error(
+            `Item ${sri.id} is missing color or size — split it into full variants before receiving`,
+          )
+        }
+
+        const productLabel = `${productColor.product.articleNumber} ${productColor.colorName}/${sriSize}`
 
         // One receipt per item — refuse if already received
         const prior = await tx.query.storeReceivings.findFirst({
@@ -186,8 +198,8 @@ export const receiveGoods = createServerFn()
             .insert(storeStock)
             .values({
               storeId: store.id,
-              productColorId: sri.productColorId,
-              size: sri.size,
+              productColorId: sriProductColorId,
+              size: sriSize,
               supplyRouteItemId: sri.id,
               quantityOnHand: item.quantityReceived,
               costPerUnitUgx: costPerUnit.toFixed(2),

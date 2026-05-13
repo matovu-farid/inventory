@@ -62,6 +62,15 @@ export const helpDict = {
     description: "How many units you purchased.",
     example: "120",
   },
+  "item.detailMode": {
+    description:
+      "How detailed your procurement entry is. Pick 'Total only' if you don't yet know the breakdown — an admin can split into colors and sizes later before the goods are received.",
+  },
+  "item.aggregateQty": {
+    description:
+      "Total units purchased across all colors and sizes. Must be resolved into specific colors/sizes before the route can be received.",
+    example: "120",
+  },
   "item.unitPrice": {
     description: "Price per single unit, in the currency the supplier billed.",
     example: "85 RMB per pair",

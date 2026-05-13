@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import * as React from "react"
 import { useState } from "react"
 import { requireUiPermission } from "#/lib/permissions"
 import BigNumber from "bignumber.js"
@@ -26,7 +27,7 @@ import {
 } from "#/components/ui/responsive-dialog"
 import { DialogTrigger } from "#/components/ui/dialog"
 import { ResponsiveTable } from "#/components/ui/responsive-table"
-import { Plus, Trash2, ArrowRight } from "lucide-react"
+import { Plus, Trash2, ArrowRight, Split } from "lucide-react"
 import {
   getSupplyRoute,
   updateSupplyRoute,
@@ -35,6 +36,7 @@ import {
 import {
   addSupplyRouteVariants,
   deleteSupplyRouteItem,
+  splitSupplyRouteItem,
 } from "#/server/functions/supply/items"
 import {
   ProductPicker,
@@ -85,18 +87,32 @@ const EXPENSE_CATEGORIES = [
   "miscellaneous",
 ] as const
 
+function expenseAmountUgx(exp: {
+  amount: string
+  currency?: string | null
+  exchangeRate?: string | null
+}): BigNumber {
+  const amount = new BigNumber(exp.amount)
+  const currency = exp.currency ?? "UGX"
+  if (currency === "UGX") return amount
+  if (!exp.exchangeRate) return amount
+  return amount.times(new BigNumber(exp.exchangeRate))
+}
+
 function RouteDetailPage() {
   const { route, suppliers, prerequisites } = Route.useLoaderData()
   const router = useRouter()
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
+  const [splittingItemId, setSplittingItemId] = useState<string | null>(null)
+  const splittingItem = route.items.find((i) => i.id === splittingItemId) ?? null
 
   const totalItemCost = route.items.reduce(
     (sum, i) => sum.plus(i.totalCostUgx),
     new BigNumber(0),
   )
   const totalExpenses = route.expenses.reduce(
-    (sum, e) => sum.plus(e.amount),
+    (sum, e) => sum.plus(expenseAmountUgx(e)),
     new BigNumber(0),
   )
   const grandTotal = totalItemCost.plus(totalExpenses)
@@ -249,7 +265,9 @@ function RouteDetailPage() {
                 header: "Product",
                 cell: (item) => (
                   <span className="font-medium">
-                    {item.productColor.product.name}
+                    {item.productColor?.product.name ??
+                      item.product?.name ??
+                      "—"}
                   </span>
                 ),
               },
@@ -258,23 +276,31 @@ function RouteDetailPage() {
                 hideOnMobile: true,
                 cell: (item) => (
                   <span className="text-muted-foreground font-mono text-xs">
-                    {item.productColor.product.articleNumber}
+                    {item.productColor?.product.articleNumber ??
+                      item.product?.articleNumber ??
+                      "—"}
                     <InfoTip term="col.articleNumber" />
                   </span>
                 ),
               },
               {
                 header: "Color · Size",
-                cell: (item) => (
-                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    <span
-                      className="inline-block size-3 rounded-full border"
-                      style={{ backgroundColor: item.productColor.colorHex }}
-                      aria-hidden
-                    />
-                    {item.productColor.colorName} · {item.size}
-                  </span>
-                ),
+                cell: (item) =>
+                  item.productColor ? (
+                    <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                      <span
+                        className="inline-block size-3 rounded-full border"
+                        style={{ backgroundColor: item.productColor.colorHex }}
+                        aria-hidden
+                      />
+                      {item.productColor.colorName}
+                      {item.size ? ` · ${item.size}` : ""}
+                    </span>
+                  ) : (
+                    <Badge variant="outline" className="text-xs">
+                      All variants
+                    </Badge>
+                  ),
               },
               {
                 header: "Supplier",
@@ -333,19 +359,52 @@ function RouteDetailPage() {
               {
                 header: "",
                 cell: (item) => (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive"
-                    onClick={() => handleDeleteItem(item.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    {(!item.productColor || !item.size) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7"
+                        onClick={() => setSplittingItemId(item.id)}
+                      >
+                        <Split className="mr-1 h-3.5 w-3.5" />
+                        Split
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive"
+                      onClick={() => handleDeleteItem(item.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ),
               },
             ]}
           />
         </div>
+
+        <Dialog
+          open={splittingItem !== null}
+          onOpenChange={(open) => !open && setSplittingItemId(null)}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Split into variants</DialogTitle>
+            </DialogHeader>
+            {splittingItem && (
+              <SplitItemForm
+                item={splittingItem}
+                onSuccess={() => {
+                  setSplittingItemId(null)
+                  router.invalidate()
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
 
         <Separator />
 
@@ -369,6 +428,7 @@ function RouteDetailPage() {
                 </DialogHeader>
                 <AddExpenseForm
                   supplyRouteId={route.id}
+                  rateUgxPerUsd={route.rateUgxPerUsd}
                   onSuccess={() => {
                     setExpenseDialogOpen(false)
                     router.invalidate()
@@ -394,11 +454,39 @@ function RouteDetailPage() {
                 cell: (exp) => exp.description || "-",
               },
               {
-                header: "Amount (UGX)",
+                header: "Amount",
+                align: "right",
+                hideOnMobile: true,
+                cell: (exp) => (
+                  <span className="font-mono">
+                    {new BigNumber(exp.amount).toFormat(
+                      exp.currency === "UGX" ? 0 : 2,
+                    )}{" "}
+                    <span className="text-muted-foreground text-xs">
+                      {exp.currency ?? "UGX"}
+                    </span>
+                  </span>
+                ),
+              },
+              {
+                header: "Rate",
+                align: "right",
+                hideOnMobile: true,
+                cell: (exp) =>
+                  exp.currency && exp.currency !== "UGX" && exp.exchangeRate ? (
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {new BigNumber(exp.exchangeRate).toFormat(2)}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  ),
+              },
+              {
+                header: "Total (UGX)",
                 align: "right",
                 cell: (exp) => (
                   <span className="font-mono font-semibold">
-                    {roundUgxFloor50(exp.amount).toFormat(0)}
+                    {roundUgxFloor50(expenseAmountUgx(exp).toString()).toFormat(0)}
                   </span>
                 ),
               },
@@ -419,6 +507,265 @@ function RouteDetailPage() {
           />
         </div>
       </PagePrerequisites>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Split Item Form — promote aggregate / color-only to full variants   */
+/* ------------------------------------------------------------------ */
+
+interface SplittableItem {
+  id: string
+  quantity: number
+  product?: { articleNumber: string; name: string } | null
+  productColor?: {
+    id: string
+    colorName: string
+    colorHex: string
+    product: { articleNumber: string; name: string }
+  } | null
+  size: string | null
+}
+
+function SplitItemForm({
+  item,
+  onSuccess,
+}: {
+  item: SplittableItem
+  onSuccess: () => void
+}) {
+  const articleNumber =
+    item.productColor?.product.articleNumber ?? item.product?.articleNumber
+  const [product, setProduct] = useState<ProductSummary | undefined>()
+  const [loading, setLoading] = useState(true)
+  const [mode, setMode] = useState<"colors" | "variants">(
+    item.productColor ? "variants" : "variants",
+  )
+  const [colorQtys, setColorQtys] = useState<Record<string, number>>({})
+  const [cellQtys, setCellQtys] = useState<Record<string, number>>({})
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Load the product so we know the available colors + sizes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    if (!articleNumber) {
+      setLoading(false)
+      return
+    }
+    void (async () => {
+      const p = await getProductByArticle({ data: { articleNumber } })
+      if (p) setProduct(p as ProductSummary)
+      setLoading(false)
+    })()
+  }, [articleNumber])
+
+  if (loading) {
+    return (
+      <p className="text-sm text-muted-foreground">Loading product…</p>
+    )
+  }
+  if (!product) {
+    return (
+      <p className="text-sm text-destructive">Could not load product</p>
+    )
+  }
+
+  // For color-only items, the color is already fixed.
+  const lockedColor = item.productColor ?? null
+  const colorsToUse = lockedColor ? [lockedColor] : product.colors
+
+  const allCells: Array<{
+    productColorId: string
+    size?: string
+    quantity: number
+  }> =
+    mode === "colors"
+      ? Object.entries(colorQtys)
+          .filter(([, q]) => q > 0)
+          .map(([colorId, q]) => ({ productColorId: colorId, quantity: q }))
+      : Object.entries(cellQtys)
+          .filter(([, q]) => q > 0)
+          .map(([key, q]) => {
+            const [productColorId, size] = key.split("|")
+            return { productColorId, size, quantity: q }
+          })
+
+  const total = allCells.reduce((s, c) => s + c.quantity, 0)
+  const mismatch = total !== item.quantity
+
+  async function submit() {
+    if (allCells.length === 0 || mismatch) return
+    setPending(true)
+    setError(null)
+    try {
+      await splitSupplyRouteItem({
+        data: { itemId: item.id, cells: allCells },
+      })
+      onSuccess()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to split")
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-md bg-muted/40 p-3 text-sm">
+        <p>
+          <span className="font-medium">{product.articleNumber}</span> —{" "}
+          {product.name}
+        </p>
+        <p className="text-muted-foreground">
+          Original quantity: <span className="font-mono">{item.quantity}</span>
+          {lockedColor ? (
+            <>
+              {" · Color locked to "}
+              <span className="font-medium">{lockedColor.colorName}</span>
+            </>
+          ) : null}
+        </p>
+      </div>
+
+      {!lockedColor && (
+        <div className="space-y-1.5">
+          <FieldLabel help="item.detailMode">Split into</FieldLabel>
+          <div className="inline-flex rounded-md border p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setMode("colors")}
+              className={
+                "px-3 py-1.5 rounded transition-colors " +
+                (mode === "colors"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted")
+              }
+            >
+              Colors only
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("variants")}
+              className={
+                "px-3 py-1.5 rounded transition-colors " +
+                (mode === "variants"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted")
+              }
+            >
+              Colors × sizes
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mode === "colors" && !lockedColor && (
+        <ColorQuantityList
+          colors={product.colors}
+          values={colorQtys}
+          onChange={setColorQtys}
+        />
+      )}
+
+      {(mode === "variants" || lockedColor) && (
+        <VariantGrid
+          sizes={product.sizes}
+          colors={colorsToUse}
+          quantities={cellQtys}
+          onChange={setCellQtys}
+        />
+      )}
+
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">
+          Allocated: <span className="font-mono">{total}</span> of{" "}
+          <span className="font-mono">{item.quantity}</span>
+        </span>
+        {mismatch && (
+          <span className="text-destructive">
+            Must equal {item.quantity}
+          </span>
+        )}
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <Button
+        onClick={submit}
+        disabled={pending || mismatch || allCells.length === 0}
+        className="w-full"
+      >
+        {pending ? "Splitting…" : "Save split"}
+      </Button>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Color quantity list — Per-color procurement input                   */
+/* ------------------------------------------------------------------ */
+
+function ColorQuantityList({
+  colors,
+  values,
+  onChange,
+  error,
+}: {
+  colors: Array<{ id: string; colorName: string; colorHex: string }>
+  values: Record<string, number>
+  onChange: (v: Record<string, number>) => void
+  error?: string
+}) {
+  if (colors.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Add at least one color to enter quantities.
+      </p>
+    )
+  }
+  function set(colorId: string, value: string) {
+    const n = Math.max(0, Math.floor(Number(value) || 0))
+    const next = { ...values, [colorId]: n }
+    if (n === 0) delete next[colorId]
+    onChange(next)
+  }
+  const total = Object.values(values).reduce((s, n) => s + n, 0)
+  return (
+    <div className="space-y-2">
+      <div className="overflow-hidden rounded border">
+        <table className="w-full text-sm">
+          <tbody>
+            {colors.map((c) => (
+              <tr key={c.id} className="border-t first:border-t-0">
+                <td className="p-2">
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      className="inline-block size-4 rounded border"
+                      style={{ backgroundColor: c.colorHex }}
+                      aria-hidden
+                    />
+                    {c.colorName}
+                  </span>
+                </td>
+                <td className="p-1.5 w-32">
+                  <MoneyInput
+                    value={values[c.id]?.toString() ?? ""}
+                    onChange={(v) => set(c.id, v)}
+                    decimals={0}
+                    placeholder="0"
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Total units: <span className="font-mono">{total}</span>
+      </p>
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   )
 }
@@ -447,6 +794,13 @@ function AddItemForm({
   const [product, setProduct] = useState<ProductSummary | undefined>()
   const [productEditorOpen, setProductEditorOpen] = useState(false)
   const [colorEditorOpen, setColorEditorOpen] = useState(false)
+  // Procurement detail level. Aggregate = total qty only; colors = qty per
+  // color; variants = qty per color × size (the existing behaviour).
+  const [detailMode, setDetailMode] = useState<"aggregate" | "colors" | "variants">(
+    "variants",
+  )
+  const [aggregateQty, setAggregateQty] = useState("")
+  const [colorQtys, setColorQtys] = useState<Record<string, number>>({})
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [unitPrice, setUnitPrice] = useState("")
   const initialCurrency = "RMB"
@@ -472,12 +826,28 @@ function AddItemForm({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const cells = Object.entries(quantities)
-      .filter(([, q]) => q > 0)
-      .map(([key, q]) => {
-        const [productColorId, size] = key.split("|")
-        return { productColorId, size, quantity: q }
-      })
+    const cells: Array<{
+      productColorId?: string
+      size?: string
+      quantity: number
+    }> =
+      detailMode === "aggregate"
+        ? aggregateQty && Number(aggregateQty) > 0
+          ? [{ quantity: Number(aggregateQty) }]
+          : []
+        : detailMode === "colors"
+          ? Object.entries(colorQtys)
+              .filter(([, q]) => q > 0)
+              .map(([productColorId, q]) => ({
+                productColorId,
+                quantity: q,
+              }))
+          : Object.entries(quantities)
+              .filter(([, q]) => q > 0)
+              .map(([key, q]) => {
+                const [productColorId, size] = key.split("|")
+                return { productColorId, size, quantity: q }
+              })
 
     const errs: Record<string, string> = {}
     if (!supplierId) errs.supplierId = "Select a supplier"
@@ -491,7 +861,7 @@ function AddItemForm({
       if (!usdToUgx || Number(usdToUgx) <= 0) errs.usdToUgx = "Enter a valid rate"
     }
     setFormErrors(errs)
-    if (Object.keys(errs).length > 0) return
+    if (Object.keys(errs).length > 0 || !product) return
 
     setPending(true)
     try {
@@ -499,6 +869,7 @@ function AddItemForm({
         data: {
           supplyRouteId,
           supplierId,
+          productId: product.id,
           unitPriceForeign: unitPrice,
           foreignCurrency: currency,
           exchangeRateForeignToUsd:
@@ -566,7 +937,7 @@ function AddItemForm({
       </div>
 
       {product && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">
               {product.articleNumber} — {product.name}
@@ -580,14 +951,77 @@ function AddItemForm({
               <Plus className="mr-1 size-3" /> Add color
             </Button>
           </div>
-          <VariantGrid
-            sizes={product.sizes}
-            colors={product.colors}
-            quantities={quantities}
-            onChange={setQuantities}
-          />
-          {formErrors.quantities && (
-            <p className="text-xs text-destructive">{formErrors.quantities}</p>
+
+          <div className="space-y-1.5">
+            <FieldLabel help="item.detailMode">Detail level</FieldLabel>
+            <div className="inline-flex rounded-md border p-0.5 text-xs">
+              {(
+                [
+                  { value: "aggregate", label: "Total only" },
+                  { value: "colors", label: "Per color" },
+                  { value: "variants", label: "Per color × size" },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setDetailMode(opt.value)}
+                  className={
+                    "px-3 py-1.5 rounded transition-colors " +
+                    (detailMode === opt.value
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted")
+                  }
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {detailMode === "aggregate"
+                ? "Just record how many units you're buying. An admin can split into colors/sizes later before receiving."
+                : detailMode === "colors"
+                  ? "Record quantity per color. Sizes can be filled in later."
+                  : "Full breakdown by color and size."}
+            </p>
+          </div>
+
+          {detailMode === "aggregate" && (
+            <div className="space-y-2">
+              <FieldLabel help="item.aggregateQty">Total quantity *</FieldLabel>
+              <MoneyInput
+                value={aggregateQty}
+                onChange={setAggregateQty}
+                decimals={0}
+                placeholder="0"
+                error={formErrors.quantities}
+              />
+            </div>
+          )}
+
+          {detailMode === "colors" && (
+            <ColorQuantityList
+              colors={product.colors}
+              values={colorQtys}
+              onChange={setColorQtys}
+              error={formErrors.quantities}
+            />
+          )}
+
+          {detailMode === "variants" && (
+            <>
+              <VariantGrid
+                sizes={product.sizes}
+                colors={product.colors}
+                quantities={quantities}
+                onChange={setQuantities}
+              />
+              {formErrors.quantities && (
+                <p className="text-xs text-destructive">
+                  {formErrors.quantities}
+                </p>
+              )}
+            </>
           )}
         </div>
       )}
@@ -695,14 +1129,18 @@ function AddItemForm({
 
 function AddExpenseForm({
   supplyRouteId,
+  rateUgxPerUsd,
   onSuccess,
 }: {
   supplyRouteId: string
+  rateUgxPerUsd?: string | null
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
   const [category, setCategory] = useState("")
   const [amount, setAmount] = useState("")
+  const [currency, setCurrency] = useState<string>("USD")
+  const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? "")
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -712,6 +1150,9 @@ function AddExpenseForm({
     const errs: Record<string, string> = {}
     if (!category) errs.category = "Select a category"
     if (!amount || Number(amount) <= 0) errs.amount = "Enter a valid amount"
+    if (currency !== "UGX" && (!usdToUgx || Number(usdToUgx) <= 0)) {
+      errs.usdToUgx = "Enter a valid rate"
+    }
     setFormErrors(errs)
     if (Object.keys(errs).length > 0) return
 
@@ -723,11 +1164,16 @@ function AddExpenseForm({
           category: category as (typeof EXPENSE_CATEGORIES)[number],
           description: (form.get("description") as string) || undefined,
           amount,
+          currency,
+          exchangeRate: currency !== "UGX" ? usdToUgx : undefined,
         },
       })
       onSuccess()
     } catch (err) {
       console.error("Failed to add expense:", err)
+      setFormErrors({
+        form: err instanceof Error ? err.message : "Failed to save",
+      })
     } finally {
       setPending(false)
     }
@@ -759,17 +1205,50 @@ function AddExpenseForm({
         <Textarea id="description" name="description" rows={3} />
       </div>
 
-      <div className="space-y-2">
-        <FieldLabel help="expense.amount">Amount *</FieldLabel>
-        <MoneyInput
-          currency="UGX"
-          roundTo={50}
-          value={amount}
-          onChange={setAmount}
-          placeholder="0"
-          error={formErrors.amount}
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <FieldLabel help="expense.amount">Amount *</FieldLabel>
+          <MoneyInput
+            currency={currency}
+            decimals={currency === "UGX" ? 0 : 2}
+            roundTo={currency === "UGX" ? 50 : undefined}
+            value={amount}
+            onChange={setAmount}
+            placeholder="0"
+            error={formErrors.amount}
+          />
+        </div>
+        <div className="space-y-2">
+          <FieldLabel help="item.currency">Currency</FieldLabel>
+          <Select value={currency} onValueChange={setCurrency}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="USD">USD</SelectItem>
+              <SelectItem value="UGX">UGX</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      {currency !== "UGX" && (
+        <div className="space-y-2">
+          <FieldLabel help="item.ugxPerUsd">UGX per 1 USD *</FieldLabel>
+          <RateInput
+            label="UGX/USD"
+            value={usdToUgx}
+            onChange={setUsdToUgx}
+            decimals={2}
+            placeholder="e.g. 3750"
+            error={formErrors.usdToUgx}
+          />
+        </div>
+      )}
+
+      {formErrors.form && (
+        <p className="text-sm text-destructive">{formErrors.form}</p>
+      )}
 
       <Button type="submit" className="w-full" disabled={pending}>
         {pending ? "Adding..." : "Add Expense"}

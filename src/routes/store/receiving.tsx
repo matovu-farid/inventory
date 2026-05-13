@@ -84,18 +84,38 @@ function ReceivingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routes])
 
+  const [unresolvedCount, setUnresolvedCount] = useState(0)
+
   async function loadItems(routeId: string) {
     setSelectedRouteId(routeId)
     if (!routeId) {
       setItems([])
+      setUnresolvedCount(0)
       return
     }
     const unreceived = await getUnreceivedItems({
       data: { supplyRouteId: routeId },
     })
-    setItems(unreceived)
+    // Aggregate/color-only rows must be split into full variants by an admin
+    // before they can be received. Skip them here and surface a count.
+    const receivable = unreceived.flatMap((i) =>
+      i.productColor && i.size
+        ? [
+            {
+              id: i.id,
+              size: i.size,
+              quantity: i.quantity,
+              totalCostUgx: i.totalCostUgx,
+              supplier: i.supplier,
+              productColor: i.productColor,
+            },
+          ]
+        : [],
+    )
+    setUnresolvedCount(unreceived.length - receivable.length)
+    setItems(receivable)
     const qtys: Record<string, number> = {}
-    for (const i of unreceived) {
+    for (const i of receivable) {
       qtys[i.id] = i.quantity
     }
     setReceivedQtys(qtys)
@@ -170,6 +190,15 @@ function ReceivingPage() {
             </SelectContent>
           </Select>
         </div>
+
+        {unresolvedCount > 0 && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            {unresolvedCount} item{unresolvedCount === 1 ? "" : "s"} on this
+            route still need a color and size assigned before they can be
+            received. Open the supply route and use "Split into variants" on
+            each unresolved item.
+          </div>
+        )}
 
         {items.length > 0 && (
           <div className="space-y-4">

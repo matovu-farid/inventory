@@ -43,6 +43,7 @@ export const getSupplyRoute = createServerFn()
         items: {
           with: {
             supplier: true,
+            product: true,
             productColor: { with: { product: true } },
           },
           orderBy: (i, { asc }) => [asc(i.createdAt)],

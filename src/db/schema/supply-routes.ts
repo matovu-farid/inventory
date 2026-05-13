@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { suppliers } from "./suppliers"
-import { productColors } from "./products"
+import { productColors, products } from "./products"
 
 export const supplyRouteStatusEnum = pgEnum("supply_route_status", [
   "planning",
@@ -83,10 +83,22 @@ export const supplyRouteItems = pgTable(
     supplierId: uuid("supplier_id")
       .notNull()
       .references(() => suppliers.id, { onDelete: "restrict" }),
-    productColorId: uuid("product_color_id")
-      .notNull()
-      .references(() => productColors.id, { onDelete: "restrict" }),
-    size: text("size").notNull(),
+    // productId is set on all newly created rows. It is nullable so existing
+    // rows (which only had productColorId) can be migrated without a backfill;
+    // for those rows the product is reachable through productColor.
+    productId: uuid("product_id").references(() => products.id, {
+      onDelete: "restrict",
+    }),
+    // productColorId and size are nullable to support three procurement modes:
+    //   1. aggregate     — productColorId NULL, size NULL
+    //   2. color-only    — productColorId set,  size NULL
+    //   3. color + size  — productColorId set,  size set
+    // Aggregate/color-only rows must be "split" into full variants by an admin
+    // before goods can be received against them.
+    productColorId: uuid("product_color_id").references(() => productColors.id, {
+      onDelete: "restrict",
+    }),
+    size: text("size"),
     quantity: integer("quantity").notNull(),
     unitPriceForeign: numeric("unit_price_foreign", { precision: 15, scale: 2 }).notNull(),
     foreignCurrency: text("foreign_currency").notNull().default("RMB"),
@@ -111,6 +123,7 @@ export const supplyRouteItems = pgTable(
     index("idx_sri_route").on(table.supplyRouteId),
     index("idx_sri_supplier").on(table.supplierId),
     index("idx_sri_pc").on(table.productColorId),
+    index("idx_sri_product").on(table.productId),
     unique("uq_sri_variant").on(
       table.supplyRouteId,
       table.supplierId,
@@ -167,6 +180,10 @@ export const supplyRouteItemRelations = relations(supplyRouteItems, ({ one }) =>
   supplier: one(suppliers, {
     fields: [supplyRouteItems.supplierId],
     references: [suppliers.id],
+  }),
+  product: one(products, {
+    fields: [supplyRouteItems.productId],
+    references: [products.id],
   }),
   productColor: one(productColors, {
     fields: [supplyRouteItems.productColorId],
