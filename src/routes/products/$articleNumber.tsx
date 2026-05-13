@@ -4,6 +4,7 @@ import { Plus } from "lucide-react"
 import { requireUiPermission, useCan } from "#/lib/permissions"
 import { getProductByArticle } from "#/server/functions/products/products"
 import { ColorEditor } from "#/components/products/color-editor"
+import { PhotoHandoffQR } from "#/components/products/photo-handoff-qr"
 import { productImageUrl } from "#/lib/products"
 import { Button } from "#/components/ui/button"
 import {
@@ -84,6 +85,14 @@ function ProductDetailPage() {
               </Button>
             )}
           </div>
+          {canManage && active && (
+            <div className="pt-3 border-t mt-3">
+              <PhotoHandoffQR
+                productColorId={active.id}
+                onUploaded={() => router.invalidate()}
+              />
+            </div>
+          )}
         </div>
 
         <div className="space-y-3">

@@ -23,6 +23,7 @@ import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReportsIndexRouteImport } from './routes/reports/index'
 import { Route as ProductsIndexRouteImport } from './routes/products/index'
 import { Route as CustomersIndexRouteImport } from './routes/customers/index'
+import { Route as UploadPhotoTokenRouteImport } from './routes/upload-photo.$token'
 import { Route as SupplySuppliersRouteImport } from './routes/supply/suppliers'
 import { Route as SupplyRouteIdRouteImport } from './routes/supply/$routeId'
 import { Route as StoreTransfersRouteImport } from './routes/store/transfers'
@@ -106,6 +107,11 @@ const ProductsIndexRoute = ProductsIndexRouteImport.update({
 const CustomersIndexRoute = CustomersIndexRouteImport.update({
   id: '/customers/',
   path: '/customers/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UploadPhotoTokenRoute = UploadPhotoTokenRouteImport.update({
+  id: '/upload-photo/$token',
+  path: '/upload-photo/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SupplySuppliersRoute = SupplySuppliersRouteImport.update({
@@ -199,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers/': typeof CustomersIndexRoute
   '/products/': typeof ProductsIndexRoute
   '/reports/': typeof ReportsIndexRoute
@@ -229,6 +236,7 @@ export interface FileRoutesByTo {
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers': typeof CustomersIndexRoute
   '/products': typeof ProductsIndexRoute
   '/reports': typeof ReportsIndexRoute
@@ -260,6 +268,7 @@ export interface FileRoutesById {
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
+  '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers/': typeof CustomersIndexRoute
   '/products/': typeof ProductsIndexRoute
   '/reports/': typeof ReportsIndexRoute
@@ -292,6 +301,7 @@ export interface FileRouteTypes {
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
+    | '/upload-photo/$token'
     | '/customers/'
     | '/products/'
     | '/reports/'
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
+    | '/upload-photo/$token'
     | '/customers'
     | '/products'
     | '/reports'
@@ -352,6 +363,7 @@ export interface FileRouteTypes {
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
+    | '/upload-photo/$token'
     | '/customers/'
     | '/products/'
     | '/reports/'
@@ -383,6 +395,7 @@ export interface RootRouteChildren {
   StoreTransfersRoute: typeof StoreTransfersRoute
   SupplyRouteIdRoute: typeof SupplyRouteIdRoute
   SupplySuppliersRoute: typeof SupplySuppliersRoute
+  UploadPhotoTokenRoute: typeof UploadPhotoTokenRoute
   CustomersIndexRoute: typeof CustomersIndexRoute
   ProductsIndexRoute: typeof ProductsIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
@@ -491,6 +504,13 @@ declare module '@tanstack/react-router' {
       path: '/customers'
       fullPath: '/customers/'
       preLoaderRoute: typeof CustomersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/upload-photo/$token': {
+      id: '/upload-photo/$token'
+      path: '/upload-photo/$token'
+      fullPath: '/upload-photo/$token'
+      preLoaderRoute: typeof UploadPhotoTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/supply/suppliers': {
@@ -626,6 +646,7 @@ const rootRouteChildren: RootRouteChildren = {
   StoreTransfersRoute: StoreTransfersRoute,
   SupplyRouteIdRoute: SupplyRouteIdRoute,
   SupplySuppliersRoute: SupplySuppliersRoute,
+  UploadPhotoTokenRoute: UploadPhotoTokenRoute,
   CustomersIndexRoute: CustomersIndexRoute,
   ProductsIndexRoute: ProductsIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
