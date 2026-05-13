@@ -10,6 +10,8 @@ import {
   ArrowLeftRight,
   Store,
   ShoppingCart,
+  Receipt,
+  PackageCheck,
   BarChart3,
   BookOpen,
   Settings,
@@ -101,7 +103,19 @@ const navGroups: NavGroup[] = [
   },
 ]
 
+const SALES_NAV_GROUP: NavGroup = {
+  title: "POS",
+  items: [
+    { label: "POS", to: "/pos", icon: ShoppingCart, permission: "pos.view" },
+    { label: "Sales history", to: "/shop/sales", icon: Receipt, permission: "sales.view" },
+    { label: "Receive transfers", to: "/shop", icon: PackageCheck, permission: "shop.view" },
+  ],
+}
+
 function visibleGroups(role: string): NavGroup[] {
+  if (role === "sales") {
+    return [SALES_NAV_GROUP]
+  }
   return navGroups
     .map((g) => ({
       ...g,
@@ -474,17 +488,19 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
         </ScrollArea>
 
         {/* ── Admin (pinned above user) ── */}
-        <div
-          className={cn(
-            "flex flex-col gap-0.5 border-t border-sidebar-border",
-            collapsed ? "px-2 py-2" : "px-3 py-2",
-          )}
-        >
-          {userRole === "admin" && (
-            <NavLink item={usersItem} collapsed={collapsed} />
-          )}
-          <NavLink item={settingsItem} collapsed={collapsed} badge={pendingHardCount} />
-        </div>
+        {userRole !== "sales" && (
+          <div
+            className={cn(
+              "flex flex-col gap-0.5 border-t border-sidebar-border",
+              collapsed ? "px-2 py-2" : "px-3 py-2",
+            )}
+          >
+            {userRole === "admin" && (
+              <NavLink item={usersItem} collapsed={collapsed} />
+            )}
+            <NavLink item={settingsItem} collapsed={collapsed} badge={pendingHardCount} />
+          </div>
+        )}
 
         {/* ── User ── */}
         <div className="border-t border-sidebar-border">
@@ -558,21 +574,23 @@ function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppS
         </ScrollArea>
 
         {/* Admin */}
-        <div className="flex flex-col gap-0.5 border-t border-sidebar-border px-3 py-2">
-          {userRole === "admin" && (
+        {userRole !== "sales" && (
+          <div className="flex flex-col gap-0.5 border-t border-sidebar-border px-3 py-2">
+            {userRole === "admin" && (
+              <NavLink
+                item={usersItem}
+                collapsed={false}
+                onClick={() => setOpen(false)}
+              />
+            )}
             <NavLink
-              item={usersItem}
+              item={settingsItem}
               collapsed={false}
               onClick={() => setOpen(false)}
+              badge={pendingHardCount}
             />
-          )}
-          <NavLink
-            item={settingsItem}
-            collapsed={false}
-            onClick={() => setOpen(false)}
-            badge={pendingHardCount}
-          />
-        </div>
+          </div>
+        )}
 
         {/* User */}
         <div className="border-t border-sidebar-border">
