@@ -11,7 +11,7 @@ import {
   productColors,
   user as userTable,
 } from "#/db/schema"
-import { _internal } from "#/server/functions/products/photo-handoff"
+import * as _internal from "#/server/functions/products/photo-handoff-internals"
 
 let runId: string
 let userId: string

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { filterRoutesWithUnreceivedItems } from "#/server/functions/store/receiving"
+import { filterRoutesWithUnreceivedItems } from "#/server/functions/store/receiving-internals"
 
 describe("filterRoutesWithUnreceivedItems", () => {
   it("excludes a route whose every item has been received (the China Trip bug)", () => {

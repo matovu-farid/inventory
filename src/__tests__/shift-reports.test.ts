@@ -19,7 +19,7 @@ import {
 import {
   computeShiftAggregates,
   findPeriodStart,
-} from "#/server/functions/accounting/shift-reports"
+} from "#/server/functions/accounting/shift-reports-internals"
 
 let runId: string
 let shopId: string

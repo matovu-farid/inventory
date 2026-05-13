@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { materializeVariantRows } from "#/server/functions/supply/items"
+import { materializeVariantRows } from "#/server/functions/supply/items-internals"
 
 describe("materializeVariantRows", () => {
   it("creates one row per non-zero cell", () => {

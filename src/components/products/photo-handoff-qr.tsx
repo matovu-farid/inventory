@@ -1,5 +1,9 @@
 import * as React from "react"
-import QRCode from "qrcode"
+// Import the browser entry directly — the default "qrcode" entry pulls in
+// node "fs"/"stream", which Vite externalizes for the browser and triggers
+// "Module 'events' has been externalized" at runtime.
+// @ts-expect-error – no type declarations for the /lib/browser.js subpath
+import QRCode from "qrcode/lib/browser.js"
 import { Button } from "#/components/ui/button"
 import {
   createPhotoUploadToken,

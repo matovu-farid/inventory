@@ -1,3 +1,4 @@
+import "@tanstack/react-start/server-only"
 import { neon } from "@neondatabase/serverless"
 import { drizzle as drizzleNeon } from "drizzle-orm/neon-http"
 import { drizzle as drizzlePg } from "drizzle-orm/node-postgres"
