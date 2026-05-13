@@ -99,6 +99,8 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Reports", to: "/reports", icon: BarChart3, permission: "reports.view" },
       { label: "Ledger", to: "/reports/ledger", icon: BookOpen, permission: "reports.view" },
+      { label: "X Report", to: "/reports/x", icon: ClipboardList, permission: "shift.reports.view" },
+      { label: "Z Reports", to: "/reports/z", icon: Receipt, permission: "shift.reports.view" },
     ],
   },
 ]

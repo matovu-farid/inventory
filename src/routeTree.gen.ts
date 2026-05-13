@@ -31,8 +31,11 @@ import { Route as StoreOpeningBalanceRouteImport } from './routes/store/opening-
 import { Route as ShopSalesRouteImport } from './routes/shop/sales'
 import { Route as ShopOpeningBalanceRouteImport } from './routes/shop/opening-balance'
 import { Route as SettingsUsersRouteImport } from './routes/settings/users'
+import { Route as ReportsZRouteImport } from './routes/reports/z'
+import { Route as ReportsXRouteImport } from './routes/reports/x'
 import { Route as ReportsLedgerRouteImport } from './routes/reports/ledger'
 import { Route as ProductsArticleNumberRouteImport } from './routes/products/$articleNumber'
+import { Route as ReportsZIdRouteImport } from './routes/reports/z.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const VerifyEmailSentRoute = VerifyEmailSentRouteImport.update({
@@ -145,6 +148,16 @@ const SettingsUsersRoute = SettingsUsersRouteImport.update({
   path: '/settings/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsZRoute = ReportsZRouteImport.update({
+  id: '/reports/z',
+  path: '/reports/z',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsXRoute = ReportsXRouteImport.update({
+  id: '/reports/x',
+  path: '/reports/x',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsLedgerRoute = ReportsLedgerRouteImport.update({
   id: '/reports/ledger',
   path: '/reports/ledger',
@@ -154,6 +167,11 @@ const ProductsArticleNumberRoute = ProductsArticleNumberRouteImport.update({
   id: '/products/$articleNumber',
   path: '/products/$articleNumber',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsZIdRoute = ReportsZIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ReportsZRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -171,6 +189,8 @@ export interface FileRoutesByFullPath {
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
+  '/reports/x': typeof ReportsXRoute
+  '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
@@ -187,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/store/': typeof StoreIndexRoute
   '/supply/': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/reports/z/$id': typeof ReportsZIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -198,6 +219,8 @@ export interface FileRoutesByTo {
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
+  '/reports/x': typeof ReportsXRoute
+  '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
@@ -214,6 +237,7 @@ export interface FileRoutesByTo {
   '/store': typeof StoreIndexRoute
   '/supply': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/reports/z/$id': typeof ReportsZIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -226,6 +250,8 @@ export interface FileRoutesById {
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
+  '/reports/x': typeof ReportsXRoute
+  '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
@@ -242,6 +268,7 @@ export interface FileRoutesById {
   '/store/': typeof StoreIndexRoute
   '/supply/': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/reports/z/$id': typeof ReportsZIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -255,6 +282,8 @@ export interface FileRouteTypes {
     | '/verify-email-sent'
     | '/products/$articleNumber'
     | '/reports/ledger'
+    | '/reports/x'
+    | '/reports/z'
     | '/settings/users'
     | '/shop/opening-balance'
     | '/shop/sales'
@@ -271,6 +300,7 @@ export interface FileRouteTypes {
     | '/store/'
     | '/supply/'
     | '/api/auth/$'
+    | '/reports/z/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -282,6 +312,8 @@ export interface FileRouteTypes {
     | '/verify-email-sent'
     | '/products/$articleNumber'
     | '/reports/ledger'
+    | '/reports/x'
+    | '/reports/z'
     | '/settings/users'
     | '/shop/opening-balance'
     | '/shop/sales'
@@ -298,6 +330,7 @@ export interface FileRouteTypes {
     | '/store'
     | '/supply'
     | '/api/auth/$'
+    | '/reports/z/$id'
   id:
     | '__root__'
     | '/'
@@ -309,6 +342,8 @@ export interface FileRouteTypes {
     | '/verify-email-sent'
     | '/products/$articleNumber'
     | '/reports/ledger'
+    | '/reports/x'
+    | '/reports/z'
     | '/settings/users'
     | '/shop/opening-balance'
     | '/shop/sales'
@@ -325,6 +360,7 @@ export interface FileRouteTypes {
     | '/store/'
     | '/supply/'
     | '/api/auth/$'
+    | '/reports/z/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -337,6 +373,8 @@ export interface RootRouteChildren {
   VerifyEmailSentRoute: typeof VerifyEmailSentRoute
   ProductsArticleNumberRoute: typeof ProductsArticleNumberRoute
   ReportsLedgerRoute: typeof ReportsLedgerRoute
+  ReportsXRoute: typeof ReportsXRoute
+  ReportsZRoute: typeof ReportsZRouteWithChildren
   SettingsUsersRoute: typeof SettingsUsersRoute
   ShopOpeningBalanceRoute: typeof ShopOpeningBalanceRoute
   ShopSalesRoute: typeof ShopSalesRoute
@@ -511,6 +549,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports/z': {
+      id: '/reports/z'
+      path: '/reports/z'
+      fullPath: '/reports/z'
+      preLoaderRoute: typeof ReportsZRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports/x': {
+      id: '/reports/x'
+      path: '/reports/x'
+      fullPath: '/reports/x'
+      preLoaderRoute: typeof ReportsXRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reports/ledger': {
       id: '/reports/ledger'
       path: '/reports/ledger'
@@ -525,6 +577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductsArticleNumberRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports/z/$id': {
+      id: '/reports/z/$id'
+      path: '/$id'
+      fullPath: '/reports/z/$id'
+      preLoaderRoute: typeof ReportsZIdRouteImport
+      parentRoute: typeof ReportsZRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -534,6 +593,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ReportsZRouteChildren {
+  ReportsZIdRoute: typeof ReportsZIdRoute
+}
+
+const ReportsZRouteChildren: ReportsZRouteChildren = {
+  ReportsZIdRoute: ReportsZIdRoute,
+}
+
+const ReportsZRouteWithChildren = ReportsZRoute._addFileChildren(
+  ReportsZRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -545,6 +616,8 @@ const rootRouteChildren: RootRouteChildren = {
   VerifyEmailSentRoute: VerifyEmailSentRoute,
   ProductsArticleNumberRoute: ProductsArticleNumberRoute,
   ReportsLedgerRoute: ReportsLedgerRoute,
+  ReportsXRoute: ReportsXRoute,
+  ReportsZRoute: ReportsZRouteWithChildren,
   SettingsUsersRoute: SettingsUsersRoute,
   ShopOpeningBalanceRoute: ShopOpeningBalanceRoute,
   ShopSalesRoute: ShopSalesRoute,
