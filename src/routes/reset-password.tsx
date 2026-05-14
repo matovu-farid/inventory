@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
+import type { FormEvent } from "react"
 import { z } from "zod"
 import { Logo } from "#/components/logo"
 import { Button } from "#/components/ui/button"
@@ -25,9 +26,13 @@ function ResetPasswordPage() {
 
   const tokenInvalid = !token || searchError === "INVALID_TOKEN"
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError("")
+    if (!token) {
+      setError("Reset link is missing its token. Request a new email.")
+      return
+    }
     if (password.length < 8) {
       setError("Password must be at least 8 characters.")
       return
@@ -39,14 +44,14 @@ function ResetPasswordPage() {
     setPending(true)
     const result = await authClient.resetPassword({
       newPassword: password,
-      token: token!,
+      token,
     })
     if (result.error) {
       setError(result.error.message ?? "Could not reset password.")
       setPending(false)
       return
     }
-    router.navigate({ to: "/login", search: { reset: "success" } })
+    await router.navigate({ to: "/login", search: { reset: "success" } })
   }
 
   return (
@@ -73,7 +78,7 @@ function ResetPasswordPage() {
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
               {error && (
                 <div className="rounded-xl bg-destructive/8 px-4 py-3 text-[13px] text-destructive">
                   {error}

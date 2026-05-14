@@ -22,7 +22,8 @@ import {
   PanelLeft,
 } from "lucide-react"
 import { cn } from "#/lib/utils"
-import { can, type Permission } from "#/lib/permissions"
+import { can  } from "#/lib/permissions"
+import type {Permission} from "#/lib/permissions";
 import { Logo } from "#/components/logo"
 import { Button } from "#/components/ui/button"
 import { ScrollArea } from "#/components/ui/scroll-area"

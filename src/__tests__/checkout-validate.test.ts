@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
-import { validateCartForCheckout, type ValidationIssue } from "#/lib/pos/checkout-validate"
+import { validateCartForCheckout  } from "#/lib/pos/checkout-validate"
+import type {ValidationIssue} from "#/lib/pos/checkout-validate";
 import type { CartItem } from "#/lib/pos/cart-reducer"
 
 const base: CartItem = {

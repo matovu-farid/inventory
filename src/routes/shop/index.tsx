@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { requireUiPermission } from "#/lib/permissions"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
@@ -56,7 +56,7 @@ import { getSession } from "#/server/middleware/auth"
 type ShopStockItem = Awaited<ReturnType<typeof getShopStock>>[number]
 
 const searchSchema = z.object({
-  shopId: z.string().uuid().optional(),
+  shopId: z.uuid().optional(),
 })
 
 export const Route = createFileRoute("/shop/")({
@@ -94,30 +94,31 @@ function ShopPage() {
   const [saleOpen, setSaleOpen] = useState(false)
   const [prerequisites, setPrerequisites] = useState<PrerequisiteResult>(SATISFIED)
 
-  async function loadStock(id: string) {
+  const loadStock = useCallback(async (id: string) => {
     setShopId(id)
     if (!id) { setStock([]); return }
     const s = await getShopStock({ data: { shopId: id } })
     setStock(s)
-  }
+  }, [])
 
+  const shopsLength = shops.length
   useEffect(() => {
-    if (shops.length === 0) {
+    if (shopsLength === 0) {
       if (shopId) setShopId("")
       return
     }
     if (!shops.some((s) => s.id === shopId)) {
       setShopId(shops[0].id)
     }
-  }, [shops])
+  }, [shops, shopId, shopsLength])
 
   useEffect(() => {
-    if (shopId && shops.length > 0) loadStock(shopId)
-  }, [shopId])
+    if (shopId && shopsLength > 0) void loadStock(shopId)
+  }, [shopId, shopsLength, loadStock])
 
   useEffect(() => {
     let cancelled = false
-    getShopPrereqs({ data: { shopId: shopId || null } }).then((r) => {
+    void getShopPrereqs({ data: { shopId: shopId || null } }).then((r) => {
       if (!cancelled) setPrerequisites(r)
     })
     return () => {
@@ -145,7 +146,7 @@ function ShopPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={shopId} onValueChange={loadStock}>
+        <Select value={shopId} onValueChange={(v) => { void loadStock(v) }}>
           <SelectTrigger className="h-11 w-48">
             <SelectValue placeholder="Select shop" />
           </SelectTrigger>
@@ -158,7 +159,7 @@ function ShopPage() {
           </SelectContent>
         </Select>
         {role === "admin" && (
-          <AddShopDialog onCreated={() => router.invalidate()} />
+          <AddShopDialog onCreated={() => { void router.invalidate() }} />
         )}
         {canManage &&
           (shopId ? (
@@ -191,7 +192,7 @@ function ShopPage() {
                 stock={stock.filter((s) => s.quantityOnHand > 0)}
                 onSuccess={() => {
                   setSaleOpen(false)
-                  loadStock(shopId)
+                  void loadStock(shopId)
                 }}
               />
             </DialogContent>
@@ -237,8 +238,8 @@ function ShopPage() {
                         transfers={pendingTransfers}
                         onSuccess={() => {
                           setReceiveOpen(false)
-                          router.invalidate()
-                          loadStock(shopId)
+                          void router.invalidate()
+                          void loadStock(shopId)
                         }}
                       />
                     </DialogContent>
@@ -677,7 +678,7 @@ function NewSaleForm({
 
         <Button
           className="h-12 w-full text-base"
-          onClick={handleSubmit}
+          onClick={() => { void handleSubmit() }}
           disabled={pending || cart.length === 0}
         >
           {pending ? "Recording..." : "Record Sale"}

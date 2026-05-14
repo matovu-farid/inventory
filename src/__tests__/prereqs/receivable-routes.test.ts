@@ -25,7 +25,7 @@ describe("filterRoutesWithUnreceivedItems", () => {
     const receivedItemIds = new Set(["item-a"])
     const result = filterRoutesWithUnreceivedItems(routes, receivedItemIds)
     expect(result).toHaveLength(1)
-    expect(result[0]!.id).toBe("route-mixed")
+    expect(result[0].id).toBe("route-mixed")
   })
 
   it("includes a route whose items are all unreceived", () => {

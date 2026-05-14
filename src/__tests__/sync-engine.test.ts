@@ -5,9 +5,14 @@ import { renderHook, waitFor } from "@testing-library/react"
 import {
   clearAllQueuedSales,
   putQueuedSale,
-  getQueuedSales,
-  type QueuedSale,
+  getQueuedSales
+  
 } from "#/lib/offline/idb"
+import type {QueuedSale} from "#/lib/offline/idb";
+
+import { recordSale } from "#/server/functions/shop/sales"
+import { useOnline } from "#/lib/offline/use-online"
+import { useSyncEngine, _resetSyncMutex } from "#/lib/offline/sync"
 
 // Mock recordSale server function
 vi.mock("#/server/functions/shop/sales", () => ({
@@ -18,10 +23,6 @@ vi.mock("#/server/functions/shop/sales", () => ({
 vi.mock("#/lib/offline/use-online", () => ({
   useOnline: vi.fn().mockReturnValue(true),
 }))
-
-import { recordSale } from "#/server/functions/shop/sales"
-import { useOnline } from "#/lib/offline/use-online"
-import { useSyncEngine, _resetSyncMutex } from "#/lib/offline/sync"
 
 const mockRecordSale = recordSale as unknown as ReturnType<typeof vi.fn>
 const mockUseOnline = useOnline as unknown as ReturnType<typeof vi.fn>
@@ -80,11 +81,11 @@ describe("useSyncEngine", () => {
     await waitFor(async () => {
       const queue = await getQueuedSales()
       expect(queue).toHaveLength(1)
-      expect(queue[0]!.status).toBe("failed")
+      expect(queue[0].status).toBe("failed")
     }, { timeout: 5_000 })
 
     const queue = await getQueuedSales()
-    expect(queue[0]!.failureReason).toContain("Stock gone")
+    expect(queue[0].failureReason).toContain("Stock gone")
   })
 
   it("concurrent invocations don't double-process the same sale", async () => {

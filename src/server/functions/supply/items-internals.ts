@@ -13,15 +13,15 @@ import BigNumber from "bignumber.js"
  * (color + size) variants before goods can be received against them.
  */
 export const cellSchema = z.object({
-  productColorId: z.string().uuid().optional(),
+  productColorId: z.uuid().optional(),
   size: z.string().min(1).optional(),
   quantity: z.number().int().positive(),
 })
 
 export const variantInput = z.object({
-  supplyRouteId: z.string().uuid(),
-  supplierId: z.string().uuid(),
-  productId: z.string().uuid(),
+  supplyRouteId: z.uuid(),
+  supplierId: z.uuid(),
+  productId: z.uuid(),
   unitPriceForeign: z.string(),
   foreignCurrency: z.string().default("RMB"),
   exchangeRateForeignToUsd: z.string().optional(),

@@ -76,7 +76,7 @@ function AddShopForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
       <div className="space-y-2">
         <FieldLabel htmlFor="name" help="shop.name">Shop Name *</FieldLabel>
         <Input id="name" name="name" required />

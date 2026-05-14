@@ -23,7 +23,7 @@ const expenseCategoryToLedger: Record<string, string> = {
 }
 
 const addExpenseInput = z.object({
-  supplyRouteId: z.string().uuid(),
+  supplyRouteId: z.uuid(),
   category: z.enum([
     "freight",
     "shipping",
@@ -47,7 +47,7 @@ export const addSupplyRouteExpense = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     const store = await db.query.stores.findFirst()
     if (!store) throw new Error("Store not configured")
@@ -81,7 +81,7 @@ export const addSupplyRouteExpense = createServerFn()
   })
 
 const updateExpenseInput = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   category: z
     .enum([
       "freight",
@@ -119,7 +119,7 @@ export const updateSupplyRouteExpense = createServerFn()
     return expense
   })
 
-const deleteExpenseInput = z.object({ id: z.string().uuid() })
+const deleteExpenseInput = z.object({ id: z.uuid() })
 
 export const deleteSupplyRouteExpense = createServerFn()
   .inputValidator(deleteExpenseInput)

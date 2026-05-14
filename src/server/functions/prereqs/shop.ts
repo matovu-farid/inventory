@@ -31,7 +31,7 @@ export const getShopOpeningBalancePrereqs = createServerFn().handler(
 
 const shopPrereqInput = z.object({
   /** When null/empty, no shop is selected and prereqs are SATISFIED. */
-  shopId: z.string().uuid().nullable().optional(),
+  shopId: z.uuid().nullable().optional(),
 })
 
 export const getShopPrereqs = createServerFn()

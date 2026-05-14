@@ -74,9 +74,14 @@ async function teardown() {
   await db.delete(shopSales).where(eq(shopSales.shopId, shopId))
   await db.delete(shiftClosures).where(eq(shiftClosures.shopId, shopId))
   await db.delete(shopStock).where(eq(shopStock.id, stockId))
-  await db
-    .delete(productColors)
-    .where(eq(productColors.productId, (await db.query.products.findFirst({ where: eq(products.articleNumber, runId) }))!.id))
+  const seededProduct = await db.query.products.findFirst({
+    where: eq(products.articleNumber, runId),
+  })
+  if (seededProduct) {
+    await db
+      .delete(productColors)
+      .where(eq(productColors.productId, seededProduct.id))
+  }
   await db.delete(products).where(eq(products.articleNumber, runId))
   await db.delete(shops).where(eq(shops.id, shopId))
   await db.delete(userTable).where(eq(userTable.id, userId))

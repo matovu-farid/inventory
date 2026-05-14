@@ -11,20 +11,20 @@ import { requireRole } from "#/server/middleware/rbac"
 import { validateOpeningBalanceCell } from "./opening-balance-validate"
 
 const cellSchema = z.object({
-  productColorId: z.string().uuid(),
+  productColorId: z.uuid(),
   size: z.string().min(1),
   quantity: z.number().int().positive(),
 })
 
 const productEntry = z.object({
-  productId: z.string().uuid(),
+  productId: z.uuid(),
   unitCostUgx: z.string().min(1),
   cells: z.array(cellSchema).min(1),
 })
 
 const storeOpeningInput = z.object({ items: z.array(productEntry).min(1) })
 const shopOpeningInput = z.object({
-  shopId: z.string().uuid(),
+  shopId: z.uuid(),
   items: z.array(productEntry).min(1),
 })
 
@@ -33,7 +33,7 @@ export const addStoreOpeningBalance = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     // Validate before opening a transaction.
     for (const entry of data.items) {
@@ -113,7 +113,7 @@ export const addShopOpeningBalance = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     for (const entry of data.items) {
       for (const cell of entry.cells) {

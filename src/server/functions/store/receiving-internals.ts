@@ -4,8 +4,8 @@
  * still have ≥1 unreceived item. Empty-item routes are excluded.
  */
 export function filterRoutesWithUnreceivedItems<
-  R extends { items: Array<{ id: string }> },
->(routes: R[], receivedItemIds: ReadonlySet<string>): R[] {
+  TRoute extends { items: Array<{ id: string }> },
+>(routes: TRoute[], receivedItemIds: ReadonlySet<string>): TRoute[] {
   return routes.filter(
     (r) =>
       r.items.length > 0 &&

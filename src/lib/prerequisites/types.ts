@@ -17,7 +17,7 @@ export interface MissingPrereq {
   /** 1-2 sentence user-facing explanation of why this matters. */
   why: string
   /** Non-empty list of CTA buttons. At least one is required by design. */
-  actions: [PrereqAction, ...PrereqAction[]]
+  actions: readonly [PrereqAction, ...PrereqAction[]]
 }
 
 export interface PrerequisiteResult {
@@ -56,7 +56,9 @@ export interface SystemPrereqsSummary {
 
 /** Helper for derive functions. Builds a satisfied-result. Frozen to make
  * the shared singleton safe against accidental mutation by callers. */
+const SATISFIED_MISSING: MissingPrereq[] = []
+Object.freeze(SATISFIED_MISSING)
 export const SATISFIED: PrerequisiteResult = Object.freeze({
   satisfied: true,
-  missing: Object.freeze([]) as unknown as MissingPrereq[],
+  missing: SATISFIED_MISSING,
 })

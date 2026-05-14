@@ -66,7 +66,7 @@ export const listReceivableRoutes = createServerFn().handler(async () => {
  * Each item has at most one StoreReceiving row — once received, it disappears.
  */
 export const getUnreceivedItems = createServerFn()
-  .inputValidator(z.object({ supplyRouteId: z.string().uuid() }))
+  .inputValidator(z.object({ supplyRouteId: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
@@ -99,13 +99,13 @@ export const getUnreceivedItems = createServerFn()
   })
 
 const receiveItemInput = z.object({
-  supplyRouteItemId: z.string().uuid(),
+  supplyRouteItemId: z.uuid(),
   quantityReceived: z.number().int().min(0),
   discrepancyNotes: z.string().optional(),
 })
 
 const receiveGoodsInput = z.object({
-  supplyRouteId: z.string().uuid(),
+  supplyRouteId: z.uuid(),
   items: z.array(receiveItemInput).min(1),
 })
 
@@ -184,7 +184,7 @@ export const receiveGoods = createServerFn()
           quantityExpected: sri.quantity,
           quantityReceived: item.quantityReceived,
           discrepancyNotes: item.discrepancyNotes,
-          receivedBy: (session.user as { id: string }).id,
+          receivedBy: session.user.id,
         })
 
         // 2. Upsert StoreStock — merge into existing (storeId, productColorId, size) row
@@ -226,7 +226,7 @@ export const receiveGoods = createServerFn()
             locationType: "store",
             locationId: store.id,
             depositLocation: "cash",
-            recordedBy: (session.user as { id: string }).id,
+            recordedBy: session.user.id,
             description: `Received ${item.quantityReceived}× ${productLabel} from route`,
           })
         }
@@ -243,7 +243,7 @@ export const receiveGoods = createServerFn()
             referenceId: sri.id,
             locationType: "store",
             locationId: store.id,
-            recordedBy: (session.user as { id: string }).id,
+            recordedBy: session.user.id,
             description: `Transit loss: ${transitLoss}× ${productLabel}`,
           })
         }
@@ -270,7 +270,7 @@ export const receiveGoods = createServerFn()
       )
 
       await recordAuditLog(tx, {
-        actorUserId: (session.user as { id: string }).id,
+        actorUserId: session.user.id,
         action: "store.receiveGoods",
         entityType: "supply_route",
         entityId: data.supplyRouteId,
@@ -302,7 +302,7 @@ export const getStoreStock = createServerFn().handler(async () => {
 })
 
 const setMinPriceInput = z.object({
-  storeStockId: z.string().uuid(),
+  storeStockId: z.uuid(),
   minimumSellPriceUgx: z.string(),
 })
 

@@ -7,7 +7,7 @@ import { listShops } from "#/server/functions/admin/locations"
 import { getShopOpeningBalancePrereqs } from "#/server/functions/prereqs/shop"
 
 const searchSchema = z.object({
-  shopId: z.string().uuid().optional(),
+  shopId: z.uuid().optional(),
 })
 
 export const Route = createFileRoute("/shop/opening-balance")({

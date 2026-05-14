@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { requireUiPermission } from "#/lib/permissions"
 import BigNumber from "bignumber.js"
 import { roundUgxFloor50, formatUgxTotal } from "#/lib/format"
@@ -60,26 +60,27 @@ function SalesPage() {
     }>
   >([])
 
-  async function loadSales(id: string) {
+  const loadSales = useCallback(async (id: string) => {
     setShopId(id)
     if (!id) { setSales([]); return }
     const s = await listShopSales({ data: { shopId: id } })
     setSales(s)
-  }
+  }, [])
 
+  const shopsLength = shops.length
   useEffect(() => {
-    if (shops.length === 0) {
+    if (shopsLength === 0) {
       if (shopId) setShopId("")
       return
     }
     if (!shops.some((s) => s.id === shopId)) {
       setShopId(shops[0].id)
     }
-  }, [shops])
+  }, [shops, shopId, shopsLength])
 
   useEffect(() => {
-    if (shopId && shops.length > 0) loadSales(shopId)
-  }, [shopId])
+    if (shopId && shopsLength > 0) void loadSales(shopId)
+  }, [shopId, shopsLength, loadSales])
 
   const totalRevenue = sales.reduce(
     (s, sale) => s.plus(sale.totalAmount),
@@ -98,7 +99,7 @@ function SalesPage() {
         {shops.length > 1 && (
           <div className="flex items-center justify-between">
             <div />
-            <Select value={shopId} onValueChange={loadSales}>
+            <Select value={shopId} onValueChange={(v) => { void loadSales(v) }}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Select shop" />
               </SelectTrigger>

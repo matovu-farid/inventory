@@ -74,7 +74,7 @@ function ProfileCard({
       return
     }
     setMessage({ kind: "success", text: "Profile updated." })
-    router.invalidate()
+    void router.invalidate()
   }
 
   return (
@@ -83,7 +83,7 @@ function ProfileCard({
         <CardTitle>Profile</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={(e) => { void submit(e) }} className="space-y-4">
           {message && <FormMessage message={message} />}
           <div className="space-y-1.5">
             <Label htmlFor="profile-name">Name</Label>
@@ -163,7 +163,7 @@ function ChangePasswordCard() {
         <CardTitle>Change password</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={(e) => { void submit(e) }} className="space-y-4">
           {message && <FormMessage message={message} />}
           <div className="space-y-1.5">
             <Label htmlFor="pw-current">Current password</Label>

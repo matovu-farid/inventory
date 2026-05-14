@@ -62,9 +62,9 @@ function AcceptInvitePage() {
     setPending(true)
     try {
       await acceptInvite({ data: { token, password } })
-      router.navigate({ to: "/" })
+      await router.navigate({ to: "/" })
     } catch (err) {
-      setError((err as Error).message ?? "Could not accept invite.")
+      setError((err as Error).message || "Could not accept invite.")
       setPending(false)
     }
   }
@@ -82,7 +82,7 @@ function AcceptInvitePage() {
         className="mt-6 rounded-2xl bg-white p-6 text-left"
         style={{ boxShadow: "var(--shadow-lg)" }}
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
           {error && (
             <div className="rounded-xl bg-destructive/8 px-4 py-3 text-[13px] text-destructive">
               {error}

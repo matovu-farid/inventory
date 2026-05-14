@@ -1,6 +1,8 @@
 import { betterAuth, APIError } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { admin } from "better-auth/plugins"
+import { defaultStatements, adminAc } from "better-auth/plugins/admin/access"
+import { createAccessControl } from "better-auth/plugins/access"
 import { tanstackStartCookies } from "better-auth/tanstack-start"
 import { sql } from "drizzle-orm"
 import { db } from "#/db"
@@ -9,6 +11,24 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "#/lib/email"
+
+/**
+ * Roles recognised by this application. The admin plugin's API typings derive
+ * the accepted `role` literal from the keys of the `roles` map passed below,
+ * so `auth.api.createUser`/`setRole` accept these values without casts.
+ */
+export type AppRole = "admin" | "supervisor" | "sales"
+const ac = createAccessControl(defaultStatements)
+// Supervisor/sales are declared with no admin-plugin permissions; they exist
+// only so the admin plugin's API typings accept these role strings. We pass an
+// empty-actions grant on `user` to satisfy `newRole`'s `Subset<K, ...>` shape.
+const supervisorAc = ac.newRole({ user: [] })
+const salesAc = ac.newRole({ user: [] })
+const appRoles = {
+  admin: adminAc,
+  supervisor: supervisorAc,
+  sales: salesAc,
+}
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -32,7 +52,7 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       await sendPasswordResetEmail({
         to: user.email,
-        name: user.name ?? user.email,
+        name: user.name,
         url,
       })
     },
@@ -43,7 +63,7 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       await sendVerificationEmail({
         to: user.email,
-        name: user.name ?? user.email,
+        name: user.name,
         url,
       })
     },
@@ -79,10 +99,7 @@ export const auth = betterAuth({
 
           // Allow admin-created users (admin plugin path) — the resolved
           // session of the caller is exposed on ctx.context.session.
-          const session = (ctx as any)?.context?.session as
-            | { user?: { role?: string } }
-            | undefined
-          const role = session?.user?.role
+          const role = ctx?.context.session?.user.role as AppRole | undefined
           if (role === "admin") {
             if (!userData.role || userData.role === "user") {
               return { data: { ...userData, role: "sales" } }
@@ -99,7 +116,26 @@ export const auth = betterAuth({
       },
     },
   },
-  plugins: [tanstackStartCookies(), admin()],
+  plugins: [
+    tanstackStartCookies(),
+    admin({
+      ac,
+      roles: appRoles,
+      defaultRole: "sales",
+      adminRoles: ["admin"],
+    }),
+  ],
 })
 
 export type Session = typeof auth.$Infer.Session
+
+/**
+ * `additionalFields` declared above (`role`, `shopId`) aren't picked up by
+ * better-auth's inferred user type, so we widen it here. Server code reads
+ * `session.user.role` / `session.user.shopId` directly off `AppSession`.
+ */
+export type AppUser = Session["user"] & {
+  role?: string | null
+  shopId?: string | null
+}
+export type AppSession = Omit<Session, "user"> & { user: AppUser }

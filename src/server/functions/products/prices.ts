@@ -7,7 +7,7 @@ import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
 export const listProductStockPrices = createServerFn()
-  .inputValidator(z.object({ productId: z.string().uuid() }))
+  .inputValidator(z.object({ productId: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
@@ -40,7 +40,7 @@ export const listProductStockPrices = createServerFn()
 
 const setPriceInput = z.object({
   stockType: z.enum(["store", "shop"]),
-  stockId: z.string().uuid(),
+  stockId: z.uuid(),
   minimumSellPriceUgx: z
     .string()
     .refine((v) => /^\d+(\.\d{1,2})?$/.test(v) && Number(v) >= 0, {

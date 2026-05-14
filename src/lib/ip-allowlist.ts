@@ -46,13 +46,13 @@ const defaultDeps: Deps = {
   },
 
   async upsertAllowlist(userId, ip) {
-    const result = await db.execute(sql`
+    const result = await db.execute<{ inserted: boolean }>(sql`
       INSERT INTO admin_ip_allowlist ("user_id", "ip", "last_seen_at", "created_at")
       VALUES (${userId}, ${ip}, now(), now())
       ON CONFLICT ("user_id", "ip") DO UPDATE SET "last_seen_at" = now()
       RETURNING (xmax = 0) AS inserted
     `)
-    const row = (result as unknown as Array<{ inserted: boolean }>)[0]
+    const row = result.rows.at(0)
     return { inserted: !!row?.inserted }
   },
 

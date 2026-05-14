@@ -11,9 +11,10 @@ import { formatUgxTotal } from "#/lib/format"
 import {
   getQueuedSales,
   deleteQueuedSale,
-  updateQueuedSaleStatus,
-  type QueuedSale,
+  updateQueuedSaleStatus
+  
 } from "#/lib/offline/idb"
+import type {QueuedSale} from "#/lib/offline/idb";
 import { recordSale } from "#/server/functions/shop/sales"
 
 type Props = {
@@ -70,7 +71,7 @@ export function QueuedSalesSheet({ open, onOpenChange, onSyncComplete }: Props) 
   }
 
   React.useEffect(() => {
-    if (open) load()
+    if (open) void load()
   }, [open])
 
   async function handleRetry(sale: QueuedSale) {
@@ -144,7 +145,7 @@ export function QueuedSalesSheet({ open, onOpenChange, onSyncComplete }: Props) 
                             size="sm"
                             variant="destructive"
                             className="h-8"
-                            onClick={() => handleDiscard(s.id)}
+                            onClick={() => void handleDiscard(s.id)}
                           >
                             Yes, discard
                           </Button>
@@ -165,7 +166,7 @@ export function QueuedSalesSheet({ open, onOpenChange, onSyncComplete }: Props) 
                           variant="outline"
                           className="h-8"
                           disabled={retrying === s.id}
-                          onClick={() => handleRetry(s)}
+                          onClick={() => void handleRetry(s)}
                         >
                           <RefreshCw className={`mr-1 size-3 ${retrying === s.id ? "animate-spin" : ""}`} />
                           Retry

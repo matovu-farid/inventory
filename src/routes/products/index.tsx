@@ -32,7 +32,7 @@ function ProductsPage() {
       <Input
         placeholder="Search by article or name…"
         value={query}
-        onChange={(e) => handleSearch(e.target.value)}
+        onChange={(e) => { void handleSearch(e.target.value) }}
         className="max-w-md"
       />
       {results.length === 0 ? (

@@ -1,5 +1,6 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
+import type { FormEvent } from "react"
 import { z } from "zod"
 import { Logo } from "#/components/logo"
 import { Button } from "#/components/ui/button"
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { usersExist: exists } = Route.useLoaderData()
   const search = Route.useSearch()
-  const router = useRouter()
+  const navigate = useNavigate()
 
   // Bootstrap only allows the first user (signup). After that, login only.
   const showSignup = !exists
@@ -36,7 +37,7 @@ function LoginPage() {
   const [error, setError] = useState("")
   const [pending, setPending] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError("")
     setPending(true)
@@ -49,7 +50,7 @@ function LoginPage() {
           setPending(false)
           return
         }
-        ;(router.navigate as any)({
+        await navigate({
           to: "/verify-email-sent",
           search: { email },
         })
@@ -63,7 +64,7 @@ function LoginPage() {
           code === "EMAIL_NOT_VERIFIED" ||
           /verif/i.test(result.error.message ?? "")
         ) {
-          ;(router.navigate as any)({
+          await navigate({
             to: "/verify-email-sent",
             search: { email },
           })
@@ -73,7 +74,7 @@ function LoginPage() {
         setPending(false)
         return
       }
-      router.navigate({ to: "/" })
+      await navigate({ to: "/" })
     } catch {
       setError(showSignup ? "Sign-up failed." : "Login failed.")
       setPending(false)
@@ -99,7 +100,7 @@ function LoginPage() {
           className="rounded-2xl bg-white p-6"
           style={{ boxShadow: "var(--shadow-lg)" }}
         >
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
             {search.reset === "success" && (
               <div className="rounded-xl bg-emerald-50 px-4 py-3 text-[13px] text-emerald-700">
                 Password updated. Sign in with your new password.
@@ -154,7 +155,7 @@ function LoginPage() {
                 </Label>
                 {!showSignup && (
                   <Link
-                    to={"/forgot-password" as any}
+                    to="/forgot-password"
                     className="text-[12px] font-medium text-primary hover:underline"
                   >
                     Forgot password?

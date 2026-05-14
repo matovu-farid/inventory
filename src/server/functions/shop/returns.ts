@@ -19,18 +19,18 @@ import { requireRole } from "#/server/middleware/rbac"
 import { validateCreditAdjustmentRefund } from "./refund-validate"
 
 const returnItemInput = z.object({
-  shopStockId: z.string().uuid(),
+  shopStockId: z.uuid(),
   quantity: z.number().int().positive(),
   unitRefundPriceUgx: z.string(),
 })
 
 const recordCustomerReturnInput = z.object({
-  shopId: z.string().uuid(),
-  originalSaleId: z.string().uuid().optional(),
-  customerId: z.string().uuid().optional(),
+  shopId: z.uuid(),
+  originalSaleId: z.uuid().optional(),
+  customerId: z.uuid().optional(),
   reason: z.string().min(1),
   refundMethod: z.enum(["cash", "bank", "credit_adjustment"]),
-  bankAccountId: z.string().uuid().optional(),
+  bankAccountId: z.uuid().optional(),
   items: z.array(returnItemInput).min(1),
   notes: z.string().optional(),
 })
@@ -46,7 +46,7 @@ export const recordCustomerReturn = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     if (data.refundMethod === "credit_adjustment" && !data.customerId) {
       throw new Error("customerId is required for credit_adjustment refunds")

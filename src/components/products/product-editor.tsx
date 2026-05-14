@@ -74,7 +74,7 @@ export function ProductEditor({ onCreated }: Props) {
         </div>
       </div>
       <div className="flex justify-end">
-        <Button onClick={save} disabled={!articleNumber || !name || sizes.length === 0 || submitting}>
+        <Button onClick={() => void save()} disabled={!articleNumber || !name || sizes.length === 0 || submitting}>
           {submitting ? "Saving…" : "Create product"}
         </Button>
       </div>

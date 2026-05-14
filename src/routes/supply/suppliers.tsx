@@ -132,7 +132,7 @@ function CreateSupplierForm({ onSuccess }: { onSuccess: () => void }) {
           notes: (form.get("notes") as string) || undefined,
         },
       })
-      router.invalidate()
+      void router.invalidate()
       onSuccess()
     } catch (err) {
       console.error("Failed to create supplier:", err)
@@ -142,7 +142,7 @@ function CreateSupplierForm({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
       <div className="space-y-2">
         <FieldLabel htmlFor="name" help="supplier.name">Name *</FieldLabel>
         <Input id="name" name="name" required />

@@ -6,7 +6,7 @@ import { Button } from "#/components/ui/button"
 import { authClient } from "#/lib/auth-client"
 
 export const Route = createFileRoute("/verify-email-sent")({
-  validateSearch: z.object({ email: z.string().email() }),
+  validateSearch: z.object({ email: z.email() }),
   component: VerifyEmailSentPage,
 })
 
@@ -44,7 +44,7 @@ function VerifyEmailSentPage() {
           </p>
           <Button
             type="button"
-            onClick={handleResend}
+            onClick={() => { void handleResend() }}
             disabled={status === "sending" || status === "sent"}
             className="h-10 w-full rounded-xl text-[13px] font-semibold"
           >

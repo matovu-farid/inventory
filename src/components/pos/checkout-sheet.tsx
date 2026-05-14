@@ -212,13 +212,15 @@ export function CheckoutSheet({ shopId, open, onOpenChange, onSaleComplete }: Pr
                   variant="outline"
                   className="h-12 w-full"
                   disabled={!completedSaleId}
-                  onClick={async () => {
+                  onClick={() => {
                     if (!completedSaleId) return
-                    try {
-                      await printSaleReceipt(completedSaleId)
-                    } catch (e) {
-                      setErrorMsg(e instanceof Error ? e.message : "Could not open receipt")
-                    }
+                    void (async () => {
+                      try {
+                        await printSaleReceipt(completedSaleId)
+                      } catch (e) {
+                        setErrorMsg(e instanceof Error ? e.message : "Could not open receipt")
+                      }
+                    })()
                   }}
                 >
                   <Printer className="mr-2 size-4" /> Print receipt
@@ -259,7 +261,7 @@ export function CheckoutSheet({ shopId, open, onOpenChange, onSaleComplete }: Pr
             {stage === "confirm" && (
               <Button
                 className="h-11 flex-1 bg-green-600 text-white hover:bg-green-700"
-                onClick={handleConfirm}
+                onClick={() => void handleConfirm()}
                 disabled={submitting}
               >
                 {submitting ? "Recording..." : "Confirm sale ✓"}

@@ -9,7 +9,7 @@ import { requireRole } from "#/server/middleware/rbac"
 
 export const getProductImageUploadUrl = createServerFn()
   .inputValidator(z.object({
-    productColorId: z.string().uuid(),
+    productColorId: z.uuid(),
     contentType: z.string().regex(/^image\//),
   }))
   .handler(async ({ data }) => {

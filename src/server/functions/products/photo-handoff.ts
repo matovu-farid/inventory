@@ -15,11 +15,11 @@ import {
 } from "./photo-handoff-internals"
 
 export const createPhotoUploadToken = createServerFn()
-  .inputValidator(z.object({ productColorId: z.string().uuid() }))
+  .inputValidator(z.object({ productColorId: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
     const token = generateToken()
     const expiresAt = new Date(Date.now() + TOKEN_TTL_MS)
     await db.insert(pictureUploadTokens).values({

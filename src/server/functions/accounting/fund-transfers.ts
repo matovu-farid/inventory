@@ -12,9 +12,9 @@ const transferFundsInput = z.object({
   amount: z
     .string()
     .refine((v) => new BigNumber(v).gt(0), "Amount must be positive"),
-  bankAccountId: z.string().uuid(),
+  bankAccountId: z.uuid(),
   locationType: z.enum(["store", "shop"]),
-  locationId: z.string().uuid(),
+  locationId: z.uuid(),
   description: z.string().optional(),
 })
 
@@ -29,7 +29,7 @@ export const transferFunds = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     const debitCategory =
       data.direction === "cash_to_bank" ? "Bank" : "Cash"

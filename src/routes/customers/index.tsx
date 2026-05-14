@@ -56,7 +56,7 @@ function CustomersPage() {
       setPhone("")
       setNotes("")
       setOpen(false)
-      router.invalidate()
+      void router.invalidate()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create customer")
     } finally {
@@ -85,7 +85,7 @@ function CustomersPage() {
             <DialogHeader>
               <DialogTitle>Add a customer</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={(e) => { void handleCreate(e) }} className="space-y-4">
               <div className="space-y-2">
                 <FieldLabel htmlFor="name" help="customer.name">Name</FieldLabel>
                 <Input

@@ -1,4 +1,5 @@
-import { rgbToLab, type Lab, type Rgb } from "./lab"
+import { rgbToLab   } from "./lab"
+import type {Lab, Rgb} from "./lab";
 
 type PixelSource = { data: Uint8ClampedArray; width: number; height: number }
 

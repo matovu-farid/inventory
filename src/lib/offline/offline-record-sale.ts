@@ -2,9 +2,10 @@ import { recordSale } from "#/server/functions/shop/sales"
 import {
   putQueuedSale,
   deleteQueuedSale,
-  updateQueuedSaleStatus,
-  type QueuedSale,
+  updateQueuedSaleStatus
+  
 } from "#/lib/offline/idb"
+import type {QueuedSale} from "#/lib/offline/idb";
 
 export type SubmitResult =
   | { ok: true; mode: "online"; saleId: string }
@@ -12,7 +13,7 @@ export type SubmitResult =
   | { ok: false; mode: "queued"; localId: string; reason: string }
 
 function generateLocalId(): string {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID()
   }
   // Fallback for environments without crypto.randomUUID
@@ -53,10 +54,10 @@ export async function submitSaleOfflineAware(
 
   // Attempt immediate sync
   try {
-    const res = await recordSale({ data: input as Parameters<typeof recordSale>[0]["data"] })
+    const res = await recordSale({ data: input })
     // Success — remove from queue
     await deleteQueuedSale(localId)
-    return { ok: true, mode: "online", saleId: res.id ?? localId }
+    return { ok: true, mode: "online", saleId: res.id }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
 

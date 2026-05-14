@@ -46,7 +46,7 @@ export async function emitNotification(tx: Tx, params: EmitParams) {
 
 export const listMyNotifications = createServerFn().handler(async () => {
   const session = await requireSession()
-  const userId = (session.user as { id: string }).id
+  const userId = session.user.id
 
   return db
     .select()
@@ -56,13 +56,13 @@ export const listMyNotifications = createServerFn().handler(async () => {
     .limit(50)
 })
 
-const markReadInput = z.object({ id: z.string().uuid() })
+const markReadInput = z.object({ id: z.uuid() })
 
 export const markNotificationRead = createServerFn()
   .inputValidator(markReadInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     await db
       .update(notifications)
@@ -73,6 +73,12 @@ export const markNotificationRead = createServerFn()
     return { ok: true }
   })
 
+const thresholdsSchema = z.object({
+  lowStockUnits: z.number().int().nonnegative(),
+  discrepancyPercent: z.number().nonnegative(),
+  overdueDays: z.number().int().nonnegative(),
+}) satisfies z.ZodType<Thresholds>
+
 /**
  * Run threshold-based checks and emit notifications for matches.
  * Designed to be invoked by a scheduled job (e.g., a Cloudflare cron
@@ -81,13 +87,12 @@ export const markNotificationRead = createServerFn()
  * dedupe at the trigger layer.
  */
 export const runThresholdChecks = createServerFn()
-  .inputValidator(z.object({ thresholds: z.unknown().optional() }))
+  .inputValidator(z.object({ thresholds: thresholdsSchema.optional() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
 
-    const thresholds: Thresholds =
-      (data.thresholds as Thresholds | undefined) ?? DEFAULT_THRESHOLDS
+    const thresholds: Thresholds = data.thresholds ?? DEFAULT_THRESHOLDS
 
     return db.transaction(async (tx) => {
       let lowStockEmitted = 0

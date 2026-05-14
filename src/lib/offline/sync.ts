@@ -87,15 +87,17 @@ export function useSyncEngine(): SyncCounts & { refresh: () => Promise<void> } {
 
     if (isOnline && wasOnline !== true) {
       // Just came online (or first mount)
-      drainQueue().then(() => refreshCounts())
+      void drainQueue().then(() => refreshCounts())
     } else {
-      refreshCounts()
+      void refreshCounts()
     }
   }, [isOnline])
 
   // Periodic refresh so counts stay accurate after background sync
   React.useEffect(() => {
-    const id = setInterval(refreshCounts, 5_000)
+    const id = setInterval(() => {
+      void refreshCounts()
+    }, 5_000)
     return () => clearInterval(id)
   }, [])
 

@@ -17,15 +17,15 @@ import { requireRole } from "#/server/middleware/rbac"
 import { buildStoreReturnReceiveEntries } from "./return-entries"
 
 const returnItemInput = z.object({
-  shopStockId: z.string().uuid(),
+  shopStockId: z.uuid(),
   quantityDispatched: z.number().int().positive(),
   unitTransferPriceUgx: z.string(),
 })
 
 const dispatchStoreReturnInput = z.object({
-  shopId: z.string().uuid(),
-  storeId: z.string().uuid(),
-  originalTransferId: z.string().uuid().optional(),
+  shopId: z.uuid(),
+  storeId: z.uuid(),
+  originalTransferId: z.uuid().optional(),
   reason: z.string().min(1),
   items: z.array(returnItemInput).min(1),
   notes: z.string().optional(),
@@ -41,7 +41,7 @@ export const dispatchStoreReturn = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     return db.transaction(async (tx) => {
       const itemDetails = []
@@ -117,10 +117,10 @@ export const dispatchStoreReturn = createServerFn()
   })
 
 const receiveStoreReturnInput = z.object({
-  storeReturnId: z.string().uuid(),
+  storeReturnId: z.uuid(),
   itemReceipts: z.array(
     z.object({
-      storeReturnItemId: z.string().uuid(),
+      storeReturnItemId: z.uuid(),
       quantityReceived: z.number().int().nonnegative(),
     }),
   ),
@@ -137,7 +137,7 @@ export const receiveStoreReturn = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     return db.transaction(async (tx) => {
       const storeReturn = await tx.query.storeReturns.findFirst({

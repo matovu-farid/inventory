@@ -7,10 +7,10 @@ import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
 const settleInput = z.object({
-  shopId: z.string().uuid(),
+  shopId: z.uuid(),
   amount: z.string().refine((v) => new BigNumber(v).gt(0), "Amount must be positive"),
   paymentMethod: z.enum(["cash", "bank"]),
-  bankAccountId: z.string().uuid().optional(),
+  bankAccountId: z.uuid().optional(),
   description: z.string().optional(),
 })
 
@@ -26,7 +26,7 @@ export const settleInterBranch = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     const store = await db.query.stores.findFirst()
     if (!store) throw new Error("Store not configured")

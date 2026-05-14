@@ -22,7 +22,7 @@ export function AvatarMenu({ userName, userEmail }: { userName: string; userEmai
   const router = useRouter()
   async function handleLogout() {
     await authClient.signOut()
-    router.navigate({ to: "/login" })
+    await router.navigate({ to: "/login" })
   }
   return (
     <DropdownMenu>
@@ -48,22 +48,22 @@ export function AvatarMenu({ userName, userEmail }: { userName: string; userEmai
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link to={"/shop/sales" as never}>
+          <Link to={"/shop/sales"}>
             <Receipt className="mr-2 size-4" /> Sales history
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to={"/shop" as never}>
+          <Link to={"/shop"}>
             <PackageCheck className="mr-2 size-4" /> Receive transfers
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to={"/settings" as never}>
+          <Link to={"/settings"}>
             <User className="mr-2 size-4" /> Account
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
+        <DropdownMenuItem onClick={() => void handleLogout()}>
           <LogOut className="mr-2 size-4" /> Log out
         </DropdownMenuItem>
       </DropdownMenuContent>

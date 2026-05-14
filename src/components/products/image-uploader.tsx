@@ -1,7 +1,8 @@
 import { useRef, useState } from "react"
 import { extractDominantLab } from "#/lib/colors/extract-dominant"
 import { matchPaletteLab } from "#/lib/colors/match-palette"
-import { labToRgb, rgbToHex, rgbToLab, type Rgb } from "#/lib/colors/lab"
+import { labToRgb, rgbToHex, rgbToLab  } from "#/lib/colors/lab"
+import type {Rgb} from "#/lib/colors/lab";
 import { Button } from "#/components/ui/button"
 
 interface Props {
@@ -99,7 +100,8 @@ function downscale(ctx: CanvasRenderingContext2D, w: number, h: number, target: 
   const ratio = Math.min(target / w, target / h, 1)
   tmp.width = Math.max(1, Math.round(w * ratio))
   tmp.height = Math.max(1, Math.round(h * ratio))
-  const tctx = tmp.getContext("2d")!
+  const tctx = tmp.getContext("2d")
+  if (!tctx) throw new Error("2d canvas context unavailable")
   tctx.drawImage(ctx.canvas, 0, 0, tmp.width, tmp.height)
   return tctx.getImageData(0, 0, tmp.width, tmp.height)
 }

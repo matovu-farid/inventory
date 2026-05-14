@@ -12,7 +12,7 @@ export const listLocationExpenses = createServerFn()
   .inputValidator(
     z.object({
       locationType: z.enum(["store", "shop"]),
-      locationId: z.string().uuid(),
+      locationId: z.uuid(),
     }),
   )
   .handler(async ({ data }) => {
@@ -30,13 +30,13 @@ export const listLocationExpenses = createServerFn()
 
 const addExpenseInput = z.object({
   locationType: z.enum(["store", "shop"]),
-  locationId: z.string().uuid(),
+  locationId: z.uuid(),
   category: z.string().min(1),
   description: z.string().optional(),
   amount: z.string().refine((v) => new BigNumber(v).gt(0), "Amount must be positive"),
   expenseDate: z.string(),
   paymentMethod: z.enum(["cash", "bank"]),
-  bankAccountId: z.string().uuid().optional(),
+  bankAccountId: z.uuid().optional(),
 })
 
 /**
@@ -48,7 +48,7 @@ export const addLocationExpense = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     return db.transaction(async (tx) => {
       const [expense] = await tx

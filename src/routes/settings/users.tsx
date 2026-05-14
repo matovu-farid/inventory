@@ -1,5 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
+import type { FormEvent } from "react"
 import { requireUiPermission } from "#/lib/permissions"
 import { z } from "zod"
 import {
@@ -59,8 +60,7 @@ type Row = {
 function UsersPage() {
   const { result, currentUserId } = Route.useLoaderData()
   const router = useRouter()
-  // better-auth listUsers returns { users: [...] }
-  const list: Row[] = ((result as any).users ?? result) as Row[]
+  const list: Row[] = result.users
   const [open, setOpen] = useState(false)
 
   const [resendingId, setResendingId] = useState<string | null>(null)
@@ -76,7 +76,7 @@ function UsersPage() {
     setRoleChangingId(userId)
     try {
       await setUserRole({ data: { userId, role } })
-      router.invalidate()
+      void router.invalidate()
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to change role")
     } finally {
@@ -94,7 +94,7 @@ function UsersPage() {
     try {
       await inviteUser({ data: values })
       setOpen(false)
-      router.invalidate()
+      void router.invalidate()
     } catch (err) {
       setInviteError(err instanceof Error ? err.message : "Failed to send invite")
     } finally {
@@ -118,7 +118,7 @@ function UsersPage() {
     setRemovingId(u.id)
     try {
       await removeUser({ data: { userId: u.id } })
-      router.invalidate()
+      void router.invalidate()
     } catch {
       // swallow
     } finally {
@@ -142,7 +142,7 @@ function UsersPage() {
           </DialogTrigger>
           <InviteDialog
             open={open}
-            onSubmit={handleInvite}
+            onSubmit={(v) => { void handleInvite(v) }}
             pending={invitePending}
             error={inviteError}
           />
@@ -181,12 +181,12 @@ function UsersPage() {
                       ) : (
                         <Select
                           value={role}
-                          onValueChange={(v) =>
-                            handleRoleChange(
+                          onValueChange={(v) => {
+                            void handleRoleChange(
                               u.id,
                               v as "admin" | "supervisor" | "sales",
                             )
-                          }
+                          }}
                           disabled={roleChangingId === u.id}
                         >
                           <SelectTrigger className="h-8 w-[140px]">
@@ -210,7 +210,7 @@ function UsersPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleResend(u.id)}
+                          onClick={() => { void handleResend(u.id) }}
                           disabled={resendingId === u.id}
                         >
                           {resendingId === u.id ? "Sending..." : "Resend invite"}
@@ -220,7 +220,7 @@ function UsersPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleRemove(u)}
+                          onClick={() => { void handleRemove(u) }}
                           disabled={removingId === u.id}
                         >
                           Remove
@@ -239,7 +239,7 @@ function UsersPage() {
 }
 
 const inviteSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   name: z.string().min(1),
   role: z.enum(["admin", "supervisor", "sales"]),
 })
@@ -267,7 +267,7 @@ function InviteDialog({
     }
   }, [open])
 
-  function submit(e: React.FormEvent) {
+  function submit(e: FormEvent) {
     e.preventDefault()
     const parsed = inviteSchema.safeParse({ email, name, role })
     if (!parsed.success) return

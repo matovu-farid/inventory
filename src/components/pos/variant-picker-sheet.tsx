@@ -70,7 +70,7 @@ export function VariantPickerSheet({ product, stock, open, onOpenChange }: Props
   React.useEffect(() => {
     if (!currentRow) return
     if (price === "") setPrice(currentRow.minimumSellPriceUgx)
-  }, [currentRow?.id])
+  }, [currentRow, price])
 
   const availableColors = product?.colors ?? []
   const availableSizes = product?.product.sizes ?? []

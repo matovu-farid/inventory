@@ -31,7 +31,7 @@ export const ensureStore = createServerFn().handler(async () => {
 })
 
 const updateStoreInput = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string().min(1).optional(),
   location: z.string().optional(),
 })
@@ -79,7 +79,7 @@ export const createShop = createServerFn()
   })
 
 const updateShopInput = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string().min(1).optional(),
   location: z.string().optional(),
   managerId: z.string().optional(),

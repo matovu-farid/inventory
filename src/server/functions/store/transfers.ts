@@ -39,7 +39,7 @@ export const listTransfers = createServerFn().handler(async () => {
 })
 
 const transferItemInput = z.object({
-  storeStockId: z.string().uuid(),
+  storeStockId: z.uuid(),
   quantityDispatched: z.number().int().positive(),
   /** Min sell price the shop must charge for this item. Optional;
    *  falls back to the store's cost-per-unit when omitted. */
@@ -47,7 +47,7 @@ const transferItemInput = z.object({
 })
 
 const createTransferInput = z.object({
-  shopId: z.string().uuid(),
+  shopId: z.uuid(),
   notes: z.string().optional(),
   items: z.array(transferItemInput).min(1),
 })
@@ -68,7 +68,7 @@ export const createTransfer = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     const store = await db.query.stores.findFirst()
     if (!store) throw new Error("Store not configured")
@@ -198,10 +198,10 @@ export const createTransfer = createServerFn()
  * Creates ShopStock entries and detects distribution loss.
  */
 const confirmReceiptInput = z.object({
-  transferId: z.string().uuid(),
+  transferId: z.uuid(),
   items: z.array(
     z.object({
-      transferItemId: z.string().uuid(),
+      transferItemId: z.uuid(),
       quantityReceived: z.number().int().min(0),
       discrepancyNotes: z.string().optional(),
     }),
@@ -213,7 +213,7 @@ export const confirmTransferReceipt = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     return db.transaction(async (tx) => {
       const transfer = await tx.query.storeTransfers.findFirst({

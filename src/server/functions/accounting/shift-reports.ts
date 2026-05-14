@@ -14,7 +14,7 @@ import {
 } from "./shift-reports-internals"
 
 export const getXReport = createServerFn()
-  .inputValidator(z.object({ shopId: z.string().uuid() }))
+  .inputValidator(z.object({ shopId: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
@@ -39,16 +39,16 @@ export const getXReport = createServerFn()
 export const closeZReport = createServerFn()
   .inputValidator(
     z.object({
-      shopId: z.string().uuid(),
+      shopId: z.uuid(),
       declaredCashUgx: z.string(),
       notes: z.string().optional(),
-      idempotencyKey: z.string().uuid(),
+      idempotencyKey: z.uuid(),
     }),
   )
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
     const store = makeDbIdempotencyStore(db)
 
     return withIdempotency(store, data.idempotencyKey, async () => {
@@ -90,7 +90,7 @@ export const closeZReport = createServerFn()
 export const getZReportHistory = createServerFn()
   .inputValidator(
     z.object({
-      shopId: z.string().uuid(),
+      shopId: z.uuid(),
       limit: z.number().int().positive().max(50).default(10),
     }),
   )
@@ -106,7 +106,7 @@ export const getZReportHistory = createServerFn()
   })
 
 export const getZReportById = createServerFn()
-  .inputValidator(z.object({ id: z.string().uuid() }))
+  .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])

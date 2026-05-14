@@ -24,7 +24,7 @@ describe("deriveReceivingPrereqs", () => {
       id: "no-receivable-routes",
       severity: "soft",
     })
-    expect(result.missing[0]!.actions[0]!.href).toBe("/supply")
+    expect(result.missing[0].actions[0].href).toBe("/supply")
   })
 })
 
@@ -65,15 +65,15 @@ describe("deriveShopSalesPrereqs", () => {
   it("hard-flags no-shops when zero shops", () => {
     const r = deriveShopSalesPrereqs({ shopCount: 0, totalSaleCount: 0 })
     expect(r.satisfied).toBe(false)
-    expect(r.missing[0]!.id).toBe("no-shops")
-    expect(r.missing[0]!.severity).toBe("hard")
+    expect(r.missing[0].id).toBe("no-shops")
+    expect(r.missing[0].severity).toBe("hard")
   })
 
   it("soft-flags no-sales when shops exist but no sales recorded", () => {
     const r = deriveShopSalesPrereqs({ shopCount: 1, totalSaleCount: 0 })
     expect(r.satisfied).toBe(true)
     expect(r.missing.map((m) => m.id)).toEqual(["no-sales-yet"])
-    expect(r.missing[0]!.severity).toBe("soft")
+    expect(r.missing[0].severity).toBe("soft")
   })
 })
 
@@ -85,7 +85,7 @@ describe("deriveShopOpeningPrereqs", () => {
   it("hard-flags no-shops when zero", () => {
     const r = deriveShopOpeningPrereqs({ shopCount: 0 })
     expect(r.satisfied).toBe(false)
-    expect(r.missing[0]!.id).toBe("no-shops")
+    expect(r.missing[0].id).toBe("no-shops")
   })
 })
 
@@ -102,7 +102,7 @@ describe("deriveShopPrereqs", () => {
     const r = deriveShopPrereqs({ selectedShopHasStock: false })
     expect(r.satisfied).toBe(true)
     expect(r.missing.map((m) => m.id)).toEqual(["shop-empty"])
-    expect(r.missing[0]!.severity).toBe("soft")
+    expect(r.missing[0].severity).toBe("soft")
   })
 })
 
@@ -115,7 +115,7 @@ describe("deriveStorePrereqs", () => {
     const r = deriveStorePrereqs({ stockRowCount: 0 })
     expect(r.satisfied).toBe(true)
     expect(r.missing.map((m) => m.id)).toEqual(["warehouse-empty"])
-    expect(r.missing[0]!.actions).toHaveLength(2)
+    expect(r.missing[0].actions).toHaveLength(2)
   })
 })
 
@@ -128,6 +128,6 @@ describe("deriveSupplyPrereqs", () => {
     const r = deriveSupplyPrereqs({ supplierCount: 0 })
     expect(r.satisfied).toBe(true)
     expect(r.missing.map((m) => m.id)).toEqual(["no-suppliers"])
-    expect(r.missing[0]!.actions[0]!.href).toBe("/supply/suppliers")
+    expect(r.missing[0].actions[0].href).toBe("/supply/suppliers")
   })
 })

@@ -7,7 +7,7 @@ import { renderSaleReceipt } from "#/lib/pdf/receipt-html"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
-const getReceiptInput = z.object({ saleId: z.string().uuid() })
+const getReceiptInput = z.object({ saleId: z.uuid() })
 
 /**
  * Render a printable HTML receipt for a sale. The browser can save it
@@ -51,7 +51,7 @@ export const getSaleReceiptHtml = createServerFn()
       totalAmount: sale.totalAmount,
       paymentMethod: sale.paymentMethod,
       customerName: customer?.name ?? null,
-      clerkName: sale.soldByUser?.name ?? null,
+      clerkName: sale.soldByUser.name,
       items: sale.items.map((i) => {
         const pc = i.shopStockItem.productColor
         const productName = `${pc.product.articleNumber} ${pc.product.name} · ${pc.colorName} / ${i.shopStockItem.size}`

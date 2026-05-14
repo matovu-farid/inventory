@@ -42,7 +42,7 @@ export const importExcel = createServerFn()
   .handler(async ({ data }): Promise<ImportResult> => {
     const session = await requireSession()
     requireRole(session, ["admin"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     const buffer = Buffer.from(data.fileBase64, "base64")
     const workbook = XLSX.read(buffer, { type: "buffer" })

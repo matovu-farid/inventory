@@ -39,9 +39,10 @@ import {
   splitSupplyRouteItem,
 } from "#/server/functions/supply/items"
 import {
-  ProductPicker,
-  type ProductSummary,
+  ProductPicker
+  
 } from "#/components/products/product-picker"
+import type {ProductSummary} from "#/components/products/product-picker";
 import { ProductEditor } from "#/components/products/product-editor"
 import { ColorEditor } from "#/components/products/color-editor"
 import { VariantGrid } from "#/components/products/variant-grid"
@@ -124,17 +125,17 @@ function RouteDetailPage() {
         status: status as (typeof STATUSES)[number],
       },
     })
-    router.invalidate()
+    void router.invalidate()
   }
 
   async function handleDeleteItem(id: string) {
     await deleteSupplyRouteItem({ data: { id } })
-    router.invalidate()
+    void router.invalidate()
   }
 
   async function handleDeleteExpense(id: string) {
     await deleteSupplyRouteExpense({ data: { id } })
-    router.invalidate()
+    void router.invalidate()
   }
 
   // Build supplier lookup for items form
@@ -156,7 +157,7 @@ function RouteDetailPage() {
             {route.returnDate && ` | Returned: ${route.returnDate}`}
           </p>
         </div>
-        <Select value={route.status} onValueChange={handleStatusChange}>
+        <Select value={route.status} onValueChange={(v) => { void handleStatusChange(v) }}>
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
@@ -249,7 +250,7 @@ function RouteDetailPage() {
                   rateRmbPerUsd={route.rateRmbPerUsd}
                   onSuccess={() => {
                     setItemDialogOpen(false)
-                    router.invalidate()
+                    void router.invalidate()
                   }}
                 />
               </DialogContent>
@@ -375,7 +376,7 @@ function RouteDetailPage() {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 text-destructive"
-                      onClick={() => handleDeleteItem(item.id)}
+                      onClick={() => { void handleDeleteItem(item.id) }}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -399,7 +400,7 @@ function RouteDetailPage() {
                 item={splittingItem}
                 onSuccess={() => {
                   setSplittingItemId(null)
-                  router.invalidate()
+                  void router.invalidate()
                 }}
               />
             )}
@@ -431,7 +432,7 @@ function RouteDetailPage() {
                   rateUgxPerUsd={route.rateUgxPerUsd}
                   onSuccess={() => {
                     setExpenseDialogOpen(false)
-                    router.invalidate()
+                    void router.invalidate()
                   }}
                 />
               </DialogContent>
@@ -497,7 +498,7 @@ function RouteDetailPage() {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-destructive"
-                    onClick={() => handleDeleteExpense(exp.id)}
+                    onClick={() => { void handleDeleteExpense(exp.id) }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -548,7 +549,7 @@ function SplitItemForm({
   const [error, setError] = useState<string | null>(null)
 
   // Load the product so we know the available colors + sizes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   React.useEffect(() => {
     if (!articleNumber) {
       setLoading(false)
@@ -556,7 +557,7 @@ function SplitItemForm({
     }
     void (async () => {
       const p = await getProductByArticle({ data: { articleNumber } })
-      if (p) setProduct(p as ProductSummary)
+      if (p) setProduct(p)
       setLoading(false)
     })()
   }, [articleNumber])
@@ -693,7 +694,7 @@ function SplitItemForm({
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Button
-        onClick={submit}
+        onClick={() => { void submit() }}
         disabled={pending || mismatch || allCells.length === 0}
         className="w-full"
       >
@@ -751,7 +752,7 @@ function ColorQuantityList({
                 </td>
                 <td className="p-1.5 w-32">
                   <MoneyInput
-                    value={values[c.id]?.toString() ?? ""}
+                    value={c.id in values ? values[c.id].toString() : ""}
                     onChange={(v) => set(c.id, v)}
                     decimals={0}
                     placeholder="0"
@@ -804,10 +805,7 @@ function AddItemForm({
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [unitPrice, setUnitPrice] = useState("")
   const initialCurrency = "RMB"
-  const initialFxToUsd =
-    initialCurrency === "RMB"
-      ? rateRmbPerUsd ?? ""
-      : ""
+  const initialFxToUsd = rateRmbPerUsd ?? ""
   const [currency, setCurrency] = useState<string>(initialCurrency)
   const [fxToUsd, setFxToUsd] = useState(initialFxToUsd)
   const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? "")
@@ -821,7 +819,7 @@ function AddItemForm({
 
   async function refreshProduct(articleNumber: string) {
     const p = await getProductByArticle({ data: { articleNumber } })
-    if (p) setProduct(p as ProductSummary)
+    if (p) setProduct(p)
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -892,7 +890,7 @@ function AddItemForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
       <div className="space-y-2">
         <FieldLabel htmlFor="supplierId" help="item.supplierId">Supplier *</FieldLabel>
         <Combobox
@@ -1180,7 +1178,7 @@ function AddExpenseForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
       <div className="space-y-2">
         <FieldLabel htmlFor="category" help="expense.category">Category *</FieldLabel>
         <Select value={category} onValueChange={setCategory}>
@@ -1287,7 +1285,7 @@ function TripRatesSection({
         },
       })
       setEditing(false)
-      router.invalidate()
+      void router.invalidate()
     } catch (err) {
       console.error("Failed to update trip rates:", err)
     } finally {
@@ -1352,7 +1350,7 @@ function TripRatesSection({
         <Button variant="ghost" size="sm" onClick={handleCancel} disabled={pending}>
           Cancel
         </Button>
-        <Button size="sm" onClick={handleSave} disabled={pending}>
+        <Button size="sm" onClick={() => { void handleSave() }} disabled={pending}>
           {pending ? "Saving..." : "Save"}
         </Button>
       </div>

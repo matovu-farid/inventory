@@ -6,9 +6,10 @@ import {
   getQueuedSales,
   deleteQueuedSale,
   updateQueuedSaleStatus,
-  clearAllQueuedSales,
-  type QueuedSale,
+  clearAllQueuedSales
+  
 } from "#/lib/offline/idb"
+import type {QueuedSale} from "#/lib/offline/idb";
 
 function makeSale(overrides: Partial<QueuedSale> = {}): QueuedSale {
   return {
@@ -33,8 +34,8 @@ describe("IDB offline queue", () => {
     await putQueuedSale(sale)
     const all = await getQueuedSales()
     expect(all).toHaveLength(1)
-    expect(all[0]!.id).toBe(sale.id)
-    expect(all[0]!.shopId).toBe("shop-1")
+    expect(all[0].id).toBe(sale.id)
+    expect(all[0].shopId).toBe("shop-1")
   })
 
   it("stores multiple sales independently", async () => {
@@ -67,8 +68,9 @@ describe("IDB offline queue", () => {
     await updateQueuedSaleStatus(a.id, "failed", "Out of stock")
 
     const all = await getQueuedSales()
-    const updated = all.find((s) => s.id === a.id)!
-    const untouched = all.find((s) => s.id === b.id)!
+    const updated = all.find((s) => s.id === a.id)
+    const untouched = all.find((s) => s.id === b.id)
+    if (!updated || !untouched) throw new Error("expected both queued sales to be present")
 
     expect(updated.status).toBe("failed")
     expect(updated.failureReason).toBe("Out of stock")

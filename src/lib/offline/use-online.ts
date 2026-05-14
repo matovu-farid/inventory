@@ -39,8 +39,10 @@ export function useOnline(): boolean {
     }
 
     // Initial heartbeat to check real state right away
-    heartbeat()
-    const intervalId = setInterval(heartbeat, HEARTBEAT_INTERVAL_MS)
+    void heartbeat()
+    const intervalId = setInterval(() => {
+      void heartbeat()
+    }, HEARTBEAT_INTERVAL_MS)
 
     return () => {
       window.removeEventListener("online", handleOnline)

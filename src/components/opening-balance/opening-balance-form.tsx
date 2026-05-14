@@ -27,9 +27,10 @@ import {
 } from "#/server/functions/admin/opening-balance"
 import { roundUgxBankers50 } from "#/lib/format"
 import {
-  ProductPicker,
-  type ProductSummary,
+  ProductPicker
+  
 } from "#/components/products/product-picker"
+import type {ProductSummary} from "#/components/products/product-picker";
 import { ProductEditor } from "#/components/products/product-editor"
 import { ColorEditor } from "#/components/products/color-editor"
 import { VariantGrid } from "#/components/products/variant-grid"
@@ -65,7 +66,9 @@ function blockUnitTotal(b: DraftBlock): number {
   return Object.values(b.quantities).reduce((s, q) => s + q, 0)
 }
 
-function blockIsValid(b: DraftBlock): boolean {
+type ValidBlock = DraftBlock & { product: ProductSummary }
+
+function blockIsValid(b: DraftBlock): b is ValidBlock {
   if (!b.product) return false
   const cost = new BigNumber(b.unitCostUgx || "0")
   if (!cost.isFinite() || cost.lte(0)) return false
@@ -106,9 +109,11 @@ export function OpeningBalanceForm({
 }: OpeningBalanceFormProps) {
   const router = useRouter()
   const [blocks, setBlocks] = useState<DraftBlock[]>([newBlock()])
-  const [shopId, setShopId] = useState<string>(
-    initialShopId ?? shops[0]?.id ?? "",
-  )
+  const [shopId, setShopId] = useState<string>(() => {
+    if (initialShopId) return initialShopId
+    if (shops.length === 0) return ""
+    return shops[0].id
+  })
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -123,7 +128,7 @@ export function OpeningBalanceForm({
   )
   const allBlocksValid = blocks.length > 0 && blocks.every(blockIsValid)
   const canSubmit =
-    allBlocksValid && (scope === "store" || (scope === "shop" && !!shopId))
+    allBlocksValid && (scope === "store" || !!shopId)
 
   function updateBlock(id: string, patch: Partial<DraftBlock>) {
     setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, ...patch } : b)))
@@ -140,7 +145,7 @@ export function OpeningBalanceForm({
   async function refreshBlockProduct(id: string, articleNumber: string) {
     const p = await getProductByArticle({ data: { articleNumber } })
     if (p) {
-      updateBlock(id, { product: p as ProductSummary })
+      updateBlock(id, { product: p })
     }
   }
 
@@ -151,7 +156,7 @@ export function OpeningBalanceForm({
       const items = blocks
         .filter(blockIsValid)
         .map((b) => ({
-          productId: b.product!.id,
+          productId: b.product.id,
           unitCostUgx: new BigNumber(b.unitCostUgx).toFixed(2),
           cells: Object.entries(b.quantities)
             .filter(([, q]) => q > 0)
@@ -173,7 +178,7 @@ export function OpeningBalanceForm({
       })
       setBlocks([newBlock()])
       setConfirmOpen(false)
-      router.invalidate()
+      void router.invalidate()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -453,7 +458,7 @@ export function OpeningBalanceForm({
               >
                 Cancel
               </Button>
-              <Button onClick={performSubmit} disabled={pending}>
+              <Button onClick={() => void performSubmit()} disabled={pending}>
                 {pending ? "Posting..." : "Confirm & Post"}
               </Button>
             </DialogFooter>

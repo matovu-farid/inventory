@@ -30,7 +30,7 @@ export const createCustomer = createServerFn()
   })
 
 const updateCustomerInput = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string().min(1).optional(),
   phone: z.string().optional(),
   notes: z.string().optional(),
@@ -62,7 +62,7 @@ export const listCustomers = createServerFn().handler(async () => {
   })
 })
 
-const getCustomerInput = z.object({ id: z.string().uuid() })
+const getCustomerInput = z.object({ id: z.uuid() })
 
 export const getCustomer = createServerFn()
   .inputValidator(getCustomerInput)
@@ -77,7 +77,7 @@ export const getCustomer = createServerFn()
     return customer
   })
 
-const archiveCustomerInput = z.object({ id: z.string().uuid() })
+const archiveCustomerInput = z.object({ id: z.uuid() })
 
 export const archiveCustomer = createServerFn()
   .inputValidator(archiveCustomerInput)

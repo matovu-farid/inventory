@@ -1,4 +1,4 @@
-import type { Session } from "#/lib/auth"
+import type { AppSession } from "#/lib/auth"
 import {
   isIpAllowlistEnabled,
   isIpAllowed,
@@ -17,11 +17,11 @@ import {
  * Fails closed (blocks) if the IP lookup errors.
  */
 export async function enforceIpAllowlist(
-  session: Session,
+  session: AppSession,
   ip: string | null,
   path: string,
 ): Promise<void> {
-  const role = (session.user as { role?: string }).role
+  const role = session.user.role
   if (role === "admin") return
 
   if (role !== "supervisor" && role !== "sales") return

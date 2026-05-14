@@ -63,16 +63,16 @@ export function ReceiveTransferForm({
   }
 
   useEffect(() => {
-    if (transfer && transfer.items.length > 0) {
+    const t = transfers.find((x) => x.id === transferId)
+    if (t && t.items.length > 0) {
       const qtys: Record<string, number> = {}
-      for (const item of transfer.items) {
+      for (const item of t.items) {
         qtys[item.id] = item.quantityDispatched
       }
       setReceivedQtys(qtys)
       setDiscrepancyNotes({})
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transferId])
+  }, [transferId, transfers])
 
   const discrepantItems = transfer
     ? transfer.items.filter(
@@ -92,11 +92,15 @@ export function ReceiveTransferForm({
       await confirmTransferReceipt({
         data: {
           transferId: transfer.id,
-          items: transfer.items.map((i) => ({
-            transferItemId: i.id,
-            quantityReceived: receivedQtys[i.id] ?? i.quantityDispatched,
-            discrepancyNotes: discrepancyNotes[i.id]?.trim() || undefined,
-          })),
+          items: transfer.items.map((i) => {
+            const raw = discrepancyNotes[i.id]
+            const trimmed = typeof raw === "string" ? raw.trim() : ""
+            return {
+              transferItemId: i.id,
+              quantityReceived: receivedQtys[i.id] ?? i.quantityDispatched,
+              discrepancyNotes: trimmed.length > 0 ? trimmed : undefined,
+            }
+          }),
         },
       })
       onSuccess()
@@ -225,7 +229,7 @@ export function ReceiveTransferForm({
           <div className="sticky bottom-0 -mx-6 -mb-6 border-t bg-background px-6 py-3 md:static md:mx-0 md:mb-0 md:border-t-0 md:bg-transparent md:p-0">
             <Button
               className="h-12 w-full md:h-10"
-              onClick={handleConfirm}
+              onClick={() => void handleConfirm()}
               disabled={pending || !allDiscrepancyNotesFilled}
             >
               {pending ? "Confirming..." : "Confirm Receipt at Shop"}

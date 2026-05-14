@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { searchProducts } from "#/server/functions/products/products"
-import { Combobox, type ComboboxOption } from "#/components/ui/combobox"
+import { Combobox  } from "#/components/ui/combobox"
+import type {ComboboxOption} from "#/components/ui/combobox";
 
 export interface ProductSummary {
   id: string

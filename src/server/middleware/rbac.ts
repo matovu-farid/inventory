@@ -1,17 +1,18 @@
-import type { Session } from "#/lib/auth"
+import type { AppSession } from "#/lib/auth"
 import { enforceIpAllowlist } from "./ip-allowlist"
 
 export type Role = "admin" | "supervisor" | "sales"
 
-export function requireRole(session: Session, allowedRoles: Role[]): void {
-  const role = (session.user as { role?: string }).role as Role | undefined
+export function requireRole(session: AppSession, allowedRoles: Role[]): void {
+  // DB stores role as a free-form string; narrow to the validated union here.
+  const role = session.user.role as Role | undefined
   if (!role || !allowedRoles.includes(role)) {
     throw new Error("Forbidden: insufficient permissions")
   }
 }
 
-export function hasRole(session: Session, allowedRoles: Role[]): boolean {
-  const role = (session.user as { role?: string }).role as Role | undefined
+export function hasRole(session: AppSession, allowedRoles: Role[]): boolean {
+  const role = session.user.role as Role | undefined
   return !!role && allowedRoles.includes(role)
 }
 
@@ -24,7 +25,7 @@ export function hasRole(session: Session, allowedRoles: Role[]): boolean {
  * @param path - A label for the current endpoint (used in block logs).
  */
 export async function requireRoleWithIpCheck(
-  session: Session,
+  session: AppSession,
   allowedRoles: Role[],
   ip: string | null,
   path: string,

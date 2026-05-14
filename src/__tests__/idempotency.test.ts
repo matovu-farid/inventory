@@ -5,13 +5,14 @@ import type {IdempotencyStore} from "#/server/middleware/idempotency";
 function makeMemoryStore(): IdempotencyStore {
   const map = new Map<string, { response: string; expiresAt: Date }>()
   return {
-    async get(key) {
+    get(key) {
       const row = map.get(key)
-      if (!row || row.expiresAt < new Date()) return null
-      return row.response
+      if (!row || row.expiresAt < new Date()) return Promise.resolve(null)
+      return Promise.resolve(row.response)
     },
-    async set(key, response, expiresAt) {
+    set(key, response, expiresAt) {
       map.set(key, { response, expiresAt })
+      return Promise.resolve()
     },
   }
 }
@@ -45,13 +46,14 @@ describe("withIdempotency", () => {
     const map = new Map<string, { response: string; expiresAt: Date }>()
     map.set("key-1", { response: JSON.stringify({ id: "old" }), expiresAt: new Date(Date.now() - 1000) })
     const store: IdempotencyStore = {
-      async get(key) {
+      get(key) {
         const row = map.get(key)
-        if (!row || row.expiresAt < new Date()) return null
-        return row.response
+        if (!row || row.expiresAt < new Date()) return Promise.resolve(null)
+        return Promise.resolve(row.response)
       },
-      async set(key, response, expiresAt) {
+      set(key, response, expiresAt) {
         map.set(key, { response, expiresAt })
+        return Promise.resolve()
       },
     }
     const handler = vi.fn().mockResolvedValue({ id: "new" })
@@ -72,13 +74,13 @@ describe("withIdempotency", () => {
   it("uses a 24-hour TTL by default", async () => {
     const setMock = vi.fn().mockResolvedValue(undefined)
     const store: IdempotencyStore = {
-      async get() {
-        return null
+      get() {
+        return Promise.resolve(null)
       },
       set: setMock,
     }
     const before = Date.now()
-    await withIdempotency(store, "key-1", async () => ({ id: "1" }))
+    await withIdempotency(store, "key-1", () => Promise.resolve({ id: "1" }))
     const expiresAt = setMock.mock.calls[0][2] as Date
     const ttlMs = expiresAt.getTime() - before
     expect(ttlMs).toBeGreaterThanOrEqual(24 * 60 * 60 * 1000 - 1000)

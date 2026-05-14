@@ -20,11 +20,11 @@ import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
 const recordPaymentInput = z.object({
-  customerId: z.string().uuid(),
-  shopId: z.string().uuid(),
+  customerId: z.uuid(),
+  shopId: z.uuid(),
   amount: z.string(),
   paymentMethod: z.enum(["cash", "bank"]),
-  bankAccountId: z.string().uuid().optional(),
+  bankAccountId: z.uuid().optional(),
   notes: z.string().optional(),
 })
 
@@ -40,7 +40,7 @@ export const recordPayment = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor", "sales"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     const amount = new BigNumber(data.amount)
     if (amount.lte(0)) throw new Error("Payment amount must be positive")
@@ -100,7 +100,8 @@ export const recordPayment = createServerFn()
           amountApplied: alloc.amountApplied,
         })
 
-        const sale = openSales.find((s) => s.id === alloc.shopSaleId)!
+        const sale = openSales.find((s) => s.id === alloc.shopSaleId)
+        if (!sale) throw new Error(`Sale not found: ${alloc.shopSaleId}`)
         const newBalance = new BigNumber(sale.outstandingBalance)
           .minus(alloc.amountApplied)
           .toFixed(2)
@@ -160,7 +161,7 @@ export const recordPayment = createServerFn()
   })
 
 const writeOffBadDebtInput = z.object({
-  saleId: z.string().uuid(),
+  saleId: z.uuid(),
   reason: z.string().min(1),
 })
 
@@ -175,7 +176,7 @@ export const writeOffBadDebt = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     return db.transaction(async (tx) => {
       const sale = await tx.query.shopSales.findFirst({

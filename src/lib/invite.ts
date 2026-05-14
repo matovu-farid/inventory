@@ -42,7 +42,7 @@ export async function peekInvite(
     .where(and(eq(verification.value, token), gt(verification.expiresAt, now)))
     .limit(1)
 
-  const row = rows[0]
+  const row = rows.at(0)
   if (!row) return null
   if (!row.identifier.startsWith(INVITE_PREFIX)) return null
   return { userId: row.identifier.slice(INVITE_PREFIX.length) }
@@ -57,7 +57,7 @@ export async function consumeInvite(
     .where(and(eq(verification.value, token), gt(verification.expiresAt, now)))
     .returning()
 
-  const row = deleted[0]
+  const row = deleted.at(0)
   if (!row) return null
   if (!row.identifier.startsWith(INVITE_PREFIX)) return null
   return { userId: row.identifier.slice(INVITE_PREFIX.length) }

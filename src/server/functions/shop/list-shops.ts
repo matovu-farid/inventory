@@ -12,16 +12,13 @@ import { requireRole } from "#/server/middleware/rbac"
 export const listShopsForReports = createServerFn().handler(async () => {
   const session = await requireSession()
   requireRole(session, ["admin", "supervisor"])
-  const user = session.user as {
-    role?: string
-    shopId?: string | null
-  }
+  const { role, shopId } = session.user
   const all = await db
     .select({ id: shops.id, name: shops.name })
     .from(shops)
     .orderBy(shops.name)
-  if (user.role === "supervisor" && user.shopId) {
-    return all.filter((s) => s.id === user.shopId)
+  if (role === "supervisor" && shopId) {
+    return all.filter((s) => s.id === shopId)
   }
   return all
 })

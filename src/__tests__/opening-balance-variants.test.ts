@@ -1,20 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest"
 
-// TanStack Start's server-fn machinery (createServerFn / requireSession via
-// getRequestHeaders) needs a request context that is unavailable in Vitest.
-// Stub the auth middleware to return a fake admin session so we can exercise
-// the handler logic end-to-end against the test DB.
-const TEST_USER_ID = "00000000-0000-0000-0000-0000000000ab"
-vi.mock("#/server/middleware/auth", () => ({
-  requireSession: async () => ({
-    user: { id: TEST_USER_ID, role: "admin" },
-  }),
-}))
-vi.mock("#/server/middleware/rbac", () => ({
-  requireRole: () => {},
-  hasRole: () => true,
-}))
-
 import { db } from "#/db"
 import {
   products,
@@ -28,6 +13,22 @@ import {
 } from "#/db/schema"
 import { addStoreOpeningBalance } from "#/server/functions/admin/opening-balance"
 import { eq } from "drizzle-orm"
+
+// TanStack Start's server-fn machinery (createServerFn / requireSession via
+// getRequestHeaders) needs a request context that is unavailable in Vitest.
+// Stub the auth middleware to return a fake admin session so we can exercise
+// the handler logic end-to-end against the test DB.
+const TEST_USER_ID = "00000000-0000-0000-0000-0000000000ab"
+vi.mock("#/server/middleware/auth", () => ({
+  requireSession: () =>
+    Promise.resolve({
+      user: { id: TEST_USER_ID, role: "admin" },
+    }),
+}))
+vi.mock("#/server/middleware/rbac", () => ({
+  requireRole: () => {},
+  hasRole: () => true,
+}))
 
 const REQUIRED_CATEGORIES = [
   { name: "Inventory - Store", type: "asset" as const },

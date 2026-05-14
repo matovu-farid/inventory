@@ -137,18 +137,20 @@ function DesktopHandoff({ productColorId, onUploaded }: Props) {
 
   React.useEffect(() => {
     if (!token) return
-    const id = setInterval(async () => {
-      const status = await getPhotoUploadStatus({ data: { token } })
-      if (status.status === "consumed" && status.imageUrl) {
-        clearInterval(id)
-        onUploaded(status.imageUrl)
-        setDataUrl(null)
-        setToken(null)
-        setExpiresAt(null)
-      } else if (status.status === "expired") {
-        clearInterval(id)
-        // Keep dataUrl rendered with the Expired label; user clicks Regenerate.
-      }
+    const id = setInterval(() => {
+      void (async () => {
+        const status = await getPhotoUploadStatus({ data: { token } })
+        if (status.status === "consumed" && status.imageUrl) {
+          clearInterval(id)
+          onUploaded(status.imageUrl)
+          setDataUrl(null)
+          setToken(null)
+          setExpiresAt(null)
+        } else if (status.status === "expired") {
+          clearInterval(id)
+          // Keep dataUrl rendered with the Expired label; user clicks Regenerate.
+        }
+      })()
     }, 2000)
     return () => clearInterval(id)
   }, [token, onUploaded])

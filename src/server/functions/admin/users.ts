@@ -21,10 +21,10 @@ function tempPassword() {
 }
 
 const inviteInput = z.object({
-  email: z.string().email(),
+  email: z.email(),
   name: z.string().min(1),
   role: z.enum(["admin", "supervisor", "sales"]),
-  shopId: z.string().uuid().optional(),
+  shopId: z.uuid().optional(),
 })
 
 export const inviteUser = createServerFn()
@@ -34,26 +34,24 @@ export const inviteUser = createServerFn()
     requireRole(session, ["admin"])
 
     const headers = getRequestHeaders()
-    // `role` is typed against plugin defaults ("user"|"admin"); cast so our
-    // custom roles ("supervisor","sales") are accepted at runtime.
     const created = await auth.api.createUser({
       headers,
       body: {
         email: data.email,
         password: tempPassword(),
         name: data.name,
-        role: data.role as any, // custom roles not in better-auth's default union
+        role: data.role,
         data: { shopId: data.shopId ?? null, emailVerified: true },
       },
     })
 
-    const userId = (created as { user: { id: string } }).user.id
+    const userId = created.user.id
     const { token } = await createInvite({ userId })
     const url = `${env.APP_URL}/accept-invite?token=${token}`
     await sendInviteEmail({
       to: data.email,
       name: data.name,
-      inviterName: session.user.name ?? session.user.email,
+      inviterName: session.user.name,
       url,
     })
     return { ok: true as const, userId }
@@ -70,15 +68,15 @@ export const resendInvite = createServerFn()
       .from(user)
       .where(eq(user.id, data.userId))
       .limit(1)
-    const u = target[0]
+    const u = target.at(0)
     if (!u) throw new Error("User not found")
 
     const { token } = await createInvite({ userId: u.id })
     const url = `${env.APP_URL}/accept-invite?token=${token}`
     await sendInviteEmail({
       to: u.email,
-      name: u.name ?? u.email,
-      inviterName: session.user.name ?? session.user.email,
+      name: u.name,
+      inviterName: session.user.name,
       url,
     })
     return { ok: true as const }
@@ -102,7 +100,7 @@ export const acceptInvite = createServerFn()
       .from(user)
       .where(eq(user.id, consumed.userId))
       .limit(1)
-    const u = target[0]
+    const u = target.at(0)
     if (!u) throw new Error("Invited user no longer exists")
 
     // Hash + store the new password directly — setUserPassword requires an
@@ -140,12 +138,12 @@ export const peekInviteServer = createServerFn()
       .from(user)
       .where(eq(user.id, peek.userId))
       .limit(1)
-    const u = target[0]
+    const u = target.at(0)
     if (!u) return { valid: false as const }
     return {
       valid: true as const,
       email: u.email,
-      name: u.name ?? u.email,
+      name: u.name,
     }
   })
 
@@ -164,7 +162,7 @@ export const setUserRole = createServerFn()
     }
     await auth.api.setRole({
       headers: getRequestHeaders(),
-      body: { userId: data.userId, role: data.role as any },
+      body: { userId: data.userId, role: data.role },
     })
     return { ok: true as const }
   })

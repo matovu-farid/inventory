@@ -29,7 +29,7 @@ export const listSupplyRoutes = createServerFn().handler(async () => {
 })
 
 export const getSupplyRoute = createServerFn()
-  .inputValidator(z.object({ id: z.string().uuid() }))
+  .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
@@ -67,7 +67,7 @@ const createRouteInput = z
     rateUgxPerUsd: z.string().optional(),
     rateRmbPerUsd: z.string().optional(),
     notes: z.string().optional(),
-    supplierIds: z.array(z.string().uuid()).optional(),
+    supplierIds: z.array(z.uuid()).optional(),
   })
   .refine(
     (d) => !d.departureDate || !d.returnDate || d.departureDate <= d.returnDate,
@@ -106,7 +106,7 @@ export const createSupplyRoute = createServerFn()
 
 const updateRouteInput = z
   .object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     name: z.string().min(1).optional(),
     status: z
       .enum(["planning", "in_transit", "received"])
@@ -144,8 +144,8 @@ export const updateSupplyRoute = createServerFn()
   })
 
 const addSupplierToRouteInput = z.object({
-  supplyRouteId: z.string().uuid(),
-  supplierId: z.string().uuid(),
+  supplyRouteId: z.uuid(),
+  supplierId: z.uuid(),
 })
 
 export const addSupplierToRoute = createServerFn()
@@ -163,7 +163,7 @@ export const addSupplierToRoute = createServerFn()
   })
 
 const removeSupplierFromRouteInput = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
 })
 
 export const removeSupplierFromRoute = createServerFn()

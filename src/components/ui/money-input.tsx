@@ -48,10 +48,12 @@ function MoneyInput({
   ...props
 }: MoneyInputProps) {
   const [display, setDisplay] = React.useState(() => formatWithCommas(value))
+  const displayRef = React.useRef(display)
+  displayRef.current = display
 
   // Sync display when value changes externally
   React.useEffect(() => {
-    const stripped = stripCommas(display)
+    const stripped = stripCommas(displayRef.current)
     if (stripped !== value) {
       setDisplay(formatWithCommas(value))
     }

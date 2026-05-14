@@ -1,5 +1,7 @@
-import { CLOTHING_PALETTE, type PaletteColor } from "./palette"
-import { deltaE76, hexToRgb, rgbToLab, type Lab } from "./lab"
+import { CLOTHING_PALETTE  } from "./palette"
+import type {PaletteColor} from "./palette";
+import { deltaE76, hexToRgb, rgbToLab  } from "./lab"
+import type {Lab} from "./lab";
 
 const PALETTE_LAB: ReadonlyArray<{ tile: PaletteColor; lab: Lab }> =
   CLOTHING_PALETTE.map((tile) => ({ tile, lab: rgbToLab(hexToRgb(tile.hex)) }))

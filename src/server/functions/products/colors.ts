@@ -10,7 +10,7 @@ const hexRule = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 
 export const addProductColor = createServerFn()
   .inputValidator(z.object({
-    productId: z.string().uuid(),
+    productId: z.uuid(),
     colorName: z.string().min(1).max(40),
     colorHex: hexRule,
   }))
@@ -32,7 +32,7 @@ export const addProductColor = createServerFn()
 
 export const updateProductColor = createServerFn()
   .inputValidator(z.object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     colorName: z.string().min(1).max(40).optional(),
     colorHex: hexRule.optional(),
   }))
@@ -45,7 +45,7 @@ export const updateProductColor = createServerFn()
   })
 
 export const setProductColorImage = createServerFn()
-  .inputValidator(z.object({ id: z.string().uuid(), imageS3Key: z.string().min(1) }))
+  .inputValidator(z.object({ id: z.uuid(), imageS3Key: z.string().min(1) }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
@@ -58,7 +58,7 @@ export const setProductColorImage = createServerFn()
   })
 
 export const deleteProductColor = createServerFn()
-  .inputValidator(z.object({ id: z.string().uuid() }))
+  .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])

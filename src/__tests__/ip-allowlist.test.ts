@@ -53,26 +53,24 @@ describe("isIpAllowlistEnabled", () => {
   })
 
   it("returns false when setting is not set", async () => {
-    __setIpAllowlistDepsForTests({ readSetting: async () => null })
+    __setIpAllowlistDepsForTests({ readSetting: () => Promise.resolve(null) })
     await expect(isIpAllowlistEnabled()).resolves.toBe(false)
   })
 
   it('returns true when setting is "true"', async () => {
-    __setIpAllowlistDepsForTests({ readSetting: async () => "true" })
+    __setIpAllowlistDepsForTests({ readSetting: () => Promise.resolve("true") })
     await expect(isIpAllowlistEnabled()).resolves.toBe(true)
   })
 
   it("fails open (returns false) when DB throws", async () => {
     __setIpAllowlistDepsForTests({
-      readSetting: async () => {
-        throw new Error("db error")
-      },
+      readSetting: () => Promise.reject(new Error("db error")),
     })
     await expect(isIpAllowlistEnabled()).resolves.toBe(false)
   })
 
   it("returns cached value within TTL without hitting DB again", async () => {
-    const readSetting = vi.fn(async () => "true")
+    const readSetting = vi.fn(() => Promise.resolve("true"))
     __setIpAllowlistDepsForTests({ readSetting })
     await isIpAllowlistEnabled()
     await isIpAllowlistEnabled()
@@ -92,27 +90,25 @@ describe("isIpAllowed", () => {
     // directly. When the feature is off the *caller* (enforceIpAllowlist) skips
     // the check. Here we test the lookup itself returns false for unknown IPs.
     __setIpAllowlistDepsForTests({
-      ipExists: async () => false,
+      ipExists: () => Promise.resolve(false),
     })
     await expect(isIpAllowed("1.2.3.4")).resolves.toBe(false)
   })
 
   it("returns true when IP is present in allowlist", async () => {
-    __setIpAllowlistDepsForTests({ ipExists: async () => true })
+    __setIpAllowlistDepsForTests({ ipExists: () => Promise.resolve(true) })
     await expect(isIpAllowed("1.2.3.4")).resolves.toBe(true)
   })
 
   it("fails closed (returns false) when DB throws", async () => {
     __setIpAllowlistDepsForTests({
-      ipExists: async () => {
-        throw new Error("db error")
-      },
+      ipExists: () => Promise.reject(new Error("db error")),
     })
     await expect(isIpAllowed("1.2.3.4")).resolves.toBe(false)
   })
 
   it("returns cached value within TTL without hitting DB again", async () => {
-    const ipExists = vi.fn(async () => true)
+    const ipExists = vi.fn(() => Promise.resolve(true))
     __setIpAllowlistDepsForTests({ ipExists })
     await isIpAllowed("5.5.5.5")
     await isIpAllowed("5.5.5.5")
@@ -128,8 +124,8 @@ describe("recordAdminLoginIp", () => {
   })
 
   it("calls upsertAllowlist with the given userId and ip", async () => {
-    const upsert = vi.fn(async () => ({ inserted: false }))
-    const trim = vi.fn(async () => {})
+    const upsert = vi.fn(() => Promise.resolve({ inserted: false }))
+    const trim = vi.fn(() => Promise.resolve())
     __setIpAllowlistDepsForTests({ upsertAllowlist: upsert, trimAllowlist: trim })
 
     await recordAdminLoginIp("user-1", "1.2.3.4")
@@ -137,9 +133,9 @@ describe("recordAdminLoginIp", () => {
   })
 
   it("calls trimAllowlist with cap=100 when the row was newly inserted", async () => {
-    const trim = vi.fn(async () => {})
+    const trim = vi.fn(() => Promise.resolve())
     __setIpAllowlistDepsForTests({
-      upsertAllowlist: async () => ({ inserted: true }),
+      upsertAllowlist: () => Promise.resolve({ inserted: true }),
       trimAllowlist: trim,
     })
 
@@ -148,9 +144,9 @@ describe("recordAdminLoginIp", () => {
   })
 
   it("does NOT call trimAllowlist when the row already existed (upsert update)", async () => {
-    const trim = vi.fn(async () => {})
+    const trim = vi.fn(() => Promise.resolve())
     __setIpAllowlistDepsForTests({
-      upsertAllowlist: async () => ({ inserted: false }),
+      upsertAllowlist: () => Promise.resolve({ inserted: false }),
       trimAllowlist: trim,
     })
 
@@ -160,18 +156,18 @@ describe("recordAdminLoginIp", () => {
 
   it("evicts the IP from cache when newly inserted", async () => {
     // Prime the cache with a stale false
-    const ipExists = vi.fn(async () => false)
+    const ipExists = vi.fn(() => Promise.resolve(false))
     __setIpAllowlistDepsForTests({ ipExists })
     await isIpAllowed("10.0.0.2") // populates cache as false
 
     __setIpAllowlistDepsForTests({
-      ipExists: vi.fn(async () => true),
-      upsertAllowlist: async () => ({ inserted: true }),
-      trimAllowlist: async () => {},
+      ipExists: vi.fn(() => Promise.resolve(true)),
+      upsertAllowlist: () => Promise.resolve({ inserted: true }),
+      trimAllowlist: () => Promise.resolve(),
     })
     await recordAdminLoginIp("user-1", "10.0.0.2")
     // Cache was cleared for this IP — next lookup should call ipExists again
-    const ipExists2 = vi.fn(async () => true)
+    const ipExists2 = vi.fn(() => Promise.resolve(true))
     __setIpAllowlistDepsForTests({ ipExists: ipExists2 })
     await isIpAllowed("10.0.0.2")
     expect(ipExists2).toHaveBeenCalledTimes(1)
@@ -182,7 +178,7 @@ describe("recordAdminLoginIp", () => {
 
 describe("clearCaches", () => {
   it("causes next lookup to hit DB again", async () => {
-    const readSetting = vi.fn(async () => "true")
+    const readSetting = vi.fn(() => Promise.resolve("true"))
     __setIpAllowlistDepsForTests({ readSetting })
 
     await isIpAllowlistEnabled() // fills toggle cache
@@ -193,7 +189,7 @@ describe("clearCaches", () => {
   })
 
   it("clears the IP cache so the next isIpAllowed hits DB", async () => {
-    const ipExists = vi.fn(async () => true)
+    const ipExists = vi.fn(() => Promise.resolve(true))
     __setIpAllowlistDepsForTests({ ipExists })
 
     await isIpAllowed("2.2.2.2")
@@ -208,7 +204,7 @@ describe("clearCaches", () => {
 
 describe("logBlockedAttempt", () => {
   it("calls insertBlock with userId, ip, and path", async () => {
-    const insertBlock = vi.fn(async () => {})
+    const insertBlock = vi.fn(() => Promise.resolve())
     __setIpAllowlistDepsForTests({ insertBlock })
 
     await logBlockedAttempt("user-99", "3.3.3.3", "/api/secret")
@@ -217,9 +213,7 @@ describe("logBlockedAttempt", () => {
 
   it("does not throw when insertBlock fails", async () => {
     __setIpAllowlistDepsForTests({
-      insertBlock: async () => {
-        throw new Error("db down")
-      },
+      insertBlock: () => Promise.reject(new Error("db down")),
     })
     await expect(
       logBlockedAttempt("user-1", "1.1.1.1", "/test"),

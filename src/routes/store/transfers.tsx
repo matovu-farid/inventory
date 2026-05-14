@@ -92,7 +92,7 @@ function TransfersPage() {
                   transfers={dispatchedTransfers}
                   onSuccess={() => {
                     setReceiveOpen(false)
-                    router.invalidate()
+                    void router.invalidate()
                   }}
                 />
               </DialogContent>
@@ -114,7 +114,7 @@ function TransfersPage() {
                 shops={shops}
                 onSuccess={(shopId) => {
                   setCreateOpen(false)
-                  router.invalidate()
+                  void router.invalidate()
                   void router.navigate({ to: "/shop", search: { shopId } })
                 }}
               />
@@ -374,7 +374,7 @@ function CreateTransferForm({
 
       <Button
         className="w-full"
-        onClick={handleSubmit}
+        onClick={() => { void handleSubmit() }}
         disabled={
           pending ||
           !shopId ||

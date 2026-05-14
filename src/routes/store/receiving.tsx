@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { requireUiPermission } from "#/lib/permissions"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
@@ -77,16 +77,9 @@ function ReceivingPage() {
   const [pending, setPending] = useState(false)
   const router = useRouter()
 
-  useEffect(() => {
-    if (routes.length === 1 && !selectedRouteId) {
-      void loadItems(routes[0].id)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routes])
-
   const [unresolvedCount, setUnresolvedCount] = useState(0)
 
-  async function loadItems(routeId: string) {
+  const loadItems = useCallback(async (routeId: string) => {
     setSelectedRouteId(routeId)
     if (!routeId) {
       setItems([])
@@ -120,7 +113,13 @@ function ReceivingPage() {
     }
     setReceivedQtys(qtys)
     setDiscrepancyNotes({})
-  }
+  }, [])
+
+  useEffect(() => {
+    if (routes.length === 1 && !selectedRouteId) {
+      void loadItems(routes[0].id)
+    }
+  }, [routes, selectedRouteId, loadItems])
 
   const discrepantItems = items.filter(
     (i) => (receivedQtys[i.id] ?? i.quantity) < i.quantity,
@@ -135,12 +134,12 @@ function ReceivingPage() {
           items: items.map((i) => ({
             supplyRouteItemId: i.id,
             quantityReceived: receivedQtys[i.id] ?? i.quantity,
-            discrepancyNotes: discrepancyNotes[i.id]?.trim() || undefined,
+            discrepancyNotes: discrepancyNotes[i.id].trim() || undefined,
           })),
         },
       })
       setDiscrepancyOpen(false)
-      router.invalidate()
+      void router.invalidate()
       await router.navigate({ to: "/store" })
     } catch (err) {
       console.error("Failed to receive goods:", err)
@@ -174,7 +173,7 @@ function ReceivingPage() {
       <PagePrerequisites result={prerequisites}>
         <div className="max-w-sm space-y-2">
           <Label>Select Supply Route</Label>
-          <Select value={selectedRouteId} onValueChange={loadItems}>
+          <Select value={selectedRouteId} onValueChange={(v) => { void loadItems(v) }}>
             <SelectTrigger>
               <SelectValue placeholder="Choose a route..." />
             </SelectTrigger>
@@ -336,7 +335,7 @@ function ReceivingPage() {
                 Cancel
               </Button>
               <Button
-                onClick={submitReceipt}
+                onClick={() => { void submitReceipt() }}
                 disabled={pending || !allDiscrepancyNotesFilled}
               >
                 {pending ? "Receiving..." : "Confirm Receipt"}

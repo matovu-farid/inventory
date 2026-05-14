@@ -95,12 +95,12 @@ function RootLayout() {
   // All useEffect hooks must be called unconditionally before any early returns
   useEffect(() => {
     if (needsRedirect) {
-      router.navigate({ to: "/login" })
+      void router.navigate({ to: "/login" })
     }
   }, [needsRedirect, router])
 
   useEffect(() => {
-    if (needsPosRedirect) router.navigate({ to: "/pos" })
+    if (needsPosRedirect) void router.navigate({ to: "/pos" })
   }, [needsPosRedirect, router])
 
   if (needsRedirect) {
@@ -119,7 +119,11 @@ function RootLayout() {
 
   async function handleLogout() {
     await authClient.signOut()
-    router.navigate({ to: "/login" })
+    await router.navigate({ to: "/login" })
+  }
+
+  const onLogout = () => {
+    void handleLogout()
   }
 
   return (
@@ -127,7 +131,7 @@ function RootLayout() {
       <AppSidebar
         userName={userName}
         userRole={userRole}
-        onLogout={handleLogout}
+        onLogout={onLogout}
         pendingHardCount={pendingHardCount}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -136,7 +140,7 @@ function RootLayout() {
           <SidebarTrigger
             userName={userName}
             userRole={userRole}
-            onLogout={handleLogout}
+            onLogout={onLogout}
             pendingHardCount={pendingHardCount}
           />
           <Link

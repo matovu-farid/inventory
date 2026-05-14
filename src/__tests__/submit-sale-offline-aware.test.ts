@@ -4,12 +4,12 @@ import "fake-indexeddb/auto"
 import { clearAllQueuedSales, getQueuedSales } from "#/lib/offline/idb"
 import { submitSaleOfflineAware } from "#/lib/offline/offline-record-sale"
 
+import { recordSale } from "#/server/functions/shop/sales"
+
 // Mock recordSale server function
 vi.mock("#/server/functions/shop/sales", () => ({
   recordSale: vi.fn(),
 }))
-
-import { recordSale } from "#/server/functions/shop/sales"
 const mockRecordSale = recordSale as unknown as ReturnType<typeof vi.fn>
 
 const sampleInput = {
@@ -65,7 +65,7 @@ describe("submitSaleOfflineAware", () => {
 
     const queue = await getQueuedSales()
     expect(queue).toHaveLength(1)
-    expect(queue[0]!.status).toBe("queued")
+    expect(queue[0].status).toBe("queued")
   })
 
   it("online + business error: marks failed, returns ok=false with reason", async () => {
@@ -83,8 +83,8 @@ describe("submitSaleOfflineAware", () => {
 
     const queue = await getQueuedSales()
     expect(queue).toHaveLength(1)
-    expect(queue[0]!.status).toBe("failed")
-    expect(queue[0]!.failureReason).toContain("Insufficient stock")
+    expect(queue[0].status).toBe("failed")
+    expect(queue[0].failureReason).toContain("Insufficient stock")
   })
 
   it("offline: queued without attempting server, returns queued ok=true", async () => {
@@ -102,6 +102,6 @@ describe("submitSaleOfflineAware", () => {
 
     const queue = await getQueuedSales()
     expect(queue).toHaveLength(1)
-    expect(queue[0]!.status).toBe("queued")
+    expect(queue[0].status).toBe("queued")
   })
 })

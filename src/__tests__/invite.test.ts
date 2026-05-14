@@ -15,7 +15,7 @@ async function makeUser(suffix: string) {
     emailVerified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as any) // additionalFields require role/shopId; cast for test fixture
+  }) // additionalFields require role/shopId; cast for test fixture
   return id
 }
 

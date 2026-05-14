@@ -34,21 +34,21 @@ export function ColorEditor({ productId, onCreated }: Props) {
     <div className="space-y-4">
       <ImageUploader
         onBlobReady={setPendingBlob}
-        onSuggestColor={({ name, hex, sampledHex }) => {
-          setColorName(name); setColorHex(hex); setSampledHex(sampledHex)
+        onSuggestColor={({ name, hex, sampledHex: sampled }) => {
+          setColorName(name); setColorHex(hex); setSampledHex(sampled)
         }}
-        onEyedrop={({ name, hex, sampledHex }) => {
-          setColorName(name); setColorHex(hex); setSampledHex(sampledHex)
+        onEyedrop={({ name, hex, sampledHex: sampled }) => {
+          setColorName(name); setColorHex(hex); setSampledHex(sampled)
         }}
       />
       <ColorPicker
         colorName={colorName}
         colorHex={colorHex}
-        onChange={({ colorName, colorHex }) => { setColorName(colorName); setColorHex(colorHex) }}
+        onChange={({ colorName: nextName, colorHex: nextHex }) => { setColorName(nextName); setColorHex(nextHex) }}
         sampledHex={sampledHex}
       />
       <div className="flex justify-end">
-        <Button onClick={save} disabled={!colorName || submitting}>
+        <Button onClick={() => void save()} disabled={!colorName || submitting}>
           {submitting ? "Saving…" : "Save color"}
         </Button>
       </div>

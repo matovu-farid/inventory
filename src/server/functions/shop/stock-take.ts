@@ -13,7 +13,7 @@ export const listStockTakes = createServerFn()
   .inputValidator(
     z.object({
       locationType: z.enum(["store", "shop"]),
-      locationId: z.string().uuid(),
+      locationId: z.uuid(),
     }),
   )
   .handler(async ({ data }) => {
@@ -33,7 +33,7 @@ export const listStockTakes = createServerFn()
 
 const startStockTakeInput = z.object({
   locationType: z.enum(["store", "shop"]),
-  locationId: z.string().uuid(),
+  locationId: z.uuid(),
 })
 
 /**
@@ -45,7 +45,7 @@ export const startStockTake = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     return db.transaction(async (tx) => {
       const [st] = await tx
@@ -116,7 +116,7 @@ export const startStockTake = createServerFn()
   })
 
 const recordCountInput = z.object({
-  stockTakeItemId: z.string().uuid(),
+  stockTakeItemId: z.uuid(),
   physicalQuantity: z.number().int().min(0),
   notes: z.string().optional(),
 })
@@ -147,7 +147,7 @@ export const recordPhysicalCount = createServerFn()
     return updated
   })
 
-const reconcileInput = z.object({ stockTakeId: z.string().uuid() })
+const reconcileInput = z.object({ stockTakeId: z.uuid() })
 
 /**
  * Reconcile a stock take: adjust system quantities to physical counts
@@ -158,7 +158,7 @@ export const reconcileStockTake = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const userId = (session.user as { id: string }).id
+    const userId = session.user.id
 
     return db.transaction(async (tx) => {
       const st = await tx.query.stockTakes.findFirst({

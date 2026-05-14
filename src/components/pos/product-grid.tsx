@@ -32,7 +32,8 @@ export function ProductGrid({ products, query, onPick }: Props) {
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {filtered.map((p) => {
-        const firstColor = p.colors[0]
+        const colorsArr: AggregatedProduct["colors"] = p.colors
+        const firstColor = colorsArr.length > 0 ? colorsArr[0] : undefined
         const imgKey = firstColor?.imageS3Key ?? null
         const imgUrl = imgKey ? productImageUrl(imgKey) : null
         return (

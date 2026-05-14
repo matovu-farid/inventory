@@ -205,7 +205,7 @@ function CreateRouteForm({
           notes: (form.get("notes") as string) || undefined,
         },
       })
-      router.invalidate()
+      void router.invalidate()
       onSuccess()
     } catch (err) {
       console.error("Failed to create route:", err)
@@ -215,7 +215,7 @@ function CreateRouteForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
       <div className="space-y-2">
         <FieldLabel htmlFor="name" help="supplyRoute.name">Route Name *</FieldLabel>
         <Input

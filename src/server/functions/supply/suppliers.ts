@@ -19,7 +19,7 @@ const createSupplierInput = z.object({
   country: z.string().optional(),
   contactName: z.string().optional(),
   contactPhone: z.string().optional(),
-  contactEmail: z.string().email().optional(),
+  contactEmail: z.email().optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
 })
@@ -36,13 +36,13 @@ export const createSupplier = createServerFn()
   })
 
 const updateSupplierInput = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string().min(1).optional(),
   type: z.enum(["local", "international"]).optional(),
   country: z.string().optional(),
   contactName: z.string().optional(),
   contactPhone: z.string().optional(),
-  contactEmail: z.string().email().optional(),
+  contactEmail: z.email().optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
 })

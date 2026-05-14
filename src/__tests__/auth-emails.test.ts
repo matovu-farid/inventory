@@ -1,11 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { db } from "#/db"
 
-vi.mock("#/lib/email", async () => {
+import * as emailMod from "#/lib/email"
+import { auth } from "#/lib/auth"
+import * as schema from "#/db/schema"
+import { and, eq } from "drizzle-orm"
+import { createInvite, consumeInvite } from "#/lib/invite"
+import { hashPassword } from "better-auth/crypto"
+import type * as ReactStartServer from "@tanstack/react-start/server"
+
+vi.mock("#/lib/email", () => {
   return {
-    sendVerificationEmail: vi.fn(async () => undefined),
-    sendPasswordResetEmail: vi.fn(async () => undefined),
-    sendInviteEmail: vi.fn(async () => undefined),
+    sendVerificationEmail: vi.fn(() => Promise.resolve(undefined)),
+    sendPasswordResetEmail: vi.fn(() => Promise.resolve(undefined)),
+    sendInviteEmail: vi.fn(() => Promise.resolve(undefined)),
   }
 })
 
@@ -13,21 +21,13 @@ vi.mock("#/lib/email", async () => {
 // Set-Cookie headers from signInEmail. Outside an HTTP request context these
 // would throw; mocking them as no-ops lets the unit test run without a server.
 vi.mock("@tanstack/react-start/server", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@tanstack/react-start/server")>()
+  const actual = await importOriginal<typeof ReactStartServer>()
   return {
     ...actual,
     setResponseHeader: vi.fn(),
     getRequestHeaders: vi.fn(() => ({})),
   }
 })
-
-import * as emailMod from "#/lib/email"
-import { auth } from "#/lib/auth"
-import * as schema from "#/db/schema"
-import { and, eq } from "drizzle-orm"
-import { createInvite, consumeInvite } from "#/lib/invite"
-import { hashPassword } from "better-auth/crypto"
 
 const TEST_PREFIX = "test-auth-emails-"
 
@@ -118,8 +118,8 @@ describe("invite + accept flow", () => {
     // --- replicate acceptInvite.handler logic ---
     const newPassword = "newPass1234"
     const consumed = await consumeInvite(token)
-    expect(consumed).not.toBeNull()
-    expect(consumed!.userId).toBe(userId)
+    if (!consumed) throw new Error("consumeInvite returned null")
+    expect(consumed.userId).toBe(userId)
 
     // Hash + store new password
     const hashed = await hashPassword(newPassword)

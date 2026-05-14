@@ -10,7 +10,8 @@ import {
   ArrowRight,
 } from "lucide-react"
 import { getSystemPrereqs } from "#/server/functions/prereqs/system"
-import { can, type Permission } from "#/lib/permissions"
+import { can  } from "#/lib/permissions"
+import type {Permission} from "#/lib/permissions";
 
 export const Route = createFileRoute("/")({
   beforeLoad: ({ context }) => {

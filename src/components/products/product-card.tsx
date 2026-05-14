@@ -21,7 +21,7 @@ export function ProductCard({ data, className }: { data: ProductCardData; classN
     >
       <div className="size-24 shrink-0 rounded-md border bg-muted overflow-hidden flex items-center justify-center">
         {primaryImage
-          ? <img src={productImageUrl(primaryImage)!} alt="" className="size-full object-cover" />
+          ? <img src={productImageUrl(primaryImage)} alt="" className="size-full object-cover" />
           : <span className="text-xs text-muted-foreground">no image</span>}
       </div>
       <div className="min-w-0 flex-1 space-y-1">

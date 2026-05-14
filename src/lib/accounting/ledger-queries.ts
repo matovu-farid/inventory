@@ -110,15 +110,16 @@ export async function getTrialBalance(
 
   for (const row of rows) {
     if (!row.total) continue
-    if (!categoryMap.has(row.categoryName)) {
-      categoryMap.set(row.categoryName, {
+    let entry = categoryMap.get(row.categoryName)
+    if (!entry) {
+      entry = {
         categoryName: row.categoryName,
         categoryType: row.categoryType,
         debitTotal: new BigNumber(0),
         creditTotal: new BigNumber(0),
-      })
+      }
+      categoryMap.set(row.categoryName, entry)
     }
-    const entry = categoryMap.get(row.categoryName)!
     if (row.txnType === "debit") {
       entry.debitTotal = entry.debitTotal.plus(row.total)
     } else {
@@ -178,15 +179,16 @@ export async function getLocationBalances(
 
   for (const row of rows) {
     if (!row.total) continue
-    if (!categoryMap.has(row.categoryName)) {
-      categoryMap.set(row.categoryName, {
+    let entry = categoryMap.get(row.categoryName)
+    if (!entry) {
+      entry = {
         categoryName: row.categoryName,
         categoryType: row.categoryType,
         debit: new BigNumber(0),
         credit: new BigNumber(0),
-      })
+      }
+      categoryMap.set(row.categoryName, entry)
     }
-    const entry = categoryMap.get(row.categoryName)!
     if (row.txnType === "debit") {
       entry.debit = entry.debit.plus(row.total)
     } else {

@@ -8,8 +8,8 @@ const noShopsPrereq: MissingPrereq = Object.freeze({
   severity: "hard",
   title: "No shops configured",
   why: "Create at least one shop before you can use this page.",
-  actions: Object.freeze([{ label: "Go to Shop", href: "/shop" }]) as unknown as MissingPrereq["actions"],
-}) as MissingPrereq
+  actions: Object.freeze([{ label: "Go to Shop", href: "/shop" }] as const),
+})
 
 const noStoreStockPrereq: MissingPrereq = Object.freeze({
   id: "no-store-stock",
@@ -19,16 +19,16 @@ const noStoreStockPrereq: MissingPrereq = Object.freeze({
   actions: Object.freeze([
     { label: "Receive Goods", href: "/store/receiving" },
     { label: "Set Opening Balance", href: "/store/opening-balance" },
-  ]) as unknown as MissingPrereq["actions"],
-}) as MissingPrereq
+  ] as const),
+})
 
 const noSuppliersPrereq: MissingPrereq = Object.freeze({
   id: "no-suppliers",
   severity: "soft",
   title: "No suppliers yet",
   why: "You'll need at least one supplier before you can add items to a route.",
-  actions: Object.freeze([{ label: "Go to Suppliers", href: "/supply/suppliers" }]) as unknown as MissingPrereq["actions"],
-}) as MissingPrereq
+  actions: Object.freeze([{ label: "Go to Suppliers", href: "/supply/suppliers" }] as const),
+})
 
 // ---------- per-page derive functions ---------------------------------------
 

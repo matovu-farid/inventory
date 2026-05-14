@@ -36,7 +36,7 @@ export function ResponsiveDialogContent({ className, side = "bottom", children, 
       <SheetContent
         side={side}
         className={cn("max-h-[92dvh] overflow-y-auto", className)}
-        {...(props as React.ComponentProps<typeof SheetContent>)}
+        {...(props)}
       >
         {children}
       </SheetContent>
@@ -51,22 +51,22 @@ export function ResponsiveDialogContent({ className, side = "bottom", children, 
 
 export function ResponsiveDialogHeader(props: React.ComponentProps<typeof DialogHeader>) {
   const isMobile = useIsMobile()
-  return isMobile ? <SheetHeader {...(props as React.ComponentProps<typeof SheetHeader>)} /> : <DialogHeader {...props} />
+  return isMobile ? <SheetHeader {...(props)} /> : <DialogHeader {...props} />
 }
 
 export function ResponsiveDialogTitle(props: React.ComponentProps<typeof DialogTitle>) {
   const isMobile = useIsMobile()
-  return isMobile ? <SheetTitle {...(props as React.ComponentProps<typeof SheetTitle>)} /> : <DialogTitle {...props} />
+  return isMobile ? <SheetTitle {...(props)} /> : <DialogTitle {...props} />
 }
 
 export function ResponsiveDialogDescription(props: React.ComponentProps<typeof DialogDescription>) {
   const isMobile = useIsMobile()
   return isMobile
-    ? <SheetDescription {...(props as React.ComponentProps<typeof SheetDescription>)} />
+    ? <SheetDescription {...(props)} />
     : <DialogDescription {...props} />
 }
 
 export function ResponsiveDialogFooter(props: React.ComponentProps<typeof DialogFooter>) {
   const isMobile = useIsMobile()
-  return isMobile ? <SheetFooter {...(props as React.ComponentProps<typeof SheetFooter>)} /> : <DialogFooter {...props} />
+  return isMobile ? <SheetFooter {...(props)} /> : <DialogFooter {...props} />
 }

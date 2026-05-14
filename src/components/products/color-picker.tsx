@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { CLOTHING_PALETTE, type PaletteColor } from "#/lib/colors/palette"
+import { CLOTHING_PALETTE  } from "#/lib/colors/palette"
+import type {PaletteColor} from "#/lib/colors/palette";
 import { matchPaletteHex } from "#/lib/colors/match-palette"
 import { Input } from "#/components/ui/input"
 import { cn } from "#/lib/utils"

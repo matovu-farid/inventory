@@ -1,10 +1,11 @@
 import * as React from "react"
 import {
   cartReducer,
-  initialCart,
-  type CartState,
-  type CartItem,
+  initialCart
+  
+  
 } from "#/lib/pos/cart-reducer"
+import type {CartState, CartItem} from "#/lib/pos/cart-reducer";
 
 type CartCtx = {
   state: CartState
@@ -33,9 +34,14 @@ export function CartProvider({
     const raw = window.localStorage.getItem(storageKey)
     if (raw) {
       try {
-        const parsed = JSON.parse(raw) as CartState
-        if (parsed && Array.isArray(parsed.items)) {
-          dispatch({ type: "hydrate", state: parsed })
+        const parsed: unknown = JSON.parse(raw)
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          "items" in parsed &&
+          Array.isArray(parsed.items)
+        ) {
+          dispatch({ type: "hydrate", state: parsed as CartState })
         }
       } catch {
         // ignore corrupt storage

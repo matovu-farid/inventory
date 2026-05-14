@@ -23,7 +23,7 @@ export const addSupplyRouteVariants = createServerFn()
   })
 
 export const deleteSupplyRouteItem = createServerFn()
-  .inputValidator(z.object({ id: z.string().uuid() }))
+  .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
@@ -46,11 +46,11 @@ export const getProductNameSuggestions = createServerFn()
  * disappears without its replacements being in place.
  */
 const splitInput = z.object({
-  itemId: z.string().uuid(),
+  itemId: z.uuid(),
   cells: z
     .array(
       z.object({
-        productColorId: z.string().uuid(),
+        productColorId: z.uuid(),
         size: z.string().min(1).optional(),
         quantity: z.number().int().positive(),
       }),

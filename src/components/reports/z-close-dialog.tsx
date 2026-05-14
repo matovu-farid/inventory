@@ -126,7 +126,7 @@ export function ZCloseDialog({
           >
             Cancel
           </Button>
-          <Button onClick={submit} disabled={declared === "" || submitting}>
+          <Button onClick={() => void submit()} disabled={declared === "" || submitting}>
             {submitting ? "Closing…" : "Close shift"}
           </Button>
         </DialogFooter>

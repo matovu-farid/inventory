@@ -81,7 +81,11 @@ function PosInner() {
   }
 
   function handleSaleComplete() {
-    router.invalidate()
+    void router.invalidate()
+  }
+
+  function handleSyncComplete() {
+    void refresh()
   }
 
   return (
@@ -125,7 +129,7 @@ function PosInner() {
       <QueuedSalesSheet
         open={queueOpen}
         onOpenChange={setQueueOpen}
-        onSyncComplete={refresh}
+        onSyncComplete={handleSyncComplete}
       />
     </PosLayout>
   )

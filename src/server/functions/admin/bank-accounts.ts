@@ -37,7 +37,7 @@ export const createBankAccount = createServerFn()
 // ── Update bank account ──────────────────────────────────────────
 
 const updateBankAccountInput = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   bankName: z.string().min(1).optional(),
   accountNumber: z.string().min(1).optional(),
   accountName: z.string().min(1).optional(),

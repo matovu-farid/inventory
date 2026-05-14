@@ -80,7 +80,7 @@ export const setIpAllowlistEnabled = createServerFn()
 
 // ─── removeAllowlistEntry ─────────────────────────────────────────────────────
 
-const removeEntryInput = z.object({ id: z.string().uuid() })
+const removeEntryInput = z.object({ id: z.uuid() })
 
 export const removeAllowlistEntry = createServerFn()
   .inputValidator(removeEntryInput)

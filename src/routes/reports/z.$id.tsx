@@ -24,7 +24,7 @@ function ZDetailPage() {
     const html = renderShiftClosure({
       closureNumber: closure.closureNumber,
       shopName: closure.shop.name,
-      closedByName: closure.closedByUser?.name ?? null,
+      closedByName: closure.closedByUser.name,
       periodStart: new Date(closure.periodStart),
       closedAt: new Date(closure.closedAt),
       grossSalesUgx: closure.grossSalesUgx,

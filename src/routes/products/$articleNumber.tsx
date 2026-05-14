@@ -57,9 +57,9 @@ function ProductDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <div className="aspect-square rounded border bg-muted flex items-center justify-center overflow-hidden">
-            {active?.imageS3Key ? (
+            {active.imageS3Key ? (
               <img
-                src={productImageUrl(active.imageS3Key)!}
+                src={productImageUrl(active.imageS3Key)}
                 alt=""
                 className="size-full object-cover"
               />
@@ -93,11 +93,11 @@ function ProductDetailPage() {
               </Button>
             )}
           </div>
-          {canManage && active && (
+          {canManage && (
             <div className="pt-3 border-t mt-3">
               <PhotoHandoffQR
                 productColorId={active.id}
-                onUploaded={() => router.invalidate()}
+                onUploaded={() => { void router.invalidate() }}
               />
             </div>
           )}
@@ -144,7 +144,7 @@ function ProductDetailPage() {
             productId={product.id}
             onCreated={() => {
               setColorDialogOpen(false)
-              router.invalidate()
+              void router.invalidate()
             }}
           />
         </DialogContent>
@@ -159,7 +159,7 @@ function ProductDetailPage() {
             prices={prices}
             onSaved={() => {
               setPriceDialogOpen(false)
-              router.invalidate()
+              void router.invalidate()
             }}
           />
         </DialogContent>
@@ -382,7 +382,7 @@ function PriceEditor({
         </div>
         <div className="flex items-center gap-2">
           {error && <span className="text-xs text-destructive">{error}</span>}
-          <Button onClick={save} disabled={pending || dirty.length === 0}>
+          <Button onClick={() => { void save() }} disabled={pending || dirty.length === 0}>
             {pending ? "Saving…" : "Save changes"}
           </Button>
         </div>

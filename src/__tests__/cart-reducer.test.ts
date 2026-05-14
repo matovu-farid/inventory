@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import BigNumber from "bignumber.js"
-import { cartReducer, computeTotal, initialCart, type CartItem } from "#/lib/pos/cart-reducer"
+import { cartReducer, computeTotal, initialCart  } from "#/lib/pos/cart-reducer"
+import type {CartItem} from "#/lib/pos/cart-reducer";
 
 const item: CartItem = {
   shopStockId: "stk1",

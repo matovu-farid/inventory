@@ -66,10 +66,11 @@ export const getProfitAndLoss = createServerFn()
     const catMap = new Map<string, { type: string; debit: BigNumber; credit: BigNumber }>()
     for (const row of rows) {
       if (!["revenue", "expense"].includes(row.categoryType)) continue
-      if (!catMap.has(row.categoryName)) {
-        catMap.set(row.categoryName, { type: row.categoryType, debit: new BigNumber(0), credit: new BigNumber(0) })
+      let e = catMap.get(row.categoryName)
+      if (!e) {
+        e = { type: row.categoryType, debit: new BigNumber(0), credit: new BigNumber(0) }
+        catMap.set(row.categoryName, e)
       }
-      const e = catMap.get(row.categoryName)!
       if (row.txnType === "debit") e.debit = e.debit.plus(row.total)
       else e.credit = e.credit.plus(row.total)
     }

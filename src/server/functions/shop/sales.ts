@@ -12,7 +12,7 @@ import { requireRole } from "#/server/middleware/rbac"
 import { validateBelowMinimumSale } from "./sale-validate"
 
 export const getShopStock = createServerFn()
-  .inputValidator(z.object({ shopId: z.string().uuid() }))
+  .inputValidator(z.object({ shopId: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor", "sales"])
@@ -32,8 +32,8 @@ export const getShopStock = createServerFn()
 export const listShopsWithSales = createServerFn().handler(async () => {
   const session = await requireSession()
   requireRole(session, ["admin", "supervisor", "sales"])
-  const userId = (session.user as { id: string }).id
-  const role = (session.user as { role?: string }).role
+  const userId = session.user.id
+  const role = session.user.role
 
   const rows = await db
     .selectDistinct({ shopId: shopSales.shopId })
@@ -50,12 +50,12 @@ export const listShopsWithSales = createServerFn().handler(async () => {
 })
 
 export const listShopSales = createServerFn()
-  .inputValidator(z.object({ shopId: z.string().uuid() }))
+  .inputValidator(z.object({ shopId: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor", "sales"])
-    const userId = (session.user as { id: string }).id
-    const role = (session.user as { role?: string }).role
+    const userId = session.user.id
+    const role = session.user.role
 
     // Sales reps see only their own sales. Admin/supervisor see everything.
     const where =
@@ -81,17 +81,17 @@ export const listShopSales = createServerFn()
   })
 
 const saleItemInput = z.object({
-  shopStockId: z.string().uuid(),
+  shopStockId: z.uuid(),
   quantity: z.number().int().positive(),
   unitPriceUgx: z.string(),
   belowMinimumReason: z.string().optional(),
 })
 
 const recordSaleInput = z.object({
-  shopId: z.string().uuid(),
+  shopId: z.uuid(),
   paymentMethod: z.enum(["cash", "bank", "credit"]),
-  bankAccountId: z.string().uuid().optional(),
-  customerId: z.string().uuid().optional(),
+  bankAccountId: z.uuid().optional(),
+  customerId: z.uuid().optional(),
   items: z.array(saleItemInput).min(1),
   approvedBy: z.string().optional(),
   notes: z.string().optional(),
@@ -111,8 +111,8 @@ export const recordSale = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor", "sales"])
-    const userId = (session.user as { id: string }).id
-    const userRole = (session.user as { role: string }).role
+    const userId = session.user.id
+    const userRole = session.user.role ?? ""
 
     if (data.paymentMethod === "credit") {
       if (userRole === "sales") {

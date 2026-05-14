@@ -59,7 +59,7 @@ export const createProduct = createServerFn()
   })
 
 export const updateProduct = createServerFn()
-  .inputValidator(upsertInput.extend({ id: z.string().uuid() }))
+  .inputValidator(upsertInput.extend({ id: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
