@@ -1,5 +1,7 @@
 import { useMemo } from "react"
+import { X } from "lucide-react"
 import { Input } from "#/components/ui/input"
+import { Button } from "#/components/ui/button"
 import { cn } from "#/lib/utils"
 
 interface Color { id: string; colorName: string; colorHex: string }
@@ -9,9 +11,10 @@ interface Props {
   colors: Color[]
   quantities: Record<string, number>
   onChange: (next: Record<string, number>) => void
+  onRemoveColor?: (productColorId: string) => void
 }
 
-export function VariantGrid({ sizes, colors, quantities, onChange }: Props) {
+export function VariantGrid({ sizes, colors, quantities, onChange, onRemoveColor }: Props) {
   function setCell(productColorId: string, size: string, value: string) {
     const n = Math.max(0, Math.floor(Number(value) || 0))
     const next = { ...quantities, [`${productColorId}|${size}`]: n }
@@ -30,11 +33,12 @@ export function VariantGrid({ sizes, colors, quantities, onChange }: Props) {
   return (
     <div className="space-y-2">
       <div className="overflow-x-auto rounded border">
-        <table className="w-full text-sm">
+        <table className="min-w-full text-sm">
           <thead>
             <tr className="bg-muted/50">
               <th className="p-2 text-left font-medium">Color</th>
-              {sizes.map((s) => <th key={s} className="p-2 text-center font-medium w-20">{s}</th>)}
+              {sizes.map((s) => <th key={s} className="p-2 text-center font-medium w-24 min-w-24">{s}</th>)}
+              {onRemoveColor && <th className="w-10 min-w-10" aria-label="Actions" />}
             </tr>
           </thead>
           <tbody>
@@ -51,14 +55,30 @@ export function VariantGrid({ sizes, colors, quantities, onChange }: Props) {
                   return (
                     <td key={s} className="p-1">
                       <Input
-                        type="number" min={0} inputMode="numeric"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={quantities[key] ?? ""}
-                        onChange={(e) => setCell(c.id, s, e.target.value)}
-                        className={cn("h-9 text-right tabular-nums", quantities[key] ? "" : "text-muted-foreground")}
+                        onChange={(e) => setCell(c.id, s, e.target.value.replace(/[^0-9]/g, ""))}
+                        className={cn("h-9 px-2 text-right tabular-nums", quantities[key] ? "" : "text-muted-foreground")}
                       />
                     </td>
                   )
                 })}
+                {onRemoveColor && (
+                  <td className="p-1 text-center">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove ${c.colorName}`}
+                      onClick={() => onRemoveColor(c.id)}
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

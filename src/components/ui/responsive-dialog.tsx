@@ -43,7 +43,10 @@ export function ResponsiveDialogContent({ className, side = "bottom", children, 
     )
   }
   return (
-    <DialogContent className={className} {...props}>
+    <DialogContent
+      className={cn("max-h-[90dvh] overflow-y-auto", className)}
+      {...props}
+    >
       {children}
     </DialogContent>
   )

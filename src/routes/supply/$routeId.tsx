@@ -27,7 +27,15 @@ import {
 } from "#/components/ui/responsive-dialog"
 import { DialogTrigger } from "#/components/ui/dialog"
 import { ResponsiveTable } from "#/components/ui/responsive-table"
-import { Plus, Trash2, ArrowRight, Split } from "lucide-react"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "#/components/ui/table"
+import { Plus, Trash2, ArrowRight, Split, X, ChevronDown, ChevronRight } from "lucide-react"
 import {
   getSupplyRoute,
   updateSupplyRoute,
@@ -47,6 +55,7 @@ import { ProductEditor } from "#/components/products/product-editor"
 import { ColorEditor } from "#/components/products/color-editor"
 import { VariantGrid } from "#/components/products/variant-grid"
 import { getProductByArticle } from "#/server/functions/products/products"
+import { deleteProductColor } from "#/server/functions/products/colors"
 import {
   addSupplyRouteExpense,
   deleteSupplyRouteExpense,
@@ -106,7 +115,41 @@ function RouteDetailPage() {
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
   const [splittingItemId, setSplittingItemId] = useState<string | null>(null)
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(
+    new Set(),
+  )
   const splittingItem = route.items.find((i) => i.id === splittingItemId) ?? null
+
+  type RouteItem = (typeof route.items)[number]
+  const groupedItems = React.useMemo(() => {
+    const groups = new Map<
+      string,
+      { name: string; articleNumber: string; items: RouteItem[] }
+    >()
+    for (const item of route.items) {
+      const product = item.productColor?.product ?? item.product
+      if (!product) continue
+      const key = product.articleNumber
+      let group = groups.get(key)
+      if (!group) {
+        group = { name: product.name, articleNumber: key, items: [] }
+        groups.set(key, group)
+      }
+      group.items.push(item)
+    }
+    return Array.from(groups.values()).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    )
+  }, [route.items])
+
+  function toggleProduct(articleNumber: string) {
+    setExpandedProducts((prev) => {
+      const next = new Set(prev)
+      if (next.has(articleNumber)) next.delete(articleNumber)
+      else next.add(articleNumber)
+      return next
+    })
+  }
 
   const totalItemCost = route.items.reduce(
     (sum, i) => sum.plus(i.totalCostUgx),
@@ -237,7 +280,7 @@ function RouteDetailPage() {
                   Add Item
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-xl">
+              <DialogContent className="max-w-5xl">
                 <DialogHeader>
                   <DialogTitle>Add Item</DialogTitle>
                 </DialogHeader>
@@ -257,134 +300,205 @@ function RouteDetailPage() {
             </Dialog>
           </div>
 
-          <ResponsiveTable
-            data={route.items}
-            getRowKey={(item) => item.id}
-            emptyMessage="No items added yet."
-            columns={[
-              {
-                header: "Product",
-                cell: (item) => (
-                  <span className="font-medium">
-                    {item.productColor?.product.name ??
-                      item.product?.name ??
-                      "—"}
-                  </span>
-                ),
-              },
-              {
-                header: "Article",
-                hideOnMobile: true,
-                cell: (item) => (
-                  <span className="text-muted-foreground font-mono text-xs">
-                    {item.productColor?.product.articleNumber ??
-                      item.product?.articleNumber ??
-                      "—"}
-                    <InfoTip term="col.articleNumber" />
-                  </span>
-                ),
-              },
-              {
-                header: "Color · Size",
-                cell: (item) =>
-                  item.productColor ? (
-                    <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                      <span
-                        className="inline-block size-3 rounded-full border"
-                        style={{ backgroundColor: item.productColor.colorHex }}
-                        aria-hidden
-                      />
-                      {item.productColor.colorName}
-                      {item.size ? ` · ${item.size}` : ""}
-                    </span>
-                  ) : (
-                    <Badge variant="outline" className="text-xs">
-                      All variants
-                    </Badge>
-                  ),
-              },
-              {
-                header: "Supplier",
-                hideOnMobile: true,
-                cell: (item) => item.supplier.name,
-              },
-              {
-                header: "Qty",
-                align: "right",
-                cell: (item) => item.quantity,
-              },
-              {
-                header: "Unit Price",
-                align: "right",
-                hideOnMobile: true,
-                cell: (item) => (
-                  <span className="font-mono">
-                    {new BigNumber(item.unitPriceForeign).toFormat(2)}{" "}
-                    <span className="text-muted-foreground text-xs">
-                      {item.foreignCurrency}
-                    </span>
-                  </span>
-                ),
-              },
-              {
-                header: "Total (Foreign)",
-                align: "right",
-                hideOnMobile: true,
-                cell: (item) => (
-                  <span className="font-mono">
-                    {new BigNumber(item.totalAmountForeign).toFormat(2)}
-                  </span>
-                ),
-              },
-              {
-                header: "Total (USD)",
-                align: "right",
-                hideOnMobile: true,
-                cell: (item) => (
-                  <span className="font-mono">
-                    {item.totalAmountUsd
-                      ? new BigNumber(item.totalAmountUsd).toFormat(2)
-                      : "-"}
-                  </span>
-                ),
-              },
-              {
-                header: "Total (UGX)",
-                align: "right",
-                cell: (item) => (
-                  <span className="font-mono font-semibold">
-                    {roundUgxBankers50(item.totalCostUgx).toFormat(0)}
-                  </span>
-                ),
-              },
-              {
-                header: "",
-                cell: (item) => (
-                  <div className="flex items-center justify-end gap-1">
-                    {(!item.productColor || !item.size) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7"
-                        onClick={() => setSplittingItemId(item.id)}
-                      >
-                        <Split className="mr-1 h-3.5 w-3.5" />
-                        Split
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive"
-                      onClick={() => { void handleDeleteItem(item.id) }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ),
-              },
-            ]}
-          />
+          {groupedItems.length === 0 ? (
+            <p className="text-muted-foreground py-8 text-center text-sm">
+              No items added yet.
+            </p>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8" />
+                    <TableHead>Product</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Article
+                    </TableHead>
+                    <TableHead>Color · Size</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Supplier
+                    </TableHead>
+                    <TableHead className="text-right">Qty</TableHead>
+                    <TableHead className="hidden text-right md:table-cell">
+                      Unit Price
+                    </TableHead>
+                    <TableHead className="hidden text-right md:table-cell">
+                      Total (Foreign)
+                    </TableHead>
+                    <TableHead className="hidden text-right md:table-cell">
+                      Total (USD)
+                    </TableHead>
+                    <TableHead className="text-right">Total (UGX)</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {groupedItems.map((group) => {
+                    const expanded = expandedProducts.has(group.articleNumber)
+                    const totalQty = group.items.reduce(
+                      (s, i) => s + i.quantity,
+                      0,
+                    )
+                    const totalForeign = group.items.reduce(
+                      (s, i) => s.plus(i.totalAmountForeign),
+                      new BigNumber(0),
+                    )
+                    const totalUsd = group.items.reduce(
+                      (s, i) =>
+                        i.totalAmountUsd
+                          ? s.plus(i.totalAmountUsd)
+                          : s,
+                      new BigNumber(0),
+                    )
+                    const totalUgx = group.items.reduce(
+                      (s, i) => s.plus(i.totalCostUgx),
+                      new BigNumber(0),
+                    )
+                    const foreignCurrencies = Array.from(
+                      new Set(group.items.map((i) => i.foreignCurrency)),
+                    )
+                    return (
+                      <React.Fragment key={group.articleNumber}>
+                        <TableRow
+                          className="cursor-pointer bg-muted/30 font-medium hover:bg-muted/60"
+                          onClick={() => toggleProduct(group.articleNumber)}
+                          aria-expanded={expanded}
+                        >
+                          <TableCell className="text-center">
+                            {expanded ? (
+                              <ChevronDown className="size-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="size-4 text-muted-foreground" />
+                            )}
+                          </TableCell>
+                          <TableCell>{group.name}</TableCell>
+                          <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
+                            {group.articleNumber}
+                            <InfoTip term="col.articleNumber" />
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs">
+                            {group.items.length} variant
+                            {group.items.length === 1 ? "" : "s"}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell" />
+                          <TableCell className="text-right font-mono">
+                            {totalQty}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell" />
+                          <TableCell className="hidden text-right font-mono md:table-cell">
+                            {totalForeign.toFormat(2)}
+                            {foreignCurrencies.length === 1 && (
+                              <span className="ml-1 text-xs text-muted-foreground">
+                                {foreignCurrencies[0]}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="hidden text-right font-mono md:table-cell">
+                            {totalUsd.gt(0) ? totalUsd.toFormat(2) : "-"}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-semibold">
+                            {roundUgxBankers50(totalUgx).toFormat(0)}
+                          </TableCell>
+                          <TableCell />
+                        </TableRow>
+                        {expanded &&
+                          group.items.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell />
+                              <TableCell className="text-muted-foreground text-xs">
+                                {/* keep product column empty in detail rows */}
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell" />
+                              <TableCell>
+                                {item.productColor ? (
+                                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                                    <span
+                                      className="inline-block size-3 rounded-full border"
+                                      style={{
+                                        backgroundColor:
+                                          item.productColor.colorHex,
+                                      }}
+                                      aria-hidden
+                                    />
+                                    {item.productColor.colorName}
+                                    {item.size ? ` · ${item.size}` : ""}
+                                  </span>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs"
+                                  >
+                                    All variants
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                {item.supplier.name}
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                {item.quantity}
+                              </TableCell>
+                              <TableCell className="hidden text-right font-mono md:table-cell">
+                                {new BigNumber(item.unitPriceForeign).toFormat(
+                                  2,
+                                )}{" "}
+                                <span className="text-muted-foreground text-xs">
+                                  {item.foreignCurrency}
+                                </span>
+                              </TableCell>
+                              <TableCell className="hidden text-right font-mono md:table-cell">
+                                {new BigNumber(
+                                  item.totalAmountForeign,
+                                ).toFormat(2)}
+                              </TableCell>
+                              <TableCell className="hidden text-right font-mono md:table-cell">
+                                {item.totalAmountUsd
+                                  ? new BigNumber(item.totalAmountUsd).toFormat(
+                                      2,
+                                    )
+                                  : "-"}
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                {roundUgxBankers50(item.totalCostUgx).toFormat(
+                                  0,
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center justify-end gap-1">
+                                  {(!item.productColor || !item.size) && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7"
+                                      onClick={() =>
+                                        setSplittingItemId(item.id)
+                                      }
+                                    >
+                                      <Split className="mr-1 h-3.5 w-3.5" />
+                                      Split
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive"
+                                    onClick={() => {
+                                      void handleDeleteItem(item.id)
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </React.Fragment>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
 
         <Dialog
@@ -712,11 +826,13 @@ function ColorQuantityList({
   colors,
   values,
   onChange,
+  onRemoveColor,
   error,
 }: {
   colors: Array<{ id: string; colorName: string; colorHex: string }>
   values: Record<string, number>
   onChange: (v: Record<string, number>) => void
+  onRemoveColor?: (colorId: string) => void
   error?: string
 }) {
   if (colors.length === 0) {
@@ -758,6 +874,20 @@ function ColorQuantityList({
                     placeholder="0"
                   />
                 </td>
+                {onRemoveColor && (
+                  <td className="p-1 w-10 text-center">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove ${c.colorName}`}
+                      onClick={() => onRemoveColor(c.id)}
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -820,6 +950,43 @@ function AddItemForm({
   async function refreshProduct(articleNumber: string) {
     const p = await getProductByArticle({ data: { articleNumber } })
     if (p) setProduct(p)
+  }
+
+  async function handleRemoveColor(productColorId: string) {
+    if (!product) return
+    const colorName =
+      product.colors.find((c) => c.id === productColorId)?.colorName ?? "this color"
+    if (!confirm(`Remove "${colorName}" from this product?`)) return
+    try {
+      await deleteProductColor({ data: { id: productColorId } })
+      setQuantities((prev) => {
+        const next = { ...prev }
+        for (const k of Object.keys(next)) {
+          if (k.startsWith(`${productColorId}|`)) delete next[k]
+        }
+        return next
+      })
+      setColorQtys((prev) => {
+        if (!(productColorId in prev)) return prev
+        const next = { ...prev }
+        delete next[productColorId]
+        return next
+      })
+      await refreshProduct(product.articleNumber)
+      setFormErrors((prev) => {
+        if (!prev.removeColor) return prev
+        const { removeColor: _, ...rest } = prev
+        return rest
+      })
+    } catch (err) {
+      setFormErrors((prev) => ({
+        ...prev,
+        removeColor:
+          err instanceof Error
+            ? err.message
+            : `Could not remove "${colorName}" — it may be in use.`,
+      }))
+    }
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -1002,6 +1169,7 @@ function AddItemForm({
               colors={product.colors}
               values={colorQtys}
               onChange={setColorQtys}
+              onRemoveColor={handleRemoveColor}
               error={formErrors.quantities}
             />
           )}
@@ -1013,6 +1181,7 @@ function AddItemForm({
                 colors={product.colors}
                 quantities={quantities}
                 onChange={setQuantities}
+                onRemoveColor={handleRemoveColor}
               />
               {formErrors.quantities && (
                 <p className="text-xs text-destructive">
@@ -1020,6 +1189,9 @@ function AddItemForm({
                 </p>
               )}
             </>
+          )}
+          {formErrors.removeColor && (
+            <p className="text-xs text-destructive">{formErrors.removeColor}</p>
           )}
         </div>
       )}
