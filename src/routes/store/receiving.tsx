@@ -75,6 +75,7 @@ function ReceivingPage() {
   >({})
   const [discrepancyOpen, setDiscrepancyOpen] = useState(false)
   const [pending, setPending] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const router = useRouter()
 
   const [unresolvedCount, setUnresolvedCount] = useState(0)
@@ -127,6 +128,7 @@ function ReceivingPage() {
 
   async function submitReceipt() {
     setPending(true)
+    setSubmitError(null)
     try {
       await receiveGoods({
         data: {
@@ -134,7 +136,7 @@ function ReceivingPage() {
           items: items.map((i) => ({
             supplyRouteItemId: i.id,
             quantityReceived: receivedQtys[i.id] ?? i.quantity,
-            discrepancyNotes: discrepancyNotes[i.id].trim() || undefined,
+            discrepancyNotes: discrepancyNotes[i.id]?.trim() || undefined,
           })),
         },
       })
@@ -143,6 +145,9 @@ function ReceivingPage() {
       await router.navigate({ to: "/store" })
     } catch (err) {
       console.error("Failed to receive goods:", err)
+      setSubmitError(
+        err instanceof Error ? err.message : "Failed to receive goods.",
+      )
     } finally {
       setPending(false)
     }
@@ -267,9 +272,14 @@ function ReceivingPage() {
               </Table>
             </div>
 
-            <Button onClick={handleReceive} disabled={pending}>
-              {pending ? "Receiving..." : "Confirm Receipt"}
-            </Button>
+            <div className="space-y-2">
+              <Button onClick={handleReceive} disabled={pending}>
+                {pending ? "Receiving..." : "Confirm Receipt"}
+              </Button>
+              {submitError && (
+                <p className="text-sm text-destructive">{submitError}</p>
+              )}
+            </div>
           </div>
         )}
 
