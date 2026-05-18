@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest"
+import { runWithStartContext } from "@tanstack/start-storage-context"
 
 import { db } from "#/db"
 import {
@@ -29,6 +30,22 @@ vi.mock("#/server/middleware/rbac", () => ({
   requireRole: () => {},
   hasRole: () => true,
 }))
+
+// createServerFn's middleware chain pulls startOptions from AsyncLocalStorage
+// at invocation time. Provide a minimal stub so calls work outside SSR.
+const stubStartContext = {
+  getRouter: (() => {
+    throw new Error("router not available in tests")
+  }) as never,
+  request: new Request("http://localhost/test"),
+  startOptions: { functionMiddleware: [] },
+  contextAfterGlobalMiddlewares: {},
+  executedRequestMiddlewares: new Set(),
+  handlerType: "serverFn" as const,
+}
+function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
+  return runWithStartContext(stubStartContext, fn)
+}
 
 const REQUIRED_CATEGORIES = [
   { name: "Inventory - Store", type: "asset" as const },
@@ -80,20 +97,22 @@ describe("addStoreOpeningBalance — variants", () => {
       .returning()
     await db.insert(stores).values({ name: "Test Store" }).onConflictDoNothing()
 
-    await addStoreOpeningBalance({
-      data: {
-        items: [
-          {
-            productId: p.id,
-            unitCostUgx: "10000",
-            cells: [
-              { productColorId: c.id, size: "S", quantity: 5 },
-              { productColorId: c.id, size: "M", quantity: 3 },
-            ],
-          },
-        ],
-      },
-    })
+    await callServerFn(() =>
+      addStoreOpeningBalance({
+        data: {
+          items: [
+            {
+              productId: p.id,
+              unitCostUgx: "10000",
+              cells: [
+                { productColorId: c.id, size: "S", quantity: 5 },
+                { productColorId: c.id, size: "M", quantity: 3 },
+              ],
+            },
+          ],
+        },
+      }),
+    )
 
     // Note: TanStack server-fn middleware swallows handler return values when
     // run outside SSR, so we assert via persisted rows. itemCount === 2 is

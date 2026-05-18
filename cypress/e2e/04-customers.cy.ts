@@ -24,7 +24,7 @@ describe("Customers", () => {
     })
     cy.task(
       "dbQuery",
-      `UPDATE "user" SET role = 'admin' WHERE email = '${testEmail}'`,
+      `UPDATE "user" SET role = 'admin', email_verified = TRUE WHERE email = '${testEmail}'`,
     )
   })
 
