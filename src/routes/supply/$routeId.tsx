@@ -1169,7 +1169,7 @@ function AddItemForm({
               colors={product.colors}
               values={colorQtys}
               onChange={setColorQtys}
-              onRemoveColor={handleRemoveColor}
+              onRemoveColor={(id) => { void handleRemoveColor(id) }}
               error={formErrors.quantities}
             />
           )}
@@ -1181,7 +1181,7 @@ function AddItemForm({
                 colors={product.colors}
                 quantities={quantities}
                 onChange={setQuantities}
-                onRemoveColor={handleRemoveColor}
+                onRemoveColor={(id) => { void handleRemoveColor(id) }}
               />
               {formErrors.quantities && (
                 <p className="text-xs text-destructive">
