@@ -22,10 +22,12 @@ interface Props {
  * Device-aware product-photo capture.
  *
  * Desktop: shows a QR code; user scans with phone and uploads through the
- * /upload-photo/:token route. We poll for completion every 2s.
+ * /upload-photo/:token route. We poll for completion every 2s. An Upload
+ * button is also offered so the user can pick an existing file.
  *
- * Mobile: shows a "Take photo" button that opens the camera directly,
- * shrinks the file client-side, and uploads via a presigned URL.
+ * Mobile: shows a "Take photo" button that opens the camera directly, plus
+ * an "Upload" button for choosing from the photo library. Either path
+ * shrinks the file client-side and uploads via a presigned URL.
  */
 export function PhotoCapture(props: Props) {
   const isMobile = useIsMobile()
@@ -36,14 +38,28 @@ export function PhotoCapture(props: Props) {
 export const PhotoHandoffQR = PhotoCapture
 
 // ---------------------------------------------------------------------------
-// Mobile — direct camera capture + presigned upload
+// Shared upload button — file input + shrink + presigned PUT
 // ---------------------------------------------------------------------------
 
-type MobileState = "idle" | "shrinking" | "uploading" | "error"
+type UploadState = "idle" | "shrinking" | "uploading" | "error"
 
-function MobileCapture({ productColorId, onUploaded }: Props) {
+interface UploadButtonProps {
+  productColorId: string
+  onUploaded: (imageUrl: string) => void
+  capture?: "environment"
+  idleLabel: string
+  size?: "sm" | "default"
+}
+
+function UploadButton({
+  productColorId,
+  onUploaded,
+  capture,
+  idleLabel,
+  size = "default",
+}: UploadButtonProps) {
   const inputRef = React.useRef<HTMLInputElement>(null)
-  const [state, setState] = React.useState<MobileState>("idle")
+  const [state, setState] = React.useState<UploadState>("idle")
   const [error, setError] = React.useState<string | null>(null)
 
   async function onFile(file: File) {
@@ -73,13 +89,21 @@ function MobileCapture({ productColorId, onUploaded }: Props) {
     }
   }
 
+  const busy = state === "shrinking" || state === "uploading"
+  const label =
+    state === "shrinking"
+      ? "Preparing…"
+      : state === "uploading"
+        ? "Uploading…"
+        : idleLabel
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
+        {...(capture ? { capture } : {})}
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0]
@@ -90,18 +114,37 @@ function MobileCapture({ productColorId, onUploaded }: Props) {
       <Button
         type="button"
         variant="outline"
+        size={size}
         onClick={() => inputRef.current?.click()}
-        disabled={state === "shrinking" || state === "uploading"}
+        disabled={busy}
       >
-        {state === "shrinking"
-          ? "Preparing…"
-          : state === "uploading"
-            ? "Uploading…"
-            : "Take photo"}
+        {label}
       </Button>
       {state === "error" && error && (
         <div className="text-xs text-red-600">{error}</div>
       )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Mobile — direct camera capture + upload-from-library
+// ---------------------------------------------------------------------------
+
+function MobileCapture({ productColorId, onUploaded }: Props) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <UploadButton
+        productColorId={productColorId}
+        onUploaded={onUploaded}
+        capture="environment"
+        idleLabel="Take photo"
+      />
+      <UploadButton
+        productColorId={productColorId}
+        onUploaded={onUploaded}
+        idleLabel="Upload"
+      />
     </div>
   )
 }
@@ -164,14 +207,21 @@ function DesktopHandoff({ productColorId, onUploaded }: Props) {
 
   if (!dataUrl) {
     return (
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => void generate()}
-        disabled={generating}
-      >
-        {generating ? "Generating…" : "Take with phone (QR)"}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void generate()}
+          disabled={generating}
+        >
+          {generating ? "Generating…" : "Take with phone (QR)"}
+        </Button>
+        <UploadButton
+          productColorId={productColorId}
+          onUploaded={onUploaded}
+          idleLabel="Upload"
+        />
+      </div>
     )
   }
 
@@ -189,15 +239,23 @@ function DesktopHandoff({ productColorId, onUploaded }: Props) {
           ? "QR expired — generate a new one"
           : `Scan with your phone · expires in ${mm}:${ss}`}
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => void generate()}
-        disabled={generating}
-      >
-        {generating ? "Generating…" : "Regenerate"}
-      </Button>
+      <div className="flex flex-wrap justify-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void generate()}
+          disabled={generating}
+        >
+          {generating ? "Generating…" : "Regenerate"}
+        </Button>
+        <UploadButton
+          productColorId={productColorId}
+          onUploaded={onUploaded}
+          idleLabel="Upload"
+          size="sm"
+        />
+      </div>
     </div>
   )
 }
