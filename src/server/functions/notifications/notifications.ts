@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, desc, eq, inArray, isNull } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
-import { notifications, shopSales } from "#/db/schema"
+import { notifications, shopSales, lowStockAlerts } from "#/db/schema"
 import { shouldNotifyOverdueCredit } from "#/lib/notifications/thresholds"
 import { emitToRoles } from "#/lib/notifications/emit"
 import { requireSession } from "#/server/middleware/auth"
@@ -23,6 +23,30 @@ export const listMyNotifications = createServerFn().handler(async () => {
     .orderBy(desc(notifications.createdAt))
     .limit(50)
 })
+
+const navTargetInput = z.object({ id: z.uuid() })
+
+/**
+ * Resolves a low-stock alert into the route a notification bell should
+ * deep-link to. Returns scope + locationId so the bell can pick between
+ * /shop/$shopId/restock and /store/restock-requisitions.
+ */
+export const getLowStockAlertNavTarget = createServerFn()
+  .inputValidator(navTargetInput)
+  .handler(async ({ data }) => {
+    await requireSession()
+    const [row] = await db
+      .select()
+      .from(lowStockAlerts)
+      .where(eq(lowStockAlerts.id, data.id))
+    if (!row) throw new Error("Alert not found")
+    return {
+      scope: row.scope,
+      locationId: row.locationId,
+      productColorId: row.productColorId,
+      size: row.size,
+    }
+  })
 
 const markReadInput = z.object({ id: z.uuid() })
 
