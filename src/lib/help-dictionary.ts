@@ -354,6 +354,32 @@ export const helpDict = {
       "The shop threshold value. If mode is Percentage, this is the % of the rolling 3-batch average below which an alert fires. If mode is Units, it is an absolute unit count.",
     example: "15 (percent) or 2 (units)",
   },
+
+  // ─── Notification threshold overrides ───────────────────────────────────
+  "notifications.overrides.title": {
+    description:
+      "Per-variant rules that replace the global defaults. Use these when a specific product color+size needs a different trigger than the system-wide setting.",
+  },
+  "notifications.overrides.scope": {
+    description:
+      "Whether this override applies to warehouse stock (Store) or shop floor stock (Shop).",
+    example: "Store",
+  },
+  "notifications.overrides.product": {
+    description:
+      "The specific product color variant this override covers. Identified by article number and color name.",
+    example: "SH-2045 · Black",
+  },
+  "notifications.overrides.size": {
+    description:
+      "The specific size this override covers. Only that size is affected; other sizes still use the global default.",
+    example: "XL",
+  },
+  "notifications.overrides.rule": {
+    description:
+      "The threshold that triggers a low-stock alert for this variant. Shown as '≤ X%' or '≤ X units'.",
+    example: "≤ 10%",
+  },
 } as const satisfies Record<string, HelpEntry>
 
 export type HelpKey = keyof typeof helpDict

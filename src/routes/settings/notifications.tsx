@@ -9,20 +9,47 @@ import {
   CardHeader,
   CardTitle,
 } from "#/components/ui/card"
+import { InfoTip } from "#/components/ui/info-tip"
 import {
   getThresholds,
   updateThresholds,
+  listOverrides,
 } from "#/server/functions/notifications/thresholds"
 import { runThresholdChecksNow } from "#/server/functions/notifications/notifications"
 import {
   ThresholdField,
   type ThresholdValue,
 } from "#/components/notifications/threshold-form"
+import {
+  OverrideTable,
+  type OverrideRow,
+} from "#/components/notifications/override-table"
+import { listProductColorsForOverrides } from "#/server/functions/products/colors"
+import { listShopsForReports } from "#/server/functions/shop/list-shops"
 
 export const Route = createFileRoute("/settings/notifications")({
   beforeLoad: ({ context }) => requireUiPermission(context, "users.manage"),
   loader: async () => {
-    return { thresholds: await getThresholds() }
+    const [thresholds, allOverrides, productColorsRaw, shops] =
+      await Promise.all([
+        getThresholds(),
+        listOverrides({ data: {} }),
+        listProductColorsForOverrides(),
+        listShopsForReports(),
+      ])
+
+    // Product-scope overrides: shopId is null (no shop filter)
+    const productOverrides = allOverrides.filter((o) => o.shopId === null)
+
+    const productOptions = productColorsRaw.map((pc) => ({
+      productColorId: pc.id,
+      label: `${pc.product.articleNumber} · ${pc.colorName}`,
+      sizes: pc.product.sizes.length > 0
+        ? pc.product.sizes
+        : ["S", "M", "L", "XL", "XXL"],
+    }))
+
+    return { thresholds, productOverrides, productOptions, shops }
   },
   component: NotificationsSettingsPage,
 })
@@ -30,9 +57,7 @@ export const Route = createFileRoute("/settings/notifications")({
 type Banner = { kind: "success" | "error"; text: string }
 
 function NotificationsSettingsPage() {
-  const loaderData = Route.useLoaderData() as {
-    thresholds: { store: ThresholdValue; shop: ThresholdValue }
-  }
+  const loaderData = Route.useLoaderData()
   const router = useRouter()
   const [store, setStore] = useState<ThresholdValue>(loaderData.thresholds.store)
   const [shop, setShop] = useState<ThresholdValue>(loaderData.thresholds.shop)
@@ -136,6 +161,32 @@ function NotificationsSettingsPage() {
           >
             {running ? "Running…" : "Run check now"}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-1.5">
+            Product overrides
+            <InfoTip term="notifications.overrides.title" />
+          </CardTitle>
+          <CardDescription>
+            Override the global defaults for specific product variants. These
+            rules apply across all shops unless a per-shop override takes
+            precedence.{" "}
+            <span className="text-muted-foreground">
+              Per-shop overrides can be set on each shop&apos;s settings page.
+            </span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <OverrideTable
+            rows={loaderData.productOverrides as OverrideRow[]}
+            showShopColumn={false}
+            productOptions={loaderData.productOptions}
+            shopOptions={loaderData.shops}
+            onChanged={() => { void router.invalidate() }}
+          />
         </CardContent>
       </Card>
     </div>

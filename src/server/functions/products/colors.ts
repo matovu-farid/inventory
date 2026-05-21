@@ -64,3 +64,19 @@ export const deleteProductColor = createServerFn()
     requireRole(session, ["admin"])
     await db.delete(productColors).where(eq(productColors.id, data.id))
   })
+
+/**
+ * Returns all product colors with their parent product, ordered by article
+ * number then color name.  Used by the notification-override UI to populate
+ * the variant picker.
+ */
+export const listProductColorsForOverrides = createServerFn().handler(
+  async () => {
+    const session = await requireSession()
+    requireRole(session, ["admin", "supervisor"])
+    return db.query.productColors.findMany({
+      with: { product: true },
+      orderBy: (pc, { asc }) => [asc(pc.productId), asc(pc.colorName)],
+    })
+  },
+)
