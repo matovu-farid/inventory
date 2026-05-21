@@ -4,7 +4,9 @@ import {
   VerifyEmailTemplate,
   ResetPasswordTemplate,
   InviteUserTemplate,
+  LowStockDigestTemplate,
 } from "#/lib/emails"
+import type { LowStockDigestData } from "#/lib/emails"
 
 const resend = new Resend(env.RESEND_API_KEY)
 
@@ -61,5 +63,19 @@ export async function sendInviteEmail({
     })
   } catch (error) {
     console.error("[Email] sendInviteEmail failed:", error)
+  }
+}
+
+type DigestArgs = { to: string; data: LowStockDigestData }
+export async function sendLowStockDigest({ to, data }: DigestArgs) {
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to,
+      subject: `Low-stock digest — ${data.storeLowCount + data.shopLowCount} items need attention`,
+      react: LowStockDigestTemplate(data),
+    })
+  } catch (error) {
+    console.error("[Email] sendLowStockDigest failed:", error)
   }
 }
