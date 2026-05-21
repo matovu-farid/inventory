@@ -32,6 +32,7 @@ import { Route as StoreOpeningBalanceRouteImport } from './routes/store/opening-
 import { Route as ShopSalesRouteImport } from './routes/shop/sales'
 import { Route as ShopOpeningBalanceRouteImport } from './routes/shop/opening-balance'
 import { Route as SettingsUsersRouteImport } from './routes/settings/users'
+import { Route as SettingsNotificationsRouteImport } from './routes/settings/notifications'
 import { Route as ReportsZRouteImport } from './routes/reports/z'
 import { Route as ReportsXRouteImport } from './routes/reports/x'
 import { Route as ReportsLedgerRouteImport } from './routes/reports/ledger'
@@ -154,6 +155,11 @@ const SettingsUsersRoute = SettingsUsersRouteImport.update({
   path: '/settings/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsNotificationsRoute = SettingsNotificationsRouteImport.update({
+  id: '/settings/notifications',
+  path: '/settings/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsZRoute = ReportsZRouteImport.update({
   id: '/reports/z',
   path: '/reports/z',
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/users': typeof SettingsUsersRoute
+  '/settings/notifications': typeof SettingsNotificationsRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -229,6 +236,7 @@ export interface FileRoutesByTo {
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/users': typeof SettingsUsersRoute
+  '/settings/notifications': typeof SettingsNotificationsRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -261,6 +269,7 @@ export interface FileRoutesById {
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/users': typeof SettingsUsersRoute
+  '/settings/notifications': typeof SettingsNotificationsRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -294,6 +303,7 @@ export interface FileRouteTypes {
     | '/reports/x'
     | '/reports/z'
     | '/settings/users'
+    | '/settings/notifications'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -325,6 +335,7 @@ export interface FileRouteTypes {
     | '/reports/x'
     | '/reports/z'
     | '/settings/users'
+    | '/settings/notifications'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -356,6 +367,7 @@ export interface FileRouteTypes {
     | '/reports/x'
     | '/reports/z'
     | '/settings/users'
+    | '/settings/notifications'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -388,6 +400,7 @@ export interface RootRouteChildren {
   ReportsXRoute: typeof ReportsXRoute
   ReportsZRoute: typeof ReportsZRouteWithChildren
   SettingsUsersRoute: typeof SettingsUsersRoute
+  SettingsNotificationsRoute: typeof SettingsNotificationsRoute
   ShopOpeningBalanceRoute: typeof ShopOpeningBalanceRoute
   ShopSalesRoute: typeof ShopSalesRoute
   StoreOpeningBalanceRoute: typeof StoreOpeningBalanceRoute
@@ -569,6 +582,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/notifications': {
+      id: '/settings/notifications'
+      path: '/settings/notifications'
+      fullPath: '/settings/notifications'
+      preLoaderRoute: typeof SettingsNotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reports/z': {
       id: '/reports/z'
       path: '/reports/z'
@@ -639,6 +659,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsXRoute: ReportsXRoute,
   ReportsZRoute: ReportsZRouteWithChildren,
   SettingsUsersRoute: SettingsUsersRoute,
+  SettingsNotificationsRoute: SettingsNotificationsRoute,
   ShopOpeningBalanceRoute: ShopOpeningBalanceRoute,
   ShopSalesRoute: ShopSalesRoute,
   StoreOpeningBalanceRoute: StoreOpeningBalanceRoute,

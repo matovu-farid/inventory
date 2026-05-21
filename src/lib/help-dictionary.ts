@@ -332,6 +332,28 @@ export const helpDict = {
     description:
       "Selling below the recommended minimum price. A reason is required so the admin can review.",
   },
+
+  // ─── Notification thresholds settings ───────────────────────────────────
+  "notifications.thresholds.storeMode": {
+    description:
+      "Whether the warehouse low-stock trigger is expressed as a percentage of the rolling batch average or as a fixed number of units remaining.",
+    example: "Percentage",
+  },
+  "notifications.thresholds.storeValue": {
+    description:
+      "The warehouse threshold value. If mode is Percentage, this is the % of the rolling 3-batch average below which an alert fires. If mode is Units, it is an absolute unit count.",
+    example: "30 (percent) or 5 (units)",
+  },
+  "notifications.thresholds.shopMode": {
+    description:
+      "Whether each shop's low-stock trigger is expressed as a percentage of the rolling batch average or as a fixed number of units remaining.",
+    example: "Percentage",
+  },
+  "notifications.thresholds.shopValue": {
+    description:
+      "The shop threshold value. If mode is Percentage, this is the % of the rolling 3-batch average below which an alert fires. If mode is Units, it is an absolute unit count.",
+    example: "15 (percent) or 2 (units)",
+  },
 } as const satisfies Record<string, HelpEntry>
 
 export type HelpKey = keyof typeof helpDict
