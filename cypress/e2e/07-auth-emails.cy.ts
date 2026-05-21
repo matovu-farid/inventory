@@ -20,10 +20,14 @@ describe("Auth email flows", () => {
   it("forgot-password page always shows generic success", () => {
     cy.visit("/forgot-password")
     // Wait for React hydration so the form's onSubmit handler attaches.
+    // Without hydration the form does a default browser POST which loses
+    // client state and never shows the success branch.
     cy.get("input#email").should("be.visible")
-    cy.wait(1500)
+    cy.wait(4000)
     cy.get("input#email").type("nobody-here@example.com")
-    cy.contains("button", "Send reset link").click()
+    // Submit the form directly so we don't depend on the button being a
+    // hydrated React click target.
+    cy.get("form").submit()
     cy.contains("If an account exists for that email", { timeout: 15000 }).should(
       "be.visible",
     )

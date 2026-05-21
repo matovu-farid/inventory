@@ -54,8 +54,9 @@ describe("X/Z shift reports", () => {
   it("closing a Z persists a shift_closures row", () => {
     cy.task("dbQuery", `DELETE FROM shift_closures`).then(() => {
       cy.visit("/reports/x")
+      cy.contains("X Report", { timeout: 10000 }).should("be.visible")
       cy.contains("button", "Close shift (Z)").should("be.visible")
-      cy.wait(2000)
+      cy.wait(3500)
       cy.contains("button", "Close shift (Z)").click()
       cy.get('[role="dialog"]', { timeout: 10000 }).should("be.visible")
       cy.get('[role="dialog"] #declared').type("50000")

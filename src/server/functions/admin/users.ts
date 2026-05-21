@@ -14,6 +14,7 @@ import { sendInviteEmail } from "#/lib/email"
 import { env } from "#/env"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { ROLES } from "#/lib/roles"
 import { randomBytes } from "node:crypto"
 
 function tempPassword() {
@@ -23,7 +24,7 @@ function tempPassword() {
 const inviteInput = z.object({
   email: z.email(),
   name: z.string().min(1),
-  role: z.enum(["admin", "supervisor", "sales"]),
+  role: z.enum(ROLES),
   shopId: z.uuid().optional(),
 })
 
@@ -41,7 +42,9 @@ export const inviteUser = createServerFn()
         password: tempPassword(),
         name: data.name,
         role: data.role,
-        data: { shopId: data.shopId ?? null, emailVerified: true },
+        // Leave emailVerified false until the user accepts the invite. The
+        // UI surfaces this as "Invited" with a Resend invite button.
+        data: { shopId: data.shopId ?? null, emailVerified: false },
       },
     })
 
@@ -113,6 +116,13 @@ export const acceptInvite = createServerFn()
         and(eq(account.userId, u.id), eq(account.providerId, "credential")),
       )
 
+    // Accepting the invite verifies the email. Better Auth's signInEmail
+    // below requires emailVerified=true when requireEmailVerification is on.
+    await db
+      .update(user)
+      .set({ emailVerified: true })
+      .where(eq(user.id, u.id))
+
     // Mint a session and forward Set-Cookie headers
     const response = await auth.api.signInEmail({
       body: { email: u.email, password: data.password },
@@ -151,7 +161,7 @@ export const setUserRole = createServerFn()
   .inputValidator(
     z.object({
       userId: z.string(),
-      role: z.enum(["admin", "supervisor", "sales"]),
+      role: z.enum(ROLES),
     }),
   )
   .handler(async ({ data }) => {
