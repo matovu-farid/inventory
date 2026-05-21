@@ -19,15 +19,24 @@ describe("Auth email flows", () => {
 
   it("forgot-password page always shows generic success", () => {
     cy.visit("/forgot-password")
+    // Wait for React hydration so the form's onSubmit handler attaches.
+    cy.get("input#email").should("be.visible")
+    cy.wait(1500)
     cy.get("input#email").type("nobody-here@example.com")
     cy.contains("button", "Send reset link").click()
-    cy.contains("If an account exists for that email").should("be.visible")
+    cy.contains("If an account exists for that email", { timeout: 15000 }).should(
+      "be.visible",
+    )
   })
 
   it("admin can invite a user; row shows Invited status", () => {
     cy.loginAndCache(adminEmail, adminPassword)
     cy.visit("/settings/users")
+    // Wait for hydration before clicking the trigger so Radix can wire up.
+    cy.contains("button", "Invite user").should("be.visible")
+    cy.wait(1500)
     cy.contains("button", "Invite user").click()
+    cy.get('[role="dialog"]', { timeout: 5000 }).should("be.visible")
     cy.get("input#invite-name").type("Invitee Person")
     const inviteeEmail = `invitee-${Date.now()}@test.com`
     cy.get("input#invite-email").type(inviteeEmail)
