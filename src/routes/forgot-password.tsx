@@ -19,10 +19,16 @@ function ForgotPasswordPage() {
     e.preventDefault()
     setPending(true)
     // Always show generic success — never disclose whether the email exists.
-    await authClient.requestPasswordReset({
-      email,
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
+    // Swallow thrown errors (network, 5xx) so the success message still
+    // renders; Better Auth already returns 200 for non-existent emails.
+    try {
+      await authClient.requestPasswordReset({
+        email,
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+    } catch {
+      // Intentionally ignored.
+    }
     setSubmitted(true)
     setPending(false)
   }

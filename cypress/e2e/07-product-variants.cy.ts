@@ -53,10 +53,12 @@ describe("Product variants happy path", () => {
     )
 
     cy.visit("/supply")
-    cy.wait(1000)
+    cy.contains("button", /new route|create.*route/i).should("be.visible")
+    cy.wait(2000)
     cy.contains("button", /new route|create.*route/i).click()
-    cy.get('input[name="name"], input').first().clear().type("E2E Variant Route")
-    cy.contains("button", /create|save/i).click()
+    cy.get('[role="dialog"]', { timeout: 5000 }).should("be.visible")
+    cy.get('[role="dialog"] input#name').clear().type("E2E Variant Route")
+    cy.get('[role="dialog"]').contains("button", /create|save/i).click()
     cy.location("pathname", { timeout: 5000 }).should("match", /\/supply\/[\w-]+/)
 
     cy.contains("button", /add item/i).click()
