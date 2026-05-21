@@ -3,9 +3,12 @@
   "name": "tanstack-start-app",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  "main": "src/server/worker.ts",
   "workers_dev": true,
   "routes": [
     { "pattern": "inventory.fidexa.org", "custom_domain": true }
-  ]
+  ],
+  "triggers": {
+    "crons": ["0 * * * *", "0 4 * * *"]
+  }
 }
