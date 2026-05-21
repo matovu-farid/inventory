@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { roundUgxFloor50 } from "#/lib/format"
+import { formatUgx, formatDate } from "#/lib/format"
 import { requireUiPermission } from "#/lib/permissions"
 import { Badge } from "#/components/ui/badge"
 import { ResponsiveTable } from "#/components/ui/responsive-table"
@@ -33,7 +33,7 @@ function LedgerPage() {
               header: "Date",
               cell: (e) => (
                 <span className="text-xs">
-                  {new Date(e.transactionDate).toLocaleDateString()}
+                  {formatDate(e.transactionDate)}
                 </span>
               ),
             },
@@ -56,7 +56,7 @@ function LedgerPage() {
               align: "right",
               cell: (e) => (
                 <span className="font-mono">
-                  {roundUgxFloor50(e.amount).toFormat(0)}
+                  {formatUgx(e.amount)}
                 </span>
               ),
             },

@@ -3,6 +3,24 @@ import BigNumber from "bignumber.js"
 const STEP = new BigNumber(50)
 
 /**
+ * Format a date as a calendar date (no time component) using the runtime's
+ * default locale. Use for table cells and summaries where only the day matters.
+ */
+export function formatDate(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date
+  return d.toLocaleDateString()
+}
+
+/**
+ * Format a date with time using the runtime's default locale. Use for sale
+ * receipts, audit-log rows, and anywhere the time-of-day matters.
+ */
+export function formatDateTime(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date
+  return d.toLocaleString()
+}
+
+/**
  * Floor a UGX amount to the nearest multiple of 50 shillings, preserving sign.
  * Rounds toward zero (so −1,237 → −1,200, not −1,250).
  */

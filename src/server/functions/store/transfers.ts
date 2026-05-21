@@ -13,6 +13,7 @@ import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { formatProductLabel } from "#/lib/products"
 import {
   validateDiscrepancyNotes,
   validateQuantityReceived,
@@ -97,7 +98,11 @@ export const createTransfer = createServerFn()
           with: { productColor: { with: { product: true } } },
         })
         if (!stock) throw new Error(`Store stock not found: ${item.storeStockId}`)
-        const productLabel = `${stock.productColor.product.articleNumber} ${stock.productColor.colorName}/${stock.size}`
+        const productLabel = formatProductLabel(
+          stock.productColor.product.articleNumber,
+          stock.productColor.colorName,
+          stock.size,
+        )
         if (stock.quantityOnHand < item.quantityDispatched) {
           throw new Error(`Insufficient stock for ${productLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`)
         }
@@ -245,7 +250,11 @@ export const confirmTransferReceipt = createServerFn()
           throw new Error("This transfer item has already been received. Use a return flow to adjust.")
         }
 
-        const productLabel = `${ti.storeStockItem.productColor.product.articleNumber} ${ti.storeStockItem.productColor.colorName}/${ti.storeStockItem.size}`
+        const productLabel = formatProductLabel(
+          ti.storeStockItem.productColor.product.articleNumber,
+          ti.storeStockItem.productColor.colorName,
+          ti.storeStockItem.size,
+        )
 
         validateQuantityReceived(receiptItem.quantityReceived)
         validateDiscrepancyNotes({

@@ -8,6 +8,7 @@ import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { formatProductLabel } from "#/lib/products"
 
 export const listStockTakes = createServerFn()
   .inputValidator(
@@ -66,7 +67,11 @@ export const startStockTake = createServerFn()
           with: { productColor: { with: { product: true } } },
         })
         for (const item of items) {
-          const productLabel = `${item.productColor.product.articleNumber} ${item.productColor.colorName}/${item.size}`
+          const productLabel = formatProductLabel(
+            item.productColor.product.articleNumber,
+            item.productColor.colorName,
+            item.size,
+          )
           await tx.insert(stockTakeItems).values({
             stockTakeId: st.id,
             storeStockId: item.id,
@@ -83,7 +88,11 @@ export const startStockTake = createServerFn()
           with: { productColor: { with: { product: true } } },
         })
         for (const item of items) {
-          const productLabel = `${item.productColor.product.articleNumber} ${item.productColor.colorName}/${item.size}`
+          const productLabel = formatProductLabel(
+            item.productColor.product.articleNumber,
+            item.productColor.colorName,
+            item.size,
+          )
           await tx.insert(stockTakeItems).values({
             stockTakeId: st.id,
             shopStockId: item.id,

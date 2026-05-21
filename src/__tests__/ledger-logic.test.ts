@@ -1,23 +1,11 @@
 import { describe, it, expect } from "vitest"
 import BigNumber from "bignumber.js"
+import { computeAccountBalance as computeBalance } from "#/lib/accounting/ledger-queries"
 
 /**
  * Tests for ledger accounting logic (pure computation, no DB).
  * Validates the balance calculation rules used in ledger-queries.ts
  */
-
-const NORMAL_DEBIT_TYPES = ["asset", "expense"]
-
-function computeBalance(
-  categoryType: string,
-  debits: string,
-  credits: string,
-): BigNumber {
-  const isNormalDebit = NORMAL_DEBIT_TYPES.includes(categoryType)
-  const dr = new BigNumber(debits)
-  const cr = new BigNumber(credits)
-  return isNormalDebit ? dr.minus(cr) : cr.minus(dr)
-}
 
 describe("account balance computation", () => {
   describe("asset accounts (normal debit)", () => {

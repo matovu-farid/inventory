@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
-import { and, desc, eq, isNull, inArray } from "drizzle-orm"
+import { and, desc, eq, isNull, isNotNull, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
 import { notifications, user, shopSales } from "#/db/schema"
@@ -12,6 +12,9 @@ import {
 import type {Thresholds} from "#/lib/notifications/thresholds";
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import type { Role } from "#/lib/roles"
+import { OPEN_PAYMENT_STATUSES } from "#/lib/payment-status"
+import { formatProductLabel } from "#/lib/products"
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
@@ -19,7 +22,7 @@ interface EmitParams {
   kind: string
   title: string
   body: string
-  audience: { roles: ("admin" | "supervisor" | "sales")[] }
+  audience: { roles: Role[] }
   entityType?: string
   entityId?: string
 }
@@ -28,7 +31,7 @@ export async function emitNotification(tx: Tx, params: EmitParams) {
   const recipients = await tx
     .select({ id: user.id })
     .from(user)
-    .where(inArray(user.role, params.audience.roles))
+    .where(and(isNotNull(user.role), inArray(user.role, params.audience.roles)))
 
   if (recipients.length === 0) return
 
@@ -104,7 +107,11 @@ export const runThresholdChecks = createServerFn()
       })
       for (const s of allShopStock) {
         if (shouldNotifyLowStock(s.quantityOnHand, thresholds)) {
-          const productLabel = `${s.productColor.product.articleNumber} ${s.productColor.colorName}/${s.size}`
+          const productLabel = formatProductLabel(
+            s.productColor.product.articleNumber,
+            s.productColor.colorName,
+            s.size,
+          )
           await emitNotification(tx, {
             kind: "low_stock",
             title: `Low stock: ${productLabel}`,
@@ -122,7 +129,7 @@ export const runThresholdChecks = createServerFn()
       const openCreditSales = await tx
         .select()
         .from(shopSales)
-        .where(inArray(shopSales.paymentStatus, ["open", "partially_paid"]))
+        .where(inArray(shopSales.paymentStatus, OPEN_PAYMENT_STATUSES))
       for (const sale of openCreditSales) {
         if (
           shouldNotifyOverdueCredit(

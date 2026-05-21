@@ -14,6 +14,7 @@ import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { formatProductLabel } from "#/lib/products"
 import { buildStoreReturnReceiveEntries } from "./return-entries"
 
 const returnItemInput = z.object({
@@ -51,7 +52,11 @@ export const dispatchStoreReturn = createServerFn()
           with: { productColor: { with: { product: true } } },
         })
         if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
-        const productLabel = `${stock.productColor.product.articleNumber} ${stock.productColor.colorName}/${stock.size}`
+        const productLabel = formatProductLabel(
+          stock.productColor.product.articleNumber,
+          stock.productColor.colorName,
+          stock.size,
+        )
         if (stock.quantityOnHand < item.quantityDispatched) {
           throw new Error(
             `Insufficient stock for ${productLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`,
@@ -182,7 +187,11 @@ export const receiveStoreReturn = createServerFn()
         if (!item) {
           throw new Error(`Return item not found: ${receipt.storeReturnItemId}`)
         }
-        const productLabel = `${item.shopStock.productColor.product.articleNumber} ${item.shopStock.productColor.colorName}/${item.shopStock.size}`
+        const productLabel = formatProductLabel(
+          item.shopStock.productColor.product.articleNumber,
+          item.shopStock.productColor.colorName,
+          item.shopStock.size,
+        )
         if (receipt.quantityReceived > item.quantityDispatched) {
           throw new Error(
             `Received ${receipt.quantityReceived} > dispatched ${item.quantityDispatched} for ${productLabel}`,

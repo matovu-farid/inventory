@@ -13,6 +13,7 @@ import {
 } from "#/components/ui/select"
 import { ResponsiveTable } from "#/components/ui/responsive-table"
 import { confirmTransferReceipt } from "#/server/functions/store/transfers"
+import { formatDate } from "#/lib/format"
 
 export interface ReceivableTransfer {
   id: string
@@ -124,7 +125,7 @@ export function ReceiveTransferForm({
               {transfers.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.shop.name} —{" "}
-                  {new Date(t.transferDate).toLocaleDateString()}
+                  {formatDate(t.transferDate)}
                 </SelectItem>
               ))}
             </SelectContent>

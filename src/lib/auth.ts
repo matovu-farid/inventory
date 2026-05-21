@@ -11,13 +11,14 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "#/lib/email"
+import type { Role } from "#/lib/roles"
 
 /**
  * Roles recognised by this application. The admin plugin's API typings derive
  * the accepted `role` literal from the keys of the `roles` map passed below,
  * so `auth.api.createUser`/`setRole` accept these values without casts.
  */
-export type AppRole = "admin" | "supervisor" | "sales"
+export type AppRole = Role
 const ac = createAccessControl(defaultStatements)
 // Supervisor/sales are declared with no admin-plugin permissions; they exist
 // only so the admin plugin's API typings accept these role strings. We pass an

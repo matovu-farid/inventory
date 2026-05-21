@@ -18,6 +18,8 @@ import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { OPEN_PAYMENT_STATUSES } from "#/lib/payment-status"
+import { depositCategoryFor } from "#/lib/payment-method"
 
 const recordPaymentInput = z.object({
   customerId: z.uuid(),
@@ -56,7 +58,7 @@ export const recordPayment = createServerFn()
       const openSales = await tx.query.shopSales.findMany({
         where: and(
           eq(shopSales.customerId, data.customerId),
-          inArray(shopSales.paymentStatus, ["open", "partially_paid"]),
+          inArray(shopSales.paymentStatus, OPEN_PAYMENT_STATUSES),
         ),
         orderBy: (s, { asc }) => [asc(s.saleDate)],
       })
@@ -119,7 +121,7 @@ export const recordPayment = createServerFn()
         entries: [
           {
             type: "debit",
-            category: data.paymentMethod === "cash" ? "Cash" : "Bank",
+            category: depositCategoryFor(data.paymentMethod),
             amount: amount.toFixed(2),
           },
           {

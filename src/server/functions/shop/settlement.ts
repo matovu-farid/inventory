@@ -5,6 +5,7 @@ import { db } from "#/db"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { depositCategoryFor } from "#/lib/payment-method"
 
 const settleInput = z.object({
   shopId: z.uuid(),
@@ -32,7 +33,7 @@ export const settleInterBranch = createServerFn()
     if (!store) throw new Error("Store not configured")
 
     return db.transaction(async (tx) => {
-      const depositCat = data.paymentMethod === "cash" ? "Cash" : "Bank"
+      const depositCat = depositCategoryFor(data.paymentMethod)
 
       // Store side: receive payment
       await postJournalEntry(tx, {

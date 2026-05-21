@@ -1,3 +1,6 @@
+import { isPaymentStatusOpen } from "#/lib/payment-status"
+import type { PaymentStatus } from "#/lib/payment-status"
+
 export interface Thresholds {
   lowStockUnits: number
   discrepancyPercent: number
@@ -27,7 +30,7 @@ export function shouldNotifyDiscrepancy(
   return pct >= thresholds.discrepancyPercent
 }
 
-export type CreditSaleStatus = "open" | "partially_paid" | "settled" | "written_off"
+export type CreditSaleStatus = PaymentStatus
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
@@ -37,7 +40,7 @@ export function shouldNotifyOverdueCredit(
   now: Date,
   thresholds: Thresholds,
 ): boolean {
-  if (status !== "open" && status !== "partially_paid") return false
+  if (!isPaymentStatusOpen(status)) return false
   const ageDays = (now.getTime() - saleDate.getTime()) / MS_PER_DAY
   return ageDays > thresholds.overdueDays
 }

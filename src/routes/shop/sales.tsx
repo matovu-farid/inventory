@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useState, useEffect, useCallback } from "react"
 import { requireUiPermission } from "#/lib/permissions"
 import BigNumber from "bignumber.js"
-import { roundUgxFloor50, formatUgxTotal } from "#/lib/format"
+import { roundUgxFloor50, formatUgxTotal, formatDateTime } from "#/lib/format"
 import { Badge } from "#/components/ui/badge"
 import { Button } from "#/components/ui/button"
 import { Printer } from "lucide-react"
@@ -134,7 +134,7 @@ function SalesPage() {
             columns={[
               {
                 header: "Date",
-                cell: (s) => new Date(s.saleDate).toLocaleString(),
+                cell: (s) => formatDateTime(s.saleDate),
               },
               {
                 header: "Items",

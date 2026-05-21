@@ -39,6 +39,8 @@ import {
   listUsers,
 } from "#/server/functions/admin/users"
 import { getSession } from "#/server/middleware/auth"
+import { ROLES } from "#/lib/roles"
+import type { Role } from "#/lib/roles"
 
 export const Route = createFileRoute("/settings/users")({
   beforeLoad: ({ context }) => requireUiPermission(context, "users.manage"),
@@ -71,7 +73,7 @@ function UsersPage() {
 
   async function handleRoleChange(
     userId: string,
-    role: "admin" | "supervisor" | "sales",
+    role: Role,
   ) {
     setRoleChangingId(userId)
     try {
@@ -87,7 +89,7 @@ function UsersPage() {
   async function handleInvite(values: {
     email: string
     name: string
-    role: "admin" | "supervisor" | "sales"
+    role: Role
   }) {
     setInviteError(undefined)
     setInvitePending(true)
@@ -182,10 +184,7 @@ function UsersPage() {
                         <Select
                           value={role}
                           onValueChange={(v) => {
-                            void handleRoleChange(
-                              u.id,
-                              v as "admin" | "supervisor" | "sales",
-                            )
+                            void handleRoleChange(u.id, v as Role)
                           }}
                           disabled={roleChangingId === u.id}
                         >
@@ -241,7 +240,7 @@ function UsersPage() {
 const inviteSchema = z.object({
   email: z.email(),
   name: z.string().min(1),
-  role: z.enum(["admin", "supervisor", "sales"]),
+  role: z.enum(ROLES),
 })
 
 function InviteDialog({
@@ -257,7 +256,7 @@ function InviteDialog({
 }) {
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
-  const [role, setRole] = useState<"admin" | "supervisor" | "sales">("sales")
+  const [role, setRole] = useState<Role>("sales")
 
   useEffect(() => {
     if (!open) {
@@ -311,9 +310,7 @@ function InviteDialog({
           <Label htmlFor="invite-role">Role</Label>
           <Select
             value={role}
-            onValueChange={(v) =>
-              setRole(v as "admin" | "supervisor" | "sales")
-            }
+            onValueChange={(v) => setRole(v as Role)}
           >
             <SelectTrigger id="invite-role" className="w-full">
               <SelectValue />

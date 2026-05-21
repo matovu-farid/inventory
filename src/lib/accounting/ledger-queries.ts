@@ -3,7 +3,32 @@ import BigNumber from "bignumber.js"
 import { transactions, transactionCategories } from "#/db/schema"
 import type { Database } from "#/db"
 
-const NORMAL_DEBIT_TYPES = ["asset", "expense"]
+/**
+ * Account types whose balance increases on a debit entry. The complement —
+ * liability, equity, revenue — increases on a credit entry.
+ */
+export const NORMAL_DEBIT_ACCOUNT_TYPES = ["asset", "expense"] as const
+
+/**
+ * Compute an account balance from its debit/credit totals, applying the
+ * normal-balance rule for the account type.
+ *
+ * Assets/Expenses: DR increases, CR decreases (balance = DR − CR)
+ * Liabilities/Equity/Revenue: CR increases, DR decreases (balance = CR − DR)
+ *
+ * Tests can import this function directly to validate the rule without
+ * needing a database.
+ */
+export function computeAccountBalance(
+  accountType: string,
+  debits: BigNumber.Value,
+  credits: BigNumber.Value,
+): BigNumber {
+  const dr = new BigNumber(debits)
+  const cr = new BigNumber(credits)
+  const isNormalDebit = (NORMAL_DEBIT_ACCOUNT_TYPES as readonly string[]).includes(accountType)
+  return isNormalDebit ? dr.minus(cr) : cr.minus(dr)
+}
 
 /**
  * Get the balance for a specific account category at a location.
@@ -51,21 +76,18 @@ export async function getCategoryBalance(
     .where(and(...conditions))
     .groupBy(transactions.type)
 
-  const isNormalDebit = NORMAL_DEBIT_TYPES.includes(category.type)
-  let balance = new BigNumber(0)
+  let debits = new BigNumber(0)
+  let credits = new BigNumber(0)
 
   for (const row of rows) {
     if (!row.total) continue
     const amount = new BigNumber(row.total)
     if (amount.isNaN()) continue
-    if (row.type === "debit") {
-      balance = isNormalDebit ? balance.plus(amount) : balance.minus(amount)
-    } else {
-      balance = isNormalDebit ? balance.minus(amount) : balance.plus(amount)
-    }
+    if (row.type === "debit") debits = debits.plus(amount)
+    else credits = credits.plus(amount)
   }
 
-  return balance
+  return computeAccountBalance(category.type, debits, credits)
 }
 
 /**
@@ -127,14 +149,14 @@ export async function getTrialBalance(
     }
   }
 
-  return Array.from(categoryMap.values()).map((entry) => {
-    const isNormalDebit = NORMAL_DEBIT_TYPES.includes(entry.categoryType)
-    const balance = isNormalDebit
-      ? entry.debitTotal.minus(entry.creditTotal)
-      : entry.creditTotal.minus(entry.debitTotal)
-
-    return { ...entry, balance }
-  })
+  return Array.from(categoryMap.values()).map((entry) => ({
+    ...entry,
+    balance: computeAccountBalance(
+      entry.categoryType,
+      entry.debitTotal,
+      entry.creditTotal,
+    ),
+  }))
 }
 
 /**
@@ -196,11 +218,9 @@ export async function getLocationBalances(
     }
   }
 
-  return Array.from(categoryMap.values()).map((entry) => {
-    const isNormalDebit = NORMAL_DEBIT_TYPES.includes(entry.categoryType)
-    const balance = isNormalDebit
-      ? entry.debit.minus(entry.credit)
-      : entry.credit.minus(entry.debit)
-    return { categoryName: entry.categoryName, categoryType: entry.categoryType, balance }
-  })
+  return Array.from(categoryMap.values()).map((entry) => ({
+    categoryName: entry.categoryName,
+    categoryType: entry.categoryType,
+    balance: computeAccountBalance(entry.categoryType, entry.debit, entry.credit),
+  }))
 }

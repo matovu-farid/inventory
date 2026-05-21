@@ -1,4 +1,4 @@
-import { roundUgxBankers50, formatUgx } from "#/lib/format"
+import { roundUgxBankers50, formatUgx, formatDate } from "#/lib/format"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import { requireUiPermission } from "#/lib/permissions"
@@ -134,7 +134,7 @@ function TransfersPage() {
         columns={[
           {
             header: "Date",
-            cell: (t) => new Date(t.transferDate).toLocaleDateString(),
+            cell: (t) => formatDate(t.transferDate),
           },
           {
             header: "Shop",

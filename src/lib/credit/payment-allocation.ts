@@ -1,4 +1,7 @@
 import BigNumber from "bignumber.js"
+import type { PaymentStatus } from "#/lib/payment-status"
+
+export type { PaymentStatus }
 
 export interface OpenSale {
   id: string
@@ -15,8 +18,6 @@ export interface AllocationResult {
   allocations: Allocation[]
   unallocated: string
 }
-
-export type PaymentStatus = "settled" | "open" | "partially_paid" | "written_off"
 
 /**
  * Allocate a payment across open credit sales using FIFO by saleDate.

@@ -13,6 +13,7 @@ import {
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { computeNewSaleStatus } from "#/lib/credit/payment-allocation"
+import { isPaymentStatusOpen } from "#/lib/payment-status"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
@@ -221,10 +222,7 @@ export const recordCustomerReturn = createServerFn()
         data.originalSaleId
       ) {
         const sale = originalSale
-        if (
-          sale &&
-          (sale.paymentStatus === "open" || sale.paymentStatus === "partially_paid")
-        ) {
+        if (sale && isPaymentStatusOpen(sale.paymentStatus)) {
           const newBalance = BigNumber.maximum(
             new BigNumber(sale.outstandingBalance).minus(totalRefund),
             new BigNumber(0),

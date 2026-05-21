@@ -13,6 +13,7 @@ import {
 } from "#/components/ui/responsive-dialog"
 import { DialogTrigger } from "#/components/ui/dialog"
 import { ResponsiveTable } from "#/components/ui/responsive-table"
+import { formatDate } from "#/lib/format"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import {
   listCustomers,
@@ -159,7 +160,7 @@ function CustomersPage() {
               },
               {
                 header: "Added",
-                cell: (c) => new Date(c.createdAt).toLocaleDateString(),
+                cell: (c) => formatDate(c.createdAt),
                 hideOnMobile: true,
               },
             ]}

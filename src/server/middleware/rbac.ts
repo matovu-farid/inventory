@@ -1,19 +1,29 @@
 import type { AppSession } from "#/lib/auth"
+import type { Role } from "#/lib/roles"
+import { ROLES } from "#/lib/roles"
 import { enforceIpAllowlist } from "./ip-allowlist"
 
-export type Role = "admin" | "supervisor" | "sales"
+export type { Role } from "#/lib/roles"
+
+// DB stores role as a free-form string; this predicate narrows it to the
+// validated union after a runtime membership check. Widening the readonly
+// tuple to `readonly string[]` is the standard workaround for the TS
+// limitation where `Array.includes` on a literal-typed readonly array
+// rejects arbitrary strings.
+function isRole(value: string | null | undefined): value is Role {
+  return value != null && (ROLES as readonly string[]).includes(value)
+}
 
 export function requireRole(session: AppSession, allowedRoles: Role[]): void {
-  // DB stores role as a free-form string; narrow to the validated union here.
-  const role = session.user.role as Role | undefined
-  if (!role || !allowedRoles.includes(role)) {
+  const role = session.user.role
+  if (!isRole(role) || !allowedRoles.includes(role)) {
     throw new Error("Forbidden: insufficient permissions")
   }
 }
 
 export function hasRole(session: AppSession, allowedRoles: Role[]): boolean {
-  const role = session.user.role as Role | undefined
-  return !!role && allowedRoles.includes(role)
+  const role = session.user.role
+  return isRole(role) && allowedRoles.includes(role)
 }
 
 /**

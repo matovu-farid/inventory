@@ -9,6 +9,11 @@ import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import {
+  depositCategoryFor,
+  depositLocationFor,
+} from "#/lib/payment-method"
+import { formatProductLabel } from "#/lib/products"
 import { validateBelowMinimumSale } from "./sale-validate"
 
 export const getShopStock = createServerFn()
@@ -158,7 +163,11 @@ export const recordSale = createServerFn()
           with: { productColor: { with: { product: true } } },
         })
         if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
-        const productLabel = `${stock.productColor.product.articleNumber} ${stock.productColor.colorName}/${stock.size}`
+        const productLabel = formatProductLabel(
+          stock.productColor.product.articleNumber,
+          stock.productColor.colorName,
+          stock.size,
+        )
         if (stock.quantityOnHand < item.quantity) {
           throw new Error(
             `Insufficient stock for ${productLabel}: have ${stock.quantityOnHand}, need ${item.quantity}`,
@@ -237,11 +246,10 @@ export const recordSale = createServerFn()
           .where(eq(shopStock.id, detail.stockId))
       }
 
-      const debitCategory = isCredit
-        ? "Accounts Receivable"
-        : data.paymentMethod === "cash"
-          ? "Cash"
-          : "Bank"
+      const debitCategory =
+        data.paymentMethod === "credit"
+          ? "Accounts Receivable"
+          : depositCategoryFor(data.paymentMethod)
 
       await postJournalEntry(tx, {
         entries: [
@@ -256,9 +264,7 @@ export const recordSale = createServerFn()
         referenceId: sale.id,
         locationType: "shop",
         locationId: data.shopId,
-        depositLocation: isCredit
-          ? undefined
-          : (data.paymentMethod as "cash" | "bank"),
+        depositLocation: depositLocationFor(data.paymentMethod),
         bankAccountId: data.bankAccountId,
         recordedBy: userId,
         description: `Sale ${docNumber.formatted} (${data.items.length} items)`,

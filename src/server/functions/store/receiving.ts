@@ -13,6 +13,7 @@ import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { formatProductLabel } from "#/lib/products"
 import {
   validateDiscrepancyNotes,
   validateQuantityReceived,
@@ -156,7 +157,11 @@ export const receiveGoods = createServerFn()
           )
         }
 
-        const productLabel = `${productColor.product.articleNumber} ${productColor.colorName}/${sriSize}`
+        const productLabel = formatProductLabel(
+          productColor.product.articleNumber,
+          productColor.colorName,
+          sriSize,
+        )
 
         // One receipt per item — refuse if already received
         const prior = await tx.query.storeReceivings.findFirst({

@@ -2,6 +2,18 @@
 const REGION = "eu-west-1"
 const BUCKET = "fidexa-inventory-images"
 
+/**
+ * Canonical "ARTICLE COLOR/SIZE" label for a stocked SKU. Used in error
+ * messages, audit logs, and notifications so the format stays consistent.
+ */
+export function formatProductLabel(
+  articleNumber: string,
+  colorName: string,
+  size: string,
+): string {
+  return `${articleNumber} ${colorName}/${size}`
+}
+
 export function productImageUrl(s3Key: string): string
 export function productImageUrl(s3Key: string | null | undefined): string | null
 export function productImageUrl(s3Key: string | null | undefined): string | null {

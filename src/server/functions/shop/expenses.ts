@@ -7,6 +7,7 @@ import { locationExpenses } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { depositCategoryFor } from "#/lib/payment-method"
 
 export const listLocationExpenses = createServerFn()
   .inputValidator(
@@ -67,7 +68,7 @@ export const addLocationExpense = createServerFn()
       }
       const ledgerCategory =
         categoryMap[data.category.toLowerCase()] ?? "Miscellaneous Expense"
-      const depositCat = data.paymentMethod === "cash" ? "Cash" : "Bank"
+      const depositCat = depositCategoryFor(data.paymentMethod)
 
       await postJournalEntry(tx, {
         entries: [

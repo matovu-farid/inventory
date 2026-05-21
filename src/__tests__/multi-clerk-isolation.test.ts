@@ -8,8 +8,7 @@
  * is unit-tested indirectly via existing integration tests.
  */
 import { describe, it, expect } from "vitest"
-
-type Role = "admin" | "supervisor" | "sales"
+import type { Role } from "#/lib/roles"
 
 function buildSalesFilter(
   role: Role,
