@@ -1,8 +1,22 @@
 import { createServerFn } from "@tanstack/react-start"
+import { eq } from "drizzle-orm"
+import { z } from "zod"
 import { db } from "#/db"
 import { shops } from "#/db/schema"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+
+export const getShop = createServerFn()
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    await requireSession()
+    const [row] = await db
+      .select({ id: shops.id, name: shops.name })
+      .from(shops)
+      .where(eq(shops.id, data.id))
+    if (!row) throw new Error("Shop not found")
+    return row
+  })
 
 /**
  * Returns the shops a manager-level user is allowed to report on.

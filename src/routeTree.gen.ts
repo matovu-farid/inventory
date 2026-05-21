@@ -33,6 +33,7 @@ import { Route as ShopSalesRouteImport } from './routes/shop/sales'
 import { Route as ShopOpeningBalanceRouteImport } from './routes/shop/opening-balance'
 import { Route as SettingsUsersRouteImport } from './routes/settings/users'
 import { Route as SettingsNotificationsRouteImport } from './routes/settings/notifications'
+import { Route as SettingsShopsShopIdOverridesRouteImport } from './routes/settings/shops/$shopId/overrides'
 import { Route as ReportsZRouteImport } from './routes/reports/z'
 import { Route as ReportsXRouteImport } from './routes/reports/x'
 import { Route as ReportsLedgerRouteImport } from './routes/reports/ledger'
@@ -160,6 +161,12 @@ const SettingsNotificationsRoute = SettingsNotificationsRouteImport.update({
   path: '/settings/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsShopsShopIdOverridesRoute =
+  SettingsShopsShopIdOverridesRouteImport.update({
+    id: '/settings/shops/$shopId/overrides',
+    path: '/settings/shops/$shopId/overrides',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ReportsZRoute = ReportsZRouteImport.update({
   id: '/reports/z',
   path: '/reports/z',
@@ -205,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/users': typeof SettingsUsersRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
+  '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -237,6 +245,7 @@ export interface FileRoutesByTo {
   '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/users': typeof SettingsUsersRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
+  '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -270,6 +279,7 @@ export interface FileRoutesById {
   '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/users': typeof SettingsUsersRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
+  '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -304,6 +314,7 @@ export interface FileRouteTypes {
     | '/reports/z'
     | '/settings/users'
     | '/settings/notifications'
+    | '/settings/shops/$shopId/overrides'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -336,6 +347,7 @@ export interface FileRouteTypes {
     | '/reports/z'
     | '/settings/users'
     | '/settings/notifications'
+    | '/settings/shops/$shopId/overrides'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -368,6 +380,7 @@ export interface FileRouteTypes {
     | '/reports/z'
     | '/settings/users'
     | '/settings/notifications'
+    | '/settings/shops/$shopId/overrides'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -401,6 +414,7 @@ export interface RootRouteChildren {
   ReportsZRoute: typeof ReportsZRouteWithChildren
   SettingsUsersRoute: typeof SettingsUsersRoute
   SettingsNotificationsRoute: typeof SettingsNotificationsRoute
+  SettingsShopsShopIdOverridesRoute: typeof SettingsShopsShopIdOverridesRoute
   ShopOpeningBalanceRoute: typeof ShopOpeningBalanceRoute
   ShopSalesRoute: typeof ShopSalesRoute
   StoreOpeningBalanceRoute: typeof StoreOpeningBalanceRoute
@@ -589,6 +603,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsNotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/shops/$shopId/overrides': {
+      id: '/settings/shops/$shopId/overrides'
+      path: '/settings/shops/$shopId/overrides'
+      fullPath: '/settings/shops/$shopId/overrides'
+      preLoaderRoute: typeof SettingsShopsShopIdOverridesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reports/z': {
       id: '/reports/z'
       path: '/reports/z'
@@ -623,6 +644,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/reports/z/$id'
       preLoaderRoute: typeof ReportsZIdRouteImport
       parentRoute: typeof ReportsZRoute
+    }
+    '/settings/shops/$shopId/overrides': {
+      id: '/settings/shops/$shopId/overrides'
+      path: '/settings/shops/$shopId/overrides'
+      fullPath: '/settings/shops/$shopId/overrides'
+      preLoaderRoute: typeof SettingsShopsShopIdOverridesRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -660,6 +688,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsZRoute: ReportsZRouteWithChildren,
   SettingsUsersRoute: SettingsUsersRoute,
   SettingsNotificationsRoute: SettingsNotificationsRoute,
+  SettingsShopsShopIdOverridesRoute: SettingsShopsShopIdOverridesRoute,
   ShopOpeningBalanceRoute: ShopOpeningBalanceRoute,
   ShopSalesRoute: ShopSalesRoute,
   StoreOpeningBalanceRoute: StoreOpeningBalanceRoute,
