@@ -10,7 +10,10 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/__tests__/**/*.test.{ts,tsx}"],
+    include: [
+      "src/__tests__/**/*.test.{ts,tsx}",
+      "src/**/__tests__/**/*.test.{ts,tsx}",
+    ],
     environment: "node",
   },
 })
