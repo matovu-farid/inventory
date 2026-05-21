@@ -67,7 +67,7 @@ export async function sendDailyLowStockDigestInternal(
           a.productColor.colorName,
           a.size,
         ),
-        quantityOnHand: qoh,
+        quantityAtOpen: qoh,
         baseline,
         rule,
         severity: severityForAlert({ rule, baseline, quantityOnHand: qoh }),

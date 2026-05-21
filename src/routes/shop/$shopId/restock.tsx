@@ -21,7 +21,7 @@ import { z } from "zod"
 const search = z.object({ variant: z.string().optional() })
 
 export const Route = createFileRoute("/shop/$shopId/restock")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "users.manage"),
+  beforeLoad: ({ context }) => requireUiPermission(context, "notifications.manage"),
   validateSearch: search,
   loaderDeps: ({ search }) => ({ variant: search.variant }),
   loader: async ({ params }) => {

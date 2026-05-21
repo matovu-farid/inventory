@@ -25,7 +25,7 @@ export interface LowStockDigestData {
     scope: "store" | "shop"
     locationName: string
     productLabel: string
-    quantityOnHand: number
+    quantityAtOpen: number
     baseline: number
     rule: { mode: "percent" | "units"; value: number }
     severity: "critical" | "warning"
@@ -218,8 +218,8 @@ function ItemRow({
         }
   const detail =
     item.rule.mode === "percent"
-      ? `${item.quantityOnHand} of ~${item.baseline} typical (threshold ${item.rule.value}%)`
-      : `${item.quantityOnHand} units left (threshold ${item.rule.value})`
+      ? `${item.quantityAtOpen} on hand when alert opened (threshold ${item.rule.value}% of ~${item.baseline} typical)`
+      : `${item.quantityAtOpen} when alert opened (threshold ${item.rule.value} units)`
   return (
     <Section
       className={`${tone.bg} border-l-4 ${tone.border} rounded-r-md px-4 py-3 mb-2`}

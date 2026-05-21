@@ -16,7 +16,7 @@ import {
 } from "#/components/notifications/override-table"
 
 export const Route = createFileRoute("/settings/shops/$shopId/overrides")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "users.manage"),
+  beforeLoad: ({ context }) => requireUiPermission(context, "notifications.manage"),
   loader: async ({ params }) => {
     const [shop, overrides, productColorsRaw] = await Promise.all([
       getShop({ data: { id: params.shopId } }),

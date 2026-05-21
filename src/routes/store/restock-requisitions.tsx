@@ -16,7 +16,7 @@ import {
 } from "#/components/notifications/requisitions-table"
 
 export const Route = createFileRoute("/store/restock-requisitions")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "users.manage"),
+  beforeLoad: ({ context }) => requireUiPermission(context, "notifications.manage"),
   loader: async () => {
     const [requisitions, allRoutes, suppliers] = await Promise.all([
       listOpenRequisitions(),

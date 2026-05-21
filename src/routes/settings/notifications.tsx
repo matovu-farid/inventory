@@ -28,7 +28,7 @@ import { listProductColorsForOverrides } from "#/server/functions/products/color
 import { listShopsForReports } from "#/server/functions/shop/list-shops"
 
 export const Route = createFileRoute("/settings/notifications")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "users.manage"),
+  beforeLoad: ({ context }) => requireUiPermission(context, "notifications.manage"),
   loader: async () => {
     const [thresholds, allOverrides, productColorsRaw, shops] =
       await Promise.all([

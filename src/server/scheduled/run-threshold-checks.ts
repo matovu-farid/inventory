@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, inArray, sql } from "drizzle-orm"
 import { db as defaultDb } from "#/db"
 import {
   notificationThresholds,
@@ -346,7 +346,7 @@ async function reconcileStoreAlert(
             eq(restockRequisitions.storeId, args.storeId),
             eq(restockRequisitions.productColorId, args.productColorId),
             eq(restockRequisitions.size, args.size),
-            eq(restockRequisitions.status, "open"),
+            inArray(restockRequisitions.status, ["open", "planned"]),
           ),
         )
         .returning()
