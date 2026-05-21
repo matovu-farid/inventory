@@ -26,6 +26,7 @@ import { Route as CustomersIndexRouteImport } from './routes/customers/index'
 import { Route as UploadPhotoTokenRouteImport } from './routes/upload-photo.$token'
 import { Route as SupplySuppliersRouteImport } from './routes/supply/suppliers'
 import { Route as SupplyRouteIdRouteImport } from './routes/supply/$routeId'
+import { Route as StoreRestockRequisitionsRouteImport } from './routes/store/restock-requisitions'
 import { Route as StoreTransfersRouteImport } from './routes/store/transfers'
 import { Route as StoreReceivingRouteImport } from './routes/store/receiving'
 import { Route as StoreOpeningBalanceRouteImport } from './routes/store/opening-balance'
@@ -127,6 +128,11 @@ const SupplyRouteIdRoute = SupplyRouteIdRouteImport.update({
   path: '/supply/$routeId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoreRestockRequisitionsRoute = StoreRestockRequisitionsRouteImport.update({
+  id: '/store/restock-requisitions',
+  path: '/store/restock-requisitions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StoreTransfersRoute = StoreTransfersRouteImport.update({
   id: '/store/transfers',
   path: '/store/transfers',
@@ -224,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
   '/store/receiving': typeof StoreReceivingRoute
+  '/store/restock-requisitions': typeof StoreRestockRequisitionsRoute
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
@@ -258,6 +265,7 @@ export interface FileRoutesByTo {
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
   '/store/receiving': typeof StoreReceivingRoute
+  '/store/restock-requisitions': typeof StoreRestockRequisitionsRoute
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
@@ -293,6 +301,7 @@ export interface FileRoutesById {
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
   '/store/receiving': typeof StoreReceivingRoute
+  '/store/restock-requisitions': typeof StoreRestockRequisitionsRoute
   '/store/transfers': typeof StoreTransfersRoute
   '/supply/$routeId': typeof SupplyRouteIdRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
@@ -329,6 +338,7 @@ export interface FileRouteTypes {
     | '/shop/sales'
     | '/store/opening-balance'
     | '/store/receiving'
+    | '/store/restock-requisitions'
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
@@ -363,6 +373,7 @@ export interface FileRouteTypes {
     | '/shop/sales'
     | '/store/opening-balance'
     | '/store/receiving'
+    | '/store/restock-requisitions'
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
@@ -397,6 +408,7 @@ export interface FileRouteTypes {
     | '/shop/sales'
     | '/store/opening-balance'
     | '/store/receiving'
+    | '/store/restock-requisitions'
     | '/store/transfers'
     | '/supply/$routeId'
     | '/supply/suppliers'
@@ -432,6 +444,7 @@ export interface RootRouteChildren {
   ShopSalesRoute: typeof ShopSalesRoute
   StoreOpeningBalanceRoute: typeof StoreOpeningBalanceRoute
   StoreReceivingRoute: typeof StoreReceivingRoute
+  StoreRestockRequisitionsRoute: typeof StoreRestockRequisitionsRoute
   StoreTransfersRoute: typeof StoreTransfersRoute
   SupplyRouteIdRoute: typeof SupplyRouteIdRoute
   SupplySuppliersRoute: typeof SupplySuppliersRoute
@@ -565,6 +578,13 @@ declare module '@tanstack/react-router' {
       path: '/supply/$routeId'
       fullPath: '/supply/$routeId'
       preLoaderRoute: typeof SupplyRouteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store/restock-requisitions': {
+      id: '/store/restock-requisitions'
+      path: '/store/restock-requisitions'
+      fullPath: '/store/restock-requisitions'
+      preLoaderRoute: typeof StoreRestockRequisitionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/store/transfers': {
@@ -714,6 +734,7 @@ const rootRouteChildren: RootRouteChildren = {
   ShopSalesRoute: ShopSalesRoute,
   StoreOpeningBalanceRoute: StoreOpeningBalanceRoute,
   StoreReceivingRoute: StoreReceivingRoute,
+  StoreRestockRequisitionsRoute: StoreRestockRequisitionsRoute,
   StoreTransfersRoute: StoreTransfersRoute,
   SupplyRouteIdRoute: SupplyRouteIdRoute,
   SupplySuppliersRoute: SupplySuppliersRoute,
