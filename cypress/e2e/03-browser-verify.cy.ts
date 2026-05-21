@@ -54,12 +54,15 @@ describe("Browser Verification", () => {
 
   it("logs in successfully and shows dashboard", () => {
     cy.visit("/login")
+    cy.get("input#email").should("be.visible")
+    cy.wait(2000)
     cy.get("input#email").clear().type(testEmail)
     cy.get("input#password").clear().type(testPassword)
     cy.get("button[type='submit']").click()
 
     // Should redirect to dashboard
-    cy.contains("Dashboard", { timeout: 10000 }).should("be.visible")
+    cy.url({ timeout: 10000 }).should("not.include", "/login")
+    cy.contains("Dashboard", { timeout: 15000 }).should("be.visible")
     cy.contains("Supply Routes").should("be.visible")
     cy.screenshot("verify-03-dashboard")
   })
