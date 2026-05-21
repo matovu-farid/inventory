@@ -108,7 +108,3 @@ export function resolveStoreRule(
   return override ?? defaults.store
 }
 
-// Removed in Task 7. Kept temporarily to avoid breaking the importer.
-export type Thresholds = DiscrepancyThresholds & OverdueThresholds & { lowStockUnits: number }
-export const DEFAULT_THRESHOLDS: Thresholds = { lowStockUnits: 5, discrepancyPercent: 10, overdueDays: 30 }
-export function shouldNotifyLowStock(qoh: number, t: Thresholds): boolean { return qoh <= t.lowStockUnits }

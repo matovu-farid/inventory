@@ -1,51 +1,16 @@
 import { createServerFn } from "@tanstack/react-start"
-import { and, desc, eq, isNull, isNotNull, inArray } from "drizzle-orm"
+import { and, desc, eq, inArray, isNull } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
-import { notifications, user, shopSales } from "#/db/schema"
-import {
-  DEFAULT_THRESHOLDS,
-  shouldNotifyLowStock,
-  shouldNotifyOverdueCredit
-  
-} from "#/lib/notifications/thresholds"
-import type {Thresholds} from "#/lib/notifications/thresholds";
+import { notifications, shopSales } from "#/db/schema"
+import { shouldNotifyOverdueCredit } from "#/lib/notifications/thresholds"
+import { emitToRoles } from "#/lib/notifications/emit"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
-import type { Role } from "#/lib/roles"
 import { OPEN_PAYMENT_STATUSES } from "#/lib/payment-status"
-import { formatProductLabel } from "#/lib/products"
+import { runThresholdChecksInternal } from "#/server/scheduled/run-threshold-checks"
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
-
-interface EmitParams {
-  kind: string
-  title: string
-  body: string
-  audience: { roles: Role[] }
-  entityType?: string
-  entityId?: string
-}
-
-export async function emitNotification(tx: Tx, params: EmitParams) {
-  const recipients = await tx
-    .select({ id: user.id })
-    .from(user)
-    .where(and(isNotNull(user.role), inArray(user.role, params.audience.roles)))
-
-  if (recipients.length === 0) return
-
-  await tx.insert(notifications).values(
-    recipients.map((r) => ({
-      userId: r.id,
-      kind: params.kind,
-      title: params.title,
-      body: params.body,
-      entityType: params.entityType,
-      entityId: params.entityId,
-    })),
-  )
-}
+export { emitToRoles } from "#/lib/notifications/emit"
 
 export const listMyNotifications = createServerFn().handler(async () => {
   const session = await requireSession()
@@ -76,81 +41,63 @@ export const markNotificationRead = createServerFn()
     return { ok: true }
   })
 
-const thresholdsSchema = z.object({
-  lowStockUnits: z.number().int().nonnegative(),
-  discrepancyPercent: z.number().nonnegative(),
-  overdueDays: z.number().int().nonnegative(),
-}) satisfies z.ZodType<Thresholds>
+// TODO(Task 9): make OVERDUE_DAYS configurable via notification_thresholds
+const OVERDUE_DAYS = 30
 
-/**
- * Run threshold-based checks and emit notifications for matches.
- * Designed to be invoked by a scheduled job (e.g., a Cloudflare cron
- * trigger every 15 minutes). Idempotent for the day — repeat runs
- * will create duplicate notifications, so production callers should
- * dedupe at the trigger layer.
- */
-export const runThresholdChecks = createServerFn()
-  .inputValidator(z.object({ thresholds: thresholdsSchema.optional() }))
-  .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+async function runOverdueCreditChecks(
+  db: Parameters<typeof runThresholdChecksInternal>[0],
+  now: Date,
+): Promise<{ overdueEmitted: number }> {
+  let overdueEmitted = 0
 
-    const thresholds: Thresholds = data.thresholds ?? DEFAULT_THRESHOLDS
+  const openCreditSales = await db
+    .select()
+    .from(shopSales)
+    .where(inArray(shopSales.paymentStatus, OPEN_PAYMENT_STATUSES))
 
-    return db.transaction(async (tx) => {
-      let lowStockEmitted = 0
-      let overdueEmitted = 0
-
-      // Low-stock per shop_stock row
-      const allShopStock = await tx.query.shopStock.findMany({
-        with: { productColor: { with: { product: true } } },
-      })
-      for (const s of allShopStock) {
-        if (shouldNotifyLowStock(s.quantityOnHand, thresholds)) {
-          const productLabel = formatProductLabel(
-            s.productColor.product.articleNumber,
-            s.productColor.colorName,
-            s.size,
-          )
-          await emitNotification(tx, {
-            kind: "low_stock",
-            title: `Low stock: ${productLabel}`,
-            body: `${productLabel} has ${s.quantityOnHand} units left at this shop.`,
-            audience: { roles: ["admin", "supervisor"] },
-            entityType: "shop_stock",
-            entityId: s.id,
-          })
-          lowStockEmitted++
-        }
-      }
-
-      // Overdue credit sales
-      const now = new Date()
-      const openCreditSales = await tx
-        .select()
-        .from(shopSales)
-        .where(inArray(shopSales.paymentStatus, OPEN_PAYMENT_STATUSES))
-      for (const sale of openCreditSales) {
-        if (
-          shouldNotifyOverdueCredit(
-            sale.saleDate,
-            sale.paymentStatus,
-            now,
-            thresholds,
-          )
-        ) {
-          await emitNotification(tx, {
+  for (const sale of openCreditSales) {
+    try {
+      if (
+        shouldNotifyOverdueCredit(sale.saleDate, sale.paymentStatus, now, {
+          overdueDays: OVERDUE_DAYS,
+        })
+      ) {
+        await db.transaction(async (tx) => {
+          await emitToRoles(tx, {
             kind: "credit_overdue",
             title: `Overdue credit sale ${sale.documentNumber ?? sale.id.slice(0, 8)}`,
-            body: `Outstanding balance ${sale.outstandingBalance} UGX is past the ${thresholds.overdueDays}-day window.`,
-            audience: { roles: ["admin", "supervisor"] },
+            body: `Outstanding balance ${sale.outstandingBalance} UGX is past the ${OVERDUE_DAYS}-day window.`,
+            roles: ["admin", "supervisor"],
             entityType: "shop_sale",
             entityId: sale.id,
           })
-          overdueEmitted++
-        }
+        })
+        overdueEmitted++
       }
+    } catch (error) {
+      console.error("[runOverdueCreditChecks] sale failed", {
+        saleId: sale.id,
+        error,
+      })
+    }
+  }
 
-      return { lowStockEmitted, overdueEmitted }
-    })
-  })
+  return { overdueEmitted }
+}
+
+/**
+ * Admin-triggered "Run check now" button. Runs both the lifecycle-based
+ * low-stock threshold engine and the legacy overdue-credit check.
+ */
+export const runThresholdChecksNow = createServerFn().handler(async () => {
+  const session = await requireSession()
+  requireRole(session, ["admin"])
+
+  const now = new Date()
+  const [stockSummary, creditSummary] = await Promise.all([
+    runThresholdChecksInternal(db, now),
+    runOverdueCreditChecks(db, now),
+  ])
+
+  return { ...stockSummary, ...creditSummary }
+})
