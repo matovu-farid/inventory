@@ -79,6 +79,7 @@ export default defineConfig({
             await client.query(`DELETE FROM supply_routes`)
             await client.query(`DELETE FROM suppliers`)
             await client.query(`DELETE FROM customers`)
+            await client.query(`DELETE FROM shift_closures`)
             await client.query(`DELETE FROM shops`)
             await client.query(`DELETE FROM stores`)
             await client.query(`DELETE FROM notifications`)
