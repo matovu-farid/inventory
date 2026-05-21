@@ -48,7 +48,7 @@ describe("Product variants happy path", () => {
     // Prereq: at least one supplier exists. Use the seed or create one quickly.
     cy.task(
       "dbQuery",
-      `INSERT INTO suppliers (name, country) VALUES ('E2E Supplier', 'CN')
+      `INSERT INTO suppliers (name, type, country) VALUES ('E2E Supplier', 'international', 'CN')
        ON CONFLICT DO NOTHING`,
     )
 

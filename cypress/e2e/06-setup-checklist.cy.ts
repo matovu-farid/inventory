@@ -38,7 +38,7 @@ describe("Setup Checklist", () => {
   it("shows blocking issues with CTAs on empty DB", () => {
     cy.visit("/settings")
     waitForHydration()
-    cy.contains("Setup Checklist").should("be.visible")
+    cy.contains("Setup Checklist").scrollIntoView().should("be.visible")
     cy.contains("blocking").should("be.visible")
     cy.contains("No shops configured").should("be.visible")
     cy.contains("a", "Go to Shop").should("have.attr", "href", "/shop")

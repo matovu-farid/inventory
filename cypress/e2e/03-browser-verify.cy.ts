@@ -32,7 +32,10 @@ describe("Browser Verification", () => {
     cy.clearAllLocalStorage()
     cy.visit("/login")
     cy.contains("Welcome back", { timeout: 10000 }).should("be.visible")
-    cy.contains("Sign up").should("be.visible")
+    // Sign-up CTA is only shown when no admin exists; once the before() hook
+    // creates one, the page falls back to the "Welcome back" sign-in form.
+    cy.get("input#email").should("be.visible")
+    cy.get("input#password").should("be.visible")
     cy.screenshot("verify-01-login-page")
   })
 

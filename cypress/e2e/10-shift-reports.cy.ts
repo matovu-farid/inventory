@@ -54,9 +54,10 @@ describe("X/Z shift reports", () => {
   it("closing a Z persists a shift_closures row", () => {
     cy.task("dbQuery", `DELETE FROM shift_closures`).then(() => {
       cy.visit("/reports/x")
-      cy.contains("Close shift (Z)").click()
-      cy.get("#declared").type("50000")
-      cy.get('[role="dialog"]').contains("Close shift").click()
+      cy.contains("button", "Close shift (Z)").click()
+      cy.get('[role="dialog"]', { timeout: 10000 }).should("be.visible")
+      cy.get('[role="dialog"] #declared').type("50000")
+      cy.get('[role="dialog"]').contains("button", "Close shift").click()
       // Wait for the request to round-trip
       cy.wait(1000)
       cy.task(
