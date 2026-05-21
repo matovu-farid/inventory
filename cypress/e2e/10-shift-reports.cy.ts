@@ -54,7 +54,8 @@ describe("X/Z shift reports", () => {
   it("closing a Z persists a shift_closures row", () => {
     cy.task("dbQuery", `DELETE FROM shift_closures`).then(() => {
       cy.visit("/reports/x")
-      cy.contains("X Report", { timeout: 10000 }).should("be.visible")
+      // Scope to the main heading — the sidebar nav also says "X Report".
+      cy.get("h1").contains("X Report", { timeout: 10000 }).should("be.visible")
       cy.contains("button", "Close shift (Z)").should("be.visible")
       cy.wait(3500)
       cy.contains("button", "Close shift (Z)").click()
