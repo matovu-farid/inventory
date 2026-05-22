@@ -9,6 +9,7 @@ import {
 } from "#/server/functions/products/prices"
 import { ColorEditor } from "#/components/products/color-editor"
 import { PhotoHandoffQR } from "#/components/products/photo-handoff-qr"
+import { AuditActivityPanel } from "#/components/audit/audit-activity-panel"
 import { productImageUrl } from "#/lib/products"
 import { Button } from "#/components/ui/button"
 import { MoneyInput } from "#/components/ui/money-input"
@@ -37,6 +38,7 @@ function ProductDetailPage() {
   const { product, prices } = Route.useLoaderData()
   const router = useRouter()
   const canManage = useCan("products.manage")
+  const canSeeActivity = useCan("audit.viewArticleActivity")
   const [colorDialogOpen, setColorDialogOpen] = useState(false)
   const [priceDialogOpen, setPriceDialogOpen] = useState(false)
   const [activeColorId, setActiveColorId] = useState<string | undefined>(
@@ -164,6 +166,8 @@ function ProductDetailPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {canSeeActivity && <AuditActivityPanel articleNumber={product.articleNumber} />}
     </div>
   )
 }
