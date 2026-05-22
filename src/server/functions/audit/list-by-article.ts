@@ -77,6 +77,8 @@ export async function queryAuditLogByArticle(
       }
     : null
 
+  // See list.ts for the rationale: the cast narrows jsonb columns from
+  // drizzle's `unknown` to `AuditJsonValue` for SSR serialization.
   return { rows: sliced as AuditLogRow[], nextCursor }
 }
 

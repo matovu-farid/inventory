@@ -19,9 +19,7 @@ export const auditLogs = pgTable(
     action: text("action").notNull(),
     entityType: text("entity_type").notNull(),
     entityId: text("entity_id").notNull(),
-    // NOTE: description is intentionally nullable until the historical backfill
-    // (Task 6) completes; it will be tightened to NOT NULL in Task 10.
-    description: text("description"),
+    description: text("description").notNull(),
     articleNumbers: text("article_numbers")
       .array()
       .notNull()

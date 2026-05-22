@@ -130,6 +130,10 @@ export async function queryAuditLog(
       }
     : null
 
+  // Cast narrows the jsonb columns (before/after/metadata) from drizzle's
+  // `unknown` to `AuditJsonValue` so the row type is SSR-serializable. The
+  // runtime shape is guaranteed by the schema (description is NOT NULL since
+  // the Task 10 migration; the jsonb columns store JSON values by definition).
   return { rows: sliced as AuditLogRow[], nextCursor }
 }
 
