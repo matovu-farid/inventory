@@ -6,6 +6,7 @@ import {
   jsonb,
   index,
 } from "drizzle-orm/pg-core"
+import { sql } from "drizzle-orm"
 import { user } from "./auth"
 
 export const auditLogs = pgTable(
@@ -18,6 +19,14 @@ export const auditLogs = pgTable(
     action: text("action").notNull(),
     entityType: text("entity_type").notNull(),
     entityId: text("entity_id").notNull(),
+    // NOTE: description is intentionally nullable until the historical backfill
+    // (Task 6) completes; it will be tightened to NOT NULL in Task 10.
+    description: text("description"),
+    articleNumbers: text("article_numbers")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    businessDate: timestamp("business_date", { withTimezone: true }),
     before: jsonb("before"),
     after: jsonb("after"),
     metadata: jsonb("metadata"),
@@ -32,5 +41,7 @@ export const auditLogs = pgTable(
     index("idx_audit_entity").on(table.entityType, table.entityId),
     index("idx_audit_action").on(table.action),
     index("idx_audit_created_at").on(table.createdAt),
+    index("idx_audit_business_date").on(table.businessDate),
+    index("idx_audit_articles").using("gin", table.articleNumbers),
   ],
 )
