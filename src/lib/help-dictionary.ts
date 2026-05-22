@@ -265,6 +265,19 @@ export const helpDict = {
     description:
       "The kind of event — e.g. 'Received goods', 'Recorded sale', 'Reconciled stock take'. Use the filter on the audit log page to narrow to one kind.",
   },
+  "col.filterArticle": {
+    description:
+      "Filter to events that touched a specific product. Article number is the unique code on every product.",
+    example: "CB-1234",
+  },
+  "col.filterAction": {
+    description:
+      "Filter to a specific kind of activity, e.g. only sales or only receipts.",
+  },
+  "col.filterDateRange": {
+    description:
+      "Filter by the business date (when the event actually happened), not when it was entered.",
+  },
   "transferItem.minSellPrice": {
     description:
       "The lowest price the shop is allowed to charge customers for this item. Defaults to the warehouse's cost-per-unit; the dispatcher can raise it to enforce a margin floor.",

@@ -26,22 +26,23 @@ import { Route as CustomersIndexRouteImport } from './routes/customers/index'
 import { Route as UploadPhotoTokenRouteImport } from './routes/upload-photo.$token'
 import { Route as SupplySuppliersRouteImport } from './routes/supply/suppliers'
 import { Route as SupplyRouteIdRouteImport } from './routes/supply/$routeId'
-import { Route as StoreRestockRequisitionsRouteImport } from './routes/store/restock-requisitions'
 import { Route as StoreTransfersRouteImport } from './routes/store/transfers'
+import { Route as StoreRestockRequisitionsRouteImport } from './routes/store/restock-requisitions'
 import { Route as StoreReceivingRouteImport } from './routes/store/receiving'
 import { Route as StoreOpeningBalanceRouteImport } from './routes/store/opening-balance'
 import { Route as ShopSalesRouteImport } from './routes/shop/sales'
 import { Route as ShopOpeningBalanceRouteImport } from './routes/shop/opening-balance'
 import { Route as SettingsUsersRouteImport } from './routes/settings/users'
 import { Route as SettingsNotificationsRouteImport } from './routes/settings/notifications'
-import { Route as SettingsShopsShopIdOverridesRouteImport } from './routes/settings/shops/$shopId/overrides'
-import { Route as ShopShopIdRestockRouteImport } from './routes/shop/$shopId/restock'
+import { Route as SettingsAuditLogRouteImport } from './routes/settings/audit-log'
 import { Route as ReportsZRouteImport } from './routes/reports/z'
 import { Route as ReportsXRouteImport } from './routes/reports/x'
 import { Route as ReportsLedgerRouteImport } from './routes/reports/ledger'
 import { Route as ProductsArticleNumberRouteImport } from './routes/products/$articleNumber'
+import { Route as ShopShopIdRestockRouteImport } from './routes/shop/$shopId/restock'
 import { Route as ReportsZIdRouteImport } from './routes/reports/z.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as SettingsShopsShopIdOverridesRouteImport } from './routes/settings/shops/$shopId/overrides'
 
 const VerifyEmailSentRoute = VerifyEmailSentRouteImport.update({
   id: '/verify-email-sent',
@@ -128,16 +129,17 @@ const SupplyRouteIdRoute = SupplyRouteIdRouteImport.update({
   path: '/supply/$routeId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StoreRestockRequisitionsRoute = StoreRestockRequisitionsRouteImport.update({
-  id: '/store/restock-requisitions',
-  path: '/store/restock-requisitions',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const StoreTransfersRoute = StoreTransfersRouteImport.update({
   id: '/store/transfers',
   path: '/store/transfers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoreRestockRequisitionsRoute =
+  StoreRestockRequisitionsRouteImport.update({
+    id: '/store/restock-requisitions',
+    path: '/store/restock-requisitions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const StoreReceivingRoute = StoreReceivingRouteImport.update({
   id: '/store/receiving',
   path: '/store/receiving',
@@ -168,15 +170,9 @@ const SettingsNotificationsRoute = SettingsNotificationsRouteImport.update({
   path: '/settings/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsShopsShopIdOverridesRoute =
-  SettingsShopsShopIdOverridesRouteImport.update({
-    id: '/settings/shops/$shopId/overrides',
-    path: '/settings/shops/$shopId/overrides',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ShopShopIdRestockRoute = ShopShopIdRestockRouteImport.update({
-  id: '/shop/$shopId/restock',
-  path: '/shop/$shopId/restock',
+const SettingsAuditLogRoute = SettingsAuditLogRouteImport.update({
+  id: '/settings/audit-log',
+  path: '/settings/audit-log',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsZRoute = ReportsZRouteImport.update({
@@ -199,6 +195,11 @@ const ProductsArticleNumberRoute = ProductsArticleNumberRouteImport.update({
   path: '/products/$articleNumber',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShopShopIdRestockRoute = ShopShopIdRestockRouteImport.update({
+  id: '/shop/$shopId/restock',
+  path: '/shop/$shopId/restock',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsZIdRoute = ReportsZIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -209,6 +210,12 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsShopsShopIdOverridesRoute =
+  SettingsShopsShopIdOverridesRouteImport.update({
+    id: '/settings/shops/$shopId/overrides',
+    path: '/settings/shops/$shopId/overrides',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -222,10 +229,9 @@ export interface FileRoutesByFullPath {
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
-  '/settings/users': typeof SettingsUsersRoute
+  '/settings/audit-log': typeof SettingsAuditLogRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
-  '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
-  '/shop/$shopId/restock': typeof ShopShopIdRestockRoute
+  '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -244,6 +250,8 @@ export interface FileRoutesByFullPath {
   '/supply/': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/reports/z/$id': typeof ReportsZIdRoute
+  '/shop/$shopId/restock': typeof ShopShopIdRestockRoute
+  '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -257,10 +265,9 @@ export interface FileRoutesByTo {
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
-  '/settings/users': typeof SettingsUsersRoute
+  '/settings/audit-log': typeof SettingsAuditLogRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
-  '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
-  '/shop/$shopId/restock': typeof ShopShopIdRestockRoute
+  '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -279,6 +286,8 @@ export interface FileRoutesByTo {
   '/supply': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/reports/z/$id': typeof ReportsZIdRoute
+  '/shop/$shopId/restock': typeof ShopShopIdRestockRoute
+  '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -293,10 +302,9 @@ export interface FileRoutesById {
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
-  '/settings/users': typeof SettingsUsersRoute
+  '/settings/audit-log': typeof SettingsAuditLogRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
-  '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
-  '/shop/$shopId/restock': typeof ShopShopIdRestockRoute
+  '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
   '/shop/sales': typeof ShopSalesRoute
   '/store/opening-balance': typeof StoreOpeningBalanceRoute
@@ -315,6 +323,8 @@ export interface FileRoutesById {
   '/supply/': typeof SupplyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/reports/z/$id': typeof ReportsZIdRoute
+  '/shop/$shopId/restock': typeof ShopShopIdRestockRoute
+  '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -330,10 +340,9 @@ export interface FileRouteTypes {
     | '/reports/ledger'
     | '/reports/x'
     | '/reports/z'
-    | '/settings/users'
+    | '/settings/audit-log'
     | '/settings/notifications'
-    | '/settings/shops/$shopId/overrides'
-    | '/shop/$shopId/restock'
+    | '/settings/users'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -352,6 +361,8 @@ export interface FileRouteTypes {
     | '/supply/'
     | '/api/auth/$'
     | '/reports/z/$id'
+    | '/shop/$shopId/restock'
+    | '/settings/shops/$shopId/overrides'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -365,10 +376,9 @@ export interface FileRouteTypes {
     | '/reports/ledger'
     | '/reports/x'
     | '/reports/z'
-    | '/settings/users'
+    | '/settings/audit-log'
     | '/settings/notifications'
-    | '/settings/shops/$shopId/overrides'
-    | '/shop/$shopId/restock'
+    | '/settings/users'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -387,6 +397,8 @@ export interface FileRouteTypes {
     | '/supply'
     | '/api/auth/$'
     | '/reports/z/$id'
+    | '/shop/$shopId/restock'
+    | '/settings/shops/$shopId/overrides'
   id:
     | '__root__'
     | '/'
@@ -400,10 +412,9 @@ export interface FileRouteTypes {
     | '/reports/ledger'
     | '/reports/x'
     | '/reports/z'
-    | '/settings/users'
+    | '/settings/audit-log'
     | '/settings/notifications'
-    | '/settings/shops/$shopId/overrides'
-    | '/shop/$shopId/restock'
+    | '/settings/users'
     | '/shop/opening-balance'
     | '/shop/sales'
     | '/store/opening-balance'
@@ -422,6 +433,8 @@ export interface FileRouteTypes {
     | '/supply/'
     | '/api/auth/$'
     | '/reports/z/$id'
+    | '/shop/$shopId/restock'
+    | '/settings/shops/$shopId/overrides'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -436,10 +449,9 @@ export interface RootRouteChildren {
   ReportsLedgerRoute: typeof ReportsLedgerRoute
   ReportsXRoute: typeof ReportsXRoute
   ReportsZRoute: typeof ReportsZRouteWithChildren
-  SettingsUsersRoute: typeof SettingsUsersRoute
+  SettingsAuditLogRoute: typeof SettingsAuditLogRoute
   SettingsNotificationsRoute: typeof SettingsNotificationsRoute
-  SettingsShopsShopIdOverridesRoute: typeof SettingsShopsShopIdOverridesRoute
-  ShopShopIdRestockRoute: typeof ShopShopIdRestockRoute
+  SettingsUsersRoute: typeof SettingsUsersRoute
   ShopOpeningBalanceRoute: typeof ShopOpeningBalanceRoute
   ShopSalesRoute: typeof ShopSalesRoute
   StoreOpeningBalanceRoute: typeof StoreOpeningBalanceRoute
@@ -457,6 +469,8 @@ export interface RootRouteChildren {
   StoreIndexRoute: typeof StoreIndexRoute
   SupplyIndexRoute: typeof SupplyIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ShopShopIdRestockRoute: typeof ShopShopIdRestockRoute
+  SettingsShopsShopIdOverridesRoute: typeof SettingsShopsShopIdOverridesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -580,18 +594,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SupplyRouteIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/store/restock-requisitions': {
-      id: '/store/restock-requisitions'
-      path: '/store/restock-requisitions'
-      fullPath: '/store/restock-requisitions'
-      preLoaderRoute: typeof StoreRestockRequisitionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/store/transfers': {
       id: '/store/transfers'
       path: '/store/transfers'
       fullPath: '/store/transfers'
       preLoaderRoute: typeof StoreTransfersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store/restock-requisitions': {
+      id: '/store/restock-requisitions'
+      path: '/store/restock-requisitions'
+      fullPath: '/store/restock-requisitions'
+      preLoaderRoute: typeof StoreRestockRequisitionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/store/receiving': {
@@ -636,11 +650,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsNotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/shops/$shopId/overrides': {
-      id: '/settings/shops/$shopId/overrides'
-      path: '/settings/shops/$shopId/overrides'
-      fullPath: '/settings/shops/$shopId/overrides'
-      preLoaderRoute: typeof SettingsShopsShopIdOverridesRouteImport
+    '/settings/audit-log': {
+      id: '/settings/audit-log'
+      path: '/settings/audit-log'
+      fullPath: '/settings/audit-log'
+      preLoaderRoute: typeof SettingsAuditLogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports/z': {
@@ -671,20 +685,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductsArticleNumberRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/reports/z/$id': {
-      id: '/reports/z/$id'
-      path: '/$id'
-      fullPath: '/reports/z/$id'
-      preLoaderRoute: typeof ReportsZIdRouteImport
-      parentRoute: typeof ReportsZRoute
-    }
-    '/settings/shops/$shopId/overrides': {
-      id: '/settings/shops/$shopId/overrides'
-      path: '/settings/shops/$shopId/overrides'
-      fullPath: '/settings/shops/$shopId/overrides'
-      preLoaderRoute: typeof SettingsShopsShopIdOverridesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/shop/$shopId/restock': {
       id: '/shop/$shopId/restock'
       path: '/shop/$shopId/restock'
@@ -692,11 +692,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShopShopIdRestockRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports/z/$id': {
+      id: '/reports/z/$id'
+      path: '/$id'
+      fullPath: '/reports/z/$id'
+      preLoaderRoute: typeof ReportsZIdRouteImport
+      parentRoute: typeof ReportsZRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/shops/$shopId/overrides': {
+      id: '/settings/shops/$shopId/overrides'
+      path: '/settings/shops/$shopId/overrides'
+      fullPath: '/settings/shops/$shopId/overrides'
+      preLoaderRoute: typeof SettingsShopsShopIdOverridesRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -726,10 +740,9 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsLedgerRoute: ReportsLedgerRoute,
   ReportsXRoute: ReportsXRoute,
   ReportsZRoute: ReportsZRouteWithChildren,
-  SettingsUsersRoute: SettingsUsersRoute,
+  SettingsAuditLogRoute: SettingsAuditLogRoute,
   SettingsNotificationsRoute: SettingsNotificationsRoute,
-  SettingsShopsShopIdOverridesRoute: SettingsShopsShopIdOverridesRoute,
-  ShopShopIdRestockRoute: ShopShopIdRestockRoute,
+  SettingsUsersRoute: SettingsUsersRoute,
   ShopOpeningBalanceRoute: ShopOpeningBalanceRoute,
   ShopSalesRoute: ShopSalesRoute,
   StoreOpeningBalanceRoute: StoreOpeningBalanceRoute,
@@ -747,16 +760,9 @@ const rootRouteChildren: RootRouteChildren = {
   StoreIndexRoute: StoreIndexRoute,
   SupplyIndexRoute: SupplyIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ShopShopIdRestockRoute: ShopShopIdRestockRoute,
+  SettingsShopsShopIdOverridesRoute: SettingsShopsShopIdOverridesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

@@ -31,6 +31,7 @@ export type Permission =
   | "security.manage"
   | "shift.reports.view"
   | "notifications.manage"
+  | "audit.view"
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   admin: [
@@ -51,6 +52,7 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "security.manage",
     "shift.reports.view",
     "notifications.manage",
+    "audit.view",
   ],
   supervisor: [
     "warehouse.transfers",
@@ -116,6 +118,7 @@ export const PERMISSION_SERVER_GATES: Record<Permission, readonly string[]> = {
     "src/server/functions/store/requisitions.ts",
     "src/server/functions/shop/restock-suggestions.ts",
   ],
+  "audit.view": ["src/server/functions/audit/list.ts"],
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

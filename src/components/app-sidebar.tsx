@@ -16,6 +16,7 @@ import {
   BookOpen,
   Settings,
   UserCog,
+  History,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -143,6 +144,12 @@ const usersItem: NavItem = {
   label: "Users",
   to: "/settings/users",
   icon: UserCog,
+}
+
+const auditLogItem: NavItem = {
+  label: "Audit log",
+  to: "/settings/audit-log",
+  icon: History,
 }
 
 // ---------------------------------------------------------------------------
@@ -501,6 +508,9 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
             {userRole === "admin" && (
               <NavLink item={usersItem} collapsed={collapsed} />
             )}
+            {userRole === "admin" && (
+              <NavLink item={auditLogItem} collapsed={collapsed} />
+            )}
             <NavLink item={settingsItem} collapsed={collapsed} badge={pendingHardCount} />
           </div>
         )}
@@ -582,6 +592,13 @@ function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppS
             {userRole === "admin" && (
               <NavLink
                 item={usersItem}
+                collapsed={false}
+                onClick={() => setOpen(false)}
+              />
+            )}
+            {userRole === "admin" && (
+              <NavLink
+                item={auditLogItem}
                 collapsed={false}
                 onClick={() => setOpen(false)}
               />
