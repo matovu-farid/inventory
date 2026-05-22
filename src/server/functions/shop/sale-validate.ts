@@ -1,4 +1,5 @@
 import BigNumber from "bignumber.js"
+import { formatUgx } from "#/lib/format"
 
 export interface ValidateBelowMinimumSaleInput {
   unitPriceUgx: string
@@ -34,14 +35,14 @@ export function validateBelowMinimumSale(
 
   if (input.userRole === "sales") {
     throw new Error(
-      `Sale price ${unitPrice.toFixed(0)} is below minimum ${minPrice.toFixed(0)} for ${input.productName}. Requires supervisor approval.`,
+      `Sale price ${formatUgx(unitPrice)} is below minimum ${formatUgx(minPrice)} for ${input.productName}. Requires supervisor approval.`,
     )
   }
 
   const trimmed = input.reason.trim()
   if (trimmed.length === 0) {
     throw new Error(
-      `Reason required for below-minimum sale of ${input.productName} (price ${unitPrice.toFixed(0)} < minimum ${minPrice.toFixed(0)}).`,
+      `Reason required for below-minimum sale of ${input.productName} (price ${formatUgx(unitPrice)} < minimum ${formatUgx(minPrice)}).`,
     )
   }
 

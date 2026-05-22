@@ -20,6 +20,7 @@ import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { OPEN_PAYMENT_STATUSES } from "#/lib/payment-status"
 import { depositCategoryFor } from "#/lib/payment-method"
+import { formatUgxTotal } from "#/lib/format"
 
 const recordPaymentInput = z.object({
   customerId: z.uuid(),
@@ -74,7 +75,7 @@ export const recordPayment = createServerFn()
 
       if (new BigNumber(allocation.unallocated).gt(0)) {
         throw new Error(
-          `Payment of ${amount.toFixed(2)} exceeds outstanding balance by ${allocation.unallocated}`,
+          `Payment of ${formatUgxTotal(amount)} exceeds outstanding balance by ${formatUgxTotal(allocation.unallocated)}`,
         )
       }
 

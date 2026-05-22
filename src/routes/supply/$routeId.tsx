@@ -574,9 +574,9 @@ function RouteDetailPage() {
                 hideOnMobile: true,
                 cell: (exp) => (
                   <span className="font-mono">
-                    {new BigNumber(exp.amount).toFormat(
-                      exp.currency === "UGX" ? 0 : 2,
-                    )}{" "}
+                    {exp.currency === "UGX"
+                      ? roundUgxFloor50(exp.amount).toFormat(0)
+                      : new BigNumber(exp.amount).toFormat(2)}{" "}
                     <span className="text-muted-foreground text-xs">
                       {exp.currency ?? "UGX"}
                     </span>

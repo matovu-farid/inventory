@@ -5,6 +5,7 @@ import { db } from "#/db"
 import { notifications, shopSales, lowStockAlerts } from "#/db/schema"
 import { shouldNotifyOverdueCredit } from "#/lib/notifications/thresholds"
 import { emitToRoles } from "#/lib/notifications/emit"
+import { formatUgxTotal } from "#/lib/format"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { OPEN_PAYMENT_STATUSES } from "#/lib/payment-status"
@@ -90,7 +91,7 @@ async function runOverdueCreditChecks(
           await emitToRoles(tx, {
             kind: "credit_overdue",
             title: `Overdue credit sale ${sale.documentNumber ?? sale.id.slice(0, 8)}`,
-            body: `Outstanding balance ${sale.outstandingBalance} UGX is past the ${OVERDUE_DAYS}-day window.`,
+            body: `Outstanding balance ${formatUgxTotal(sale.outstandingBalance)} is past the ${OVERDUE_DAYS}-day window.`,
             roles: ["admin", "supervisor"],
             entityType: "shop_sale",
             entityId: sale.id,

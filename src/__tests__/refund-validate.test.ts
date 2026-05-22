@@ -31,13 +31,13 @@ describe("validateCreditAdjustmentRefund — examples (GAP-5)", () => {
         totalRefund: "5000",
         outstandingBalance: "3000",
       }),
-    ).toThrow(/5000/)
+    ).toThrow(/5,000/)
     expect(() =>
       validateCreditAdjustmentRefund({
         totalRefund: "5000",
         outstandingBalance: "3000",
       }),
-    ).toThrow(/3000/)
+    ).toThrow(/3,000/)
   })
 
   it("allows refund equal to outstanding balance", () => {

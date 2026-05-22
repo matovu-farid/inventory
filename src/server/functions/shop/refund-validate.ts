@@ -1,4 +1,5 @@
 import BigNumber from "bignumber.js"
+import { formatUgxTotal } from "#/lib/format"
 
 export interface ValidateCreditAdjustmentRefundInput {
   totalRefund: string
@@ -21,7 +22,7 @@ export function validateCreditAdjustmentRefund(
   const balance = new BigNumber(input.outstandingBalance)
   if (refund.gt(balance)) {
     throw new Error(
-      `validateCreditAdjustmentRefund: refund (${input.totalRefund}) exceeds outstanding balance (${input.outstandingBalance})`,
+      `validateCreditAdjustmentRefund: refund (${formatUgxTotal(input.totalRefund)}) exceeds outstanding balance (${formatUgxTotal(input.outstandingBalance)})`,
     )
   }
 }
