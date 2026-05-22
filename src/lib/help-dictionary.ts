@@ -246,6 +246,21 @@ export const helpDict = {
     description:
       "Quantity that was sent out from the warehouse on this transfer. Compare against Received to detect distribution loss.",
   },
+  "col.businessDate": {
+    description:
+      "When the event actually happened in the business — the date goods arrived, the sale was made, etc.",
+  },
+  "col.recordedDate": {
+    description:
+      "When the row was entered into the system. Equal to the business date unless someone backdated.",
+  },
+  "col.actor": {
+    description: "The user who performed the action.",
+  },
+  "col.activity": {
+    description:
+      "A human-readable summary of what happened. Click 'Details' for the raw before/after data.",
+  },
   "transferItem.minSellPrice": {
     description:
       "The lowest price the shop is allowed to charge customers for this item. Defaults to the warehouse's cost-per-unit; the dispatcher can raise it to enforce a margin floor.",
