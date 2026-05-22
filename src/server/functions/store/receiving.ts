@@ -17,6 +17,7 @@ import { formatProductLabel } from "#/lib/products"
 import { renderAuditDescription } from "#/server/audit/descriptions"
 import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
 import { getActorName } from "#/server/audit/actor"
+import { isSameDayKampala, formatDayKampala } from "#/lib/business-date"
 import {
   validateDiscrepancyNotes,
   validateQuantityReceived,
@@ -111,6 +112,7 @@ const receiveItemInput = z.object({
 const receiveGoodsInput = z.object({
   supplyRouteId: z.uuid(),
   items: z.array(receiveItemInput).min(1),
+  receivedDate: z.coerce.date().optional(),
 })
 
 /**
@@ -130,6 +132,32 @@ export const receiveGoods = createServerFn()
 
     const store = await db.query.stores.findFirst()
     if (!store) throw new Error("Store not configured")
+
+    const now = new Date()
+    const receivedDate = data.receivedDate ?? now
+
+    if (receivedDate.getTime() > now.getTime()) {
+      throw new Error("Receipt date can't be in the future.")
+    }
+
+    const route = await db.query.supplyRoutes.findFirst({
+      where: eq(supplyRoutes.id, data.supplyRouteId),
+    })
+    if (!route) throw new Error("Supply route not found.")
+    if (route.departureDate) {
+      const departure = new Date(route.departureDate)
+      if (receivedDate.getTime() < departure.getTime()) {
+        throw new Error(
+          `Receipt date can't be before goods left China (${formatDayKampala(departure)}).`,
+        )
+      }
+    }
+
+    if (!isSameDayKampala(receivedDate, now)) {
+      if (session.user.role !== "admin") {
+        throw new Error("Only admins can change the receipt date.")
+      }
+    }
 
     return db.transaction(async (tx) => {
       const results: Array<{
@@ -188,7 +216,7 @@ export const receiveGoods = createServerFn()
         await tx.insert(storeReceivings).values({
           storeId: store.id,
           supplyRouteItemId: sri.id,
-          receivedDate: new Date(),
+          receivedDate: receivedDate,
           quantityExpected: sri.quantity,
           quantityReceived: item.quantityReceived,
           discrepancyNotes: item.discrepancyNotes,
@@ -235,6 +263,7 @@ export const receiveGoods = createServerFn()
             locationId: store.id,
             depositLocation: "cash",
             recordedBy: session.user.id,
+            transactionDate: receivedDate,
             description: `Received ${item.quantityReceived}× ${productLabel} from route`,
           })
         }
@@ -252,6 +281,7 @@ export const receiveGoods = createServerFn()
             locationType: "store",
             locationId: store.id,
             recordedBy: session.user.id,
+            transactionDate: receivedDate,
             description: `Transit loss: ${transitLoss}× ${productLabel}`,
           })
         }
@@ -277,9 +307,6 @@ export const receiveGoods = createServerFn()
         0,
       )
 
-      const route = await tx.query.supplyRoutes.findFirst({
-        where: eq(supplyRoutes.id, data.supplyRouteId),
-      })
       const actorName = await getActorName(tx, session.user.id)
       const articleNumbers = await resolveArticleNumbersForAudit(tx, {
         action: "store.receiveGoods",
@@ -288,6 +315,10 @@ export const receiveGoods = createServerFn()
         metadata: null,
       })
 
+      const businessDate = isSameDayKampala(receivedDate, now)
+        ? null
+        : receivedDate
+
       await recordAuditLog(tx, {
         actorUserId: session.user.id,
         action: "store.receiveGoods",
@@ -295,17 +326,20 @@ export const receiveGoods = createServerFn()
         entityId: data.supplyRouteId,
         description: renderAuditDescription("store.receiveGoods", {
           actorName,
-          recordedAt: new Date(),
-          routeName: route?.name,
+          routeName: route.name,
           itemCount: data.items.length,
           totalReceived,
           totalTransitLoss,
+          businessDate: receivedDate,
+          recordedAt: now,
         }),
         articleNumbers,
+        businessDate,
         metadata: {
           itemCount: data.items.length,
           totalReceived,
           totalTransitLoss,
+          receivedDate: receivedDate.toISOString(),
         },
       })
 
