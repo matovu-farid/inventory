@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
+import { FieldLabel } from "#/components/ui/field-label"
 import { Badge } from "#/components/ui/badge"
 import { InfoTip } from "#/components/ui/info-tip"
 import { Textarea } from "#/components/ui/textarea"
@@ -54,6 +55,10 @@ export const Route = createFileRoute("/store/receiving")({
 
 function ReceivingPage() {
   const { routes, prerequisites } = Route.useLoaderData()
+  const { session } = Route.useRouteContext()
+  const role = session?.user.role
+  const todayLocal = new Date().toLocaleDateString("en-CA") // YYYY-MM-DD in browser locale
+  const [receivedDateInput, setReceivedDateInput] = useState<string>(todayLocal)
   const [selectedRouteId, setSelectedRouteId] = useState<string>("")
   const [items, setItems] = useState<
     Array<{
@@ -138,6 +143,7 @@ function ReceivingPage() {
             quantityReceived: receivedQtys[i.id] ?? i.quantity,
             discrepancyNotes: (discrepancyNotes[i.id] ?? "").trim() || undefined,
           })),
+          receivedDate: new Date(`${receivedDateInput}T12:00:00`),
         },
       })
       setDiscrepancyOpen(false)
@@ -201,6 +207,24 @@ function ReceivingPage() {
             route still need a color and size assigned before they can be
             received. Open the supply route and use "Split into variants" on
             each unresolved item.
+          </div>
+        )}
+
+        {items.length > 0 && (
+          <div className="max-w-sm space-y-2">
+            <FieldLabel help="field.receivedDate">Received date</FieldLabel>
+            <Input
+              type="date"
+              value={receivedDateInput}
+              max={todayLocal}
+              onChange={(e) => setReceivedDateInput(e.target.value)}
+              disabled={role !== "admin"}
+            />
+            {role !== "admin" && (
+              <p className="text-xs text-muted-foreground">
+                Only admins can change the receipt date.
+              </p>
+            )}
           </div>
         )}
 

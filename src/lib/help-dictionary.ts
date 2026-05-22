@@ -160,6 +160,13 @@ export const helpDict = {
     example: "Kampala",
   },
 
+  // ─── Generic field helpers ───────────────────────────────────────────
+  "field.receivedDate": {
+    description:
+      "The date the goods actually arrived at the warehouse. Defaults to today. Only admins can change it.",
+    example: "2026-04-10 — even if you're entering it on 2026-05-22.",
+  },
+
   // ─── KPI cards / summary stats ───────────────────────────────────────
   "kpi.itemCosts": {
     description:
