@@ -3,6 +3,9 @@ export interface AuditEntryParams {
   action: string
   entityType: string
   entityId: string
+  description: string
+  articleNumbers: string[]
+  businessDate?: Date | null
   before?: unknown
   after?: unknown
   metadata?: unknown
@@ -15,6 +18,9 @@ export interface AuditEntry {
   action: string
   entityType: string
   entityId: string
+  description: string
+  articleNumbers: string[]
+  businessDate: Date | null
   before: unknown
   after: unknown
   metadata: unknown
@@ -28,12 +34,19 @@ export function buildAuditEntry(params: AuditEntryParams): AuditEntry {
   if (!params.action) throw new Error("audit: action required")
   if (!params.entityType) throw new Error("audit: entityType required")
   if (!params.entityId) throw new Error("audit: entityId required")
+  if (!params.description) throw new Error("audit: description required")
+  if (!Array.isArray(params.articleNumbers)) {
+    throw new Error("audit: articleNumbers must be an array")
+  }
 
   return {
     actorUserId: params.actorUserId,
     action: params.action,
     entityType: params.entityType,
     entityId: params.entityId,
+    description: params.description,
+    articleNumbers: params.articleNumbers,
+    businessDate: params.businessDate ?? null,
     before: params.before ?? null,
     after: params.after ?? null,
     metadata: params.metadata ?? null,

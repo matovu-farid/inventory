@@ -8,6 +8,8 @@ describe("buildAuditEntry", () => {
       action: "minimum_price.update",
       entityType: "store_stock",
       entityId: "stock-1",
+      description: "test",
+      articleNumbers: [],
     })
     expect(entry.actorUserId).toBe("user-1")
     expect(entry.action).toBe("minimum_price.update")
@@ -22,6 +24,8 @@ describe("buildAuditEntry", () => {
       action: "test.action",
       entityType: "x",
       entityId: "y",
+      description: "test",
+      articleNumbers: [],
     })
     expect(entry.createdAt).toBeInstanceOf(Date)
     expect(entry.createdAt.getTime()).toBeGreaterThanOrEqual(before)
@@ -33,6 +37,8 @@ describe("buildAuditEntry", () => {
       action: "minimum_price.update",
       entityType: "store_stock",
       entityId: "stock-1",
+      description: "test",
+      articleNumbers: [],
       before: { price: "10000" },
       after: { price: "12000" },
     })
@@ -46,6 +52,8 @@ describe("buildAuditEntry", () => {
       action: "user.login",
       entityType: "user",
       entityId: "user-1",
+      description: "test",
+      articleNumbers: [],
     })
     expect(entry.before).toBeNull()
     expect(entry.after).toBeNull()
@@ -58,6 +66,8 @@ describe("buildAuditEntry", () => {
       action: "credit_sale.authorize",
       entityType: "shop_sale",
       entityId: "sale-1",
+      description: "test",
+      articleNumbers: [],
       metadata: { customerId: "cust-1", reason: "trusted" },
     })
     expect(entry.metadata).toEqual({ customerId: "cust-1", reason: "trusted" })
@@ -69,6 +79,8 @@ describe("buildAuditEntry", () => {
       action: "user.login",
       entityType: "user",
       entityId: "user-1",
+      description: "test",
+      articleNumbers: [],
       ipAddress: "203.0.113.5",
       userAgent: "Mozilla/5.0",
     })
@@ -83,6 +95,8 @@ describe("buildAuditEntry", () => {
         action: "",
         entityType: "x",
         entityId: "y",
+        description: "test",
+        articleNumbers: [],
       }),
     ).toThrow(/action/i)
   })
@@ -94,7 +108,37 @@ describe("buildAuditEntry", () => {
         action: "x.y",
         entityType: "x",
         entityId: "y",
+        description: "test",
+        articleNumbers: [],
       }),
     ).toThrow(/actor/i)
+  })
+
+  it("requires description and articleNumbers", () => {
+    expect(() =>
+      // @ts-expect-error -- intentionally missing required fields
+      buildAuditEntry({
+        actorUserId: "user-1",
+        action: "x.y",
+        entityType: "x",
+        entityId: "y",
+      }),
+    ).toThrow(/description/i)
+  })
+
+  it("captures description, articleNumbers, businessDate", () => {
+    const business = new Date("2026-04-10T00:00:00Z")
+    const entry = buildAuditEntry({
+      actorUserId: "user-1",
+      action: "store.receiveGoods",
+      entityType: "supply_route",
+      entityId: "route-1",
+      description: "Mary received 48 units.",
+      articleNumbers: ["CB-1234", "CB-5678"],
+      businessDate: business,
+    })
+    expect(entry.description).toBe("Mary received 48 units.")
+    expect(entry.articleNumbers).toEqual(["CB-1234", "CB-5678"])
+    expect(entry.businessDate).toEqual(business)
   })
 })
