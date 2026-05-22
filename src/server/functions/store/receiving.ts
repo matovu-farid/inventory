@@ -14,6 +14,9 @@ import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { formatProductLabel } from "#/lib/products"
+import { renderAuditDescription } from "#/server/audit/descriptions"
+import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
+import { getActorName } from "#/server/audit/actor"
 import {
   validateDiscrepancyNotes,
   validateQuantityReceived,
@@ -274,11 +277,31 @@ export const receiveGoods = createServerFn()
         0,
       )
 
+      const route = await tx.query.supplyRoutes.findFirst({
+        where: eq(supplyRoutes.id, data.supplyRouteId),
+      })
+      const actorName = await getActorName(tx, session.user.id)
+      const articleNumbers = await resolveArticleNumbersForAudit(tx, {
+        action: "store.receiveGoods",
+        entityType: "supply_route",
+        entityId: data.supplyRouteId,
+        metadata: null,
+      })
+
       await recordAuditLog(tx, {
         actorUserId: session.user.id,
         action: "store.receiveGoods",
         entityType: "supply_route",
         entityId: data.supplyRouteId,
+        description: renderAuditDescription("store.receiveGoods", {
+          actorName,
+          recordedAt: new Date(),
+          routeName: route?.name,
+          itemCount: data.items.length,
+          totalReceived,
+          totalTransitLoss,
+        }),
+        articleNumbers,
         metadata: {
           itemCount: data.items.length,
           totalReceived,

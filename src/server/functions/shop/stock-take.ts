@@ -3,12 +3,15 @@ import { eq } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
-import { stockTakes, stockTakeItems, storeStock, shopStock } from "#/db/schema"
+import { stockTakes, stockTakeItems, storeStock, shopStock, shops, stores } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { formatProductLabel } from "#/lib/products"
+import { renderAuditDescription } from "#/server/audit/descriptions"
+import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
+import { getActorName } from "#/server/audit/actor"
 
 export const listStockTakes = createServerFn()
   .inputValidator(
@@ -105,11 +108,34 @@ export const startStockTake = createServerFn()
         }
       }
 
+      const actorName = await getActorName(tx, userId)
+      const locationShop =
+        data.locationType === "shop"
+          ? await tx.query.shops.findFirst({ where: eq(shops.id, data.locationId) })
+          : undefined
+      const locationStore =
+        data.locationType === "store"
+          ? await tx.query.stores.findFirst({ where: eq(stores.id, data.locationId) })
+          : undefined
+      const articleNumbers = await resolveArticleNumbersForAudit(tx, {
+        action: "stockTake.start",
+        entityType: "stock_take",
+        entityId: st.id,
+        metadata: null,
+      })
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "stockTake.start",
         entityType: "stock_take",
         entityId: st.id,
+        description: renderAuditDescription("stockTake.start", {
+          actorName,
+          shopName: locationShop?.name,
+          storeName: locationStore?.name,
+          itemCount: 0,
+        }),
+        articleNumbers,
         after: {
           locationType: data.locationType,
           locationId: data.locationId,
@@ -255,11 +281,34 @@ export const reconcileStockTake = createServerFn()
         0,
       )
 
+      const actorName = await getActorName(tx, userId)
+      const locationShop =
+        st.locationType === "shop"
+          ? await tx.query.shops.findFirst({ where: eq(shops.id, st.locationId) })
+          : undefined
+      const locationStore =
+        st.locationType === "store"
+          ? await tx.query.stores.findFirst({ where: eq(stores.id, st.locationId) })
+          : undefined
+      const articleNumbers = await resolveArticleNumbersForAudit(tx, {
+        action: "stockTake.reconcile",
+        entityType: "stock_take",
+        entityId: st.id,
+        metadata: null,
+      })
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "stockTake.reconcile",
         entityType: "stock_take",
         entityId: st.id,
+        description: renderAuditDescription("stockTake.reconcile", {
+          actorName,
+          shopName: locationShop?.name,
+          storeName: locationStore?.name,
+          itemCount: discrepancyCount,
+        }),
+        articleNumbers,
         before: { status: st.status },
         after: { status: "reconciled" },
         metadata: {

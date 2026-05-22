@@ -8,6 +8,7 @@ import {
   storeReturnItems,
   shopStock,
   storeStock,
+  shops,
 } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
@@ -16,6 +17,9 @@ import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { formatProductLabel } from "#/lib/products"
 import { buildStoreReturnReceiveEntries } from "./return-entries"
+import { renderAuditDescription } from "#/server/audit/descriptions"
+import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
+import { getActorName } from "#/server/audit/actor"
 
 const returnItemInput = z.object({
   shopStockId: z.uuid(),
@@ -99,11 +103,28 @@ export const dispatchStoreReturn = createServerFn()
           .where(eq(shopStock.id, detail.stock.id))
       }
 
+      const shop = await tx.query.shops.findFirst({
+        where: eq(shops.id, data.shopId),
+      })
+      const actorName = await getActorName(tx, userId)
+      const articleNumbers = await resolveArticleNumbersForAudit(tx, {
+        action: "storeReturn.dispatch",
+        entityType: "store_return",
+        entityId: storeReturn.id,
+        metadata: null,
+      })
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "storeReturn.dispatch",
         entityType: "store_return",
         entityId: storeReturn.id,
+        description: renderAuditDescription("storeReturn.dispatch", {
+          actorName,
+          shopName: shop?.name,
+          itemCount: data.items.length,
+        }),
+        articleNumbers,
         after: {
           status: "dispatched",
           shopId: data.shopId,
@@ -255,11 +276,28 @@ export const receiveStoreReturn = createServerFn()
         .set({ status: "received", receivedBy: userId })
         .where(eq(storeReturns.id, data.storeReturnId))
 
+      const shop = await tx.query.shops.findFirst({
+        where: eq(shops.id, storeReturn.shopId),
+      })
+      const actorName = await getActorName(tx, userId)
+      const articleNumbers = await resolveArticleNumbersForAudit(tx, {
+        action: "storeReturn.receive",
+        entityType: "store_return",
+        entityId: storeReturn.id,
+        metadata: null,
+      })
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "storeReturn.receive",
         entityType: "store_return",
         entityId: storeReturn.id,
+        description: renderAuditDescription("storeReturn.receive", {
+          actorName,
+          shopName: shop?.name,
+          itemCount: data.itemReceipts.length,
+        }),
+        articleNumbers,
         before: { status: "dispatched" },
         after: { status: "received" },
         metadata: {

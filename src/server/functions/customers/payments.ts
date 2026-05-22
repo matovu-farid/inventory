@@ -21,6 +21,8 @@ import { requireRole } from "#/server/middleware/rbac"
 import { OPEN_PAYMENT_STATUSES } from "#/lib/payment-status"
 import { depositCategoryFor } from "#/lib/payment-method"
 import { formatUgxTotal } from "#/lib/format"
+import { renderAuditDescription } from "#/server/audit/descriptions"
+import { getActorName } from "#/server/audit/actor"
 
 const recordPaymentInput = z.object({
   customerId: z.uuid(),
@@ -141,11 +143,19 @@ export const recordPayment = createServerFn()
         description: `Payment ${docNumber.formatted} from ${customer.name}`,
       })
 
+      const actorName = await getActorName(tx, userId)
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "customerPayment.record",
         entityType: "customer_payment",
         entityId: payment.id,
+        description: renderAuditDescription("customerPayment.record", {
+          actorName,
+          totalAmount: amount.toFixed(2),
+          documentNumber: docNumber.formatted,
+        }),
+        articleNumbers: [],
         after: {
           customerId: data.customerId,
           shopId: data.shopId,
@@ -221,11 +231,18 @@ export const writeOffBadDebt = createServerFn()
         description: `Bad debt write-off: ${data.reason}`,
       })
 
+      const actorName = await getActorName(tx, userId)
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "customerPayment.writeOff",
         entityType: "shop_sale",
         entityId: data.saleId,
+        description: renderAuditDescription("customerPayment.writeOff", {
+          actorName,
+          totalAmount: remaining.toFixed(2),
+        }),
+        articleNumbers: [],
         before: {
           paymentStatus: sale.paymentStatus,
           outstandingBalance: sale.outstandingBalance,

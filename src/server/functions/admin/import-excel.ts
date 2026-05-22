@@ -14,6 +14,8 @@ import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { prepareImportItem } from "./import-prepare"
+import { renderAuditDescription } from "#/server/audit/descriptions"
+import { getActorName } from "#/server/audit/actor"
 
 const UNKNOWN_IMPORTED_SUPPLIER_NAME = "Unknown (Imported)"
 
@@ -72,6 +74,7 @@ export const importExcel = createServerFn()
         throw new Error("Unknown supplier upsert failed")
       }
       const unknownSupplierId = unknownSupplier.id
+      const actorName = await getActorName(tx, userId)
 
       for (const sheetName of workbook.SheetNames) {
         const externalRef = computeExternalRef(data.filename, sheetName)
@@ -92,15 +95,23 @@ export const importExcel = createServerFn()
         } catch (err) {
           // Skip sheets that don't conform to the expected shape (e.g., a
           // summary tab). Log the reason so the user can see it.
+          const reason = err instanceof Error ? err.message : String(err)
           await recordAuditLog(tx, {
             actorUserId: userId,
             action: "import.excel.skip_sheet",
             entityType: "supply_route",
             entityId: externalRef,
+            description: renderAuditDescription("import.excel.skip_sheet", {
+              actorName,
+              filename: data.filename,
+              sheetName,
+              reason,
+            }),
+            articleNumbers: [],
             metadata: {
               filename: data.filename,
               sheetName,
-              reason: err instanceof Error ? err.message : String(err),
+              reason,
             },
           })
           routesSkipped++
@@ -128,6 +139,12 @@ export const importExcel = createServerFn()
           action: "import.excel.route",
           entityType: "supply_route",
           entityId: route.id,
+          description: renderAuditDescription("import.excel.route", {
+            actorName,
+            filename: data.filename,
+            sheetName,
+          }),
+          articleNumbers: [],
           metadata: {
             filename: data.filename,
             sheetName,

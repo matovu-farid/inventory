@@ -9,6 +9,7 @@ import {
   shopStock,
   shopSales,
   customers,
+  shops,
 } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
@@ -18,6 +19,9 @@ import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { validateCreditAdjustmentRefund } from "./refund-validate"
+import { renderAuditDescription } from "#/server/audit/descriptions"
+import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
+import { getActorName } from "#/server/audit/actor"
 
 const returnItemInput = z.object({
   shopStockId: z.uuid(),
@@ -237,11 +241,28 @@ export const recordCustomerReturn = createServerFn()
         }
       }
 
+      const shop = await tx.query.shops.findFirst({
+        where: eq(shops.id, data.shopId),
+      })
+      const actorName = await getActorName(tx, userId)
+      const articleNumbers = await resolveArticleNumbersForAudit(tx, {
+        action: "shopReturn.create",
+        entityType: "shop_return",
+        entityId: shopReturn.id,
+        metadata: null,
+      })
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "shopReturn.create",
         entityType: "shop_return",
         entityId: shopReturn.id,
+        description: renderAuditDescription("shopReturn.create", {
+          actorName,
+          shopName: shop?.name,
+          itemCount: data.items.length,
+        }),
+        articleNumbers,
         after: {
           shopId: data.shopId,
           documentNumber: docNumber.formatted,

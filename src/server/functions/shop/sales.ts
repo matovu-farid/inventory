@@ -15,6 +15,9 @@ import {
 } from "#/lib/payment-method"
 import { formatProductLabel } from "#/lib/products"
 import { validateBelowMinimumSale } from "./sale-validate"
+import { renderAuditDescription } from "#/server/audit/descriptions"
+import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
+import { getActorName } from "#/server/audit/actor"
 
 export const getShopStock = createServerFn()
   .inputValidator(z.object({ shopId: z.uuid() }))
@@ -284,11 +287,30 @@ export const recordSale = createServerFn()
         description: `COGS for sale`,
       })
 
+      const shop = await tx.query.shops.findFirst({
+        where: eq(shops.id, data.shopId),
+      })
+      const actorName = await getActorName(tx, userId)
+      const articleNumbers = await resolveArticleNumbersForAudit(tx, {
+        action: "sale.create",
+        entityType: "shop_sale",
+        entityId: sale.id,
+        metadata: null,
+      })
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "sale.create",
         entityType: "shop_sale",
         entityId: sale.id,
+        description: renderAuditDescription("sale.create", {
+          actorName,
+          shopName: shop?.name,
+          itemCount: data.items.length,
+          totalAmount: totalAmount.toFixed(2),
+          paymentMethod: data.paymentMethod,
+        }),
+        articleNumbers,
         after: {
           shopId: data.shopId,
           documentNumber: docNumber.formatted,

@@ -8,12 +8,16 @@ import {
   storeTransferItems,
   storeStock,
   shopStock,
+  shops,
 } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { formatProductLabel } from "#/lib/products"
+import { renderAuditDescription } from "#/server/audit/descriptions"
+import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
+import { getActorName } from "#/server/audit/actor"
 import {
   validateDiscrepancyNotes,
   validateQuantityReceived,
@@ -177,11 +181,28 @@ export const createTransfer = createServerFn()
         description: `Inter-branch balance for transfer`,
       })
 
+      const shop = await tx.query.shops.findFirst({
+        where: eq(shops.id, data.shopId),
+      })
+      const actorName = await getActorName(tx, userId)
+      const articleNumbers = await resolveArticleNumbersForAudit(tx, {
+        action: "transfer.create",
+        entityType: "store_transfer",
+        entityId: transfer.id,
+        metadata: null,
+      })
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "transfer.create",
         entityType: "store_transfer",
         entityId: transfer.id,
+        description: renderAuditDescription("transfer.create", {
+          actorName,
+          shopName: shop?.name,
+          itemCount: data.items.length,
+        }),
+        articleNumbers,
         after: {
           shopId: data.shopId,
           status: "dispatched",
@@ -326,11 +347,28 @@ export const confirmTransferReceipt = createServerFn()
         return sum + (ti.quantityDispatched - i.quantityReceived)
       }, 0)
 
+      const shop = await tx.query.shops.findFirst({
+        where: eq(shops.id, transfer.shopId),
+      })
+      const actorName = await getActorName(tx, userId)
+      const articleNumbers = await resolveArticleNumbersForAudit(tx, {
+        action: "transfer.receive",
+        entityType: "store_transfer",
+        entityId: data.transferId,
+        metadata: null,
+      })
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "transfer.receive",
         entityType: "store_transfer",
         entityId: data.transferId,
+        description: renderAuditDescription("transfer.receive", {
+          actorName,
+          shopName: shop?.name,
+          itemCount: data.items.length,
+        }),
+        articleNumbers,
         before: { status: "dispatched" },
         after: { status: "received" },
         metadata: {

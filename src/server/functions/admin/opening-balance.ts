@@ -9,6 +9,8 @@ import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import { validateOpeningBalanceCell } from "./opening-balance-validate"
+import { renderAuditDescription } from "#/server/audit/descriptions"
+import { getActorName } from "#/server/audit/actor"
 
 const cellSchema = z.object({
   productColorId: z.uuid(),
@@ -88,11 +90,18 @@ export const addStoreOpeningBalance = createServerFn()
         totalValue = totalValue.plus(entryValue)
       }
 
+      const actorName = await getActorName(tx, userId)
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "openingBalance.store",
         entityType: "store_stock",
         entityId: createdIds[0],
+        description: renderAuditDescription("openingBalance.store", {
+          actorName,
+          itemCount: data.items.length,
+        }),
+        articleNumbers: [],
         metadata: {
           itemCount: createdIds.length,
           totalValueUgx: totalValue.toFixed(2),
@@ -167,11 +176,19 @@ export const addShopOpeningBalance = createServerFn()
         totalValue = totalValue.plus(entryValue)
       }
 
+      const actorName = await getActorName(tx, userId)
+
       await recordAuditLog(tx, {
         actorUserId: userId,
         action: "openingBalance.shop",
         entityType: "shop_stock",
         entityId: createdIds[0],
+        description: renderAuditDescription("openingBalance.shop", {
+          actorName,
+          shopName: shop.name,
+          itemCount: data.items.length,
+        }),
+        articleNumbers: [],
         metadata: {
           shopId: shop.id,
           itemCount: createdIds.length,
