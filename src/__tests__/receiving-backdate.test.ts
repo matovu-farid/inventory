@@ -53,6 +53,15 @@ function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
   return runWithStartContext(stubStartContext, fn)
 }
 
+function assertDefined<T>(
+  value: T | null | undefined,
+  message: string,
+): asserts value is T {
+  if (value == null) {
+    throw new Error(message)
+  }
+}
+
 const REQUIRED_CATEGORIES = [
   { name: "Inventory - Store", type: "asset" as const },
   { name: "Cash", type: "asset" as const },
@@ -245,7 +254,8 @@ describe("receiveGoods — backdating", () => {
       where: eq(storeReceivings.supplyRouteItemId, itemId),
     })
     expect(receiving).toBeDefined()
-    expect(receiving!.receivedDate.toISOString().slice(0, 10)).toBe("2026-04-10")
+    assertDefined(receiving, "expected storeReceivings row")
+    expect(receiving.receivedDate.toISOString().slice(0, 10)).toBe("2026-04-10")
 
     const txns = await db.query.transactions.findMany({
       where: eq(transactions.recordedBy, TEST_USER_ID),
@@ -259,12 +269,15 @@ describe("receiveGoods — backdating", () => {
       where: eq(auditLogs.actorUserId, TEST_USER_ID),
     })
     expect(audit).toBeDefined()
-    expect(audit!.businessDate).not.toBeNull()
-    expect(audit!.businessDate!.toISOString().slice(0, 10)).toBe("2026-04-10")
-    expect(audit!.description).toContain("2026-04-10")
+    assertDefined(audit, "expected auditLogs row")
+    const auditBusinessDate = audit.businessDate
+    expect(auditBusinessDate).not.toBeNull()
+    assertDefined(auditBusinessDate, "expected auditLogs.businessDate")
+    expect(auditBusinessDate.toISOString().slice(0, 10)).toBe("2026-04-10")
+    expect(audit.description).toContain("2026-04-10")
     // recordedAt is "today" in the test run; we cannot pin it, but the
     // description should mention both dates side-by-side.
-    const recordedDay = audit!.createdAt.toISOString().slice(0, 10)
-    expect(audit!.description).toContain(recordedDay)
+    const recordedDay = audit.createdAt.toISOString().slice(0, 10)
+    expect(audit.description).toContain(recordedDay)
   })
 })
