@@ -53,6 +53,19 @@ beforeAll(async () => {
     totalCostUgx: "1000",
   }).returning()
   ids.sriA = sriA.id
+
+  const [sriA2] = await db.insert(supplyRouteItems).values({
+    supplyRouteId: route.id,
+    supplierId: sup.id,
+    productId: pa.id,
+    productColorId: pca.id,
+    size: "L",
+    quantity: 5,
+    unitPriceForeign: "10",
+    totalAmountForeign: "50",
+    totalCostUgx: "500",
+  }).returning()
+  ids.sriA2 = sriA2.id
 })
 
 afterAll(async () => {
@@ -104,5 +117,18 @@ describe("resolveArticleNumbersForAudit", () => {
       return acc
     }, {})
     expect(Object.values(counts).every((c) => c === 1)).toBe(true)
+    expect(out).toEqual([ART_A])
+  })
+
+  it("excludes articles not on this route", async () => {
+    const out = await db.transaction(async (tx) =>
+      resolveArticleNumbersForAudit(tx, {
+        action: "store.receiveGoods",
+        entityType: "supply_route",
+        entityId: ids.routeId,
+        metadata: null,
+      }),
+    )
+    expect(out).not.toContain(ART_B)
   })
 })
