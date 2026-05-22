@@ -58,7 +58,11 @@ export function AuditLogTable({
                 Who <InfoTip term="col.actor" />
               </span>
             </TableHead>
-            <TableHead>Action</TableHead>
+            <TableHead>
+              <span className="inline-flex items-center gap-1.5">
+                Action <InfoTip term="col.action" />
+              </span>
+            </TableHead>
             <TableHead>
               <span className="inline-flex items-center gap-1.5">
                 Activity <InfoTip term="col.activity" />

@@ -261,6 +261,10 @@ export const helpDict = {
     description:
       "A human-readable summary of what happened. Click 'Details' for the raw before/after data.",
   },
+  "col.action": {
+    description:
+      "The kind of event — e.g. 'Received goods', 'Recorded sale', 'Reconciled stock take'. Use the filter on the audit log page to narrow to one kind.",
+  },
   "transferItem.minSellPrice": {
     description:
       "The lowest price the shop is allowed to charge customers for this item. Defaults to the warehouse's cost-per-unit; the dispatcher can raise it to enforce a margin floor.",
