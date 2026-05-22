@@ -80,6 +80,14 @@ export default defineConfig({
             await client.query(`DELETE FROM suppliers`)
             await client.query(`DELETE FROM customers`)
             await client.query(`DELETE FROM shift_closures`)
+            // Notification machinery + picture-upload tokens reference users,
+            // shops, and product_colors — clean before those parents.
+            await client.query(`DELETE FROM low_stock_alerts`)
+            await client.query(`DELETE FROM restock_requisitions`)
+            await client.query(`DELETE FROM notification_threshold_overrides`)
+            await client.query(`DELETE FROM notification_thresholds`)
+            await client.query(`DELETE FROM picture_upload_tokens`)
+            await client.query(`DELETE FROM admin_ip_allowlist`)
             await client.query(`DELETE FROM shops`)
             await client.query(`DELETE FROM stores`)
             await client.query(`DELETE FROM notifications`)
