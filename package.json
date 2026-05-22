@@ -25,6 +25,7 @@
     "db:pull": "drizzle-kit pull",
     "db:studio": "drizzle-kit studio",
     "db:seed": "dotenv -e .env.local -- tsx src/db/seed.ts",
+    "backfill:audit": "dotenv -e .env.local -- tsx scripts/backfill-audit-logs.ts",
     "start": "node --import ./.output/server/instrument.server.mjs .output/server/index.mjs"
   },
   "dependencies": {
