@@ -34,6 +34,7 @@ import { Route as ShopSalesRouteImport } from './routes/shop/sales'
 import { Route as ShopOpeningBalanceRouteImport } from './routes/shop/opening-balance'
 import { Route as SettingsUsersRouteImport } from './routes/settings/users'
 import { Route as SettingsNotificationsRouteImport } from './routes/settings/notifications'
+import { Route as SettingsCategoriesRouteImport } from './routes/settings/categories'
 import { Route as SettingsAuditLogRouteImport } from './routes/settings/audit-log'
 import { Route as ReportsZRouteImport } from './routes/reports/z'
 import { Route as ReportsXRouteImport } from './routes/reports/x'
@@ -170,6 +171,11 @@ const SettingsNotificationsRoute = SettingsNotificationsRouteImport.update({
   path: '/settings/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsCategoriesRoute = SettingsCategoriesRouteImport.update({
+  id: '/settings/categories',
+  path: '/settings/categories',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsAuditLogRoute = SettingsAuditLogRouteImport.update({
   id: '/settings/audit-log',
   path: '/settings/audit-log',
@@ -230,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/audit-log': typeof SettingsAuditLogRoute
+  '/settings/categories': typeof SettingsCategoriesRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
@@ -266,6 +273,7 @@ export interface FileRoutesByTo {
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/audit-log': typeof SettingsAuditLogRoute
+  '/settings/categories': typeof SettingsCategoriesRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
@@ -303,6 +311,7 @@ export interface FileRoutesById {
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
   '/settings/audit-log': typeof SettingsAuditLogRoute
+  '/settings/categories': typeof SettingsCategoriesRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/shop/opening-balance': typeof ShopOpeningBalanceRoute
@@ -341,6 +350,7 @@ export interface FileRouteTypes {
     | '/reports/x'
     | '/reports/z'
     | '/settings/audit-log'
+    | '/settings/categories'
     | '/settings/notifications'
     | '/settings/users'
     | '/shop/opening-balance'
@@ -377,6 +387,7 @@ export interface FileRouteTypes {
     | '/reports/x'
     | '/reports/z'
     | '/settings/audit-log'
+    | '/settings/categories'
     | '/settings/notifications'
     | '/settings/users'
     | '/shop/opening-balance'
@@ -413,6 +424,7 @@ export interface FileRouteTypes {
     | '/reports/x'
     | '/reports/z'
     | '/settings/audit-log'
+    | '/settings/categories'
     | '/settings/notifications'
     | '/settings/users'
     | '/shop/opening-balance'
@@ -450,6 +462,7 @@ export interface RootRouteChildren {
   ReportsXRoute: typeof ReportsXRoute
   ReportsZRoute: typeof ReportsZRouteWithChildren
   SettingsAuditLogRoute: typeof SettingsAuditLogRoute
+  SettingsCategoriesRoute: typeof SettingsCategoriesRoute
   SettingsNotificationsRoute: typeof SettingsNotificationsRoute
   SettingsUsersRoute: typeof SettingsUsersRoute
   ShopOpeningBalanceRoute: typeof ShopOpeningBalanceRoute
@@ -650,6 +663,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsNotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/categories': {
+      id: '/settings/categories'
+      path: '/settings/categories'
+      fullPath: '/settings/categories'
+      preLoaderRoute: typeof SettingsCategoriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/audit-log': {
       id: '/settings/audit-log'
       path: '/settings/audit-log'
@@ -741,6 +761,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsXRoute: ReportsXRoute,
   ReportsZRoute: ReportsZRouteWithChildren,
   SettingsAuditLogRoute: SettingsAuditLogRoute,
+  SettingsCategoriesRoute: SettingsCategoriesRoute,
   SettingsNotificationsRoute: SettingsNotificationsRoute,
   SettingsUsersRoute: SettingsUsersRoute,
   ShopOpeningBalanceRoute: ShopOpeningBalanceRoute,
@@ -766,3 +787,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

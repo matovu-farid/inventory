@@ -73,6 +73,16 @@ async function seed() {
     }
     console.log(`  ${DEFAULT_CATEGORIES.length} transaction categories.`)
 
+    // ─── 1b. Item categories (catalog) ─────────────────────────────────
+    // Idempotent default bucket so admins always have a category to
+    // assign new products to. Issue #1 — the FK from items lands later.
+    console.log("Seeding item categories...")
+    await client.query(
+      `INSERT INTO item_categories (name) VALUES ('Uncategorized')
+       ON CONFLICT (name) DO NOTHING`,
+    )
+    console.log("  1 item category (Uncategorized).")
+
     // ─── 2. Suppliers, stores, shops (idempotent on natural keys) ──────
     console.log("Seeding suppliers, stores, and shops...")
     const insertedSuppliers = await db

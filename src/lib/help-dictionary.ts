@@ -419,6 +419,13 @@ export const helpDict = {
       "The threshold that triggers a low-stock alert for this variant. Shown as '≤ X%' or '≤ X units'.",
     example: "≤ 10%",
   },
+
+  // ─── Item categories (catalog) ──────────────────────────────────────────
+  "category.name": {
+    description:
+      "Name of the item category — a grouping you use to organise products in the catalog. Each name must be unique.",
+    example: "Shoes, Bags, Accessories",
+  },
 } as const satisfies Record<string, HelpEntry>
 
 export type HelpKey = keyof typeof helpDict
