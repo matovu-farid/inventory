@@ -1,0 +1,55 @@
+{
+  "repo": "matovu-farid/inventory",
+  "owner": "matovu-farid",
+  "assignee": "matovu-farid",
+  "project": {
+    "owner": "matovu-farid",
+    "number": 6,
+    "id": "PVT_kwHOA9ct6s4BYq6M",
+    "statusFieldId": "PVTSSF_lAHOA9ct6s4BYq6MzhTvCFE",
+    "statusOptions": {
+      "todo": "23aea92c",
+      "inProgress": "d559f71b",
+      "inReview": "fc2a403d",
+      "done": "49f30288"
+    }
+  },
+  "scopes": {
+    "app": {
+      "root": ".",
+      "package": "inventory",
+      "domains": ["schema", "server", "ui", "data", "auth", "errors", "performance", "tests"],
+      "typecheck": "pnpm typecheck",
+      "test": "pnpm test"
+    }
+  },
+  "agent": {
+    "max_concurrent_agents": 5,
+    "max_retry_backoff_ms": 300000,
+    "max_concurrent_agents_by_state": {},
+    "stall_timeout_ms": 600000,
+    "heartbeat_interval_ms": 60000,
+    "wave_iteration_cap": 15,
+    "sequential_iteration_cap": 10,
+    "continuation_delay_ms": 1000
+  },
+  "hooks": {
+    "after_create": "",
+    "before_run": "",
+    "after_run": "",
+    "before_remove": "",
+    "timeout_ms": 60000
+  },
+  "contracts": {
+    "dir": ".claude/kanban/contracts",
+    "override_files": [
+      "research-clause.md",
+      "tdd-contract.md",
+      "no-shortcuts.md",
+      "ci-clean.md",
+      "worktree-rules.md",
+      "false-positive-patterns.md",
+      "validator-prompt.md"
+    ]
+  }
+}
