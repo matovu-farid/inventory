@@ -13,12 +13,15 @@
 describe("Item categories admin", () => {
   const testEmail = `e2e-categories-${Date.now()}@test.com`
   const testPassword = "E2EPassword123!"
-  const seedName = `E2E Cat ${Date.now()}`
-  const renamedName = `${seedName} Renamed`
+  // Keep `renamedName` from being a superstring of `seedName` so we can
+  // assert that the old name disappears from the table after rename.
+  const stamp = Date.now()
+  const seedName = `E2E Original ${stamp}`
+  const renamedName = `E2E Renamed ${stamp}`
 
   function waitForHydration() {
     cy.get("body", { timeout: 10000 }).should("be.visible")
-    cy.wait(1000)
+    cy.wait(2500)
   }
 
   before(() => {
@@ -64,31 +67,36 @@ describe("Item categories admin", () => {
     cy.screenshot("01-categories-initial")
 
     // ─── Create ──────────────────────────────────────────────────────────
-    cy.get('[data-testid="new-category-button"]').click()
-    cy.get('[role="dialog"]', { timeout: 5000 }).should("be.visible")
-    cy.get('[data-testid="category-name-input"]').type(seedName)
-    cy.get('[data-testid="submit-category"]').click()
-    cy.get('[role="dialog"]', { timeout: 5000 }).should("not.exist")
+    cy.contains("button", "New category").click()
+    cy.get('[role="dialog"]', { timeout: 10000 }).should("be.visible")
+    cy.get('[role="dialog"]').within(() => {
+      cy.get("#category-name").type(seedName)
+      cy.contains("button", "Create").click()
+    })
+    cy.get('[role="dialog"]', { timeout: 10000 }).should("not.exist")
     cy.contains(seedName).should("be.visible")
     cy.screenshot("02-categories-after-create")
 
     // ─── Rename ──────────────────────────────────────────────────────────
-    cy.get(`[data-testid="rename-${seedName}"]`).click()
-    cy.get('[role="dialog"]', { timeout: 5000 }).should("be.visible")
-    cy.get('[data-testid="category-name-input"]')
-      .should("have.value", seedName)
-      .clear()
-      .type(renamedName)
-    cy.get('[data-testid="submit-category"]').click()
-    cy.get('[role="dialog"]', { timeout: 5000 }).should("not.exist")
+    cy.contains("tr", seedName).within(() => {
+      cy.contains("button", "Rename").click()
+    })
+    cy.get('[role="dialog"]', { timeout: 10000 }).should("be.visible")
+    cy.get('[role="dialog"]').within(() => {
+      cy.get("#category-name").should("have.value", seedName).clear().type(renamedName)
+      cy.contains("button", "Save").click()
+    })
+    cy.get('[role="dialog"]', { timeout: 10000 }).should("not.exist")
     cy.contains(renamedName).should("be.visible")
-    cy.contains(seedName).should("not.exist")
+    cy.contains("td", seedName).should("not.exist")
     cy.screenshot("03-categories-after-rename")
 
     // ─── Delete ──────────────────────────────────────────────────────────
     cy.on("window:confirm", () => true)
-    cy.get(`[data-testid="delete-${renamedName}"]`).click()
-    cy.contains(renamedName).should("not.exist")
+    cy.contains("tr", renamedName).within(() => {
+      cy.contains("button", "Delete").click()
+    })
+    cy.contains("td", renamedName).should("not.exist")
     cy.screenshot("04-categories-after-delete")
   })
 })

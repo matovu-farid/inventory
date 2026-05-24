@@ -32,19 +32,18 @@ import {
   deleteItemCategory,
 } from "#/server/functions/admin/item-categories"
 
-type Row = {
-  id: string
-  name: string
-  createdAt: Date
-  updatedAt: Date
-}
+// We only render the id and name, so strip the timestamp columns from
+// the loader payload — keeps the SSR-serialized state minimal and avoids
+// shipping Date instances across the wire.
+type Row = { id: string; name: string }
 
 export const Route = createFileRoute("/settings/categories")({
   beforeLoad: ({ context }) =>
     requireUiPermission(context, "itemCategories.manage"),
   loader: async () => {
     const rows = await listItemCategories()
-    return { rows: rows as Row[] }
+    const stripped: Row[] = rows.map((r) => ({ id: r.id, name: r.name }))
+    return { rows: stripped }
   },
   component: CategoriesPage,
 })
