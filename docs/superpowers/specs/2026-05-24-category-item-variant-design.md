@@ -43,15 +43,19 @@ composite `(product_color_id, size_string)` key — they all reference a single
 
 ## 3. Data model — Phase 1
 
-### New table — `categories`
+### New table — `item_categories`
+
+Named to mirror the existing `transaction_categories` table (financial categories like freight/shipping/rent used by the accounting module). A bare `categories` would be ambiguous next to it.
 
 ```ts
-categories = {
+item_categories = {
   id: uuid pk default gen_random_uuid(),
   name: text not null unique,
   createdAt, updatedAt,
 }
 ```
+
+Drizzle symbol: `itemCategories`. UI route stays `/settings/categories` — users don't see the collision since `transaction_categories` is internal accounting.
 
 Seed: one row `{ name: 'Uncategorized' }`.
 
@@ -90,7 +94,7 @@ Column renames inside the renamed tables:
 
 ### Altered table — `items`
 
-- Add `category_id uuid not null fk categories on delete restrict`.
+- Add `item_category_id uuid not null fk item_categories on delete restrict`.
 - **Drop** `sizes text[]`.
 
 ### Altered tables — swap `(product_color_id, size)` for `variant_id`
@@ -148,14 +152,14 @@ If any check is non-zero, the migration aborts; data must be cleaned first.
 
 ### Steps
 
-1. `CREATE TABLE categories ...; INSERT INTO categories (name) VALUES ('Uncategorized');`
+1. `CREATE TABLE item_categories ...; INSERT INTO item_categories (name) VALUES ('Uncategorized');`
 2. `ALTER TABLE products RENAME TO items;`
    `ALTER TABLE product_colors RENAME TO item_colors;`
    `ALTER TABLE item_colors RENAME COLUMN product_id TO item_id;`
    Rename indexes / sequences / FK constraint names accordingly.
-3. `ALTER TABLE items ADD COLUMN category_id uuid REFERENCES categories(id);`
-   `UPDATE items SET category_id = (SELECT id FROM categories WHERE name = 'Uncategorized');`
-   `ALTER TABLE items ALTER COLUMN category_id SET NOT NULL;`
+3. `ALTER TABLE items ADD COLUMN item_category_id uuid REFERENCES item_categories(id);`
+   `UPDATE items SET item_category_id = (SELECT id FROM item_categories WHERE name = 'Uncategorized');`
+   `ALTER TABLE items ALTER COLUMN item_category_id SET NOT NULL;`
 4. `CREATE TABLE variants ...;`
    `INSERT INTO variants (item_id, color_id, size) SELECT ic.item_id, ic.id, unnest(i.sizes) FROM item_colors ic JOIN items i ON i.id = ic.item_id;`
 5. For each of `shop_stock`, `store_stock`, `notification_threshold_overrides`:
@@ -199,7 +203,7 @@ Audit-log `entityType` going forward emits `supply_route_line`, `shop_sale_line`
 
 ### Schema files
 - `src/db/schema/products.ts` → `src/db/schema/items.ts` (renamed file)
-- Add `src/db/schema/categories.ts`
+- Add `src/db/schema/item-categories.ts` (exports `itemCategories`)
 - Add `src/db/schema/variants.ts`
 - Update imports across all schema files that reference `products` / `productColors`.
 
@@ -213,7 +217,7 @@ Audit-log `entityType` going forward emits `supply_route_line`, `shop_sale_line`
 ### Routes / pages touched
 - `src/routes/products/index.tsx` → `src/routes/items/index.tsx` (route + file rename; redirect from `/products` → `/items` kept in router for 90 days)
 - `src/routes/products/$articleNumber.tsx` → `src/routes/items/$articleNumber.tsx`
-- `src/routes/settings/categories.tsx` — new admin page: list / create / rename / delete categories, plus bulk-assign existing items to categories.
+- `src/routes/settings/categories.tsx` — new admin page: list / create / rename / delete item categories, plus bulk-assign existing items to categories. (Route slug kept short — UI is unambiguous since users don't see transaction-side categories as a separate concept.)
 - `src/routes/store/index.tsx`, `src/routes/shop/index.tsx` — stock list joins through variant.
 - Item detail page gains a Variant subsection.
 
@@ -222,7 +226,7 @@ Audit-log `entityType` going forward emits `supply_route_line`, `shop_sale_line`
 - Repoint: `articleNumber` tip text (now talks about Item).
 
 ### Permissions
-- Add `categories.manage` (admin only).
+- Add `itemCategories.manage` (admin only).
 - Keep `products.view` / `products.manage` (effectively items now); add aliases or rename to `items.*`.
 
 ## 7. Code surface — Phase 2 (rename)
@@ -273,10 +277,10 @@ UI copy that says "items" in human-language sense ("transfer dispatched with 3 i
 To be expanded by the next-step planner. Likely shape:
 
 **Phase 1**
-1. Add `categories` table + admin page (list/create/rename/delete) + InfoTips.
+1. Add `item_categories` table + admin page (list/create/rename/delete) + InfoTips.
 2. Add `variants` table; backfill from existing colors × sizes.
 3. Rename `products` → `items`, `product_colors` → `item_colors` (table + column renames; update Drizzle).
-4. Add `items.category_id`; default to Uncategorized; expose category picker on item create/edit.
+4. Add `items.item_category_id`; default to Uncategorized; expose category picker on item create/edit.
 5. Swap stock/notification tables to `variant_id`; drop old columns.
 6. Refactor server functions (receiving, transfers, sales, opening-balance) to operate on `variant_id`.
 7. Update stock-list UIs to display per-variant counts.
