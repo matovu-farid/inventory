@@ -16,7 +16,7 @@ import { and, desc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
 import { auditLogs, user } from '#/db/schema'
-import type { AuditLogPage, AuditLogRow } from './list'
+import type { AuditLogPage, AuditLogRow } from './list.server'
 
 const DEFAULT_PAGE = 50
 
