@@ -11,7 +11,17 @@ describe("Customers", () => {
 
   function waitForHydration() {
     cy.get("body", { timeout: 10000 }).should("be.visible")
-    cy.wait(1500)
+    // TanStack Start defines `self.$_TSR` in its boot script and deletes
+    // it once the SSR stream has closed and React has hydrated (see the
+    // inline `$_TSR.c()` in the head). Cypress's `should` callback
+    // retries until the predicate holds, so this is a deterministic
+    // hydration signal — unlike `cy.wait(1500)`, which was racy on CI
+    // runners with larger client bundles. PR #11 broadened the schema
+    // barrel (adds `variants`) which nudged hydration past the old
+    // 1.5s threshold and surfaced the regression in 04-customers.
+    cy.window({ timeout: 15000 }).should((win) => {
+      expect((win as unknown as { $_TSR?: unknown }).$_TSR).to.be.undefined
+    })
   }
 
   before(() => {
