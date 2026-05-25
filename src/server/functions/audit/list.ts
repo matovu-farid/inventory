@@ -27,10 +27,6 @@ export type {
   ListAuditLogInput,
 } from './list.server'
 
-// Also re-export the Zod schema so existing consumers (and the wrapper
-// below) can reach it through the canonical path.
-export { listAuditLogInputSchema } from './list.server'
-
 export const listAuditLog = createServerFn()
   .inputValidator(listAuditLogInputSchema)
   .handler(async ({ data }) => {
