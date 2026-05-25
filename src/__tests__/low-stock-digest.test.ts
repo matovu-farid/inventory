@@ -3,9 +3,10 @@ import { db } from "#/db"
 import { eq } from "drizzle-orm"
 import { lowStockAlerts } from "#/db/schema"
 import { sendDailyLowStockDigestInternal } from "#/server/scheduled/send-low-stock-digest"
+import type * as EmailModule from "#/lib/email"
 
 vi.mock("#/lib/email", async (orig) => {
-  const mod = await orig<typeof import("#/lib/email")>()
+  const mod = await orig<typeof EmailModule>()
   return {
     ...mod,
     sendLowStockDigest: vi.fn(async () => {}),

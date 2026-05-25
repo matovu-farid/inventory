@@ -16,14 +16,9 @@ import {
   listOverrides,
 } from "#/server/functions/notifications/thresholds"
 import { runThresholdChecksNow } from "#/server/functions/notifications/notifications"
-import {
-  ThresholdField,
-  type ThresholdValue,
-} from "#/components/notifications/threshold-form"
-import {
-  OverrideTable,
-  type OverrideRow,
-} from "#/components/notifications/override-table"
+import { ThresholdField } from "#/components/notifications/threshold-form"
+import type { ThresholdValue } from "#/components/notifications/threshold-form"
+import { OverrideTable } from "#/components/notifications/override-table"
 import { listProductColorsForOverrides } from "#/server/functions/products/colors"
 import { listShopsForReports } from "#/server/functions/shop/list-shops"
 
@@ -181,7 +176,7 @@ function NotificationsSettingsPage() {
         </CardHeader>
         <CardContent>
           <OverrideTable
-            rows={loaderData.productOverrides as OverrideRow[]}
+            rows={loaderData.productOverrides}
             showShopColumn={false}
             productOptions={loaderData.productOptions}
             shopOptions={loaderData.shops}
