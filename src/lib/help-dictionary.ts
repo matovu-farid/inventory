@@ -24,407 +24,418 @@ export interface HelpEntry {
 
 export const helpDict = {
   // ─── Supply Route form ───────────────────────────────────────────────
-  "supplyRoute.name": {
+  'supplyRoute.name': {
     description:
-      "A friendly name for this sourcing trip so you can find it later.",
-    example: "China Trip — May 2026",
+      'A friendly name for this sourcing trip so you can find it later.',
+    example: 'China Trip — May 2026',
   },
-  "supplyRoute.departureDate": {
-    description: "The date you leave for the trip.",
+  'supplyRoute.departureDate': {
+    description: 'The date you leave for the trip.',
   },
-  "supplyRoute.returnDate": {
-    description: "The date you expect to return with the goods.",
+  'supplyRoute.returnDate': {
+    description: 'The date you expect to return with the goods.',
   },
-  "supplyRoute.budgetUsd": {
+  'supplyRoute.budgetUsd': {
     description:
-      "Planned spend for the whole trip in USD. Used to compare against actual costs once items and expenses are recorded.",
-    example: "10,000",
+      'Planned spend for the whole trip in USD. Used to compare against actual costs once items and expenses are recorded.',
+    example: '10,000',
   },
-  "supplyRoute.notes": {
+  'supplyRoute.notes': {
     description:
-      "Anything else worth remembering about this trip — markets visited, contacts made, lessons learned.",
+      'Anything else worth remembering about this trip — markets visited, contacts made, lessons learned.',
   },
 
   // ─── Item form (inside a Supply Route) ───────────────────────────────
-  "item.productName": {
-    description: "What you call this product when talking with customers.",
+  'item.productName': {
+    description: 'What you call this product when talking with customers.',
     example: "Men's Leather Loafers",
   },
-  "item.articleNumber": {
+  'item.articleNumber': {
     description:
       "The supplier's catalog/SKU code for this product. Optional, but useful for re-ordering the exact same item later.",
-    example: "SH-2045-BLK",
+    example: 'SH-2045-BLK',
   },
-  "item.supplierId": {
-    description: "Which supplier you bought this item from on the trip.",
+  'item.supplierId': {
+    description: 'Which supplier you bought this item from on the trip.',
   },
-  "item.quantity": {
-    description: "How many units you purchased.",
-    example: "120",
+  'item.quantity': {
+    description: 'How many units you purchased.',
+    example: '120',
   },
-  "item.detailMode": {
+  'item.detailMode': {
     description:
       "How detailed your procurement entry is. Pick 'Total only' if you don't yet know the breakdown — an admin can split into colors and sizes later before the goods are received.",
   },
-  "item.aggregateQty": {
+  'item.aggregateQty': {
     description:
-      "Total units purchased across all colors and sizes. Must be resolved into specific colors/sizes before the route can be received.",
-    example: "120",
+      'Total units purchased across all colors and sizes. Must be resolved into specific colors/sizes before the route can be received.',
+    example: '120',
   },
-  "item.unitPrice": {
-    description: "Price per single unit, in the currency the supplier billed.",
-    example: "85 RMB per pair",
+  'item.unitPrice': {
+    description: 'Price per single unit, in the currency the supplier billed.',
+    example: '85 RMB per pair',
   },
-  "item.currency": {
+  'item.currency': {
     description:
-      "The currency the supplier invoiced you in — usually the local currency of the source country.",
-    example: "RMB for purchases in China",
+      'The currency the supplier invoiced you in — usually the local currency of the source country.',
+    example: 'RMB for purchases in China',
   },
-  "item.sourceRate": {
+  'item.sourceRate': {
     description:
-      "How many units of the source currency equal 1 USD on the day you paid. Used to convert costs into USD for reporting.",
-    example: "7.25 RMB = 1 USD",
+      'How many units of the source currency equal 1 USD on the day you paid. Used to convert costs into USD for reporting.',
+    example: '7.25 RMB = 1 USD',
   },
-  "item.ugxPerUsd": {
+  'item.ugxPerUsd': {
     description:
-      "How many UGX equal 1 USD on the day you paid. Used to convert costs into UGX so you can price for the local market.",
-    example: "3,750 UGX = 1 USD",
+      'How many UGX equal 1 USD on the day you paid. Used to convert costs into UGX so you can price for the local market.',
+    example: '3,750 UGX = 1 USD',
   },
 
   // ─── Expense form (inside a Supply Route) ────────────────────────────
-  "expense.category": {
+  'expense.category': {
     description:
-      "What kind of trip cost this is — used to group spending in reports.",
-    example: "Freight, Customs, Lodging, Local transport",
+      'What kind of trip cost this is — used to group spending in reports.',
+    example: 'Freight, Customs, Lodging, Local transport',
   },
-  "expense.description": {
+  'expense.description': {
     description:
-      "A short note so you remember what this expense covered when reviewing it later.",
-    example: "Container shipping from Guangzhou to Mombasa",
+      'A short note so you remember what this expense covered when reviewing it later.',
+    example: 'Container shipping from Guangzhou to Mombasa',
   },
-  "expense.amount": {
-    description: "Amount paid, in the currency selected.",
-    example: "1,200",
+  'expense.amount': {
+    description: 'Amount paid, in the currency selected.',
+    example: '1,200',
   },
 
   // ─── Supplier form ───────────────────────────────────────────────────
-  "supplier.name": {
+  'supplier.name': {
     description:
       "The supplier's business name as you'd write it on a purchase order.",
-    example: "Guangzhou Mei Da Trading Co.",
+    example: 'Guangzhou Mei Da Trading Co.',
   },
-  "supplier.type": {
+  'supplier.type': {
     description:
-      "Local suppliers are based in Uganda. International suppliers are abroad and typically involve import logistics.",
+      'Local suppliers are based in Uganda. International suppliers are abroad and typically involve import logistics.',
   },
-  "supplier.country": {
-    description: "The country this supplier ships from.",
-    example: "China",
+  'supplier.country': {
+    description: 'The country this supplier ships from.',
+    example: 'China',
   },
-  "supplier.contactName": {
-    description: "The person you usually deal with at the supplier.",
-    example: "Mr. Li Wei",
+  'supplier.contactName': {
+    description: 'The person you usually deal with at the supplier.',
+    example: 'Mr. Li Wei',
   },
-  "supplier.contactPhone": {
-    description: "Best phone or WhatsApp number for that contact.",
+  'supplier.contactPhone': {
+    description: 'Best phone or WhatsApp number for that contact.',
   },
-  "supplier.contactEmail": {
-    description: "Email for invoices, quotes, and shipping documents.",
+  'supplier.contactEmail': {
+    description: 'Email for invoices, quotes, and shipping documents.',
   },
-  "supplier.notes": {
+  'supplier.notes': {
     description:
-      "Payment terms, MOQs, quality issues, or anything else worth remembering about this supplier.",
+      'Payment terms, MOQs, quality issues, or anything else worth remembering about this supplier.',
   },
 
   // ─── Customer form ───────────────────────────────────────────────────
-  "customer.name": {
+  'customer.name': {
     description: "The customer's name as you'd address them.",
-    example: "Sarah N.",
+    example: 'Sarah N.',
   },
-  "customer.phone": {
+  'customer.phone': {
     description:
-      "Phone or WhatsApp for follow-ups. Optional — only fill in if the customer is happy to share it.",
+      'Phone or WhatsApp for follow-ups. Optional — only fill in if the customer is happy to share it.',
   },
-  "customer.notes": {
+  'customer.notes': {
     description:
-      "Anything that helps you serve them better — sizes, preferences, credit history.",
+      'Anything that helps you serve them better — sizes, preferences, credit history.',
   },
 
   // ─── Settings — Shop ─────────────────────────────────────────────────
-  "shop.name": {
-    description: "Display name of the shop. Appears on receipts and reports.",
-    example: "Owino Branch",
+  'shop.name': {
+    description: 'Display name of the shop. Appears on receipts and reports.',
+    example: 'Owino Branch',
   },
-  "shop.location": {
-    description: "Where the shop is physically located.",
-    example: "Kampala",
+  'shop.location': {
+    description: 'Where the shop is physically located.',
+    example: 'Kampala',
   },
 
   // ─── Generic field helpers ───────────────────────────────────────────
-  "field.receivedDate": {
+  'field.receivedDate': {
     description:
-      "The date the goods actually arrived at the warehouse. Defaults to today. Only admins can change it.",
+      'The date the goods actually arrived at the warehouse. Defaults to today. Only admins can change it.',
     example: "2026-04-10 — even if you're entering it on 2026-05-22.",
   },
 
   // ─── KPI cards / summary stats ───────────────────────────────────────
-  "kpi.itemCosts": {
+  'kpi.itemCosts': {
     description:
-      "Total cost of all items on this trip, converted to UGX at the exchange rate you entered for each item.",
-    example: "120 pairs × 85 RMB ÷ 7.25 × 3,750 = 5,275,862 UGX",
+      'Total cost of all items on this trip, converted to UGX at the exchange rate you entered for each item.',
+    example: '120 pairs × 85 RMB ÷ 7.25 × 3,750 = 5,275,862 UGX',
   },
-  "kpi.expenses": {
+  'kpi.expenses': {
     description:
-      "Sum of every trip expense (freight, customs, lodging, local transport, etc.) recorded against this route, in UGX.",
+      'Sum of every trip expense (freight, customs, lodging, local transport, etc.) recorded against this route, in UGX.',
   },
-  "kpi.grandTotal": {
+  'kpi.grandTotal': {
     description:
-      "Item Costs + Expenses. The all-in landed cost of this trip in UGX — what you should price your retail margin against.",
+      'Item Costs + Expenses. The all-in landed cost of this trip in UGX — what you should price your retail margin against.',
   },
-  "kpi.cashOnHand": {
+  'kpi.cashOnHand': {
     description:
-      "Money sitting in the till or the safe right now, according to the ledger.",
+      'Money sitting in the till or the safe right now, according to the ledger.',
   },
-  "kpi.bankBalance": {
+  'kpi.bankBalance': {
     description:
-      "Money in your business bank account(s), according to the ledger.",
+      'Money in your business bank account(s), according to the ledger.',
   },
-  "kpi.totalLiquidity": {
+  'kpi.totalLiquidity': {
     description:
-      "Cash on Hand + Bank Balance — money you could spend today without selling stock.",
+      'Cash on Hand + Bank Balance — money you could spend today without selling stock.',
   },
-  "kpi.totalItemsStore": {
+  'kpi.totalItemsStore': {
     description:
-      "Number of individual units currently in the central warehouse, summed across every product.",
+      'Number of individual units currently in the central warehouse, summed across every product.',
   },
-  "kpi.inventoryValue": {
+  'kpi.inventoryValue': {
     description:
-      "What it cost you to buy everything currently in the warehouse, in UGX. Not the retail price.",
+      'What it cost you to buy everything currently in the warehouse, in UGX. Not the retail price.',
   },
-  "kpi.itemsInStockShop": {
+  'kpi.itemsInStockShop': {
     description:
-      "Number of individual units currently at this shop, summed across every product.",
+      'Number of individual units currently at this shop, summed across every product.',
   },
-  "kpi.shopStockValue": {
-    description: "What it cost you to buy the stock currently at this shop, in UGX.",
+  'kpi.shopStockValue': {
+    description:
+      'What it cost you to buy the stock currently at this shop, in UGX.',
   },
 
   // ─── Table column headers ────────────────────────────────────────────
-  "col.articleNumber": {
+  'col.articleNumber': {
     description:
       "The supplier's catalog/SKU code for the product. Useful when re-ordering the exact same item.",
-    example: "SH-2045-BLK",
+    example: 'SH-2045-BLK',
   },
-  "col.totalForeign": {
+  'col.totalForeign': {
     description:
-      "Quantity × Unit Price, in the currency the supplier invoiced.",
-    example: "120 × 85 = 10,200 RMB",
+      'Quantity × Unit Price, in the currency the supplier invoiced.',
+    example: '120 × 85 = 10,200 RMB',
   },
-  "col.totalUsd": {
+  'col.totalUsd': {
     description:
-      "The same line total converted to USD using the source-currency rate you entered.",
+      'The same line total converted to USD using the source-currency rate you entered.',
   },
-  "col.totalUgx": {
+  'col.totalUgx': {
     description:
-      "The same line total converted to UGX. This is the cost basis used for pricing and reporting.",
+      'The same line total converted to UGX. This is the cost basis used for pricing and reporting.',
   },
-  "col.qtyOnHand": {
+  'col.qtyOnHand': {
     description:
-      "Number of units currently available to sell at this location. Updates as items are received, transferred, or sold.",
+      'Number of units currently available to sell at this location. Updates as items are received, transferred, or sold.',
   },
-  "col.expected": {
-    description: "Quantity that was meant to arrive, based on the supply route.",
-  },
-  "col.received": {
-    description: "Quantity actually counted on arrival.",
-  },
-  "col.transitLoss": {
+  'col.expected': {
     description:
-      "Units that left the supplier but never arrived — lost or stolen in transit. Written off as a loss.",
+      'Quantity that was meant to arrive, based on the supply route.',
   },
-  "col.dispatched": {
+  'col.received': {
+    description: 'Quantity actually counted on arrival.',
+  },
+  'col.transitLoss': {
     description:
-      "Quantity that was sent out from the warehouse on this transfer. Compare against Received to detect distribution loss.",
+      'Units that left the supplier but never arrived — lost or stolen in transit. Written off as a loss.',
   },
-  "col.businessDate": {
+  'col.dispatched': {
     description:
-      "When the event actually happened in the business — the date goods arrived, the sale was made, etc.",
+      'Quantity that was sent out from the warehouse on this transfer. Compare against Received to detect distribution loss.',
   },
-  "col.recordedDate": {
+  'col.businessDate': {
     description:
-      "When the row was entered into the system. Equal to the business date unless someone backdated.",
+      'When the event actually happened in the business — the date goods arrived, the sale was made, etc.',
   },
-  "col.actor": {
-    description: "The user who performed the action.",
+  'col.recordedDate': {
+    description:
+      'When the row was entered into the system. Equal to the business date unless someone backdated.',
   },
-  "col.activity": {
+  'col.actor': {
+    description: 'The user who performed the action.',
+  },
+  'col.activity': {
     description:
       "A human-readable summary of what happened. Click 'Details' for the raw before/after data.",
   },
-  "col.action": {
+  'col.action': {
     description:
       "The kind of event — e.g. 'Received goods', 'Recorded sale', 'Reconciled stock take'. Use the filter on the audit log page to narrow to one kind.",
   },
-  "col.filterArticle": {
+  'col.filterArticle': {
     description:
-      "Filter to events that touched a specific product. Article number is the unique code on every product.",
-    example: "CB-1234",
+      'Filter to events that touched a specific product. Article number is the unique code on every product.',
+    example: 'CB-1234',
   },
-  "col.filterAction": {
+  'col.filterAction': {
     description:
-      "Filter to a specific kind of activity, e.g. only sales or only receipts.",
+      'Filter to a specific kind of activity, e.g. only sales or only receipts.',
   },
-  "col.filterDateRange": {
+  'col.filterDateRange': {
     description:
-      "Filter by the business date (when the event actually happened), not when it was entered.",
+      'Filter by the business date (when the event actually happened), not when it was entered.',
   },
-  "transferItem.minSellPrice": {
+  'transferItem.minSellPrice': {
     description:
       "The lowest price the shop is allowed to charge customers for this item. Defaults to the warehouse's cost-per-unit; the dispatcher can raise it to enforce a margin floor.",
   },
 
   // ─── Workflow status values ──────────────────────────────────────────
-  "status.planning": {
+  'status.planning': {
     description:
       "You're still preparing the trip — adding items, fixing budget, lining up suppliers. Nothing has been spent yet.",
   },
-  "status.active": {
+  'status.active': {
     description:
       "The trip is in motion — you've left, you're buying, or the goods are in transit. Costs are being recorded.",
   },
-  "status.completed": {
+  'status.completed': {
     description:
-      "Goods have arrived and been received into the warehouse. The route is closed for further edits.",
+      'Goods have arrived and been received into the warehouse. The route is closed for further edits.',
   },
 
   // ─── Product / Variant catalog ───────────────────────────────────────
-  "product.articleNumber": {
+  'product.articleNumber': {
     description:
-      "Unique code for the product (e.g. TR-001). The same article in different colors is one product with multiple color variants.",
-    example: "TR-001",
+      'Unique code for the product (e.g. TR-001). The same article in different colors is one product with multiple color variants.',
+    example: 'TR-001',
   },
-  "product.colorName": {
+  'product.colorName': {
     description:
-      "Friendly name of the color (e.g. Burgundy, Navy). Auto-suggested from the uploaded image; you can override from the palette, the eyedropper, or type your own.",
-    example: "Burgundy",
+      'Friendly name of the color (e.g. Burgundy, Navy). Auto-suggested from the uploaded image; you can override from the palette, the eyedropper, or type your own.',
+    example: 'Burgundy',
   },
-  "product.colorHex": {
+  'product.colorHex': {
     description:
-      "Hex code that drives the on-screen swatch (e.g. #7b1f2b). Matched to the nearest palette tile.",
-    example: "#7b1f2b",
+      'Hex code that drives the on-screen swatch (e.g. #7b1f2b). Matched to the nearest palette tile.',
+    example: '#7b1f2b',
   },
-  "product.sizes": {
+  'product.sizes': {
     description:
-      "Sizes this product comes in (e.g. S, M, L). Each variant grid row is one color × one size.",
-    example: "S, M, L",
+      'Sizes this product comes in (e.g. S, M, L). Each variant grid row is one color × one size.',
+    example: 'S, M, L',
   },
-  "product.image": {
+  'product.image': {
     description:
-      "One image per color. Click the image after upload to eyedrop a different pixel as the color sample.",
+      'One image per color. Click the image after upload to eyedrop a different pixel as the color sample.',
   },
-  "col.variant": {
-    description: "Color × size combination held by this stock row.",
-    example: "Burgundy / M",
+  'col.variant': {
+    description: 'Color × size combination held by this stock row.',
+    example: 'Burgundy / M',
+  },
+  'variant.barcode': {
+    description:
+      "The barcode printed on the supplier's tag for this exact color and size. Optional — leave blank if the supplier didn't print one. When set, it must be unique across the catalog so a single scan always lands on one variant.",
+    example: '6921234567890',
+  },
+  'variant.image': {
+    description:
+      'Picture of this specific color and size (e.g. a flat-lay of the Burgundy / M shoe). Optional — when blank, the variant uses the color image you uploaded for the product.',
   },
 
   // ─── Opening Balance form ────────────────────────────────────────────
-  "openingBalance.productName": {
+  'openingBalance.productName': {
     description:
       "Pick the product whose stock you're seeding. Use the dropdown or create a new product on the fly.",
   },
-  "openingBalance.articleNumber": {
+  'openingBalance.articleNumber': {
     description:
-      "Legacy: use `product.articleNumber` going forward. Kept as a stale alias so older references still resolve.",
-    example: "TR-001",
+      'Legacy: use `product.articleNumber` going forward. Kept as a stale alias so older references still resolve.',
+    example: 'TR-001',
   },
-  "openingBalance.quantity": {
+  'openingBalance.quantity': {
     description:
-      "How many units of this product you currently have on hand at this location, before the system goes live.",
-    example: "120",
+      'How many units of this product you currently have on hand at this location, before the system goes live.',
+    example: '120',
   },
-  "openingBalance.costPerUnit": {
+  'openingBalance.costPerUnit': {
     description:
-      "Landed cost per unit in UGX — what one piece actually cost you including freight, duties, and other expenses. This sets the inventory value on your books and the floor for your sell price.",
-    example: "2,068,966",
+      'Landed cost per unit in UGX — what one piece actually cost you including freight, duties, and other expenses. This sets the inventory value on your books and the floor for your sell price.',
+    example: '2,068,966',
   },
-  "openingBalance.lineTotal": {
+  'openingBalance.lineTotal': {
     description:
       "Quantity × Cost/Unit. The total UGX value this row will add to your inventory and to Owner's Equity when submitted.",
   },
-  "openingBalance.shop": {
+  'openingBalance.shop': {
     description:
       "Which shop these existing items are sitting in. Each shop's opening balance is entered separately.",
   },
 
   // ─── POS (point-of-sale) UI ──────────────────────────────────────────
-  "pos.search": {
-    description: "Type article number or product name to filter the grid.",
+  'pos.search': {
+    description: 'Type article number or product name to filter the grid.',
   },
-  "pos.cart": {
-    description: "Items added but not yet checked out. Tap to expand.",
+  'pos.cart': {
+    description: 'Items added but not yet checked out. Tap to expand.',
   },
-  "pos.variant": {
+  'pos.variant': {
     description:
-      "A specific color and size combination. Stock is tracked per variant.",
+      'A specific color and size combination. Stock is tracked per variant.',
   },
-  "pos.belowMin": {
+  'pos.belowMin': {
     description:
-      "Selling below the recommended minimum price. A reason is required so the admin can review.",
+      'Selling below the recommended minimum price. A reason is required so the admin can review.',
   },
 
   // ─── Notification thresholds settings ───────────────────────────────────
-  "notifications.thresholds.storeMode": {
+  'notifications.thresholds.storeMode': {
     description:
-      "Whether the warehouse low-stock trigger is expressed as a percentage of the rolling batch average or as a fixed number of units remaining.",
-    example: "Percentage",
+      'Whether the warehouse low-stock trigger is expressed as a percentage of the rolling batch average or as a fixed number of units remaining.',
+    example: 'Percentage',
   },
-  "notifications.thresholds.storeValue": {
+  'notifications.thresholds.storeValue': {
     description:
-      "The warehouse threshold value. If mode is Percentage, this is the % of the rolling 3-batch average below which an alert fires. If mode is Units, it is an absolute unit count.",
-    example: "30 (percent) or 5 (units)",
+      'The warehouse threshold value. If mode is Percentage, this is the % of the rolling 3-batch average below which an alert fires. If mode is Units, it is an absolute unit count.',
+    example: '30 (percent) or 5 (units)',
   },
-  "notifications.thresholds.shopMode": {
+  'notifications.thresholds.shopMode': {
     description:
       "Whether each shop's low-stock trigger is expressed as a percentage of the rolling batch average or as a fixed number of units remaining.",
-    example: "Percentage",
+    example: 'Percentage',
   },
-  "notifications.thresholds.shopValue": {
+  'notifications.thresholds.shopValue': {
     description:
-      "The shop threshold value. If mode is Percentage, this is the % of the rolling 3-batch average below which an alert fires. If mode is Units, it is an absolute unit count.",
-    example: "15 (percent) or 2 (units)",
+      'The shop threshold value. If mode is Percentage, this is the % of the rolling 3-batch average below which an alert fires. If mode is Units, it is an absolute unit count.',
+    example: '15 (percent) or 2 (units)',
   },
 
   // ─── Notification threshold overrides ───────────────────────────────────
-  "notifications.overrides.title": {
+  'notifications.overrides.title': {
     description:
-      "Per-variant rules that replace the global defaults. Use these when a specific product color+size needs a different trigger than the system-wide setting.",
+      'Per-variant rules that replace the global defaults. Use these when a specific product color+size needs a different trigger than the system-wide setting.',
   },
-  "notifications.overrides.scope": {
+  'notifications.overrides.scope': {
     description:
-      "Whether this override applies to warehouse stock (Store) or shop floor stock (Shop).",
-    example: "Store",
+      'Whether this override applies to warehouse stock (Store) or shop floor stock (Shop).',
+    example: 'Store',
   },
-  "notifications.overrides.product": {
+  'notifications.overrides.product': {
     description:
-      "The specific product color variant this override covers. Identified by article number and color name.",
-    example: "SH-2045 · Black",
+      'The specific product color variant this override covers. Identified by article number and color name.',
+    example: 'SH-2045 · Black',
   },
-  "notifications.overrides.size": {
+  'notifications.overrides.size': {
     description:
-      "The specific size this override covers. Only that size is affected; other sizes still use the global default.",
-    example: "XL",
+      'The specific size this override covers. Only that size is affected; other sizes still use the global default.',
+    example: 'XL',
   },
-  "notifications.overrides.rule": {
+  'notifications.overrides.rule': {
     description:
       "The threshold that triggers a low-stock alert for this variant. Shown as '≤ X%' or '≤ X units'.",
-    example: "≤ 10%",
+    example: '≤ 10%',
   },
 
   // ─── Item categories (catalog) ──────────────────────────────────────────
-  "category.name": {
+  'category.name': {
     description:
-      "Name of the item category — a grouping you use to organise products in the catalog. Each name must be unique.",
-    example: "Shoes, Bags, Accessories",
+      'Name of the item category — a grouping you use to organise products in the catalog. Each name must be unique.',
+    example: 'Shoes, Bags, Accessories',
   },
 } as const satisfies Record<string, HelpEntry>
 
