@@ -11,11 +11,8 @@ import {
 import { listShopRestockSuggestions } from "#/server/functions/shop/restock-suggestions"
 import { getShop } from "#/server/functions/shop/list-shops"
 import { createTransfer } from "#/server/functions/store/transfers"
-import {
-  RestockSuggestionsTable,
-  type SuggestionRow,
-  type SuggestionSelection,
-} from "#/components/notifications/restock-suggestions-table"
+import { RestockSuggestionsTable } from "#/components/notifications/restock-suggestions-table"
+import type { SuggestionSelection } from "#/components/notifications/restock-suggestions-table"
 import { z } from "zod"
 
 const search = z.object({ variant: z.string().optional() })
@@ -23,7 +20,7 @@ const search = z.object({ variant: z.string().optional() })
 export const Route = createFileRoute("/shop/$shopId/restock")({
   beforeLoad: ({ context }) => requireUiPermission(context, "notifications.manage"),
   validateSearch: search,
-  loaderDeps: ({ search }) => ({ variant: search.variant }),
+  loaderDeps: ({ search: deps }) => ({ variant: deps.variant }),
   loader: async ({ params }) => {
     const [shop, suggestions] = await Promise.all([
       getShop({ data: { id: params.shopId } }),
@@ -37,13 +34,10 @@ export const Route = createFileRoute("/shop/$shopId/restock")({
 type Banner = { kind: "success" | "error"; text: string }
 
 function ShopRestockPage() {
-  const { shop, suggestions } = Route.useLoaderData() as {
-    shop: { id: string; name: string }
-    suggestions: SuggestionRow[]
-  }
+  const { shop, suggestions } = Route.useLoaderData()
   const { variant } = Route.useSearch()
   const router = useRouter()
-  const params = Route.useParams() as { shopId: string }
+  const params = Route.useParams()
   const [banner, setBanner] = useState<Banner | null>(null)
 
   async function onSubmit(selections: SuggestionSelection[]) {
@@ -67,7 +61,7 @@ function ShopRestockPage() {
         text: `Transfer dispatched with ${selections.length} item${selections.length === 1 ? "" : "s"}.`,
       })
       await router.invalidate()
-      router.navigate({ to: "/store/transfers" })
+      await router.navigate({ to: "/store/transfers" })
     } catch (e) {
       setBanner({
         kind: "error",
