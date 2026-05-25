@@ -1,0 +1,223 @@
+import 'dotenv/config'
+import { sql } from 'drizzle-orm'
+import { db } from '../src/db'
+
+/**
+ * Backfill the `variants` table from existing `products` × `product_colors`.
+ *
+ * Spec: docs/superpowers/specs/2026-05-24-category-item-variant-design.md
+ *       §4 step 4.
+ *
+ * Pre-flight assertions (each rolls the whole transaction back if non-zero):
+ *
+ *   1. Every stock/notification row addressed by (product_color_id, size)
+ *      must reference a size that lives in `products.sizes` for the parent
+ *      product. Drift here means orphan variants we cannot back-link, so we
+ *      ABORT rather than silently dropping inventory.
+ *
+ *   2. No product may have duplicate sizes in `products.sizes`. The schema
+ *      allows it (Postgres text[] is not a set), but it would let us insert
+ *      duplicates with `unnest` and would violate the unique
+ *      (item_id, color_id, size) constraint anyway.
+ *
+ * Backfill itself uses `INSERT … SELECT DISTINCT … ON CONFLICT DO NOTHING`
+ * so re-running the script is a no-op.
+ */
+export interface BackfillSummary {
+  inserted: number
+  skipped: number
+  assertions: {
+    storeStockOrphans: number
+    shopStockOrphans: number
+    overrideOrphans: number
+    lowStockAlertOrphans: number
+    restockRequisitionOrphans: number
+    productsWithDuplicateSizes: number
+  }
+}
+
+export interface BackfillOptions {
+  /**
+   * Restrict pre-flight assertions and backfill to a specific set of
+   * product (a.k.a. "item") IDs. Used by the test suite to avoid being
+   * tripped up by transient rows that parallel test files write to the
+   * same `inventory_test` database. Production callers (the
+   * `backfill:variants` package script) leave this undefined so assertions
+   * run against the entire catalog.
+   */
+  itemIds?: string[]
+}
+
+const STOCK_TABLES = [
+  'store_stock',
+  'shop_stock',
+  'notification_threshold_overrides',
+  'low_stock_alerts',
+  'restock_requisitions',
+] as const
+
+type StockTable = (typeof STOCK_TABLES)[number]
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+function normaliseRows<T>(result: unknown): T[] {
+  if (Array.isArray(result)) return result as T[]
+  return (result as { rows?: T[] }).rows ?? []
+}
+
+function itemFilterClause(itemIds: string[] | undefined) {
+  if (!itemIds || itemIds.length === 0) return sql``
+  return sql` AND p.id IN (${sql.join(
+    itemIds.map((id) => sql`${id}::uuid`),
+    sql`, `,
+  )})`
+}
+
+async function countOrphans(
+  tx: Tx,
+  table: StockTable,
+  itemIds: string[] | undefined,
+): Promise<number> {
+  // Count rows where (product_color_id, size) does NOT correspond to a
+  // size in the parent product's sizes[] array.
+  const result = await tx.execute<{ orphans: number }>(sql`
+    SELECT COUNT(*)::int AS orphans
+    FROM ${sql.identifier(table)} AS s
+    JOIN product_colors pc ON pc.id = s.product_color_id
+    JOIN products p ON p.id = pc.product_id
+    WHERE NOT (s.size = ANY (p.sizes))${itemFilterClause(itemIds)}
+  `)
+  const rows = normaliseRows<{ orphans: number }>(result)
+  return rows[0]?.orphans ?? 0
+}
+
+export async function backfillVariants(
+  options: BackfillOptions = {},
+): Promise<BackfillSummary> {
+  const { itemIds } = options
+
+  return db.transaction(async (tx) => {
+    // 1. Per-table pre-flight: every (product_color_id, size) in inventory
+    //    must point to a size that the parent product actually carries.
+    const orphanCounts: Record<StockTable, number> = {
+      store_stock: await countOrphans(tx, 'store_stock', itemIds),
+      shop_stock: await countOrphans(tx, 'shop_stock', itemIds),
+      notification_threshold_overrides: await countOrphans(
+        tx,
+        'notification_threshold_overrides',
+        itemIds,
+      ),
+      low_stock_alerts: await countOrphans(tx, 'low_stock_alerts', itemIds),
+      restock_requisitions: await countOrphans(
+        tx,
+        'restock_requisitions',
+        itemIds,
+      ),
+    }
+
+    for (const [table, n] of Object.entries(orphanCounts)) {
+      if (n > 0) {
+        throw new Error(
+          `backfill aborted: ${table} has ${n} row(s) whose (product_color_id, size) does not match products.sizes — fix the data drift before continuing.`,
+        )
+      }
+    }
+
+    // 2. No product may carry duplicate sizes in its sizes[] array.
+    // COALESCE handles the sizes=[] case (array_length returns NULL while
+    // COUNT(DISTINCT …) returns 0 — without coalesce, every empty array
+    // would be mis-flagged as a duplicate).
+    const dupResult = await tx.execute<{ dups: number }>(sql`
+      SELECT COUNT(*)::int AS dups
+      FROM (
+        SELECT 1
+        FROM products p
+        WHERE COALESCE(array_length(p.sizes, 1), 0) <> (
+          SELECT COUNT(DISTINCT s)::int FROM unnest(p.sizes) AS s
+        )${itemFilterClause(itemIds)}
+      ) AS x
+    `)
+    const dupRows = normaliseRows<{ dups: number }>(dupResult)
+    const productsWithDuplicateSizes = dupRows[0]?.dups ?? 0
+    if (productsWithDuplicateSizes > 0) {
+      throw new Error(
+        `backfill aborted: ${productsWithDuplicateSizes} product(s) have duplicate entries in products.sizes — deduplicate before continuing.`,
+      )
+    }
+
+    // 3. Backfill. DISTINCT guards against duplicates even if assertion #2
+    //    is ever bypassed; ON CONFLICT DO NOTHING makes the script
+    //    idempotent on re-runs and on already-backfilled rows.
+    const insertResult = await tx.execute<{ id: string }>(sql`
+      INSERT INTO variants (item_id, color_id, size)
+      SELECT DISTINCT pc.product_id, pc.id, sz
+      FROM product_colors pc
+      JOIN products p ON p.id = pc.product_id
+      CROSS JOIN LATERAL unnest(p.sizes) AS sz
+      WHERE TRUE${itemFilterClause(itemIds)}
+      ON CONFLICT ON CONSTRAINT uq_variant_item_color_size DO NOTHING
+      RETURNING id
+    `)
+    const insertedRows = normaliseRows<{ id: string }>(insertResult)
+    const inserted = insertedRows.length
+
+    // Total candidate (color, size) pairs in the (filtered) catalog —
+    // useful for idempotency assertions and human-readable logging.
+    const candResult = await tx.execute<{ c: number }>(sql`
+      SELECT COUNT(*)::int AS c
+      FROM (
+        SELECT DISTINCT pc.product_id, pc.id, sz
+        FROM product_colors pc
+        JOIN products p ON p.id = pc.product_id
+        CROSS JOIN LATERAL unnest(p.sizes) AS sz
+        WHERE TRUE${itemFilterClause(itemIds)}
+      ) AS x
+    `)
+    const candRows = normaliseRows<{ c: number }>(candResult)
+    const totalCandidates = candRows[0]?.c ?? 0
+
+    return {
+      inserted,
+      skipped: Math.max(totalCandidates - inserted, 0),
+      assertions: {
+        storeStockOrphans: orphanCounts.store_stock,
+        shopStockOrphans: orphanCounts.shop_stock,
+        overrideOrphans: orphanCounts.notification_threshold_overrides,
+        lowStockAlertOrphans: orphanCounts.low_stock_alerts,
+        restockRequisitionOrphans: orphanCounts.restock_requisitions,
+        productsWithDuplicateSizes,
+      },
+    }
+  })
+}
+
+async function main(): Promise<void> {
+  console.log('Backfilling variants from product_colors × products.sizes...')
+  const summary = await backfillVariants()
+  console.log('Assertions:', summary.assertions)
+  console.log(
+    `Done. Inserted ${summary.inserted} variant(s); ${summary.skipped} pre-existing row(s) left untouched.`,
+  )
+}
+
+// Run main() only when executed directly via `pnpm backfill:variants`,
+// not when imported from the Vitest suite.
+const invokedDirectly = (() => {
+  const arg1 = process.argv[1]
+  if (!arg1) return false
+  // tsx resolves the entry to an absolute file path; compare basenames so
+  // both `tsx scripts/backfill-variants.ts` and absolute paths match.
+  return (
+    arg1.endsWith('backfill-variants.ts') ||
+    arg1.endsWith('backfill-variants.js') ||
+    arg1.endsWith('backfill-variants')
+  )
+})()
+
+if (invokedDirectly) {
+  void main()
+    .catch((err: unknown) => {
+      console.error('Backfill failed:', err)
+      process.exit(1)
+    })
+    .then(() => process.exit(0))
+}

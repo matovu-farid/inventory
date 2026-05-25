@@ -1,9 +1,25 @@
-import { describe, it, expect, afterAll } from "vitest"
-import { eq, inArray, and, sql } from "drizzle-orm"
+import { describe, it, expect, afterAll } from 'vitest'
+import { eq, inArray, and, sql } from 'drizzle-orm'
 
-import { db } from "#/db"
-import { products, productColors, variants } from "#/db/schema"
-import { backfillVariants } from "../../scripts/backfill-variants"
+import { db } from '#/db'
+import { products, productColors, variants } from '#/db/schema'
+import { backfillVariants } from '../../scripts/backfill-variants'
+
+// Drizzle's node-postgres adapter wraps DB errors as `Error("Failed query: …")`
+// and stashes the underlying pg error on `.cause` (which carries the SQLSTATE
+// code on `.code`). Use the SQLSTATE for assertions so the test does not
+// depend on the human-readable message format.
+const PG_UNIQUE_VIOLATION = '23505'
+
+async function pgErrorCode(p: Promise<unknown>): Promise<string | undefined> {
+  try {
+    await p
+    return undefined
+  } catch (err) {
+    const cause = (err as { cause?: { code?: string } }).cause
+    return cause?.code
+  }
+}
 
 // Real-DB integration tests. Mirror item-categories.test.ts: each test seeds
 // the rows it needs through the schema and cleans them up in afterAll. The
@@ -22,26 +38,24 @@ afterAll(async () => {
   }
 })
 
-describe("variants — backfill from existing color×size", () => {
-  it("A: backfill row count equals distinct (color, size) pairs", async () => {
+describe('variants — backfill from existing color×size', () => {
+  it('A: backfill row count equals distinct (color, size) pairs', async () => {
     const [prod] = await db
       .insert(products)
       .values({
         articleNumber: ART_A,
         name: `var-test-a-${SUFFIX}`,
-        sizes: ["S", "M", "L"],
+        sizes: ['S', 'M', 'L'],
       })
       .returning()
     createdProductIds.push(prod.id)
 
-    await db
-      .insert(productColors)
-      .values([
-        { productId: prod.id, colorName: "Red", colorHex: "#ff0000" },
-        { productId: prod.id, colorName: "Blue", colorHex: "#0000ff" },
-      ])
+    await db.insert(productColors).values([
+      { productId: prod.id, colorName: 'Red', colorHex: '#ff0000' },
+      { productId: prod.id, colorName: 'Blue', colorHex: '#0000ff' },
+    ])
 
-    const summary = await backfillVariants()
+    const summary = await backfillVariants({ itemIds: [prod.id] })
 
     const rows = await db
       .select()
@@ -49,10 +63,10 @@ describe("variants — backfill from existing color×size", () => {
       .where(eq(variants.itemId, prod.id))
     // 2 colors × 3 sizes = 6 variants.
     expect(rows).toHaveLength(6)
-    expect(summary.inserted).toBeGreaterThanOrEqual(6)
+    expect(summary.inserted).toBe(6)
   })
 
-  it("B: a product with empty sizes produces zero variants", async () => {
+  it('B: a product with empty sizes produces zero variants', async () => {
     const [prod] = await db
       .insert(products)
       .values({
@@ -65,9 +79,9 @@ describe("variants — backfill from existing color×size", () => {
 
     await db
       .insert(productColors)
-      .values({ productId: prod.id, colorName: "Green", colorHex: "#00ff00" })
+      .values({ productId: prod.id, colorName: 'Green', colorHex: '#00ff00' })
 
-    await backfillVariants()
+    await backfillVariants({ itemIds: [prod.id] })
 
     const rows = await db
       .select()
@@ -76,9 +90,12 @@ describe("variants — backfill from existing color×size", () => {
     expect(rows).toHaveLength(0)
   })
 
-  it("C: unique (item_id, color_id, size) rejects duplicate insertion", async () => {
+  it('C: unique (item_id, color_id, size) rejects duplicate insertion', async () => {
     const [prod] = createdProductIds.length
-      ? await db.select().from(products).where(eq(products.id, createdProductIds[0]))
+      ? await db
+          .select()
+          .from(products)
+          .where(eq(products.id, createdProductIds[0]))
       : []
     expect(prod).toBeDefined()
 
@@ -88,21 +105,31 @@ describe("variants — backfill from existing color×size", () => {
       .where(eq(productColors.productId, prod.id))
       .limit(1)
 
-    await expect(
+    const code = await pgErrorCode(
       db
         .insert(variants)
-        .values({ itemId: prod.id, colorId: color.id, size: "S" }),
-    ).rejects.toThrow(/duplicate|unique|conflict/i)
+        .values({ itemId: prod.id, colorId: color.id, size: 'S' }),
+    )
+    expect(code).toBe(PG_UNIQUE_VIOLATION)
   })
 
-  it("C2: re-running backfill is idempotent (ON CONFLICT DO NOTHING)", async () => {
-    const before = await db.select({ c: sql<number>`count(*)::int` }).from(variants)
-    await backfillVariants()
-    const after = await db.select({ c: sql<number>`count(*)::int` }).from(variants)
+  it('C2: re-running backfill is idempotent (ON CONFLICT DO NOTHING)', async () => {
+    // Scope to the products this test file created so we don't measure
+    // rows that other parallel test files may have inserted/deleted.
+    const itemIds = [...createdProductIds]
+    const before = await db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(variants)
+      .where(inArray(variants.itemId, itemIds))
+    await backfillVariants({ itemIds })
+    const after = await db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(variants)
+      .where(inArray(variants.itemId, itemIds))
     expect(after[0].c).toBe(before[0].c)
   })
 
-  it("D: unique partial barcode allows multiple NULLs, rejects duplicate non-NULL", async () => {
+  it('D: unique partial barcode allows multiple NULLs, rejects duplicate non-NULL', async () => {
     const prodId = createdProductIds[0]
     const colors = await db
       .select()
@@ -123,13 +150,13 @@ describe("variants — backfill from existing color×size", () => {
         and(
           eq(variants.itemId, prodId),
           eq(variants.colorId, colors[0].id),
-          eq(variants.size, "S"),
+          eq(variants.size, 'S'),
         ),
       )
 
     // Trying to set the same non-NULL barcode on a different variant must
     // fail because of the unique partial index.
-    await expect(
+    const code = await pgErrorCode(
       db
         .update(variants)
         .set({ barcode })
@@ -137,18 +164,17 @@ describe("variants — backfill from existing color×size", () => {
           and(
             eq(variants.itemId, prodId),
             eq(variants.colorId, colors[0].id),
-            eq(variants.size, "M"),
+            eq(variants.size, 'M'),
           ),
         ),
-    ).rejects.toThrow(/duplicate|unique|conflict/i)
+    )
+    expect(code).toBe(PG_UNIQUE_VIOLATION)
 
     // Two NULL barcodes are still allowed (the M and L rows are both NULL).
     const nullBarcodeRows = await db
       .select({ c: sql<number>`count(*)::int` })
       .from(variants)
-      .where(
-        and(eq(variants.itemId, prodId), sql`barcode IS NULL`),
-      )
+      .where(and(eq(variants.itemId, prodId), sql`barcode IS NULL`))
     expect(nullBarcodeRows[0].c).toBeGreaterThanOrEqual(2)
   })
 })
