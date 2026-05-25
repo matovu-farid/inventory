@@ -1,4 +1,4 @@
-import { db as defaultDb } from "#/db"
+import type { db as defaultDb } from "#/db"
 import {
   storeReceivings,
   supplyRouteItems,
