@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm"
-import { db as defaultDb } from "#/db"
+import type { db as defaultDb } from "#/db"
 import {
   notificationThresholds,
   notificationThresholdOverrides,
@@ -62,10 +62,12 @@ export async function runThresholdChecksInternal(
 }
 
 async function loadDefaults(db: Db): Promise<Defaults> {
-  const [row] = await db
-    .select()
-    .from(notificationThresholds)
-    .where(eq(notificationThresholds.id, "global"))
+  const row = (
+    await db
+      .select()
+      .from(notificationThresholds)
+      .where(eq(notificationThresholds.id, "global"))
+  ).at(0)
   if (!row) {
     await db
       .insert(notificationThresholds)
@@ -224,19 +226,21 @@ interface ShopReconcileArgs {
 }
 
 async function reconcileShopAlert(db: Db, now: Date, args: ShopReconcileArgs) {
-  const [openAlert] = await db
-    .select({ id: lowStockAlerts.id })
-    .from(lowStockAlerts)
-    .where(
-      and(
-        eq(lowStockAlerts.scope, "shop"),
-        eq(lowStockAlerts.locationId, args.shopId),
-        eq(lowStockAlerts.productColorId, args.productColorId),
-        eq(lowStockAlerts.size, args.size),
-        eq(lowStockAlerts.status, "open"),
-      ),
-    )
-    .limit(1)
+  const openAlert = (
+    await db
+      .select({ id: lowStockAlerts.id })
+      .from(lowStockAlerts)
+      .where(
+        and(
+          eq(lowStockAlerts.scope, "shop"),
+          eq(lowStockAlerts.locationId, args.shopId),
+          eq(lowStockAlerts.productColorId, args.productColorId),
+          eq(lowStockAlerts.size, args.size),
+          eq(lowStockAlerts.status, "open"),
+        ),
+      )
+      .limit(1)
+  ).at(0)
 
   if (args.below && !openAlert) {
     const opened = await openShopAlert(db, args)
@@ -253,28 +257,30 @@ async function reconcileShopAlert(db: Db, now: Date, args: ShopReconcileArgs) {
 async function openShopAlert(db: Db, args: ShopReconcileArgs): Promise<boolean> {
   let inserted = false
   await db.transaction(async (tx) => {
-    const [alert] = await tx
-      .insert(lowStockAlerts)
-      .values({
-        scope: "shop",
-        locationId: args.shopId,
-        productColorId: args.productColorId,
-        size: args.size,
-        status: "open",
-        baselineQuantity: Math.round(args.baseline),
-        thresholdSnapshot: args.rule,
-        quantityAtOpen: args.quantityOnHand,
-      })
-      .onConflictDoNothing({
-        target: [
-          lowStockAlerts.scope,
-          lowStockAlerts.locationId,
-          lowStockAlerts.productColorId,
-          lowStockAlerts.size,
-        ],
-        where: sql`${lowStockAlerts.status} = 'open'`,
-      })
-      .returning()
+    const alert = (
+      await tx
+        .insert(lowStockAlerts)
+        .values({
+          scope: "shop",
+          locationId: args.shopId,
+          productColorId: args.productColorId,
+          size: args.size,
+          status: "open",
+          baselineQuantity: Math.round(args.baseline),
+          thresholdSnapshot: args.rule,
+          quantityAtOpen: args.quantityOnHand,
+        })
+        .onConflictDoNothing({
+          target: [
+            lowStockAlerts.scope,
+            lowStockAlerts.locationId,
+            lowStockAlerts.productColorId,
+            lowStockAlerts.size,
+          ],
+          where: sql`${lowStockAlerts.status} = 'open'`,
+        })
+        .returning()
+    ).at(0)
     if (!alert) return // raced — another pass already opened it
     inserted = true
     const notification = await emitToRoles(tx, {
@@ -312,19 +318,21 @@ async function reconcileStoreAlert(
   now: Date,
   args: StoreReconcileArgs,
 ) {
-  const [openAlert] = await db
-    .select({ id: lowStockAlerts.id })
-    .from(lowStockAlerts)
-    .where(
-      and(
-        eq(lowStockAlerts.scope, "store"),
-        eq(lowStockAlerts.locationId, args.storeId),
-        eq(lowStockAlerts.productColorId, args.productColorId),
-        eq(lowStockAlerts.size, args.size),
-        eq(lowStockAlerts.status, "open"),
-      ),
-    )
-    .limit(1)
+  const openAlert = (
+    await db
+      .select({ id: lowStockAlerts.id })
+      .from(lowStockAlerts)
+      .where(
+        and(
+          eq(lowStockAlerts.scope, "store"),
+          eq(lowStockAlerts.locationId, args.storeId),
+          eq(lowStockAlerts.productColorId, args.productColorId),
+          eq(lowStockAlerts.size, args.size),
+          eq(lowStockAlerts.status, "open"),
+        ),
+      )
+      .limit(1)
+  ).at(0)
 
   if (args.below && !openAlert) {
     const opened = await openStoreAlertAndRequisition(db, args)
@@ -366,28 +374,30 @@ async function openStoreAlertAndRequisition(
       0,
       Math.round(args.baseline) - args.quantityOnHand,
     )
-    const [alert] = await tx
-      .insert(lowStockAlerts)
-      .values({
-        scope: "store",
-        locationId: args.storeId,
-        productColorId: args.productColorId,
-        size: args.size,
-        status: "open",
-        baselineQuantity: Math.round(args.baseline),
-        thresholdSnapshot: args.rule,
-        quantityAtOpen: args.quantityOnHand,
-      })
-      .onConflictDoNothing({
-        target: [
-          lowStockAlerts.scope,
-          lowStockAlerts.locationId,
-          lowStockAlerts.productColorId,
-          lowStockAlerts.size,
-        ],
-        where: sql`${lowStockAlerts.status} = 'open'`,
-      })
-      .returning()
+    const alert = (
+      await tx
+        .insert(lowStockAlerts)
+        .values({
+          scope: "store",
+          locationId: args.storeId,
+          productColorId: args.productColorId,
+          size: args.size,
+          status: "open",
+          baselineQuantity: Math.round(args.baseline),
+          thresholdSnapshot: args.rule,
+          quantityAtOpen: args.quantityOnHand,
+        })
+        .onConflictDoNothing({
+          target: [
+            lowStockAlerts.scope,
+            lowStockAlerts.locationId,
+            lowStockAlerts.productColorId,
+            lowStockAlerts.size,
+          ],
+          where: sql`${lowStockAlerts.status} = 'open'`,
+        })
+        .returning()
+    ).at(0)
     if (!alert) return
 
     inserted = true

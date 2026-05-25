@@ -56,13 +56,19 @@ export function RestockSuggestionsTable({
   async function dispatch() {
     setSubmitting(true)
     try {
-      const selections: SuggestionSelection[] = rows
-        .filter((r) => picks[r.alertId]?.checked && r.storeStockId)
-        .map((r) => ({
-          storeStockId: r.storeStockId!,
-          quantity: picks[r.alertId].quantity,
-          productLabel: r.productLabel,
-        }))
+      const selections: SuggestionSelection[] = rows.flatMap((r) => {
+        const pick = picks[r.alertId]
+        if (!pick.checked) return []
+        const storeStockId = r.storeStockId
+        if (storeStockId === null) return []
+        return [
+          {
+            storeStockId,
+            quantity: pick.quantity,
+            productLabel: r.productLabel,
+          },
+        ]
+      })
       await onSubmit(selections)
     } finally {
       setSubmitting(false)
@@ -92,7 +98,7 @@ export function RestockSuggestionsTable({
                 <TableCell>
                   <input
                     type="checkbox"
-                    checked={pick?.checked ?? false}
+                    checked={pick.checked}
                     disabled={disabled}
                     onChange={(e) =>
                       setPicks((p) => ({
@@ -112,8 +118,8 @@ export function RestockSuggestionsTable({
                     type="number"
                     min={0}
                     max={r.storeQuantity}
-                    value={pick?.quantity ?? 0}
-                    disabled={disabled || !pick?.checked}
+                    value={pick.quantity}
+                    disabled={disabled || !pick.checked}
                     onChange={(e) =>
                       setPicks((p) => ({
                         ...p,
@@ -144,7 +150,12 @@ export function RestockSuggestionsTable({
           )}
         </TableBody>
       </Table>
-      <Button onClick={dispatch} disabled={submitting}>
+      <Button
+        onClick={() => {
+          void dispatch()
+        }}
+        disabled={submitting}
+      >
         {submitting ? "Creating transfer…" : "Create transfer"}
       </Button>
     </div>

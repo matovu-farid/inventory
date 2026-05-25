@@ -16,10 +16,12 @@ export const getThresholds = createServerFn().handler(async () => {
   const session = await requireSession()
   requireRole(session, ["admin", "supervisor"])
 
-  const [row] = await db
-    .select()
-    .from(notificationThresholds)
-    .where(eq(notificationThresholds.id, "global"))
+  const row = (
+    await db
+      .select()
+      .from(notificationThresholds)
+      .where(eq(notificationThresholds.id, "global"))
+  ).at(0)
   if (row) {
     return {
       store: { mode: row.storeMode, value: Number(row.storeValue) },

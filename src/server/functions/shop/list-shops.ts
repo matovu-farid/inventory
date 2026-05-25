@@ -10,10 +10,12 @@ export const getShop = createServerFn()
   .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data }) => {
     await requireSession()
-    const [row] = await db
-      .select({ id: shops.id, name: shops.name })
-      .from(shops)
-      .where(eq(shops.id, data.id))
+    const row = (
+      await db
+        .select({ id: shops.id, name: shops.name })
+        .from(shops)
+        .where(eq(shops.id, data.id))
+    ).at(0)
     if (!row) throw new Error("Shop not found")
     return row
   })
