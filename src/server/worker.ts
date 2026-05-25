@@ -15,17 +15,17 @@ interface ScheduledEvent {
   cron: string
 }
 interface ExecutionContext {
-  waitUntil(promise: Promise<unknown>): void
+  waitUntil: (promise: Promise<unknown>) => void
 }
 
 export default {
   fetch: tanstackHandler.fetch.bind(tanstackHandler),
 
-  async scheduled(
+  scheduled: (
     event: ScheduledEvent,
     _env: unknown,
     ctx: ExecutionContext,
-  ): Promise<void> {
+  ): void => {
     const now = new Date(event.scheduledTime)
 
     // 0 4 * * * (daily 04:00 UTC = 07:00 EAT) → threshold check + digest

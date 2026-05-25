@@ -211,7 +211,12 @@ function PromoteDialog({
           )}
         </div>
         <DialogFooter>
-          <Button onClick={go} disabled={busy || !routeId || !supplierId}>
+          <Button
+            onClick={() => {
+              void go()
+            }}
+            disabled={busy || !routeId || !supplierId}
+          >
             {busy ? "Adding…" : "Confirm"}
           </Button>
         </DialogFooter>
@@ -253,7 +258,12 @@ function DismissButton({ id, onDone }: { id: string; onDone: () => void }) {
           onChange={(e) => setReason(e.target.value)}
         />
         <DialogFooter>
-          <Button onClick={go} disabled={busy || reason.trim().length === 0}>
+          <Button
+            onClick={() => {
+              void go()
+            }}
+            disabled={busy || reason.trim().length === 0}
+          >
             {busy ? "Dismissing…" : "Dismiss"}
           </Button>
         </DialogFooter>

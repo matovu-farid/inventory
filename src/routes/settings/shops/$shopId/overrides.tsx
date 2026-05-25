@@ -10,10 +10,7 @@ import {
 import { listOverrides } from "#/server/functions/notifications/thresholds"
 import { listProductColorsForOverrides } from "#/server/functions/products/colors"
 import { getShop } from "#/server/functions/shop/list-shops"
-import {
-  OverrideTable,
-  type OverrideRow,
-} from "#/components/notifications/override-table"
+import { OverrideTable } from "#/components/notifications/override-table"
 
 export const Route = createFileRoute("/settings/shops/$shopId/overrides")({
   beforeLoad: ({ context }) => requireUiPermission(context, "notifications.manage"),
@@ -28,7 +25,7 @@ export const Route = createFileRoute("/settings/shops/$shopId/overrides")({
       label: `${pc.product.articleNumber} · ${pc.colorName}`,
       sizes:
         "sizes" in pc.product && Array.isArray(pc.product.sizes) && pc.product.sizes.length > 0
-          ? (pc.product.sizes as string[])
+          ? pc.product.sizes
           : ["S", "M", "L", "XL", "XXL"],
     }))
     return { shop, overrides, productOptions }
@@ -37,11 +34,7 @@ export const Route = createFileRoute("/settings/shops/$shopId/overrides")({
 })
 
 function PerShopOverridesPage() {
-  const { shop, overrides, productOptions } = Route.useLoaderData() as {
-    shop: { id: string; name: string }
-    overrides: OverrideRow[]
-    productOptions: Array<{ productColorId: string; label: string; sizes: string[] }>
-  }
+  const { shop, overrides, productOptions } = Route.useLoaderData()
   const router = useRouter()
   return (
     <div className="container max-w-3xl py-8 space-y-4">

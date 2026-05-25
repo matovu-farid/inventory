@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNotNull } from "drizzle-orm"
-import { db as defaultDb } from "#/db"
+import type { db as defaultDb } from "#/db"
 import { lowStockAlerts, shops, stores, user } from "#/db/schema"
 import { sendLowStockDigest } from "#/lib/email"
 import { formatProductLabel } from "#/lib/products"
@@ -94,7 +94,7 @@ export async function sendDailyLowStockDigestInternal(
   let sent = 0
   for (const r of recipients) {
     const data: LowStockDigestData = {
-      recipientName: r.name ?? "there",
+      recipientName: r.name,
       appUrl,
       generatedAt: now,
       storeLowCount: storeAlerts.length,

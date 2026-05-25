@@ -18,14 +18,43 @@ import {
   notificationThresholdOverrides,
 } from "#/db/schema"
 import { runThresholdChecksInternal } from "#/server/scheduled/run-threshold-checks"
+import { assertDefined } from "./test-helpers"
 
-const FIXTURE = {
+interface Fixture {
+  user: string
+  supplier?: string
+  product?: string
+  pc?: string
+  store?: string
+  shop?: string
+}
+
+const FIXTURE: Fixture = {
   user: "user-lowstock-test",
-  supplier: undefined as string | undefined,
-  product: undefined as string | undefined,
-  pc: undefined as string | undefined,
-  store: undefined as string | undefined,
-  shop: undefined as string | undefined,
+}
+
+// Narrowing accessors so we don't sprinkle `!` non-null assertions everywhere.
+// Each getter throws a clear error if `seed()` hasn't run, which is also a
+// real failure mode worth surfacing.
+function pcId(): string {
+  assertDefined(FIXTURE.pc, "FIXTURE.pc not seeded")
+  return FIXTURE.pc
+}
+function storeId(): string {
+  assertDefined(FIXTURE.store, "FIXTURE.store not seeded")
+  return FIXTURE.store
+}
+function shopId(): string {
+  assertDefined(FIXTURE.shop, "FIXTURE.shop not seeded")
+  return FIXTURE.shop
+}
+function productId(): string {
+  assertDefined(FIXTURE.product, "FIXTURE.product not seeded")
+  return FIXTURE.product
+}
+function supplierId(): string {
+  assertDefined(FIXTURE.supplier, "FIXTURE.supplier not seeded")
+  return FIXTURE.supplier
 }
 const SIZE = "M"
 
@@ -93,28 +122,28 @@ async function seed() {
 }
 
 async function cleanup() {
-  await db.delete(lowStockAlerts).where(eq(lowStockAlerts.productColorId, FIXTURE.pc!))
+  await db.delete(lowStockAlerts).where(eq(lowStockAlerts.productColorId, pcId()))
   await db
     .delete(restockRequisitions)
-    .where(eq(restockRequisitions.productColorId, FIXTURE.pc!))
+    .where(eq(restockRequisitions.productColorId, pcId()))
   await db
     .delete(notificationThresholdOverrides)
-    .where(eq(notificationThresholdOverrides.productColorId, FIXTURE.pc!))
-  await db.delete(storeStock).where(eq(storeStock.storeId, FIXTURE.store!))
-  await db.delete(shopStock).where(eq(shopStock.shopId, FIXTURE.shop!))
-  await db.delete(storeReceivings).where(eq(storeReceivings.storeId, FIXTURE.store!))
+    .where(eq(notificationThresholdOverrides.productColorId, pcId()))
+  await db.delete(storeStock).where(eq(storeStock.storeId, storeId()))
+  await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
+  await db.delete(storeReceivings).where(eq(storeReceivings.storeId, storeId()))
   await db
     .delete(supplyRouteItems)
-    .where(eq(supplyRouteItems.productColorId, FIXTURE.pc!))
+    .where(eq(supplyRouteItems.productColorId, pcId()))
   // Drop routes by name pattern (we created 3)
   for (const qty of [50, 80, 200]) {
     await db.delete(supplyRoutes).where(eq(supplyRoutes.name, `LS Route ${qty}`))
   }
-  await db.delete(productColors).where(eq(productColors.id, FIXTURE.pc!))
-  await db.delete(products).where(eq(products.id, FIXTURE.product!))
-  await db.delete(shops).where(eq(shops.id, FIXTURE.shop!))
-  await db.delete(stores).where(eq(stores.id, FIXTURE.store!))
-  await db.delete(suppliers).where(eq(suppliers.id, FIXTURE.supplier!))
+  await db.delete(productColors).where(eq(productColors.id, pcId()))
+  await db.delete(products).where(eq(products.id, productId()))
+  await db.delete(shops).where(eq(shops.id, shopId()))
+  await db.delete(stores).where(eq(stores.id, storeId()))
+  await db.delete(suppliers).where(eq(suppliers.id, supplierId()))
   await db.delete(userTable).where(eq(userTable.id, FIXTURE.user))
 }
 
@@ -122,21 +151,21 @@ beforeAll(seed)
 afterAll(cleanup)
 
 beforeEach(async () => {
-  await db.delete(lowStockAlerts).where(eq(lowStockAlerts.productColorId, FIXTURE.pc!))
+  await db.delete(lowStockAlerts).where(eq(lowStockAlerts.productColorId, pcId()))
   await db
     .delete(restockRequisitions)
-    .where(eq(restockRequisitions.productColorId, FIXTURE.pc!))
+    .where(eq(restockRequisitions.productColorId, pcId()))
   await db
     .delete(notificationThresholdOverrides)
-    .where(eq(notificationThresholdOverrides.productColorId, FIXTURE.pc!))
-  await db.delete(storeStock).where(eq(storeStock.storeId, FIXTURE.store!))
-  await db.delete(shopStock).where(eq(shopStock.shopId, FIXTURE.shop!))
+    .where(eq(notificationThresholdOverrides.productColorId, pcId()))
+  await db.delete(storeStock).where(eq(storeStock.storeId, storeId()))
+  await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
 })
 
 async function insertStoreStock(qoh: number) {
   await db.insert(storeStock).values({
-    storeId: FIXTURE.store!,
-    productColorId: FIXTURE.pc!,
+    storeId: storeId(),
+    productColorId: pcId(),
     size: SIZE,
     quantityOnHand: qoh,
     costPerUnitUgx: "1000",
@@ -146,8 +175,8 @@ async function insertStoreStock(qoh: number) {
 
 async function insertShopStock(qoh: number) {
   await db.insert(shopStock).values({
-    shopId: FIXTURE.shop!,
-    productColorId: FIXTURE.pc!,
+    shopId: shopId(),
+    productColorId: pcId(),
     size: SIZE,
     quantityOnHand: qoh,
     costPerUnitUgx: "1500",
@@ -162,8 +191,8 @@ async function ourStoreAlerts() {
     .from(lowStockAlerts)
     .where(
       and(
-        eq(lowStockAlerts.productColorId, FIXTURE.pc!),
-        eq(lowStockAlerts.locationId, FIXTURE.store!),
+        eq(lowStockAlerts.productColorId, pcId()),
+        eq(lowStockAlerts.locationId, storeId()),
       ),
     )
 }
@@ -175,8 +204,8 @@ async function ourShopAlerts() {
     .from(lowStockAlerts)
     .where(
       and(
-        eq(lowStockAlerts.productColorId, FIXTURE.pc!),
-        eq(lowStockAlerts.locationId, FIXTURE.shop!),
+        eq(lowStockAlerts.productColorId, pcId()),
+        eq(lowStockAlerts.locationId, shopId()),
       ),
     )
 }
@@ -195,7 +224,7 @@ describe("runThresholdChecksInternal", () => {
     const reqs = await db
       .select()
       .from(restockRequisitions)
-      .where(eq(restockRequisitions.storeId, FIXTURE.store!))
+      .where(eq(restockRequisitions.storeId, storeId()))
     expect(reqs).toHaveLength(1)
     expect(reqs[0].suggestedQuantity).toBe(110 - 20)
   })
@@ -216,7 +245,7 @@ describe("runThresholdChecksInternal", () => {
     await db
       .update(storeStock)
       .set({ quantityOnHand: 150 })
-      .where(eq(storeStock.storeId, FIXTURE.store!))
+      .where(eq(storeStock.storeId, storeId()))
     await runThresholdChecksInternal(db, new Date())
 
     const alerts = await ourStoreAlerts()
@@ -227,7 +256,7 @@ describe("runThresholdChecksInternal", () => {
     const reqs = await db
       .select()
       .from(restockRequisitions)
-      .where(eq(restockRequisitions.storeId, FIXTURE.store!))
+      .where(eq(restockRequisitions.storeId, storeId()))
     expect(reqs).toHaveLength(1)
     expect(reqs[0].status).toBe("fulfilled")
   })
@@ -238,12 +267,12 @@ describe("runThresholdChecksInternal", () => {
     await db
       .update(storeStock)
       .set({ quantityOnHand: 150 })
-      .where(eq(storeStock.storeId, FIXTURE.store!))
+      .where(eq(storeStock.storeId, storeId()))
     await runThresholdChecksInternal(db, new Date())
     await db
       .update(storeStock)
       .set({ quantityOnHand: 10 })
-      .where(eq(storeStock.storeId, FIXTURE.store!))
+      .where(eq(storeStock.storeId, storeId()))
     await runThresholdChecksInternal(db, new Date())
 
     const alerts = await ourStoreAlerts()
@@ -254,7 +283,7 @@ describe("runThresholdChecksInternal", () => {
   it("respects a variant-specific units override that bypasses percent rule", async () => {
     await db.insert(notificationThresholdOverrides).values({
       scope: "store",
-      productColorId: FIXTURE.pc!,
+      productColorId: pcId(),
       size: SIZE,
       shopId: null,
       mode: "units",
@@ -274,7 +303,7 @@ describe("runThresholdChecksInternal", () => {
     // Add a units override so the rule fires.
     await db.insert(notificationThresholdOverrides).values({
       scope: "shop",
-      productColorId: FIXTURE.pc!,
+      productColorId: pcId(),
       size: SIZE,
       shopId: null,
       mode: "units",
@@ -290,7 +319,7 @@ describe("runThresholdChecksInternal", () => {
     const reqs = await db
       .select()
       .from(restockRequisitions)
-      .where(eq(restockRequisitions.productColorId, FIXTURE.pc!))
+      .where(eq(restockRequisitions.productColorId, pcId()))
     expect(reqs).toHaveLength(0)
   })
 })

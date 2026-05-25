@@ -36,10 +36,12 @@ export const getLowStockAlertNavTarget = createServerFn()
   .inputValidator(navTargetInput)
   .handler(async ({ data }) => {
     await requireSession()
-    const [row] = await db
-      .select()
-      .from(lowStockAlerts)
-      .where(eq(lowStockAlerts.id, data.id))
+    const row = (
+      await db
+        .select()
+        .from(lowStockAlerts)
+        .where(eq(lowStockAlerts.id, data.id))
+    ).at(0)
     if (!row) throw new Error("Alert not found")
     return {
       scope: row.scope,
@@ -70,12 +72,12 @@ export const markNotificationRead = createServerFn()
 const OVERDUE_DAYS = 30
 
 async function runOverdueCreditChecks(
-  db: Parameters<typeof runThresholdChecksInternal>[0],
+  tenantDb: Parameters<typeof runThresholdChecksInternal>[0],
   now: Date,
 ): Promise<{ overdueEmitted: number }> {
   let overdueEmitted = 0
 
-  const openCreditSales = await db
+  const openCreditSales = await tenantDb
     .select()
     .from(shopSales)
     .where(inArray(shopSales.paymentStatus, OPEN_PAYMENT_STATUSES))
@@ -87,7 +89,7 @@ async function runOverdueCreditChecks(
           overdueDays: OVERDUE_DAYS,
         })
       ) {
-        await db.transaction(async (tx) => {
+        await tenantDb.transaction(async (tx) => {
           await emitToRoles(tx, {
             kind: "credit_overdue",
             title: `Overdue credit sale ${sale.documentNumber ?? sale.id.slice(0, 8)}`,

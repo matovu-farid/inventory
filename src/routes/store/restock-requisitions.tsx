@@ -10,10 +10,7 @@ import {
 import { listOpenRequisitions } from "#/server/functions/store/requisitions"
 import { listSupplyRoutes } from "#/server/functions/supply/routes"
 import { listSuppliers } from "#/server/functions/supply/suppliers"
-import {
-  RequisitionsTable,
-  type RequisitionRow,
-} from "#/components/notifications/requisitions-table"
+import { RequisitionsTable } from "#/components/notifications/requisitions-table"
 
 export const Route = createFileRoute("/store/restock-requisitions")({
   beforeLoad: ({ context }) => requireUiPermission(context, "notifications.manage"),
@@ -37,11 +34,7 @@ export const Route = createFileRoute("/store/restock-requisitions")({
 })
 
 function RequisitionsPage() {
-  const { requisitions, routes, suppliers } = Route.useLoaderData() as {
-    requisitions: RequisitionRow[]
-    routes: Array<{ id: string; name: string }>
-    suppliers: Array<{ id: string; name: string }>
-  }
+  const { requisitions, routes, suppliers } = Route.useLoaderData()
   const router = useRouter()
   return (
     <div className="container max-w-6xl py-8 space-y-4">
@@ -59,7 +52,9 @@ function RequisitionsPage() {
             rows={requisitions}
             routes={routes}
             suppliers={suppliers}
-            onChanged={() => router.invalidate()}
+            onChanged={() => {
+              void router.invalidate()
+            }}
           />
         </CardContent>
       </Card>
