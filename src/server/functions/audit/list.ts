@@ -15,10 +15,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { requireSession } from '#/server/middleware/auth'
 import { requireRole } from '#/server/middleware/rbac'
-import {
-  listAuditLogInputSchema,
-  queryAuditLog,
-} from './list.server'
+import { listAuditLogInputSchema, queryAuditLog } from './list.server'
 
 export type {
   AuditJsonValue,
