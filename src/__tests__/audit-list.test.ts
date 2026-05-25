@@ -3,7 +3,7 @@ import { eq, inArray } from "drizzle-orm"
 
 import { db } from "#/db"
 import { auditLogs, user } from "#/db/schema"
-import { queryAuditLog } from "#/server/functions/audit/list"
+import { queryAuditLog } from "#/server/functions/audit/list.server"
 import { queryAuditLogByArticle } from "#/server/functions/audit/list-by-article.server"
 
 // We call the pure query helpers directly instead of the createServerFn
