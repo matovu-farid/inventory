@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
 import { variants } from '#/db/schema'
@@ -97,21 +97,3 @@ export const listVariantsByItem = createServerFn()
     })
   })
 
-/**
- * Checks (color, size) → variant existence — used inside server flows
- * (e.g. receiving) that need to look up a variant by its natural key.
- * Not exported as a server-fn because no client UI consumes it directly.
- */
-export async function findVariantByNaturalKey(
-  itemId: string,
-  colorId: string,
-  size: string,
-) {
-  return db.query.variants.findFirst({
-    where: and(
-      eq(variants.itemId, itemId),
-      eq(variants.colorId, colorId),
-      eq(variants.size, size),
-    ),
-  })
-}
