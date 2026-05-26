@@ -116,6 +116,8 @@ beforeAll(async () => {
   })
 })
 
+// Cleanup runs once at the end; ordering matters because store_stock
+// holds a FK restrict on variants, and variants on items via cascade.
 afterAll(async () => {
   if (FIXTURE.storeId && FIXTURE.variantWithStockId) {
     await db
@@ -128,13 +130,19 @@ afterAll(async () => {
       )
   }
   if (FIXTURE.itemId) {
+    // Drop dependent variant rows first explicitly — afterAll's last
+    // suite invocation runs in unspecified order so don't rely on the
+    // schema cascade timing.
+    await db
+      .delete(variants)
+      .where(inArray(variants.itemId, [FIXTURE.itemId]))
     await db.delete(items).where(eq(items.id, FIXTURE.itemId))
   }
 })
 
 describe("createVariant", () => {
   it("inserts a new (color, size) pair for the item", async () => {
-    const created = await callServerFn(() =>
+    await callServerFn(() =>
       createVariant({
         data: {
           itemId: FIXTURE.itemId!,
@@ -143,12 +151,25 @@ describe("createVariant", () => {
         },
       }),
     )
-    expect(created.itemId).toBe(FIXTURE.itemId)
-    expect(created.colorId).toBe(FIXTURE.colorId)
-    expect(created.size).toBe("XL")
+    // createServerFn's wrapper swallows return values outside SSR (see
+    // item-categories.test.ts), so verify the row landed by reading
+    // straight from the DB.
+    const row = await db.query.variants.findFirst({
+      where: and(
+        eq(variants.itemId, FIXTURE.itemId!),
+        eq(variants.colorId, FIXTURE.colorId!),
+        eq(variants.size, "XL"),
+      ),
+    })
+    expect(row).toBeDefined()
+    expect(row?.itemId).toBe(FIXTURE.itemId)
+    expect(row?.colorId).toBe(FIXTURE.colorId)
+    expect(row?.size).toBe("XL")
 
     // Cleanup so afterAll cascade is clean.
-    await db.delete(variants).where(eq(variants.id, created.id))
+    if (row) {
+      await db.delete(variants).where(eq(variants.id, row.id))
+    }
   })
 
   it("rejects a duplicate (item, color, size) combination", async () => {
@@ -197,12 +218,3 @@ describe("deleteVariant", () => {
   })
 })
 
-// Cleanup any leftover variants (e.g. failed createVariant cleanup) that
-// the afterAll cascade will pick up via items → variants cascade.
-afterAll(async () => {
-  if (FIXTURE.itemId) {
-    await db
-      .delete(variants)
-      .where(inArray(variants.itemId, [FIXTURE.itemId]))
-  }
-})
