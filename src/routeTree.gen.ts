@@ -22,6 +22,7 @@ import { Route as ShopIndexRouteImport } from './routes/shop/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReportsIndexRouteImport } from './routes/reports/index'
 import { Route as ProductsIndexRouteImport } from './routes/products/index'
+import { Route as ItemsIndexRouteImport } from './routes/items/index'
 import { Route as CustomersIndexRouteImport } from './routes/customers/index'
 import { Route as UploadPhotoTokenRouteImport } from './routes/upload-photo.$token'
 import { Route as SupplySuppliersRouteImport } from './routes/supply/suppliers'
@@ -40,6 +41,7 @@ import { Route as ReportsZRouteImport } from './routes/reports/z'
 import { Route as ReportsXRouteImport } from './routes/reports/x'
 import { Route as ReportsLedgerRouteImport } from './routes/reports/ledger'
 import { Route as ProductsArticleNumberRouteImport } from './routes/products/$articleNumber'
+import { Route as ItemsArticleNumberRouteImport } from './routes/items/$articleNumber'
 import { Route as ShopShopIdRestockRouteImport } from './routes/shop/$shopId/restock'
 import { Route as ReportsZIdRouteImport } from './routes/reports/z.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -108,6 +110,11 @@ const ReportsIndexRoute = ReportsIndexRouteImport.update({
 const ProductsIndexRoute = ProductsIndexRouteImport.update({
   id: '/products/',
   path: '/products/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ItemsIndexRoute = ItemsIndexRouteImport.update({
+  id: '/items/',
+  path: '/items/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CustomersIndexRoute = CustomersIndexRouteImport.update({
@@ -201,6 +208,11 @@ const ProductsArticleNumberRoute = ProductsArticleNumberRouteImport.update({
   path: '/products/$articleNumber',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ItemsArticleNumberRoute = ItemsArticleNumberRouteImport.update({
+  id: '/items/$articleNumber',
+  path: '/items/$articleNumber',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ShopShopIdRestockRoute = ShopShopIdRestockRouteImport.update({
   id: '/shop/$shopId/restock',
   path: '/shop/$shopId/restock',
@@ -231,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/pos': typeof PosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
+  '/items/$articleNumber': typeof ItemsArticleNumberRoute
   '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
@@ -249,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/supply/suppliers': typeof SupplySuppliersRoute
   '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers/': typeof CustomersIndexRoute
+  '/items/': typeof ItemsIndexRoute
   '/products/': typeof ProductsIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -268,6 +282,7 @@ export interface FileRoutesByTo {
   '/pos': typeof PosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
+  '/items/$articleNumber': typeof ItemsArticleNumberRoute
   '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
@@ -286,6 +301,7 @@ export interface FileRoutesByTo {
   '/supply/suppliers': typeof SupplySuppliersRoute
   '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers': typeof CustomersIndexRoute
+  '/items': typeof ItemsIndexRoute
   '/products': typeof ProductsIndexRoute
   '/reports': typeof ReportsIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -306,6 +322,7 @@ export interface FileRoutesById {
   '/pos': typeof PosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
+  '/items/$articleNumber': typeof ItemsArticleNumberRoute
   '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
@@ -324,6 +341,7 @@ export interface FileRoutesById {
   '/supply/suppliers': typeof SupplySuppliersRoute
   '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers/': typeof CustomersIndexRoute
+  '/items/': typeof ItemsIndexRoute
   '/products/': typeof ProductsIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -345,6 +363,7 @@ export interface FileRouteTypes {
     | '/pos'
     | '/reset-password'
     | '/verify-email-sent'
+    | '/items/$articleNumber'
     | '/products/$articleNumber'
     | '/reports/ledger'
     | '/reports/x'
@@ -363,6 +382,7 @@ export interface FileRouteTypes {
     | '/supply/suppliers'
     | '/upload-photo/$token'
     | '/customers/'
+    | '/items/'
     | '/products/'
     | '/reports/'
     | '/settings/'
@@ -382,6 +402,7 @@ export interface FileRouteTypes {
     | '/pos'
     | '/reset-password'
     | '/verify-email-sent'
+    | '/items/$articleNumber'
     | '/products/$articleNumber'
     | '/reports/ledger'
     | '/reports/x'
@@ -400,6 +421,7 @@ export interface FileRouteTypes {
     | '/supply/suppliers'
     | '/upload-photo/$token'
     | '/customers'
+    | '/items'
     | '/products'
     | '/reports'
     | '/settings'
@@ -419,6 +441,7 @@ export interface FileRouteTypes {
     | '/pos'
     | '/reset-password'
     | '/verify-email-sent'
+    | '/items/$articleNumber'
     | '/products/$articleNumber'
     | '/reports/ledger'
     | '/reports/x'
@@ -437,6 +460,7 @@ export interface FileRouteTypes {
     | '/supply/suppliers'
     | '/upload-photo/$token'
     | '/customers/'
+    | '/items/'
     | '/products/'
     | '/reports/'
     | '/settings/'
@@ -457,6 +481,7 @@ export interface RootRouteChildren {
   PosRoute: typeof PosRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailSentRoute: typeof VerifyEmailSentRoute
+  ItemsArticleNumberRoute: typeof ItemsArticleNumberRoute
   ProductsArticleNumberRoute: typeof ProductsArticleNumberRoute
   ReportsLedgerRoute: typeof ReportsLedgerRoute
   ReportsXRoute: typeof ReportsXRoute
@@ -475,6 +500,7 @@ export interface RootRouteChildren {
   SupplySuppliersRoute: typeof SupplySuppliersRoute
   UploadPhotoTokenRoute: typeof UploadPhotoTokenRoute
   CustomersIndexRoute: typeof CustomersIndexRoute
+  ItemsIndexRoute: typeof ItemsIndexRoute
   ProductsIndexRoute: typeof ProductsIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -577,6 +603,13 @@ declare module '@tanstack/react-router' {
       path: '/products'
       fullPath: '/products/'
       preLoaderRoute: typeof ProductsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/items/': {
+      id: '/items/'
+      path: '/items'
+      fullPath: '/items/'
+      preLoaderRoute: typeof ItemsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/customers/': {
@@ -705,6 +738,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductsArticleNumberRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/items/$articleNumber': {
+      id: '/items/$articleNumber'
+      path: '/items/$articleNumber'
+      fullPath: '/items/$articleNumber'
+      preLoaderRoute: typeof ItemsArticleNumberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/shop/$shopId/restock': {
       id: '/shop/$shopId/restock'
       path: '/shop/$shopId/restock'
@@ -756,6 +796,7 @@ const rootRouteChildren: RootRouteChildren = {
   PosRoute: PosRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailSentRoute: VerifyEmailSentRoute,
+  ItemsArticleNumberRoute: ItemsArticleNumberRoute,
   ProductsArticleNumberRoute: ProductsArticleNumberRoute,
   ReportsLedgerRoute: ReportsLedgerRoute,
   ReportsXRoute: ReportsXRoute,
@@ -774,6 +815,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupplySuppliersRoute: SupplySuppliersRoute,
   UploadPhotoTokenRoute: UploadPhotoTokenRoute,
   CustomersIndexRoute: CustomersIndexRoute,
+  ItemsIndexRoute: ItemsIndexRoute,
   ProductsIndexRoute: ProductsIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
@@ -787,12 +829,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

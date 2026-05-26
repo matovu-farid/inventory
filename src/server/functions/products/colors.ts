@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
-import { productColors } from "#/db/schema"
+import { itemColors } from "#/db/schema"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
@@ -17,16 +17,27 @@ export const addProductColor = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    // App-level uniqueness check on (productId, colorName) — the schema's
-    // idx_pc_unique is a non-unique index, so we guard here.
-    const existing = await db.query.productColors.findFirst({
+    // App-level uniqueness check on (itemId, colorName) — the schema's
+    // idx_ic_unique is a non-unique index, so we guard here.
+    const existing = await db.query.itemColors.findFirst({
       where: and(
-        eq(productColors.productId, data.productId),
-        eq(productColors.colorName, data.colorName),
+        eq(itemColors.itemId, data.productId),
+        eq(itemColors.colorName, data.colorName),
       ),
     })
     if (existing) throw new Error(`Color "${data.colorName}" already exists for this product`)
-    const [row] = await db.insert(productColors).values(data).returning()
+    const [row] = await db
+      .insert(itemColors)
+      .values({
+        // The renamed `itemColors` table uses `itemId` for its TS property
+        // (column `item_id`). The public input on this server function still
+        // accepts `productId` so its callers don't have to change in lockstep
+        // — the rename of consumer call-sites is out of scope for #3.
+        itemId: data.productId,
+        colorName: data.colorName,
+        colorHex: data.colorHex,
+      })
+      .returning()
     return row
   })
 
@@ -40,7 +51,7 @@ export const updateProductColor = createServerFn()
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
     const { id, ...fields } = data
-    const [row] = await db.update(productColors).set(fields).where(eq(productColors.id, id)).returning()
+    const [row] = await db.update(itemColors).set(fields).where(eq(itemColors.id, id)).returning()
     return row
   })
 
@@ -50,9 +61,9 @@ export const setProductColorImage = createServerFn()
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
     const [row] = await db
-      .update(productColors)
+      .update(itemColors)
       .set({ imageS3Key: data.imageS3Key })
-      .where(eq(productColors.id, data.id))
+      .where(eq(itemColors.id, data.id))
       .returning()
     return row
   })
@@ -62,11 +73,11 @@ export const deleteProductColor = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
-    await db.delete(productColors).where(eq(productColors.id, data.id))
+    await db.delete(itemColors).where(eq(itemColors.id, data.id))
   })
 
 /**
- * Returns all product colors with their parent product, ordered by article
+ * Returns all item colors with their parent item, ordered by article
  * number then color name.  Used by the notification-override UI to populate
  * the variant picker.
  */
@@ -74,9 +85,11 @@ export const listProductColorsForOverrides = createServerFn().handler(
   async () => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    return db.query.productColors.findMany({
+    return db.query.itemColors.findMany({
+      // Relation key kept as `product` to avoid forcing every UI consumer
+      // to rename `pc.product` → `pc.item` in lockstep with this DB rename.
       with: { product: true },
-      orderBy: (pc, { asc }) => [asc(pc.productId), asc(pc.colorName)],
+      orderBy: (ic, { asc }) => [asc(ic.itemId), asc(ic.colorName)],
     })
   },
 )

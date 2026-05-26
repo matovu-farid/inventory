@@ -4,7 +4,7 @@
 // bundle by TanStack's import-protection plugin (`.server.ts` suffix).
 //
 // Keeping `#/db` out of this file's module scope is mandatory: this module
-// is reachable from src/routes/products/$articleNumber.tsx via the
+// is reachable from src/routes/items/$articleNumber.tsx via the
 // routeTree (→ audit-activity-panel.tsx), and the plugin walks the static
 // import graph regardless of whether the imports are only used inside
 // server-fn handlers.

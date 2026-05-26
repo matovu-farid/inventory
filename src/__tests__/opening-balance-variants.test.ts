@@ -3,8 +3,9 @@ import { runWithStartContext } from "@tanstack/start-storage-context"
 
 import { db } from "#/db"
 import {
-  products,
-  productColors,
+  items,
+  itemColors,
+  itemCategories,
   stores,
   storeStock,
   transactions,
@@ -83,17 +84,22 @@ afterAll(async () => {
 
 describe("addStoreOpeningBalance — variants", () => {
   it("creates one store_stock row per variant cell", async () => {
+    const [uncat] = await db
+      .select()
+      .from(itemCategories)
+      .where(eq(itemCategories.name, "Uncategorized"))
     const [p] = await db
-      .insert(products)
+      .insert(items)
       .values({
         articleNumber: `OB-${Date.now()}`,
         name: "Test",
         sizes: ["S", "M"],
+        itemCategoryId: uncat.id,
       })
       .returning()
     const [c] = await db
-      .insert(productColors)
-      .values({ productId: p.id, colorName: "Red", colorHex: "#cc2828" })
+      .insert(itemColors)
+      .values({ itemId: p.id, colorName: "Red", colorHex: "#cc2828" })
       .returning()
     await db.insert(stores).values({ name: "Test Store" }).onConflictDoNothing()
 
@@ -124,7 +130,7 @@ describe("addStoreOpeningBalance — variants", () => {
     expect(rows.map((r) => r.size).sort()).toEqual(["M", "S"])
 
     await db.delete(storeStock).where(eq(storeStock.productColorId, c.id))
-    await db.delete(productColors).where(eq(productColors.id, c.id))
-    await db.delete(products).where(eq(products.id, p.id))
+    await db.delete(itemColors).where(eq(itemColors.id, c.id))
+    await db.delete(items).where(eq(items.id, p.id))
   })
 })

@@ -16,7 +16,7 @@ import { relations, sql } from "drizzle-orm"
 import { user } from "./auth"
 import { shops } from "./shops"
 import { stores } from "./store"
-import { productColors } from "./products"
+import { itemColors } from "./items"
 import { supplyRouteItems } from "./supply-routes"
 
 export const notifications = pgTable(
@@ -90,7 +90,7 @@ export const notificationThresholdOverrides = pgTable(
     scope: thresholdScopeEnum("scope").notNull(),
     productColorId: uuid("product_color_id")
       .notNull()
-      .references(() => productColors.id, { onDelete: "cascade" }),
+      .references(() => itemColors.id, { onDelete: "cascade" }),
     size: text("size").notNull(),
     shopId: uuid("shop_id").references(() => shops.id, { onDelete: "cascade" }),
     mode: thresholdModeEnum("mode").notNull(),
@@ -124,7 +124,7 @@ export const lowStockAlerts = pgTable(
     locationId: uuid("location_id").notNull(),
     productColorId: uuid("product_color_id")
       .notNull()
-      .references(() => productColors.id, { onDelete: "restrict" }),
+      .references(() => itemColors.id, { onDelete: "restrict" }),
     size: text("size").notNull(),
     status: lowStockAlertStatusEnum("status").notNull().default("open"),
     baselineQuantity: integer("baseline_quantity").notNull(),
@@ -158,7 +158,7 @@ export const restockRequisitions = pgTable(
       .references(() => stores.id, { onDelete: "restrict" }),
     productColorId: uuid("product_color_id")
       .notNull()
-      .references(() => productColors.id, { onDelete: "restrict" }),
+      .references(() => itemColors.id, { onDelete: "restrict" }),
     size: text("size").notNull(),
     suggestedQuantity: integer("suggested_quantity").notNull(),
     baselineQuantity: integer("baseline_quantity").notNull(),
@@ -195,9 +195,9 @@ export const notificationThresholdsRelations = relations(
 export const notificationThresholdOverridesRelations = relations(
   notificationThresholdOverrides,
   ({ one }) => ({
-    productColor: one(productColors, {
+    productColor: one(itemColors, {
       fields: [notificationThresholdOverrides.productColorId],
-      references: [productColors.id],
+      references: [itemColors.id],
     }),
     shop: one(shops, {
       fields: [notificationThresholdOverrides.shopId],
@@ -207,9 +207,9 @@ export const notificationThresholdOverridesRelations = relations(
 )
 
 export const lowStockAlertsRelations = relations(lowStockAlerts, ({ one }) => ({
-  productColor: one(productColors, {
+  productColor: one(itemColors, {
     fields: [lowStockAlerts.productColorId],
-    references: [productColors.id],
+    references: [itemColors.id],
   }),
   notification: one(notifications, {
     fields: [lowStockAlerts.notificationId],
@@ -224,9 +224,9 @@ export const restockRequisitionsRelations = relations(
       fields: [restockRequisitions.storeId],
       references: [stores.id],
     }),
-    productColor: one(productColors, {
+    productColor: one(itemColors, {
       fields: [restockRequisitions.productColorId],
-      references: [productColors.id],
+      references: [itemColors.id],
     }),
     supplyRouteItem: one(supplyRouteItems, {
       fields: [restockRequisitions.supplyRouteItemId],

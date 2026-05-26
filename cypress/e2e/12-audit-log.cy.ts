@@ -11,7 +11,7 @@
  * 1. /store/receiving → auto-selects the lone seeded route → sets the date
  *    picker to 2026-04-10 → submits.
  * 2. /settings/audit-log → filters by article number → row visible.
- * 3. /products/${ART} → Activity panel shows the row.
+ * 3. /items/${ART} → Activity panel shows the row.
  */
 
 const TIMESTAMP = Date.now()
@@ -51,14 +51,14 @@ describe("Backdated receipt audit log", () => {
 
     cy.task(
       "dbQuery",
-      `INSERT INTO products (id, article_number, name) VALUES (gen_random_uuid(), '${ART}', 'Audit Test Product') RETURNING id;`,
+      `INSERT INTO items (id, article_number, name, item_category_id) VALUES (gen_random_uuid(), '${ART}', 'Audit Test Product', (SELECT id FROM item_categories WHERE name = 'Uncategorized')) RETURNING id;`,
     ).as("productId")
 
     cy.then(function () {
       const productId = (this.productId as Array<{ id: string }>)[0].id
       cy.task(
         "dbQuery",
-        `INSERT INTO product_colors (id, product_id, color_name, color_hex) VALUES (gen_random_uuid(), '${productId}', 'Black', '#000000') RETURNING id;`,
+        `INSERT INTO item_colors (id, item_id, color_name, color_hex) VALUES (gen_random_uuid(), '${productId}', 'Black', '#000000') RETURNING id;`,
       ).as("pcId")
     })
 
@@ -121,7 +121,7 @@ describe("Backdated receipt audit log", () => {
     cy.contains("2026-04-10").should("be.visible")
 
     // Step 3 — product detail Activity panel.
-    cy.visit(`/products/${ART}`)
+    cy.visit(`/items/${ART}`)
     cy.wait(3500)
 
     // The Activity h2 may be below the fold; assert presence in DOM rather

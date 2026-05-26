@@ -10,7 +10,7 @@ import {
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { user } from "./auth"
-import { productColors } from "./products"
+import { itemColors } from "./items"
 
 export const shops = pgTable("shops", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -33,7 +33,7 @@ export const shopStock = pgTable(
       .references(() => shops.id, { onDelete: "restrict" }),
     productColorId: uuid("product_color_id")
       .notNull()
-      .references(() => productColors.id, { onDelete: "restrict" }),
+      .references(() => itemColors.id, { onDelete: "restrict" }),
     size: text("size").notNull(),
     storeTransferItemId: uuid("store_transfer_item_id"),
     quantityOnHand: integer("quantity_on_hand").notNull().default(0),
@@ -64,8 +64,8 @@ export const shopStockRelations = relations(shopStock, ({ one }) => ({
     fields: [shopStock.shopId],
     references: [shops.id],
   }),
-  productColor: one(productColors, {
+  productColor: one(itemColors, {
     fields: [shopStock.productColorId],
-    references: [productColors.id],
+    references: [itemColors.id],
   }),
 }))

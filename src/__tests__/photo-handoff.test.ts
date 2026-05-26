@@ -7,8 +7,9 @@ import { eq } from "drizzle-orm"
 import { db } from "#/db"
 import {
   pictureUploadTokens,
-  products,
-  productColors,
+  items,
+  itemColors,
+  itemCategories,
   user as userTable,
 } from "#/db/schema"
 import * as _internal from "#/server/functions/products/photo-handoff-internals"
@@ -27,28 +28,37 @@ async function seed() {
     emailVerified: true,
     role: "admin",
   })
+  const [uncat] = await db
+    .select()
+    .from(itemCategories)
+    .where(eq(itemCategories.name, "Uncategorized"))
   const p = (
     await db
-      .insert(products)
-      .values({ articleNumber: runId, name: `T ${runId}`, sizes: ["M"] })
+      .insert(items)
+      .values({
+        articleNumber: runId,
+        name: `T ${runId}`,
+        sizes: ["M"],
+        itemCategoryId: uncat.id,
+      })
       .returning()
   )[0]
   colorId = (
     await db
-      .insert(productColors)
-      .values({ productId: p.id, colorName: "Red", colorHex: "#dc2626" })
+      .insert(itemColors)
+      .values({ itemId: p.id, colorName: "Red", colorHex: "#dc2626" })
       .returning()
   )[0].id
 }
 
 async function teardown() {
   await db.delete(pictureUploadTokens).where(eq(pictureUploadTokens.productColorId, colorId))
-  const p = await db.query.products.findFirst({
-    where: eq(products.articleNumber, runId),
+  const p = await db.query.items.findFirst({
+    where: eq(items.articleNumber, runId),
   })
   if (p) {
-    await db.delete(productColors).where(eq(productColors.productId, p.id))
-    await db.delete(products).where(eq(products.id, p.id))
+    await db.delete(itemColors).where(eq(itemColors.itemId, p.id))
+    await db.delete(items).where(eq(items.id, p.id))
   }
   await db.delete(userTable).where(eq(userTable.id, userId))
 }
@@ -86,7 +96,7 @@ describe("photo-handoff internals", () => {
     )
   })
 
-  it("markConsumed sets consumedAt and updates productColors.imageS3Key", async () => {
+  it("markConsumed sets consumedAt and updates itemColors.imageS3Key", async () => {
     const token = `${runId}-good`
     await db.insert(pictureUploadTokens).values({
       token,
@@ -103,8 +113,8 @@ describe("photo-handoff internals", () => {
     expect(stored?.consumedAt).toBeTruthy()
     expect(stored?.uploadedKey).toBe(key)
 
-    const color = await db.query.productColors.findFirst({
-      where: eq(productColors.id, colorId),
+    const color = await db.query.itemColors.findFirst({
+      where: eq(itemColors.id, colorId),
     })
     expect(color?.imageS3Key).toBe(key)
   })

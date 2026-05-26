@@ -4,8 +4,9 @@ import { eq } from "drizzle-orm"
 
 import { db } from "#/db"
 import {
-  products,
-  productColors,
+  items,
+  itemColors,
+  itemCategories,
   stores,
   storeReceivings,
   storeStock,
@@ -111,19 +112,24 @@ beforeAll(async () => {
     .returning()
   supplierId = sup.id
 
+  const [uncat] = await db
+    .select()
+    .from(itemCategories)
+    .where(eq(itemCategories.name, "Uncategorized"))
   const [p] = await db
-    .insert(products)
+    .insert(items)
     .values({
       articleNumber: `BACKDATE-A-${SUFFIX}`,
       name: "Backdate Test Article",
       sizes: ["M"],
+      itemCategoryId: uncat.id,
     })
     .returning()
   productId = p.id
 
   const [c] = await db
-    .insert(productColors)
-    .values({ productId, colorName: "Blue", colorHex: "#1a3fcf" })
+    .insert(itemColors)
+    .values({ itemId: productId, colorName: "Blue", colorHex: "#1a3fcf" })
     .returning()
   colorId = c.id
 
@@ -163,8 +169,8 @@ afterAll(async () => {
   await db.delete(auditLogs).where(eq(auditLogs.actorUserId, TEST_USER_ID))
   await db.delete(supplyRouteItems).where(eq(supplyRouteItems.id, itemId))
   await db.delete(supplyRoutes).where(eq(supplyRoutes.id, routeId))
-  await db.delete(productColors).where(eq(productColors.id, colorId))
-  await db.delete(products).where(eq(products.id, productId))
+  await db.delete(itemColors).where(eq(itemColors.id, colorId))
+  await db.delete(items).where(eq(items.id, productId))
   await db.delete(suppliers).where(eq(suppliers.id, supplierId))
   await db.delete(user).where(eq(user.id, TEST_USER_ID))
 })

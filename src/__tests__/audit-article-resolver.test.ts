@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest"
 import { db } from "#/db"
 import {
-  products,
-  productColors,
+  items,
+  itemColors,
+  itemCategories,
   suppliers,
   supplyRoutes,
   supplyRouteItems,
@@ -28,12 +29,25 @@ beforeAll(async () => {
     updatedAt: new Date(),
   }).onConflictDoNothing()
 
-  const [pa] = await db.insert(products).values({ articleNumber: ART_A, name: "A" }).returning()
-  const [pb] = await db.insert(products).values({ articleNumber: ART_B, name: "B" }).returning()
+  const [uncat] = await db
+    .select()
+    .from(itemCategories)
+    .where(eq(itemCategories.name, "Uncategorized"))
+  const [pa] = await db
+    .insert(items)
+    .values({ articleNumber: ART_A, name: "A", itemCategoryId: uncat.id })
+    .returning()
+  const [pb] = await db
+    .insert(items)
+    .values({ articleNumber: ART_B, name: "B", itemCategoryId: uncat.id })
+    .returning()
   ids.productA = pa.id
   ids.productB = pb.id
 
-  const [pca] = await db.insert(productColors).values({ productId: pa.id, colorName: "Red", colorHex: "#f00" }).returning()
+  const [pca] = await db
+    .insert(itemColors)
+    .values({ itemId: pa.id, colorName: "Red", colorHex: "#f00" })
+    .returning()
   ids.pcA = pca.id
 
   const [sup] = await db.insert(suppliers).values({ name: "Resolver Test Supplier", type: "local" }).returning()
@@ -72,9 +86,9 @@ afterAll(async () => {
   await db.delete(supplyRouteItems).where(eq(supplyRouteItems.supplyRouteId, ids.routeId))
   await db.delete(supplyRoutes).where(eq(supplyRoutes.id, ids.routeId))
   await db.delete(suppliers).where(eq(suppliers.id, ids.supplierId))
-  await db.delete(productColors).where(eq(productColors.productId, ids.productA))
-  await db.delete(products).where(eq(products.id, ids.productA))
-  await db.delete(products).where(eq(products.id, ids.productB))
+  await db.delete(itemColors).where(eq(itemColors.itemId, ids.productA))
+  await db.delete(items).where(eq(items.id, ids.productA))
+  await db.delete(items).where(eq(items.id, ids.productB))
   await db.delete(user).where(eq(user.id, USER_ID))
 })
 

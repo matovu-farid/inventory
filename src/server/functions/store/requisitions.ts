@@ -83,8 +83,10 @@ export const promoteRequisitionsToRoute = createServerFn()
             supplyRouteId: data.supplyRouteId,
             supplierId: data.supplierId,
             productColorId: req.productColorId,
-            // productId set via subquery on productColors
-            productId: sql`(SELECT product_id FROM product_colors WHERE id = ${req.productColorId})`,
+            // productId set via subquery on item_colors (table renamed from
+            // product_colors in #3; the FK column item_id was previously
+            // named product_id and renamed in the same migration).
+            productId: sql`(SELECT item_id FROM item_colors WHERE id = ${req.productColorId})`,
             size: req.size,
             quantity: req.suggestedQuantity,
             unitPriceForeign: "0",

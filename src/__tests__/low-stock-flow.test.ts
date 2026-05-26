@@ -2,8 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest"
 import { eq, and } from "drizzle-orm"
 import { db } from "#/db"
 import {
-  products,
-  productColors,
+  items,
+  itemColors,
+  itemCategories,
   stores,
   storeStock,
   storeReceivings,
@@ -68,14 +69,22 @@ async function seed() {
   })
   const [s] = await db.insert(suppliers).values({ name: "S1-lowstock", type: "local" }).returning()
   FIXTURE.supplier = s.id
+  const [uncat] = await db
+    .select()
+    .from(itemCategories)
+    .where(eq(itemCategories.name, "Uncategorized"))
   const [p] = await db
-    .insert(products)
-    .values({ articleNumber: "ART-LS", name: "LS Product" })
+    .insert(items)
+    .values({
+      articleNumber: "ART-LS",
+      name: "LS Product",
+      itemCategoryId: uncat.id,
+    })
     .returning()
   FIXTURE.product = p.id
   const [pc] = await db
-    .insert(productColors)
-    .values({ productId: p.id, colorName: "Red", colorHex: "#F00" })
+    .insert(itemColors)
+    .values({ itemId: p.id, colorName: "Red", colorHex: "#F00" })
     .returning()
   FIXTURE.pc = pc.id
   const [store] = await db.insert(stores).values({ name: "LS Store" }).returning()
@@ -139,8 +148,8 @@ async function cleanup() {
   for (const qty of [50, 80, 200]) {
     await db.delete(supplyRoutes).where(eq(supplyRoutes.name, `LS Route ${qty}`))
   }
-  await db.delete(productColors).where(eq(productColors.id, pcId()))
-  await db.delete(products).where(eq(products.id, productId()))
+  await db.delete(itemColors).where(eq(itemColors.id, pcId()))
+  await db.delete(items).where(eq(items.id, productId()))
   await db.delete(shops).where(eq(shops.id, shopId()))
   await db.delete(stores).where(eq(stores.id, storeId()))
   await db.delete(suppliers).where(eq(suppliers.id, supplierId()))
