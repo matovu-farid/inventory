@@ -73,18 +73,42 @@ describe("Low-stock restock flow", () => {
 
       Cypress.env("RESTOCK_SHOP_ID", shopId)
 
+      // Stock tables key on variant_id after issue #4 — seed the matching
+      // variant row first, then point store_stock / shop_stock at it.
+      // Notification tables (overrides / alerts / requisitions) still hold
+      // (product_color_id, size) until issue #5 lands.
+      cy.task("dbQuery", `
+        INSERT INTO variants (item_id, color_id, size)
+        SELECT item_id, id, 'M' FROM item_colors WHERE id = '${pcId}'
+        ON CONFLICT DO NOTHING
+        RETURNING id;
+      `)
+      cy.task("dbQuery", `
+        SELECT id FROM variants WHERE color_id = '${pcId}' AND size = 'M' LIMIT 1;
+      `).as("variantId")
+    })
+
+    cy.then(function () {
+      const variantId = (this.variantId as Array<{ id: string }>)[0].id
+      const shopId = (this.shopId as Array<{ id: string }>)[0].id
+      const storeId = (this.storeId as Array<{ id: string }>)[0].id
+      const pcId = (this.pcId as Array<{ id: string }>)[0].id
+
       // Store stock — warehouse has 100 units available
       cy.task("dbQuery", `
-        INSERT INTO store_stock (id, store_id, product_color_id, size, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
-        VALUES (gen_random_uuid(), '${storeId}', '${pcId}', 'M', 100, 1000, 1500)
+        INSERT INTO store_stock (id, store_id, variant_id, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
+        VALUES (gen_random_uuid(), '${storeId}', '${variantId}', 100, 1000, 1500)
         RETURNING id;
       `).as("storeStockId")
 
       // Shop stock — only 2 units (below the threshold of 5)
       cy.task("dbQuery", `
-        INSERT INTO shop_stock (id, shop_id, product_color_id, size, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
-        VALUES (gen_random_uuid(), '${shopId}', '${pcId}', 'M', 2, 1500, 2000);
+        INSERT INTO shop_stock (id, shop_id, variant_id, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
+        VALUES (gen_random_uuid(), '${shopId}', '${variantId}', 2, 1500, 2000);
       `)
+
+      // Re-expose pcId for the notification inserts below (TS narrow).
+      Cypress.env("RESTOCK_PC_ID", pcId)
 
       // Per-variant units override: threshold = 5 (qoh=2 is below it)
       cy.task("dbQuery", `
