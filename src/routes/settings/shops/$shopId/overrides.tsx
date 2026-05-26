@@ -1,40 +1,38 @@
-import { createFileRoute, useRouter, Link } from "@tanstack/react-router"
-import { requireUiPermission } from "#/lib/permissions"
+import { createFileRoute, useRouter, Link } from '@tanstack/react-router'
+import { requireUiPermission } from '#/lib/permissions'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "#/components/ui/card"
-import { listOverrides } from "#/server/functions/notifications/thresholds"
-import { listProductColorsForOverrides } from "#/server/functions/products/colors"
-import { getShop } from "#/server/functions/shop/list-shops"
-import { OverrideTable } from "#/components/notifications/override-table"
+} from '#/components/ui/card'
+import { listOverrides } from '#/server/functions/notifications/thresholds'
+import { listVariantsForOverrides } from '#/server/functions/products/colors'
+import { getShop } from '#/server/functions/shop/list-shops'
+import { OverrideTable } from '#/components/notifications/override-table'
 
-export const Route = createFileRoute("/settings/shops/$shopId/overrides")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "notifications.manage"),
+export const Route = createFileRoute('/settings/shops/$shopId/overrides')({
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, 'notifications.manage'),
   loader: async ({ params }) => {
-    const [shop, overrides, productColorsRaw] = await Promise.all([
+    const [shop, overrides, variantsRaw] = await Promise.all([
       getShop({ data: { id: params.shopId } }),
       listOverrides({ data: { shopId: params.shopId } }),
-      listProductColorsForOverrides(),
+      listVariantsForOverrides(),
     ])
-    const productOptions = productColorsRaw.map((pc) => ({
-      productColorId: pc.id,
-      label: `${pc.product.articleNumber} · ${pc.colorName}`,
-      sizes:
-        "sizes" in pc.product && Array.isArray(pc.product.sizes) && pc.product.sizes.length > 0
-          ? pc.product.sizes
-          : ["S", "M", "L", "XL", "XXL"],
+    const variantOptions = variantsRaw.map((v) => ({
+      variantId: v.id,
+      label: `${v.item.articleNumber} · ${v.color.colorName}`,
+      size: v.size,
     }))
-    return { shop, overrides, productOptions }
+    return { shop, overrides, variantOptions }
   },
   component: PerShopOverridesPage,
 })
 
 function PerShopOverridesPage() {
-  const { shop, overrides, productOptions } = Route.useLoaderData()
+  const { shop, overrides, variantOptions } = Route.useLoaderData()
   const router = useRouter()
   return (
     <div className="container max-w-3xl py-8 space-y-4">
@@ -58,7 +56,7 @@ function PerShopOverridesPage() {
           <OverrideTable
             rows={overrides}
             showShopColumn={true}
-            productOptions={productOptions}
+            variantOptions={variantOptions}
             shopOptions={[{ id: shop.id, name: shop.name }]}
             defaultShopId={shop.id}
             onChanged={() => {

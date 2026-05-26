@@ -1,7 +1,7 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
+import { createServerFn } from '@tanstack/react-start'
+import { and, eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
 import {
   lowStockAlerts,
   shopStock,
@@ -9,10 +9,10 @@ import {
   items,
   storeStock,
   variants,
-} from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { formatProductLabel } from "#/lib/products"
+} from '#/db/schema'
+import { requireSession } from '#/server/middleware/auth'
+import { requireRole } from '#/server/middleware/rbac'
+import { formatProductLabel } from '#/lib/products'
 
 const input = z.object({ shopId: z.uuid() })
 
@@ -20,20 +20,21 @@ export const listShopRestockSuggestions = createServerFn()
   .inputValidator(input)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ['admin', 'supervisor'])
 
-    // Join open alerts for this shop with the live shop_stock row and the
-    // matching store_stock row (for restock source — same variant in
-    // warehouse). The alerts table still keys on (product_color_id, size)
-    // — that swap is owned by issue #5 — so this query bridges via the
-    // `variants` table: alert.product_color_id+size ↔ variant.color_id+size
-    // ↔ shop_stock.variant_id / store_stock.variant_id.
+    // Join open alerts (variant-keyed per #5) with the live shop_stock row
+    // and the matching store_stock row (same variant in warehouse) so the
+    // restock UI can show "currently in shop / in store" side-by-side.
+    //
+    // shop_stock / store_stock still carry (product_color_id, size) until
+    // #4 swaps them onto variant_id. Until then we resolve via the variant
+    // table's colorId + size.
     const rows = await db
       .select({
         alertId: lowStockAlerts.id,
         shopStockId: shopStock.id,
-        productColorId: lowStockAlerts.productColorId,
-        size: lowStockAlerts.size,
+        variantId: variants.id,
+        size: variants.size,
         quantityOnHand: shopStock.quantityOnHand,
         baseline: lowStockAlerts.baselineQuantity,
         storeStockId: storeStock.id,
@@ -42,45 +43,42 @@ export const listShopRestockSuggestions = createServerFn()
         colorName: itemColors.colorName,
       })
       .from(lowStockAlerts)
-      .innerJoin(
-        variants,
-        and(
-          eq(variants.colorId, lowStockAlerts.productColorId),
-          eq(variants.size, lowStockAlerts.size),
-        ),
-      )
+      .innerJoin(variants, eq(variants.id, lowStockAlerts.variantId))
+      .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
+      .innerJoin(items, eq(items.id, variants.itemId))
       .innerJoin(
         shopStock,
         and(
           eq(shopStock.shopId, lowStockAlerts.locationId),
-          eq(shopStock.variantId, variants.id),
+          eq(shopStock.productColorId, variants.colorId),
+          eq(shopStock.size, variants.size),
         ),
       )
-      .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
-      .innerJoin(items, eq(items.id, itemColors.itemId))
-      .leftJoin(storeStock, eq(storeStock.variantId, variants.id))
+      .leftJoin(
+        storeStock,
+        and(
+          eq(storeStock.productColorId, variants.colorId),
+          eq(storeStock.size, variants.size),
+        ),
+      )
       .where(
         and(
-          eq(lowStockAlerts.scope, "shop"),
+          eq(lowStockAlerts.scope, 'shop'),
           eq(lowStockAlerts.locationId, data.shopId),
-          eq(lowStockAlerts.status, "open"),
+          eq(lowStockAlerts.status, 'open'),
         ),
       )
 
     return rows.map((r) => ({
       alertId: r.alertId,
       shopStockId: r.shopStockId,
-      productColorId: r.productColorId,
+      variantId: r.variantId,
       size: r.size,
       quantityOnHand: r.quantityOnHand,
       baseline: r.baseline,
       suggestedQuantity: Math.max(0, r.baseline - r.quantityOnHand),
       storeStockId: r.storeStockId,
       storeQuantity: r.storeQuantity ?? 0,
-      productLabel: formatProductLabel(
-        r.articleNumber,
-        r.colorName,
-        r.size,
-      ),
+      productLabel: formatProductLabel(r.articleNumber, r.colorName, r.size),
     }))
   })

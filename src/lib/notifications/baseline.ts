@@ -1,4 +1,4 @@
-import type { db as defaultDb } from "#/db"
+import type { db as defaultDb } from '#/db'
 import {
   storeReceivings,
   supplyRouteItems,
@@ -6,8 +6,8 @@ import {
   storeTransferItems,
   storeStock,
   variants,
-} from "#/db/schema"
-import { and, desc, eq, sql } from "drizzle-orm"
+} from '#/db/schema'
+import { and, desc, eq, sql } from 'drizzle-orm'
 
 export interface BaselineResult {
   baseline: number | null
@@ -15,8 +15,12 @@ export interface BaselineResult {
 }
 
 interface VariantKey {
-  productColorId: string
-  size: string
+  /**
+   * Variant the baseline is computed for. Stock / supply-route tables still
+   * carry `(product_color_id, size)` (rename owned by #4), so we resolve them
+   * via the variants table on the way in.
+   */
+  variantId: string
 }
 
 type Db = typeof defaultDb
@@ -32,11 +36,17 @@ export async function computeStoreBaseline(
       supplyRouteItems,
       eq(storeReceivings.supplyRouteItemId, supplyRouteItems.id),
     )
+    .innerJoin(
+      variants,
+      and(
+        eq(variants.colorId, supplyRouteItems.productColorId),
+        eq(variants.size, supplyRouteItems.size),
+      ),
+    )
     .where(
       and(
         eq(storeReceivings.storeId, args.storeId),
-        eq(supplyRouteItems.productColorId, args.productColorId),
-        eq(supplyRouteItems.size, args.size),
+        eq(variants.id, args.variantId),
       ),
     )
     .orderBy(desc(storeReceivings.receivedDate))
@@ -49,11 +59,6 @@ export async function computeShopBaseline(
   db: Db,
   args: { shopId: string } & VariantKey,
 ): Promise<BaselineResult> {
-  // store_stock now keys on variant_id (issue #4). The notification
-  // domain (alert keys, baseline lookups, threshold overrides) still
-  // operates on (product_color_id, size) until issue #5 lands, so we
-  // bridge by joining store_stock → variants and filtering on the
-  // variant's (color_id, size).
   const rows = await db
     .select({
       qty: sql<number>`COALESCE(${storeTransferItems.quantityReceived}, ${storeTransferItems.quantityDispatched})`,
@@ -64,12 +69,17 @@ export async function computeShopBaseline(
       eq(storeTransferItems.storeTransferId, storeTransfers.id),
     )
     .innerJoin(storeStock, eq(storeTransferItems.storeStockId, storeStock.id))
-    .innerJoin(variants, eq(variants.id, storeStock.variantId))
+    .innerJoin(
+      variants,
+      and(
+        eq(variants.colorId, storeStock.productColorId),
+        eq(variants.size, storeStock.size),
+      ),
+    )
     .where(
       and(
         eq(storeTransfers.shopId, args.shopId),
-        eq(variants.colorId, args.productColorId),
-        eq(variants.size, args.size),
+        eq(variants.id, args.variantId),
       ),
     )
     .orderBy(desc(storeTransferItems.createdAt))

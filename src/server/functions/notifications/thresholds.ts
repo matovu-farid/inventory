@@ -1,26 +1,26 @@
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
+import { createServerFn } from '@tanstack/react-start'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
 import {
   notificationThresholds,
   notificationThresholdOverrides,
-} from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+} from '#/db/schema'
+import { requireSession } from '#/server/middleware/auth'
+import { requireRole } from '#/server/middleware/rbac'
 
-const modeEnum = z.enum(["percent", "units"])
-const scopeEnum = z.enum(["store", "shop"])
+const modeEnum = z.enum(['percent', 'units'])
+const scopeEnum = z.enum(['store', 'shop'])
 
 export const getThresholds = createServerFn().handler(async () => {
   const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  requireRole(session, ['admin', 'supervisor'])
 
   const row = (
     await db
       .select()
       .from(notificationThresholds)
-      .where(eq(notificationThresholds.id, "global"))
+      .where(eq(notificationThresholds.id, 'global'))
   ).at(0)
   if (row) {
     return {
@@ -30,11 +30,11 @@ export const getThresholds = createServerFn().handler(async () => {
   }
   await db
     .insert(notificationThresholds)
-    .values({ id: "global" })
+    .values({ id: 'global' })
     .onConflictDoNothing()
   return {
-    store: { mode: "percent" as const, value: 30 },
-    shop: { mode: "percent" as const, value: 15 },
+    store: { mode: 'percent' as const, value: 30 },
+    shop: { mode: 'percent' as const, value: 15 },
   }
 })
 
@@ -47,11 +47,11 @@ export const updateThresholds = createServerFn()
   .inputValidator(updateInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin"])
+    requireRole(session, ['admin'])
     await db
       .insert(notificationThresholds)
       .values({
-        id: "global",
+        id: 'global',
         storeMode: data.store.mode,
         storeValue: String(data.store.value),
         shopMode: data.shop.mode,
@@ -75,18 +75,30 @@ const listOverridesInput = z.object({
   shopId: z.uuid().optional(),
 })
 
+/**
+ * Returns the per-variant override rows joined with enough catalog data for
+ * the settings UI to show item + color + size for each row.
+ *
+ * The relational query traverses `variant → item / color` so the threshold
+ * UI doesn't have to do its own joins.
+ */
 export const listOverrides = createServerFn()
   .inputValidator(listOverridesInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ['admin', 'supervisor'])
     const whereClause = data.shopId
       ? eq(notificationThresholdOverrides.shopId, data.shopId)
       : undefined
     return db.query.notificationThresholdOverrides.findMany({
       where: whereClause,
       with: {
-        productColor: { with: { product: true } },
+        variant: {
+          with: {
+            item: true,
+            color: true,
+          },
+        },
         shop: true,
       },
     })
@@ -94,8 +106,7 @@ export const listOverrides = createServerFn()
 
 const upsertOverrideInput = z.object({
   scope: scopeEnum,
-  productColorId: z.uuid(),
-  size: z.string().min(1),
+  variantId: z.uuid(),
   shopId: z.uuid().nullable(),
   mode: modeEnum,
   value: z.number().positive(),
@@ -105,13 +116,12 @@ export const upsertOverride = createServerFn()
   .inputValidator(upsertOverrideInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin"])
+    requireRole(session, ['admin'])
     await db
       .insert(notificationThresholdOverrides)
       .values({
         scope: data.scope,
-        productColorId: data.productColorId,
-        size: data.size,
+        variantId: data.variantId,
         shopId: data.shopId,
         mode: data.mode,
         value: String(data.value),
@@ -119,8 +129,7 @@ export const upsertOverride = createServerFn()
       .onConflictDoUpdate({
         target: [
           notificationThresholdOverrides.scope,
-          notificationThresholdOverrides.productColorId,
-          notificationThresholdOverrides.size,
+          notificationThresholdOverrides.variantId,
           notificationThresholdOverrides.shopId,
         ],
         set: {
@@ -137,7 +146,7 @@ export const deleteOverride = createServerFn()
   .inputValidator(deleteOverrideInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin"])
+    requireRole(session, ['admin'])
     await db
       .delete(notificationThresholdOverrides)
       .where(eq(notificationThresholdOverrides.id, data.id))
