@@ -126,7 +126,7 @@ describe.skip("Full Inventory Workflow", () => {
             // Insert supply route item
             cy.task(
               "dbQuery",
-              `INSERT INTO supply_route_items (supply_route_id, supplier_id, product_name, quantity, unit_price_foreign, foreign_currency, exchange_rate_foreign_to_usd, exchange_rate_usd_to_ugx, total_amount_foreign, total_amount_usd, total_cost_ugx)
+              `INSERT INTO supply_route_lines (supply_route_id, supplier_id, product_name, quantity, unit_price_foreign, foreign_currency, exchange_rate_foreign_to_usd, exchange_rate_usd_to_ugx, total_amount_foreign, total_amount_usd, total_cost_ugx)
                VALUES ('${routeId}', '${supplierId}', 'Cotton T-Shirts', 100, '45.00', 'RMB', '7.200000', '3700.00', '4500.00', '625.00', '2312500.00')`,
             )
 

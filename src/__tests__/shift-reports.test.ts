@@ -14,7 +14,7 @@ import {
   itemCategories,
   shopStock,
   shopSales,
-  shopSaleItems,
+  shopSaleLines,
   shiftClosures,
   variants,
 } from "#/db/schema"
@@ -86,7 +86,7 @@ async function seed() {
 }
 
 async function teardown() {
-  await db.delete(shopSaleItems).where(eq(shopSaleItems.shopStockId, stockId))
+  await db.delete(shopSaleLines).where(eq(shopSaleLines.shopStockId, stockId))
   await db.delete(shopSales).where(eq(shopSales.shopId, shopId))
   await db.delete(shiftClosures).where(eq(shiftClosures.shopId, shopId))
   await db.delete(shopStock).where(eq(shopStock.id, stockId))
@@ -116,7 +116,7 @@ async function addSale(method: "cash" | "bank" | "credit", total: string) {
       totalAmount: total,
     })
     .returning()
-  await db.insert(shopSaleItems).values({
+  await db.insert(shopSaleLines).values({
     shopSaleId: sale.id,
     shopStockId: stockId,
     quantity: 1,

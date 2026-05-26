@@ -74,7 +74,7 @@ describe("Backdated receipt audit log", () => {
       const productId = (this.productId as Array<{ id: string }>)[0].id
       cy.task(
         "dbQuery",
-        `INSERT INTO supply_route_items
+        `INSERT INTO supply_route_lines
           (id, supply_route_id, supplier_id, item_id, color_id, size, quantity, unit_price_foreign, total_amount_foreign, total_cost_ugx)
           VALUES (gen_random_uuid(), '${routeId}', '${supplierId}', '${productId}', '${pcId}', 'M', 10, '10', '100', '1000');`,
       )

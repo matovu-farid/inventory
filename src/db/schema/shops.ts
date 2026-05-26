@@ -32,8 +32,8 @@ export const shops = pgTable("shops", {
  * §3 "Altered tables" and §4 step 5; the migration that performed the
  * column swap + backfill lives at `drizzle/0012_stock_variant_id.sql`.
  *
- * Related downstream tables (`shop_sale_items`, `shop_return_items`,
- * `stock_take_items`) reference `shop_stock.id` and pick up the variant
+ * Related downstream tables (`shop_sale_lines`, `shop_return_lines`,
+ * `stock_take_lines`) reference `shop_stock.id` and pick up the variant
  * change transitively — no direct change to their schemas in this issue.
  */
 export const shopStock = pgTable(

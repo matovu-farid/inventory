@@ -10,7 +10,7 @@ import {
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { user } from "./auth"
-import { supplyRouteItems } from "./supply-routes"
+import { supplyRouteLines } from "./supply-routes"
 import { variants } from "./variants"
 
 export const stores = pgTable("stores", {
@@ -31,9 +31,11 @@ export const storeReceivings = pgTable(
     storeId: uuid("store_id")
       .notNull()
       .references(() => stores.id, { onDelete: "restrict" }),
-    supplyRouteItemId: uuid("supply_route_item_id")
+    // Renamed from `supply_route_item_id` in Phase 2 (#8) when the source
+    // table was renamed `supply_route_items` → `supply_route_lines`.
+    supplyRouteLineId: uuid("supply_route_line_id")
       .notNull()
-      .references(() => supplyRouteItems.id, { onDelete: "restrict" }),
+      .references(() => supplyRouteLines.id, { onDelete: "restrict" }),
     receivedDate: timestamp("received_date", { withTimezone: true }).notNull(),
     quantityExpected: integer("quantity_expected").notNull(),
     quantityReceived: integer("quantity_received").notNull(),
@@ -49,7 +51,7 @@ export const storeReceivings = pgTable(
   },
   (table) => [
     index("idx_sr_store").on(table.storeId),
-    index("idx_sr_item").on(table.supplyRouteItemId),
+    index("idx_sr_line").on(table.supplyRouteLineId),
   ],
 )
 
@@ -61,7 +63,7 @@ export const storeReceivings = pgTable(
  * §3 "Altered tables" and §4 step 5; the migration that performed the
  * column swap + backfill lives at `drizzle/0012_stock_variant_id.sql`.
  *
- * Related downstream tables (`store_transfer_items`, `stock_take_items`)
+ * Related downstream tables (`store_transfer_lines`, `stock_take_lines`)
  * reference `store_stock.id` and pick up the variant change transitively
  * — no direct change to their schemas in this issue.
  */
@@ -75,8 +77,10 @@ export const storeStock = pgTable(
     variantId: uuid("variant_id")
       .notNull()
       .references(() => variants.id, { onDelete: "restrict" }),
-    supplyRouteItemId: uuid("supply_route_item_id").references(
-      () => supplyRouteItems.id,
+    // Renamed from `supply_route_item_id` in Phase 2 (#8) when the source
+    // table was renamed `supply_route_items` → `supply_route_lines`.
+    supplyRouteLineId: uuid("supply_route_line_id").references(
+      () => supplyRouteLines.id,
       { onDelete: "restrict" },
     ),
     quantityOnHand: integer("quantity_on_hand").notNull().default(0),
@@ -90,7 +94,7 @@ export const storeStock = pgTable(
   },
   (table) => [
     index("idx_ss_store").on(table.storeId),
-    index("idx_ss_item").on(table.supplyRouteItemId),
+    index("idx_ss_line").on(table.supplyRouteLineId),
     index("idx_ss_variant").on(table.variantId),
     unique("uq_ss_variant").on(table.storeId, table.variantId),
   ],
@@ -107,9 +111,9 @@ export const storeReceivingRelations = relations(storeReceivings, ({ one }) => (
     fields: [storeReceivings.storeId],
     references: [stores.id],
   }),
-  supplyRouteItem: one(supplyRouteItems, {
-    fields: [storeReceivings.supplyRouteItemId],
-    references: [supplyRouteItems.id],
+  supplyRouteLine: one(supplyRouteLines, {
+    fields: [storeReceivings.supplyRouteLineId],
+    references: [supplyRouteLines.id],
   }),
   receivedByUser: one(user, {
     fields: [storeReceivings.receivedBy],
@@ -122,9 +126,9 @@ export const storeStockRelations = relations(storeStock, ({ one }) => ({
     fields: [storeStock.storeId],
     references: [stores.id],
   }),
-  supplyRouteItem: one(supplyRouteItems, {
-    fields: [storeStock.supplyRouteItemId],
-    references: [supplyRouteItems.id],
+  supplyRouteLine: one(supplyRouteLines, {
+    fields: [storeStock.supplyRouteLineId],
+    references: [supplyRouteLines.id],
   }),
   variant: one(variants, {
     fields: [storeStock.variantId],

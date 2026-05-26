@@ -138,7 +138,7 @@ export const addStoreOpeningBalance = createServerFn()
             .values({
               storeId: store.id,
               variantId: cell.variantId,
-              supplyRouteItemId: null,
+              supplyRouteLineId: null,
               quantityOnHand: cell.quantity,
               costPerUnitUgx: cost.toFixed(2),
               minimumSellPriceUgx: cost.toFixed(2),

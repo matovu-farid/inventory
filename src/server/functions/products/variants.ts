@@ -14,7 +14,7 @@ import { requireRole } from '#/server/middleware/rbac'
  *
  * Delete is gated by FK restrict on every table that references
  * `variant_id` (shop_stock, store_stock, notification_threshold_overrides,
- * low_stock_alerts, restock_requisitions, shop_sale_items via stock,
+ * low_stock_alerts, restock_requisitions, shop_sale_lines via stock,
  * etc.). The handler catches the SQLSTATE 23503 violation and surfaces a
  * human-readable message instead of the raw pg error.
  */

@@ -1,11 +1,11 @@
 import BigNumber from "bignumber.js"
 import type { ParsedRouteItem } from "#/lib/excel/parser"
-import type { supplyRouteItems } from "#/db/schema"
+import type { supplyRouteLines } from "#/db/schema"
 
-type NewSupplyRouteItem = typeof supplyRouteItems.$inferInsert
+type NewSupplyRouteItem = typeof supplyRouteLines.$inferInsert
 
 /**
- * Build a `supplyRouteItems` insert row from a parsed Excel item.
+ * Build a `supplyRouteLines` insert row from a parsed Excel item.
  *
  * DISABLED: Excel import has not been ported to the variant schema yet
  * (plan §9 explicitly defers variant support for the importer). The
@@ -22,7 +22,7 @@ export function prepareImportItem(
   throw new Error(
     "Excel import is disabled while variant support is being added. Use the manual flow for now.",
   )
-  // Unreachable: previous implementation built a supplyRouteItems insert
+  // Unreachable: previous implementation built a supplyRouteLines insert
   // row from the parsed item. Kept for reference when re-enabling.
   void BigNumber
 }

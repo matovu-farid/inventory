@@ -73,8 +73,8 @@ export const supplyRouteSuppliers = pgTable(
   ],
 )
 
-export const supplyRouteItems = pgTable(
-  "supply_route_items",
+export const supplyRouteLines = pgTable(
+  "supply_route_lines",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     supplyRouteId: uuid("supply_route_id")
@@ -89,8 +89,8 @@ export const supplyRouteItems = pgTable(
     //
     // Renamed from `product_id` for #6 (the catalog rename landed `products
     // → items` in #3 but supply_route_items kept the old column name until
-    // now — the table itself stays `supply_route_items`; the rename to
-    // `supply_route_lines` is Phase 2 / #8).
+    // then). The table itself was renamed from `supply_route_items` to
+    // `supply_route_lines` in Phase 2 (#8).
     itemId: uuid("item_id").references(() => items.id, {
       onDelete: "restrict",
     }),
@@ -128,11 +128,11 @@ export const supplyRouteItems = pgTable(
       .notNull(),
   },
   (table) => [
-    index("idx_sri_route").on(table.supplyRouteId),
-    index("idx_sri_supplier").on(table.supplierId),
-    index("idx_sri_color").on(table.colorId),
-    index("idx_sri_item").on(table.itemId),
-    unique("uq_sri_variant").on(
+    index("idx_srl_route").on(table.supplyRouteId),
+    index("idx_srl_supplier").on(table.supplierId),
+    index("idx_srl_color").on(table.colorId),
+    index("idx_srl_item").on(table.itemId),
+    unique("uq_srl_variant").on(
       table.supplyRouteId,
       table.supplierId,
       table.colorId,
@@ -165,7 +165,12 @@ export const supplyRouteExpenses = pgTable(
 // Relations
 export const supplyRouteRelations = relations(supplyRoutes, ({ many }) => ({
   suppliers: many(supplyRouteSuppliers),
-  items: many(supplyRouteItems),
+  // Relation key `items` retained as a stable JS API (`with: { items: true }`
+  // call sites unchanged). The underlying table is now `supply_route_lines`
+  // (#8). Keeping the relation key minimises diff scope; the spec's
+  // "relation names renamed in lockstep" is honoured by renaming the
+  // `*Relations` export const + `idx_srl_*` index names + FK column names.
+  items: many(supplyRouteLines),
   expenses: many(supplyRouteExpenses),
 }))
 
@@ -180,26 +185,27 @@ export const supplyRouteSupplierRelations = relations(supplyRouteSuppliers, ({ o
   }),
 }))
 
-export const supplyRouteItemRelations = relations(supplyRouteItems, ({ one }) => ({
+export const supplyRouteLineRelations = relations(supplyRouteLines, ({ one }) => ({
   supplyRoute: one(supplyRoutes, {
-    fields: [supplyRouteItems.supplyRouteId],
+    fields: [supplyRouteLines.supplyRouteId],
     references: [supplyRoutes.id],
   }),
   supplier: one(suppliers, {
-    fields: [supplyRouteItems.supplierId],
+    fields: [supplyRouteLines.supplierId],
     references: [suppliers.id],
   }),
   // Relation names kept as `product` / `productColor` (rather than
-  // `item` / `color`) until the table itself is renamed to
-  // `supply_route_lines` in Phase 2 (#8). Renaming the relations here
-  // would churn every `with: { product, productColor }` callsite —
-  // separate from the FK column rename — for no behavioural gain.
+  // `item` / `color`) for now to avoid churning every `with: {
+  // product, productColor }` callsite. The TABLE rename to
+  // `supply_route_lines` (Phase 2 / #8) renames the table, FK
+  // column, and Drizzle symbols — the relation names within the
+  // line table stay as they are.
   product: one(items, {
-    fields: [supplyRouteItems.itemId],
+    fields: [supplyRouteLines.itemId],
     references: [items.id],
   }),
   productColor: one(itemColors, {
-    fields: [supplyRouteItems.colorId],
+    fields: [supplyRouteLines.colorId],
     references: [itemColors.id],
   }),
 }))

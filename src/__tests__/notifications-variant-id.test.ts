@@ -25,7 +25,7 @@ import {
   shops,
   shopStock,
   supplyRoutes,
-  supplyRouteItems,
+  supplyRouteLines,
   suppliers,
   user as userTable,
   lowStockAlerts,
@@ -133,7 +133,7 @@ async function seed() {
       .values({ name: `NV Route ${qty}`, status: 'received' })
       .returning()
     const [item] = await db
-      .insert(supplyRouteItems)
+      .insert(supplyRouteLines)
       .values({
         supplyRouteId: route.id,
         supplierId: s.id,
@@ -148,7 +148,7 @@ async function seed() {
       .returning()
     await db.insert(storeReceivings).values({
       storeId: store.id,
-      supplyRouteItemId: item.id,
+      supplyRouteLineId: item.id,
       receivedDate: dates[idx++],
       quantityExpected: qty,
       quantityReceived: qty,
@@ -174,8 +174,8 @@ async function cleanup() {
     .where(eq(restockRequisitions.variantId, variantId()))
   await db.delete(storeReceivings).where(eq(storeReceivings.storeId, storeId()))
   await db
-    .delete(supplyRouteItems)
-    .where(eq(supplyRouteItems.colorId, pcId()))
+    .delete(supplyRouteLines)
+    .where(eq(supplyRouteLines.colorId, pcId()))
   for (const qty of [50, 80, 200]) {
     await db
       .delete(supplyRoutes)

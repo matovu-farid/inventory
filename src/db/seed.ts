@@ -11,7 +11,7 @@ import {
   shops,
   supplyRoutes,
   supplyRouteSuppliers,
-  supplyRouteItems,
+  supplyRouteLines,
   storeStock,
   variants,
 } from "./schema"
@@ -327,7 +327,7 @@ async function seed() {
           totalCostUgx: totalUgx.toFixed(2),
         }
       })
-      await db.insert(supplyRouteItems).values(rows)
+      await db.insert(supplyRouteLines).values(rows)
       console.log(`  1 supply route, ${rows.length} variant items.`)
     } else {
       console.log(`  supply route already seeded; skipping.`)

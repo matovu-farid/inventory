@@ -5,7 +5,7 @@ import BigNumber from "bignumber.js"
 import { db } from "#/db"
 import {
   storeTransfers,
-  storeTransferItems,
+  storeTransferLines,
   storeStock,
   shopStock,
   shops,
@@ -129,7 +129,7 @@ export const createTransfer = createServerFn()
         }
 
         // Create transfer item
-        await tx.insert(storeTransferItems).values({
+        await tx.insert(storeTransferLines).values({
           storeTransferId: transfer.id,
           storeStockId: item.storeStockId,
           quantityDispatched: item.quantityDispatched,
@@ -285,12 +285,12 @@ export const confirmTransferReceipt = createServerFn()
         })
 
         await tx
-          .update(storeTransferItems)
+          .update(storeTransferLines)
           .set({
             quantityReceived: receiptItem.quantityReceived,
             discrepancyNotes: receiptItem.discrepancyNotes,
           })
-          .where(eq(storeTransferItems.id, ti.id))
+          .where(eq(storeTransferLines.id, ti.id))
 
         // Upsert shop stock — merge into existing (shopId, variantId) row.
         // The unique constraint forces aggregation across multiple transfers.

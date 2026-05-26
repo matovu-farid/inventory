@@ -139,7 +139,7 @@ function ReceivingPage() {
         data: {
           supplyRouteId: selectedRouteId,
           items: items.map((i) => ({
-            supplyRouteItemId: i.id,
+            supplyRouteLineId: i.id,
             quantityReceived: receivedQtys[i.id] ?? i.quantity,
             discrepancyNotes: (discrepancyNotes[i.id] ?? "").trim() || undefined,
           })),

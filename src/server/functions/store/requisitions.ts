@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { db } from '#/db'
 import {
   restockRequisitions,
-  supplyRouteItems,
+  supplyRouteLines,
   supplyRoutes,
 } from '#/db/schema'
 import { requireSession } from '#/server/middleware/auth'
@@ -96,7 +96,7 @@ export const promoteRequisitionsToRoute = createServerFn()
       }
 
       // Resolve each requisition's variant_id back to (item_id, color_id, size)
-      // to fill in supply_route_items's catalog FKs.
+      // to fill in supply_route_lines's catalog FKs.
       const variantIds = stillOpen.map((r) => r.variantId)
       const variantRows = await tx.query.variants.findMany({
         where: (v, ops) => ops.inArray(v.id, variantIds),
@@ -111,7 +111,7 @@ export const promoteRequisitionsToRoute = createServerFn()
           )
         }
         const [item] = await tx
-          .insert(supplyRouteItems)
+          .insert(supplyRouteLines)
           .values({
             supplyRouteId: data.supplyRouteId,
             supplierId: data.supplierId,
@@ -127,7 +127,7 @@ export const promoteRequisitionsToRoute = createServerFn()
           .returning()
         await tx
           .update(restockRequisitions)
-          .set({ status: 'planned', supplyRouteItemId: item.id })
+          .set({ status: 'planned', supplyRouteLineId: item.id })
           .where(eq(restockRequisitions.id, req.id))
       }
       return { promoted: stillOpen.length }

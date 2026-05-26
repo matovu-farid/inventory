@@ -6,12 +6,12 @@ import type { ParsedRouteItem } from "#/lib/excel/parser"
 // All tests in this file are skipped; re-enable when import-prepare.ts handles variants.
 
 /**
- * Tests for BUG-3: import-excel.ts inserts supply_route_items with
+ * Tests for BUG-3: import-excel.ts inserts supply_route_lines with
  * `supplierId: null as unknown as string`, which violates the NOT NULL FK
  * constraint and crashes at runtime.
  *
  * Intended pure-helper API:
- *   prepareImportItem(parsedItem, supplierId, supplyRouteId) -> NewSupplyRouteItem
+ *   prepareImportItem(parsedItem, supplierId, supplyRouteId) -> NewSupplyRouteLine
  *
  *   - Throws if supplierId is null/undefined/empty
  *   - Throws if supplyRouteId is null/undefined/empty

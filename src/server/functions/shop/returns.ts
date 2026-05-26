@@ -5,7 +5,7 @@ import BigNumber from "bignumber.js"
 import { db } from "#/db"
 import {
   shopReturns,
-  shopReturnItems,
+  shopReturnLines,
   shopStock,
   shopSales,
   customers,
@@ -122,7 +122,7 @@ export const recordCustomerReturn = createServerFn()
 
       // Create return-item rows and re-stock the returned items
       for (const detail of itemDetails) {
-        await tx.insert(shopReturnItems).values({
+        await tx.insert(shopReturnLines).values({
           shopReturnId: shopReturn.id,
           shopStockId: detail.stockId,
           quantity: detail.quantity,

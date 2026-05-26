@@ -1,9 +1,9 @@
 import type { db as defaultDb } from '#/db'
 import {
   storeReceivings,
-  supplyRouteItems,
+  supplyRouteLines,
   storeTransfers,
-  storeTransferItems,
+  storeTransferLines,
   storeStock,
   variants,
 } from '#/db/schema'
@@ -34,14 +34,14 @@ export async function computeStoreBaseline(
     .select({ qty: storeReceivings.quantityReceived })
     .from(storeReceivings)
     .innerJoin(
-      supplyRouteItems,
-      eq(storeReceivings.supplyRouteItemId, supplyRouteItems.id),
+      supplyRouteLines,
+      eq(storeReceivings.supplyRouteLineId, supplyRouteLines.id),
     )
     .innerJoin(
       variants,
       and(
-        eq(variants.colorId, supplyRouteItems.colorId),
-        eq(variants.size, supplyRouteItems.size),
+        eq(variants.colorId, supplyRouteLines.colorId),
+        eq(variants.size, supplyRouteLines.size),
       ),
     )
     .where(
@@ -62,14 +62,14 @@ export async function computeShopBaseline(
 ): Promise<BaselineResult> {
   const rows = await db
     .select({
-      qty: sql<number>`COALESCE(${storeTransferItems.quantityReceived}, ${storeTransferItems.quantityDispatched})`,
+      qty: sql<number>`COALESCE(${storeTransferLines.quantityReceived}, ${storeTransferLines.quantityDispatched})`,
     })
-    .from(storeTransferItems)
+    .from(storeTransferLines)
     .innerJoin(
       storeTransfers,
-      eq(storeTransferItems.storeTransferId, storeTransfers.id),
+      eq(storeTransferLines.storeTransferId, storeTransfers.id),
     )
-    .innerJoin(storeStock, eq(storeTransferItems.storeStockId, storeStock.id))
+    .innerJoin(storeStock, eq(storeTransferLines.storeStockId, storeStock.id))
     .innerJoin(variants, eq(variants.id, storeStock.variantId))
     .where(
       and(
@@ -77,7 +77,7 @@ export async function computeShopBaseline(
         eq(variants.id, args.variantId),
       ),
     )
-    .orderBy(desc(storeTransferItems.createdAt))
+    .orderBy(desc(storeTransferLines.createdAt))
     .limit(3)
 
   return averageBaseline(rows.map((r) => Number(r.qty)))

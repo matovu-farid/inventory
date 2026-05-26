@@ -3,7 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
-import { shops, shopSales, shopSaleItems, shopStock, customers } from "#/db/schema"
+import { shops, shopSales, shopSaleLines, shopStock, customers } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { recordAuditLog } from "#/server/middleware/audit-store"
@@ -229,7 +229,7 @@ export const recordSale = createServerFn()
 
       // Create sale items + update stock
       for (const detail of itemDetails) {
-        await tx.insert(shopSaleItems).values({
+        await tx.insert(shopSaleLines).values({
           shopSaleId: sale.id,
           shopStockId: detail.stockId,
           quantity: detail.quantity,

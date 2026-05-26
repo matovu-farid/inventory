@@ -1,16 +1,16 @@
 /**
  * Issue #6 — server functions (receiving / opening-balance) operate on
- * variant_id, and `supply_route_items` renames its catalog FK columns:
+ * variant_id, and `supply_route_lines` renames its catalog FK columns:
  *
  *   product_id        → item_id
  *   product_color_id  → color_id
  *
- * The TABLE name stays `supply_route_items`; the table rename to
+ * The TABLE name stays `supply_route_lines`; the table rename to
  * `supply_route_lines` lives in Phase 2 (#8).
  *
  * This file pins down:
  *
- *   1. supply_route_items exposes `item_id` / `color_id` (and the old
+ *   1. supply_route_lines exposes `item_id` / `color_id` (and the old
  *      column names are gone from the running schema).
  *   2. addStoreOpeningBalance / addShopOpeningBalance accept a
  *      `variantId` directly — the legacy (productColorId, size) shape
@@ -49,7 +49,7 @@ import {
   storeReceivings,
   storeStock,
   stores,
-  supplyRouteItems,
+  supplyRouteLines,
   supplyRoutes,
   suppliers,
   transactionCategories,
@@ -210,19 +210,19 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // Order matters because of FK chains:
-  //   store_stock → supply_route_items
-  //   store_receivings → supply_route_items
+  //   store_stock → supply_route_lines
+  //   store_receivings → supply_route_lines
   //   shop_stock / store_stock → variants → items
   // Drop the dependent rows before the parents.
   await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
   await db.delete(storeStock).where(eq(storeStock.storeId, storeId()))
   await db.delete(storeReceivings).where(
-    sql`${storeReceivings.supplyRouteItemId} IN (
-        SELECT id FROM ${supplyRouteItems}
-        WHERE ${supplyRouteItems.supplierId} = ${supplierId()}::uuid
+    sql`${storeReceivings.supplyRouteLineId} IN (
+        SELECT id FROM ${supplyRouteLines}
+        WHERE ${supplyRouteLines.supplierId} = ${supplierId()}::uuid
     )`,
   )
-  await db.delete(supplyRouteItems).where(eq(supplyRouteItems.supplierId, supplierId()))
+  await db.delete(supplyRouteLines).where(eq(supplyRouteLines.supplierId, supplierId()))
   await db.delete(supplyRoutes).where(sql`${supplyRoutes.name} LIKE 'SV-Route-%'`)
   await db.delete(variants).where(eq(variants.itemId, itemId()))
   await db.delete(itemColors).where(eq(itemColors.id, colorId()))
@@ -238,19 +238,19 @@ afterAll(async () => {
 })
 
 async function clearTestRows(): Promise<void> {
-  // Order: storeStock first (it FK's into supply_route_items), then the
+  // Order: storeStock first (it FK's into supply_route_lines), then the
   // receivings, then the supply lines, then audit / variants.
   await db.delete(storeStock).where(eq(storeStock.storeId, storeId()))
   await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
   // Use a subquery so we only drop the receivings WE created — other
   // suites running in parallel may share `storeId()` via findFirst().
   await db.delete(storeReceivings).where(
-    sql`${storeReceivings.supplyRouteItemId} IN (
-        SELECT id FROM ${supplyRouteItems}
-        WHERE ${supplyRouteItems.supplierId} = ${supplierId()}::uuid
+    sql`${storeReceivings.supplyRouteLineId} IN (
+        SELECT id FROM ${supplyRouteLines}
+        WHERE ${supplyRouteLines.supplierId} = ${supplierId()}::uuid
     )`,
   )
-  await db.delete(supplyRouteItems).where(eq(supplyRouteItems.supplierId, supplierId()))
+  await db.delete(supplyRouteLines).where(eq(supplyRouteLines.supplierId, supplierId()))
   await db.delete(supplyRoutes).where(sql`${supplyRoutes.name} LIKE 'SV-Route-%'`)
   await db.delete(auditLogs).where(eq(auditLogs.actorUserId, TEST_USER_ID))
   // Re-seed the canonical (Slate, M) variant for each test — earlier tests
@@ -263,7 +263,7 @@ async function clearTestRows(): Promise<void> {
 
 beforeEach(clearTestRows)
 
-describe('supply_route_items renamed catalog columns (#6)', () => {
+describe('supply_route_lines renamed catalog columns (#6)', () => {
   it('exposes item_id and color_id (not the old product_* names)', async () => {
     // Insert via the renamed Drizzle keys — fails to compile if the schema
     // still names the columns `productId` / `productColorId`.
@@ -273,7 +273,7 @@ describe('supply_route_items renamed catalog columns (#6)', () => {
       .returning()
 
     const [row] = await db
-      .insert(supplyRouteItems)
+      .insert(supplyRouteLines)
       .values({
         supplyRouteId: route.id,
         supplierId: supplierId(),
@@ -363,7 +363,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
       })
       .returning()
     const [sri] = await db
-      .insert(supplyRouteItems)
+      .insert(supplyRouteLines)
       .values({
         supplyRouteId: route.id,
         supplierId: supplierId(),
@@ -393,7 +393,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
       receiveGoods({
         data: {
           supplyRouteId: route.id,
-          items: [{ supplyRouteItemId: sri.id, quantityReceived: 3 }],
+          items: [{ supplyRouteLineId: sri.id, quantityReceived: 3 }],
         },
       }),
     )
@@ -433,7 +433,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
       })
       .returning()
     const [sri] = await db
-      .insert(supplyRouteItems)
+      .insert(supplyRouteLines)
       .values({
         supplyRouteId: route.id,
         supplierId: supplierId(),
@@ -451,7 +451,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
         receiveGoods({
           data: {
             supplyRouteId: route.id,
-            items: [{ supplyRouteItemId: sri.id, quantityReceived: 5 }],
+            items: [{ supplyRouteLineId: sri.id, quantityReceived: 5 }],
           },
         }),
       ),
@@ -468,7 +468,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
       })
       .returning()
     const [sri] = await db
-      .insert(supplyRouteItems)
+      .insert(supplyRouteLines)
       .values({
         supplyRouteId: route.id,
         supplierId: supplierId(),
@@ -486,7 +486,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
       receiveGoods({
         data: {
           supplyRouteId: route.id,
-          items: [{ supplyRouteItemId: sri.id, quantityReceived: 2 }],
+          items: [{ supplyRouteLineId: sri.id, quantityReceived: 2 }],
         },
       }),
     )
