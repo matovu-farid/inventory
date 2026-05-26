@@ -5,8 +5,8 @@ import { db } from "#/db"
 import {
   lowStockAlerts,
   shopStock,
-  productColors,
-  products,
+  itemColors,
+  items,
   storeStock,
 } from "#/db/schema"
 import { requireSession } from "#/server/middleware/auth"
@@ -33,8 +33,8 @@ export const listShopRestockSuggestions = createServerFn()
         baseline: lowStockAlerts.baselineQuantity,
         storeStockId: storeStock.id,
         storeQuantity: storeStock.quantityOnHand,
-        articleNumber: products.articleNumber,
-        colorName: productColors.colorName,
+        articleNumber: items.articleNumber,
+        colorName: itemColors.colorName,
       })
       .from(lowStockAlerts)
       .innerJoin(
@@ -45,8 +45,8 @@ export const listShopRestockSuggestions = createServerFn()
           eq(shopStock.size, lowStockAlerts.size),
         ),
       )
-      .innerJoin(productColors, eq(productColors.id, shopStock.productColorId))
-      .innerJoin(products, eq(products.id, productColors.productId))
+      .innerJoin(itemColors, eq(itemColors.id, shopStock.productColorId))
+      .innerJoin(items, eq(items.id, itemColors.itemId))
       .leftJoin(
         storeStock,
         and(

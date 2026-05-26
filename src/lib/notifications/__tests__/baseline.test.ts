@@ -5,8 +5,9 @@ import {
   computeStoreBaseline,
 } from "#/lib/notifications/baseline"
 import {
-  products,
-  productColors,
+  items,
+  itemColors,
+  itemCategories,
   stores,
   storeStock,
   storeReceivings,
@@ -39,14 +40,22 @@ async function seed() {
     .insert(suppliers)
     .values({ name: "Test Supplier", type: "local" })
     .returning()
+  const [uncat] = await db
+    .select()
+    .from(itemCategories)
+    .where(eq(itemCategories.name, "Uncategorized"))
   const [product] = await db
-    .insert(products)
-    .values({ articleNumber: ART, name: "Baseline Test Product" })
+    .insert(items)
+    .values({
+      articleNumber: ART,
+      name: "Baseline Test Product",
+      itemCategoryId: uncat.id,
+    })
     .returning()
   const [pc] = await db
-    .insert(productColors)
+    .insert(itemColors)
     .values({
-      productId: product.id,
+      itemId: product.id,
       colorName: "Red",
       colorHex: "#FF0000",
     })
@@ -84,8 +93,8 @@ afterAll(async () => {
       "Test Route 4",
     ]),
   )
-  await db.delete(productColors).where(eq(productColors.id, ctx.pc.id))
-  await db.delete(products).where(eq(products.id, ctx.product.id))
+  await db.delete(itemColors).where(eq(itemColors.id, ctx.pc.id))
+  await db.delete(items).where(eq(items.id, ctx.product.id))
   await db.delete(shops).where(eq(shops.id, ctx.shop.id))
   await db.delete(stores).where(eq(stores.id, ctx.store.id))
   await db.delete(suppliers).where(eq(suppliers.id, ctx.supplier.id))
@@ -112,7 +121,7 @@ describe("computeStoreBaseline", () => {
       "Test Route 3",
       "Test Route 4",
     ]
-    const items: { id: string }[] = []
+    const routeItems: { id: string }[] = []
 
     for (let i = 0; i < quantities.length; i++) {
       const qty = quantities[i]
@@ -134,7 +143,7 @@ describe("computeStoreBaseline", () => {
           totalCostUgx: String(qty * 10000),
         })
         .returning()
-      items.push(item)
+      routeItems.push(item)
     }
 
     // Insert receivings with explicit dates so ordering is deterministic.
@@ -143,7 +152,7 @@ describe("computeStoreBaseline", () => {
     for (let i = 0; i < quantities.length; i++) {
       await db.insert(storeReceivings).values({
         storeId: ctx.store.id,
-        supplyRouteItemId: items[i].id,
+        supplyRouteItemId: routeItems[i].id,
         receivedDate: new Date(2026, 0, i + 1),
         quantityExpected: quantities[i],
         quantityReceived: quantities[i],

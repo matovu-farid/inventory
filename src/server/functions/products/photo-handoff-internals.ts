@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto"
 import { and, eq, isNull } from "drizzle-orm"
 import { db } from "#/db"
-import { pictureUploadTokens, productColors } from "#/db/schema"
+import { pictureUploadTokens, itemColors } from "#/db/schema"
 
 export const TOKEN_TTL_MS = 15 * 60 * 1000
 
@@ -36,8 +36,8 @@ export async function markConsumed(token: string, s3Key: string) {
       throw new Error("Token already consumed or missing")
     }
     await tx
-      .update(productColors)
+      .update(itemColors)
       .set({ imageS3Key: s3Key })
-      .where(eq(productColors.id, updated[0].productColorId))
+      .where(eq(itemColors.id, updated[0].productColorId))
   })
 }

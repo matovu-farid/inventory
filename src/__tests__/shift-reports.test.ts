@@ -9,8 +9,9 @@ import { db } from "#/db"
 import {
   shops,
   user as userTable,
-  products,
-  productColors,
+  items,
+  itemColors,
+  itemCategories,
   shopStock,
   shopSales,
   shopSaleItems,
@@ -42,16 +43,25 @@ async function seed() {
     emailVerified: true,
     role: "sales",
   })
+  const [uncat] = await db
+    .select()
+    .from(itemCategories)
+    .where(eq(itemCategories.name, "Uncategorized"))
   const p = (
     await db
-      .insert(products)
-      .values({ articleNumber: runId, name: `Tee ${runId}`, sizes: ["M"] })
+      .insert(items)
+      .values({
+        articleNumber: runId,
+        name: `Tee ${runId}`,
+        sizes: ["M"],
+        itemCategoryId: uncat.id,
+      })
       .returning()
   )[0]
   const pc = (
     await db
-      .insert(productColors)
-      .values({ productId: p.id, colorName: "Red", colorHex: "#dc2626" })
+      .insert(itemColors)
+      .values({ itemId: p.id, colorName: "Red", colorHex: "#dc2626" })
       .returning()
   )[0]
   stockId = (
@@ -74,15 +84,15 @@ async function teardown() {
   await db.delete(shopSales).where(eq(shopSales.shopId, shopId))
   await db.delete(shiftClosures).where(eq(shiftClosures.shopId, shopId))
   await db.delete(shopStock).where(eq(shopStock.id, stockId))
-  const seededProduct = await db.query.products.findFirst({
-    where: eq(products.articleNumber, runId),
+  const seededProduct = await db.query.items.findFirst({
+    where: eq(items.articleNumber, runId),
   })
   if (seededProduct) {
     await db
-      .delete(productColors)
-      .where(eq(productColors.productId, seededProduct.id))
+      .delete(itemColors)
+      .where(eq(itemColors.itemId, seededProduct.id))
   }
-  await db.delete(products).where(eq(products.articleNumber, runId))
+  await db.delete(items).where(eq(items.articleNumber, runId))
   await db.delete(shops).where(eq(shops.id, shopId))
   await db.delete(userTable).where(eq(userTable.id, userId))
 }

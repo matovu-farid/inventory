@@ -1,7 +1,7 @@
 // Server-only module: query helper + Zod input schema for the audit-by-
 // article endpoint. Split out from list-by-article.ts because that file is
 // imported by a client-reachable component (src/components/audit/
-// audit-activity-panel.tsx → src/routes/products/$articleNumber.tsx);
+// audit-activity-panel.tsx → src/routes/items/$articleNumber.tsx);
 // TanStack Start's import-protection plugin denies any client-reachable
 // module that imports `#/db` at module scope. The `.server.ts` suffix is
 // TanStack's canonical marker for a server-only module — the client

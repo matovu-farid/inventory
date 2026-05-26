@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll } from 'vitest'
 import { eq, inArray, and, sql } from 'drizzle-orm'
 
 import { db } from '#/db'
-import { products, productColors, variants } from '#/db/schema'
+import { items, itemColors, itemCategories, variants } from '#/db/schema'
 import { backfillVariants } from '../../scripts/backfill-variants'
 
 // Drizzle's node-postgres adapter wraps DB errors as `Error("Failed query: …")`
@@ -33,26 +33,40 @@ const createdProductIds: string[] = []
 
 afterAll(async () => {
   if (createdProductIds.length > 0) {
-    // CASCADE on products → product_colors → variants cleans everything.
-    await db.delete(products).where(inArray(products.id, createdProductIds))
+    // CASCADE on items → item_colors → variants cleans everything.
+    await db.delete(items).where(inArray(items.id, createdProductIds))
   }
 })
 
+async function uncategorizedId(): Promise<string> {
+  const rows = await db
+    .select()
+    .from(itemCategories)
+    .where(eq(itemCategories.name, 'Uncategorized'))
+  const row = rows.at(0)
+  if (!row) {
+    throw new Error('Missing "Uncategorized" seed row in test DB')
+  }
+  return row.id
+}
+
 describe('variants — backfill from existing color×size', () => {
   it('A: backfill row count equals distinct (color, size) pairs', async () => {
+    const uncat = await uncategorizedId()
     const [prod] = await db
-      .insert(products)
+      .insert(items)
       .values({
         articleNumber: ART_A,
         name: `var-test-a-${SUFFIX}`,
         sizes: ['S', 'M', 'L'],
+        itemCategoryId: uncat,
       })
       .returning()
     createdProductIds.push(prod.id)
 
-    await db.insert(productColors).values([
-      { productId: prod.id, colorName: 'Red', colorHex: '#ff0000' },
-      { productId: prod.id, colorName: 'Blue', colorHex: '#0000ff' },
+    await db.insert(itemColors).values([
+      { itemId: prod.id, colorName: 'Red', colorHex: '#ff0000' },
+      { itemId: prod.id, colorName: 'Blue', colorHex: '#0000ff' },
     ])
 
     const summary = await backfillVariants({ itemIds: [prod.id] })
@@ -67,19 +81,21 @@ describe('variants — backfill from existing color×size', () => {
   })
 
   it('B: a product with empty sizes produces zero variants', async () => {
+    const uncat = await uncategorizedId()
     const [prod] = await db
-      .insert(products)
+      .insert(items)
       .values({
         articleNumber: ART_B,
         name: `var-test-b-${SUFFIX}`,
         sizes: [],
+        itemCategoryId: uncat,
       })
       .returning()
     createdProductIds.push(prod.id)
 
     await db
-      .insert(productColors)
-      .values({ productId: prod.id, colorName: 'Green', colorHex: '#00ff00' })
+      .insert(itemColors)
+      .values({ itemId: prod.id, colorName: 'Green', colorHex: '#00ff00' })
 
     await backfillVariants({ itemIds: [prod.id] })
 
@@ -94,15 +110,15 @@ describe('variants — backfill from existing color×size', () => {
     const [prod] = createdProductIds.length
       ? await db
           .select()
-          .from(products)
-          .where(eq(products.id, createdProductIds[0]))
+          .from(items)
+          .where(eq(items.id, createdProductIds[0]))
       : []
     expect(prod).toBeDefined()
 
     const [color] = await db
       .select()
-      .from(productColors)
-      .where(eq(productColors.productId, prod.id))
+      .from(itemColors)
+      .where(eq(itemColors.itemId, prod.id))
       .limit(1)
 
     const code = await pgErrorCode(
@@ -133,8 +149,8 @@ describe('variants — backfill from existing color×size', () => {
     const prodId = createdProductIds[0]
     const colors = await db
       .select()
-      .from(productColors)
-      .where(eq(productColors.productId, prodId))
+      .from(itemColors)
+      .where(eq(itemColors.itemId, prodId))
 
     // Two existing variants without barcode should already coexist after
     // backfill — both have NULL barcode, so a third NULL is fine. Insert

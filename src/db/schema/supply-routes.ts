@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { suppliers } from "./suppliers"
-import { productColors, products } from "./products"
+import { itemColors, items } from "./items"
 
 export const supplyRouteStatusEnum = pgEnum("supply_route_status", [
   "planning",
@@ -86,7 +86,7 @@ export const supplyRouteItems = pgTable(
     // productId is set on all newly created rows. It is nullable so existing
     // rows (which only had productColorId) can be migrated without a backfill;
     // for those rows the product is reachable through productColor.
-    productId: uuid("product_id").references(() => products.id, {
+    productId: uuid("product_id").references(() => items.id, {
       onDelete: "restrict",
     }),
     // productColorId and size are nullable to support three procurement modes:
@@ -95,7 +95,7 @@ export const supplyRouteItems = pgTable(
     //   3. color + size  — productColorId set,  size set
     // Aggregate/color-only rows must be "split" into full variants by an admin
     // before goods can be received against them.
-    productColorId: uuid("product_color_id").references(() => productColors.id, {
+    productColorId: uuid("product_color_id").references(() => itemColors.id, {
       onDelete: "restrict",
     }),
     size: text("size"),
@@ -181,13 +181,13 @@ export const supplyRouteItemRelations = relations(supplyRouteItems, ({ one }) =>
     fields: [supplyRouteItems.supplierId],
     references: [suppliers.id],
   }),
-  product: one(products, {
+  product: one(items, {
     fields: [supplyRouteItems.productId],
-    references: [products.id],
+    references: [items.id],
   }),
-  productColor: one(productColors, {
+  productColor: one(itemColors, {
     fields: [supplyRouteItems.productColorId],
-    references: [productColors.id],
+    references: [itemColors.id],
   }),
 }))
 

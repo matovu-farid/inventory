@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm"
 import {
-  products,
-  productColors,
+  items,
+  itemColors,
   supplyRouteItems,
   storeStock,
   shopStock,
@@ -37,10 +37,10 @@ type Resolver = (tx: Tx, input: ResolverInput) => Promise<string[]>
 const RESOLVERS: Partial<Record<string, Resolver>> = {
   "store.receiveGoods": async (tx, { entityId }) => {
     const rows = await tx
-      .select({ articleNumber: products.articleNumber })
+      .select({ articleNumber: items.articleNumber })
       .from(supplyRouteItems)
-      .innerJoin(productColors, eq(productColors.id, supplyRouteItems.productColorId))
-      .innerJoin(products, eq(products.id, productColors.productId))
+      .innerJoin(itemColors, eq(itemColors.id, supplyRouteItems.productColorId))
+      .innerJoin(items, eq(items.id, itemColors.itemId))
       .where(eq(supplyRouteItems.supplyRouteId, entityId))
     return rows.map((r) => r.articleNumber)
   },
@@ -56,33 +56,33 @@ const RESOLVERS: Partial<Record<string, Resolver>> = {
 
 async function resolveByTransferId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
   const rows = await tx
-    .select({ articleNumber: products.articleNumber })
+    .select({ articleNumber: items.articleNumber })
     .from(storeTransferItems)
     .innerJoin(storeStock, eq(storeStock.id, storeTransferItems.storeStockId))
-    .innerJoin(productColors, eq(productColors.id, storeStock.productColorId))
-    .innerJoin(products, eq(products.id, productColors.productId))
+    .innerJoin(itemColors, eq(itemColors.id, storeStock.productColorId))
+    .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(storeTransferItems.storeTransferId, entityId))
   return rows.map((r) => r.articleNumber)
 }
 
 async function resolveBySaleId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
   const rows = await tx
-    .select({ articleNumber: products.articleNumber })
+    .select({ articleNumber: items.articleNumber })
     .from(shopSaleItems)
     .innerJoin(shopStock, eq(shopStock.id, shopSaleItems.shopStockId))
-    .innerJoin(productColors, eq(productColors.id, shopStock.productColorId))
-    .innerJoin(products, eq(products.id, productColors.productId))
+    .innerJoin(itemColors, eq(itemColors.id, shopStock.productColorId))
+    .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(shopSaleItems.shopSaleId, entityId))
   return rows.map((r) => r.articleNumber)
 }
 
 async function resolveByShopReturnId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
   const rows = await tx
-    .select({ articleNumber: products.articleNumber })
+    .select({ articleNumber: items.articleNumber })
     .from(shopReturnItems)
     .innerJoin(shopStock, eq(shopStock.id, shopReturnItems.shopStockId))
-    .innerJoin(productColors, eq(productColors.id, shopStock.productColorId))
-    .innerJoin(products, eq(products.id, productColors.productId))
+    .innerJoin(itemColors, eq(itemColors.id, shopStock.productColorId))
+    .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(shopReturnItems.shopReturnId, entityId))
   return rows.map((r) => r.articleNumber)
 }
@@ -91,11 +91,11 @@ async function resolveByShopReturnId(tx: Tx, { entityId }: ResolverInput): Promi
 // See src/db/schema/returns.ts:150 — storeReturnItems.shopStockId references shopStock.id.
 async function resolveByStoreReturnId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
   const rows = await tx
-    .select({ articleNumber: products.articleNumber })
+    .select({ articleNumber: items.articleNumber })
     .from(storeReturnItems)
     .innerJoin(shopStock, eq(shopStock.id, storeReturnItems.shopStockId))
-    .innerJoin(productColors, eq(productColors.id, shopStock.productColorId))
-    .innerJoin(products, eq(products.id, productColors.productId))
+    .innerJoin(itemColors, eq(itemColors.id, shopStock.productColorId))
+    .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(storeReturnItems.storeReturnId, entityId))
   return rows.map((r) => r.articleNumber)
 }
@@ -105,19 +105,19 @@ async function resolveByStoreReturnId(tx: Tx, { entityId }: ResolverInput): Prom
 // Two queries unioned in JS — simpler than a CASE/COALESCE join. innerJoin skips NULL rows.
 async function resolveByStockTakeId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
   const storeRows = await tx
-    .select({ articleNumber: products.articleNumber })
+    .select({ articleNumber: items.articleNumber })
     .from(stockTakeItems)
     .innerJoin(storeStock, eq(storeStock.id, stockTakeItems.storeStockId))
-    .innerJoin(productColors, eq(productColors.id, storeStock.productColorId))
-    .innerJoin(products, eq(products.id, productColors.productId))
+    .innerJoin(itemColors, eq(itemColors.id, storeStock.productColorId))
+    .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(stockTakeItems.stockTakeId, entityId))
 
   const shopRows = await tx
-    .select({ articleNumber: products.articleNumber })
+    .select({ articleNumber: items.articleNumber })
     .from(stockTakeItems)
     .innerJoin(shopStock, eq(shopStock.id, stockTakeItems.shopStockId))
-    .innerJoin(productColors, eq(productColors.id, shopStock.productColorId))
-    .innerJoin(products, eq(products.id, productColors.productId))
+    .innerJoin(itemColors, eq(itemColors.id, shopStock.productColorId))
+    .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(stockTakeItems.stockTakeId, entityId))
 
   return [...storeRows, ...shopRows].map((r) => r.articleNumber)

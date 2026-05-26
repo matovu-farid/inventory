@@ -77,7 +77,7 @@ const navGroups: NavGroup[] = [
   {
     title: "Catalog",
     items: [
-      { label: "Products", to: "/products", icon: Tags, permission: "products.view" },
+      { label: "Items", to: "/items", icon: Tags, permission: "items.view" },
     ],
   },
   {

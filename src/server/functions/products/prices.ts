@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { eq } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
-import { storeStock, shopStock, productColors } from "#/db/schema"
+import { storeStock, shopStock, itemColors } from "#/db/schema"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
@@ -12,8 +12,8 @@ export const listProductStockPrices = createServerFn()
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
 
-    const colors = await db.query.productColors.findMany({
-      where: eq(productColors.productId, data.productId),
+    const colors = await db.query.itemColors.findMany({
+      where: eq(itemColors.itemId, data.productId),
       columns: { id: true },
     })
     const colorIds = colors.map((c) => c.id)

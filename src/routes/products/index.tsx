@@ -1,66 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import { listProducts, searchProducts } from "#/server/functions/products/products"
-import { ProductCard } from "#/components/products/product-card"
-import { Input } from "#/components/ui/input"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 
+/**
+ * 90-day redirect shim for the old `/products` URL.
+ *
+ * Per spec §9 in docs/superpowers/specs/2026-05-24-category-item-variant-design.md,
+ * the catalog rename in issue #3 keeps the old `/products/*` URLs navigable
+ * for 90 days so external links, bookmarks, and printed handouts continue
+ * working while users learn the new `/items/*` URL shape.
+ *
+ * Window: 2026-05-26 + 90 days = 2026-08-24.
+ * After 2026-08-24 this file (and src/routes/products/$articleNumber.tsx)
+ * can be deleted in a follow-up cleanup PR.
+ */
 export const Route = createFileRoute("/products/")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "products.view"),
-  loader: async () => ({ products: await listProducts() }),
-  component: ProductsPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/items", replace: true })
+  },
 })
-
-function ProductsPage() {
-  const { products: initial } = Route.useLoaderData()
-  const [query, setQuery] = useState("")
-  const [results, setResults] = useState(initial)
-
-  async function handleSearch(value: string) {
-    setQuery(value)
-    setResults(await searchProducts({ data: { query: value } }))
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-bold">Products</h1>
-        <p className="text-sm text-muted-foreground">
-          {results.length} product{results.length === 1 ? "" : "s"}
-        </p>
-      </div>
-      <Input
-        placeholder="Search by article or name…"
-        value={query}
-        onChange={(e) => { void handleSearch(e.target.value) }}
-        className="max-w-md"
-      />
-      {results.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {query
-            ? "No matching products."
-            : "No products yet. Add one when recording a supply route or opening balance."}
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {results.map((p) => (
-            <ProductCard
-              key={p.articleNumber}
-              data={{
-                articleNumber: p.articleNumber,
-                name: p.name,
-                sizes: p.sizes,
-                colors: p.colors.map((c) => ({
-                  id: c.id,
-                  colorName: c.colorName,
-                  colorHex: c.colorHex,
-                  imageS3Key: c.imageS3Key,
-                })),
-              }}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}

@@ -3,7 +3,7 @@ import { sql } from 'drizzle-orm'
 import { db } from '../src/db'
 
 /**
- * Backfill the `variants` table from existing `products` × `product_colors`.
+ * Backfill the `variants` table from existing `items` × `item_colors`.
  *
  * Spec: docs/superpowers/specs/2026-05-24-category-item-variant-design.md
  *       §4 step 4.
@@ -11,11 +11,11 @@ import { db } from '../src/db'
  * Pre-flight assertions (each rolls the whole transaction back if non-zero):
  *
  *   1. Every stock/notification row addressed by (product_color_id, size)
- *      must reference a size that lives in `products.sizes` for the parent
- *      product. Drift here means orphan variants we cannot back-link, so we
+ *      must reference a size that lives in `items.sizes` for the parent
+ *      item. Drift here means orphan variants we cannot back-link, so we
  *      ABORT rather than silently dropping inventory.
  *
- *   2. No product may have duplicate sizes in `products.sizes`. The schema
+ *   2. No item may have duplicate sizes in `items.sizes`. The schema
  *      allows it (Postgres text[] is not a set), but it would let us insert
  *      duplicates with `unnest` and would violate the unique
  *      (item_id, color_id, size) constraint anyway.
@@ -82,8 +82,8 @@ async function countOrphans(
   const result = await tx.execute<{ orphans: number }>(sql`
     SELECT COUNT(*)::int AS orphans
     FROM ${sql.identifier(table)} AS s
-    JOIN product_colors pc ON pc.id = s.product_color_id
-    JOIN products p ON p.id = pc.product_id
+    JOIN item_colors pc ON pc.id = s.product_color_id
+    JOIN items p ON p.id = pc.item_id
     WHERE NOT (s.size = ANY (p.sizes))${itemFilterClause(itemIds)}
   `)
   const rows = normaliseRows<{ orphans: number }>(result)
@@ -117,7 +117,7 @@ export async function backfillVariants(
     for (const [table, n] of Object.entries(orphanCounts)) {
       if (n > 0) {
         throw new Error(
-          `backfill aborted: ${table} has ${n} row(s) whose (product_color_id, size) does not match products.sizes — fix the data drift before continuing.`,
+          `backfill aborted: ${table} has ${n} row(s) whose (product_color_id, size) does not match items.sizes — fix the data drift before continuing.`,
         )
       }
     }
@@ -130,7 +130,7 @@ export async function backfillVariants(
       SELECT COUNT(*)::int AS dups
       FROM (
         SELECT 1
-        FROM products p
+        FROM items p
         WHERE COALESCE(array_length(p.sizes, 1), 0) <> (
           SELECT COUNT(DISTINCT s)::int FROM unnest(p.sizes) AS s
         )${itemFilterClause(itemIds)}
@@ -140,7 +140,7 @@ export async function backfillVariants(
     const productsWithDuplicateSizes = dupRows[0]?.dups ?? 0
     if (productsWithDuplicateSizes > 0) {
       throw new Error(
-        `backfill aborted: ${productsWithDuplicateSizes} product(s) have duplicate entries in products.sizes — deduplicate before continuing.`,
+        `backfill aborted: ${productsWithDuplicateSizes} item(s) have duplicate entries in items.sizes — deduplicate before continuing.`,
       )
     }
 
@@ -149,9 +149,9 @@ export async function backfillVariants(
     //    idempotent on re-runs and on already-backfilled rows.
     const insertResult = await tx.execute<{ id: string }>(sql`
       INSERT INTO variants (item_id, color_id, size)
-      SELECT DISTINCT pc.product_id, pc.id, sz
-      FROM product_colors pc
-      JOIN products p ON p.id = pc.product_id
+      SELECT DISTINCT pc.item_id, pc.id, sz
+      FROM item_colors pc
+      JOIN items p ON p.id = pc.item_id
       CROSS JOIN LATERAL unnest(p.sizes) AS sz
       WHERE TRUE${itemFilterClause(itemIds)}
       ON CONFLICT ON CONSTRAINT uq_variant_item_color_size DO NOTHING
@@ -165,9 +165,9 @@ export async function backfillVariants(
     const candResult = await tx.execute<{ c: number }>(sql`
       SELECT COUNT(*)::int AS c
       FROM (
-        SELECT DISTINCT pc.product_id, pc.id, sz
-        FROM product_colors pc
-        JOIN products p ON p.id = pc.product_id
+        SELECT DISTINCT pc.item_id, pc.id, sz
+        FROM item_colors pc
+        JOIN items p ON p.id = pc.item_id
         CROSS JOIN LATERAL unnest(p.sizes) AS sz
         WHERE TRUE${itemFilterClause(itemIds)}
       ) AS x
@@ -191,7 +191,7 @@ export async function backfillVariants(
 }
 
 async function main(): Promise<void> {
-  console.log('Backfilling variants from product_colors × products.sizes...')
+  console.log('Backfilling variants from item_colors × items.sizes...')
   const summary = await backfillVariants()
   console.log('Assertions:', summary.assertions)
   console.log(

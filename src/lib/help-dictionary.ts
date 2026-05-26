@@ -302,8 +302,18 @@ export const helpDict = {
   // ─── Product / Variant catalog ───────────────────────────────────────
   'product.articleNumber': {
     description:
-      'Unique code for the product (e.g. TR-001). The same article in different colors is one product with multiple color variants.',
+      'Unique code for the item (e.g. TR-001). The same article in different colors is one item with multiple color variants.',
     example: 'TR-001',
+  },
+  /**
+   * New entry added by issue #3: tip text for the per-item "category"
+   * picker on the item-edit form. Distinct from `category.name`, which
+   * covers the item-categories admin page from issue #1.
+   */
+  'item.category': {
+    description:
+      'Pick which catalog grouping this item belongs to (e.g. "Shoes", "Bags"). Every item must belong to exactly one category — new items default to "Uncategorized" until you change them.',
+    example: 'Shoes',
   },
   'product.colorName': {
     description:
@@ -345,7 +355,7 @@ export const helpDict = {
   },
   'openingBalance.articleNumber': {
     description:
-      'Legacy: use `product.articleNumber` going forward. Kept as a stale alias so older references still resolve.',
+      'Legacy: use `product.articleNumber` (the item article-number tip) going forward. Kept as a stale alias so older references still resolve.',
     example: 'TR-001',
   },
   'openingBalance.quantity': {

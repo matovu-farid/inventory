@@ -3,8 +3,9 @@ import { drizzle } from "drizzle-orm/node-postgres"
 import { eq, sql } from "drizzle-orm"
 import * as schema from "./schema"
 import {
-  products,
-  productColors,
+  items,
+  itemColors,
+  itemCategories,
   suppliers,
   stores,
   shops,
@@ -145,16 +146,29 @@ async function seed() {
     // ─── 3. Products + colors ──────────────────────────────────────────
     console.log("Seeding products and color variants...")
 
+    // items.item_category_id is NOT NULL — point newly-seeded items at
+    // the seeded "Uncategorized" bucket created above.
+    const uncategorizedRow = await db.query.itemCategories.findFirst({
+      where: eq(itemCategories.name, "Uncategorized"),
+    })
+    if (!uncategorizedRow) {
+      throw new Error('Missing seed "Uncategorized" item category')
+    }
+    const uncategorized: { id: string } = uncategorizedRow
+
     async function upsertProduct(args: {
       articleNumber: string
       name: string
       sizes: string[]
     }) {
-      const existing = await db.query.products.findFirst({
-        where: eq(products.articleNumber, args.articleNumber),
+      const existing = await db.query.items.findFirst({
+        where: eq(items.articleNumber, args.articleNumber),
       })
       if (existing) return existing
-      const [created] = await db.insert(products).values(args).returning()
+      const [created] = await db
+        .insert(items)
+        .values({ ...args, itemCategoryId: uncategorized.id })
+        .returning()
       return created
     }
 
@@ -179,13 +193,18 @@ async function seed() {
       colorName: string
       colorHex: string
     }) {
-      const existing = await db.query.productColors.findFirst({
-        where: sql`${productColors.productId} = ${args.productId} AND ${productColors.colorName} = ${args.colorName}`,
+      const existing = await db.query.itemColors.findFirst({
+        where: sql`${itemColors.itemId} = ${args.productId} AND ${itemColors.colorName} = ${args.colorName}`,
       })
       if (existing) return existing
       const [created] = await db
-        .insert(productColors)
-        .values({ ...args, imageS3Key: null })
+        .insert(itemColors)
+        .values({
+          itemId: args.productId,
+          colorName: args.colorName,
+          colorHex: args.colorHex,
+          imageS3Key: null,
+        })
         .returning()
       return created
     }

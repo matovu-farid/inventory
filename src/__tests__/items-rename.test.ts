@@ -30,12 +30,14 @@ afterAll(async () => {
 
 describe("items table — exists after rename and round-trips", () => {
   it("inserts an item + item color and reads back via relation", async () => {
+    const uncat = await uncategorizedId()
     const [created] = await db
       .insert(items)
       .values({
         articleNumber: `${ART_BASE}-a`,
         name: "Test rename item",
         sizes: ["S", "M"],
+        itemCategoryId: uncat,
       })
       .returning()
     createdItemIds.push(created.id)
@@ -116,12 +118,14 @@ describe("items.item_category_id — backfilled to Uncategorized, NOT NULL", () 
 
 describe("item_colors.item_id — column rename preserved FK", () => {
   it("CASCADE deletes colors when their parent item is deleted", async () => {
+    const uncat = await uncategorizedId()
     const [created] = await db
       .insert(items)
       .values({
         articleNumber: `${ART_BASE}-d`,
         name: "Cascade tester",
         sizes: [],
+        itemCategoryId: uncat,
       })
       .returning()
 
@@ -140,6 +144,18 @@ describe("item_colors.item_id — column rename preserved FK", () => {
     expect(remaining[0].c).toBe(0)
   })
 })
+
+async function uncategorizedId(): Promise<string> {
+  const rows = await db
+    .select()
+    .from(itemCategories)
+    .where(eq(itemCategories.name, "Uncategorized"))
+  const row = rows.at(0)
+  if (!row) {
+    throw new Error('Missing seed item_categories."Uncategorized" row')
+  }
+  return row.id
+}
 
 async function pgErrorCode(p: Promise<unknown>): Promise<string | undefined> {
   try {

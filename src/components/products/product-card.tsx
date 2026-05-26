@@ -15,7 +15,7 @@ export function ProductCard({ data, className }: { data: ProductCardData; classN
   const primaryImage = data.colors.find((c) => c.imageS3Key)?.imageS3Key
   return (
     <Link
-      to="/products/$articleNumber"
+      to="/items/$articleNumber"
       params={{ articleNumber: data.articleNumber }}
       className={cn("flex gap-3 rounded-lg border p-3 hover:bg-muted/40 transition", className)}
     >

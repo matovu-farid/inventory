@@ -1,7 +1,7 @@
 import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { user } from "./auth"
-import { productColors } from "./products"
+import { itemColors } from "./items"
 
 export const pictureUploadTokens = pgTable(
   "picture_upload_tokens",
@@ -10,7 +10,7 @@ export const pictureUploadTokens = pgTable(
     token: text("token").notNull().unique(),
     productColorId: uuid("product_color_id")
       .notNull()
-      .references(() => productColors.id, { onDelete: "cascade" }),
+      .references(() => itemColors.id, { onDelete: "cascade" }),
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }),
@@ -32,9 +32,9 @@ export const pictureUploadTokens = pgTable(
 export const pictureUploadTokensRelations = relations(
   pictureUploadTokens,
   ({ one }) => ({
-    productColor: one(productColors, {
+    productColor: one(itemColors, {
       fields: [pictureUploadTokens.productColorId],
-      references: [productColors.id],
+      references: [itemColors.id],
     }),
   }),
 )

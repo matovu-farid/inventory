@@ -1,27 +1,33 @@
 import { describe, it, expect } from "vitest"
 import { db } from "#/db"
-import { products, productColors } from "#/db/schema"
+import { items, itemColors, itemCategories } from "#/db/schema"
 import { eq } from "drizzle-orm"
 
-describe("products schema round-trip", () => {
-  it("inserts a product, its color, and reads back via relation", async () => {
-    const [p] = await db.insert(products).values({
+describe("items schema round-trip", () => {
+  it("inserts an item, its color, and reads back via relation", async () => {
+    const [uncat] = await db
+      .select()
+      .from(itemCategories)
+      .where(eq(itemCategories.name, "Uncategorized"))
+
+    const [p] = await db.insert(items).values({
       articleNumber: `TEST-${Date.now()}`,
       name: "Test Crew",
       sizes: ["S","M","L"],
+      itemCategoryId: uncat.id,
     }).returning()
 
-    await db.insert(productColors).values({
-      productId: p.id, colorName: "Burgundy", colorHex: "#7b1f2b",
+    await db.insert(itemColors).values({
+      itemId: p.id, colorName: "Burgundy", colorHex: "#7b1f2b",
     })
 
-    const fetched = await db.query.products.findFirst({
-      where: eq(products.id, p.id),
+    const fetched = await db.query.items.findFirst({
+      where: eq(items.id, p.id),
       with: { colors: true },
     })
     expect(fetched?.colors).toHaveLength(1)
     expect(fetched?.colors[0].colorName).toBe("Burgundy")
 
-    await db.delete(products).where(eq(products.id, p.id))
+    await db.delete(items).where(eq(items.id, p.id))
   })
 })

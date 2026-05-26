@@ -11,7 +11,7 @@
  * 1. /store/receiving → auto-selects the lone seeded route → sets the date
  *    picker to 2026-04-10 → submits.
  * 2. /settings/audit-log → filters by article number → row visible.
- * 3. /products/${ART} → Activity panel shows the row.
+ * 3. /items/${ART} → Activity panel shows the row.
  */
 
 const TIMESTAMP = Date.now()
@@ -121,7 +121,7 @@ describe("Backdated receipt audit log", () => {
     cy.contains("2026-04-10").should("be.visible")
 
     // Step 3 — product detail Activity panel.
-    cy.visit(`/products/${ART}`)
+    cy.visit(`/items/${ART}`)
     cy.wait(3500)
 
     // The Activity h2 may be below the fold; assert presence in DOM rather

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { eq, ilike } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
-import { supplyRouteItems, products, productColors } from "#/db/schema"
+import { supplyRouteItems, items, itemColors } from "#/db/schema"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import {
@@ -36,7 +36,7 @@ export const getProductNameSuggestions = createServerFn()
     const session = await requireSession()
     requireRole(session, ["admin"])
     const like = `%${data.query}%`
-    return db.query.products.findMany({ where: ilike(products.name, like), limit: 20 })
+    return db.query.items.findMany({ where: ilike(items.name, like), limit: 20 })
   })
 
 /**
@@ -76,23 +76,23 @@ export const splitSupplyRouteItem = createServerFn()
       // the split (they should all belong to the same product).
       let productIdFallback = original.productId
       if (!productIdFallback) {
-        const firstColor = await tx.query.productColors.findFirst({
-          where: eq(productColors.id, data.cells[0].productColorId),
+        const firstColor = await tx.query.itemColors.findFirst({
+          where: eq(itemColors.id, data.cells[0].productColorId),
         })
         if (!firstColor) throw new Error("Color not found")
-        productIdFallback = firstColor.productId
+        productIdFallback = firstColor.itemId
       }
 
       // Sanity check: all referenced colors belong to that product.
       const referencedColorIds = Array.from(
         new Set(data.cells.map((c) => c.productColorId)),
       )
-      const referencedColors = await tx.query.productColors.findMany({
+      const referencedColors = await tx.query.itemColors.findMany({
         where: (t, { inArray }) => inArray(t.id, referencedColorIds),
-        columns: { id: true, productId: true },
+        columns: { id: true, itemId: true },
       })
       for (const c of referencedColors) {
-        if (c.productId !== productIdFallback) {
+        if (c.itemId !== productIdFallback) {
           throw new Error(
             "All colors in a split must belong to the same product",
           )
