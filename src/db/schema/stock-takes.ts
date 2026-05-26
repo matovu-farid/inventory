@@ -43,8 +43,8 @@ export const stockTakes = pgTable(
   ],
 )
 
-export const stockTakeItems = pgTable(
-  "stock_take_items",
+export const stockTakeLines = pgTable(
+  "stock_take_lines",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     stockTakeId: uuid("stock_take_id")
@@ -63,7 +63,7 @@ export const stockTakeItems = pgTable(
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("idx_stki_take").on(table.stockTakeId)],
+  (table) => [index("idx_stkl_take").on(table.stockTakeId)],
 )
 
 // Relations
@@ -72,20 +72,22 @@ export const stockTakeRelations = relations(stockTakes, ({ one, many }) => ({
     fields: [stockTakes.conductedBy],
     references: [user.id],
   }),
-  items: many(stockTakeItems),
+  // Relation key `items` retained as a stable JS API (see supply-routes.ts).
+  // Underlying table is now `stock_take_lines` (#8).
+  items: many(stockTakeLines),
 }))
 
-export const stockTakeItemRelations = relations(stockTakeItems, ({ one }) => ({
+export const stockTakeLineRelations = relations(stockTakeLines, ({ one }) => ({
   stockTake: one(stockTakes, {
-    fields: [stockTakeItems.stockTakeId],
+    fields: [stockTakeLines.stockTakeId],
     references: [stockTakes.id],
   }),
   storeStockItem: one(storeStock, {
-    fields: [stockTakeItems.storeStockId],
+    fields: [stockTakeLines.storeStockId],
     references: [storeStock.id],
   }),
   shopStockItem: one(shopStock, {
-    fields: [stockTakeItems.shopStockId],
+    fields: [stockTakeLines.shopStockId],
     references: [shopStock.id],
   }),
 }))

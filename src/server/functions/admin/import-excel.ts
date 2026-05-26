@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm"
 import { z } from "zod"
 import * as XLSX from "xlsx"
 import { db } from "#/db"
-import { supplyRoutes, supplyRouteItems, suppliers } from "#/db/schema"
+import { supplyRoutes, supplyRouteLines, suppliers } from "#/db/schema"
 import {
   parseExcelRouteSheet,
   computeExternalRef
@@ -129,7 +129,7 @@ export const importExcel = createServerFn()
 
         for (const item of parsed.items) {
           await tx
-            .insert(supplyRouteItems)
+            .insert(supplyRouteLines)
             .values(prepareImportItem(item, unknownSupplierId, route.id))
           itemsImported++
         }

@@ -17,7 +17,7 @@ import { user } from './auth'
 import { shops } from './shops'
 import { stores } from './store'
 import { variants } from './variants'
-import { supplyRouteItems } from './supply-routes'
+import { supplyRouteLines } from './supply-routes'
 
 export const notifications = pgTable(
   'notifications',
@@ -174,8 +174,10 @@ export const restockRequisitions = pgTable(
     baselineQuantity: integer('baseline_quantity').notNull(),
     quantityAtOpen: integer('quantity_at_open').notNull(),
     status: restockRequisitionStatusEnum('status').notNull().default('open'),
-    supplyRouteItemId: uuid('supply_route_item_id').references(
-      () => supplyRouteItems.id,
+    // Renamed from `supply_route_item_id` in Phase 2 (#8) when the source
+    // table was renamed `supply_route_items` → `supply_route_lines`.
+    supplyRouteLineId: uuid('supply_route_line_id').references(
+      () => supplyRouteLines.id,
       { onDelete: 'set null' },
     ),
     dismissedReason: text('dismissed_reason'),
@@ -238,9 +240,9 @@ export const restockRequisitionsRelations = relations(
       fields: [restockRequisitions.variantId],
       references: [variants.id],
     }),
-    supplyRouteItem: one(supplyRouteItems, {
-      fields: [restockRequisitions.supplyRouteItemId],
-      references: [supplyRouteItems.id],
+    supplyRouteLine: one(supplyRouteLines, {
+      fields: [restockRequisitions.supplyRouteLineId],
+      references: [supplyRouteLines.id],
     }),
   }),
 )

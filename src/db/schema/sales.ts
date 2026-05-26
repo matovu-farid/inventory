@@ -62,8 +62,8 @@ export const shopSales = pgTable(
   ],
 )
 
-export const shopSaleItems = pgTable(
-  "shop_sale_items",
+export const shopSaleLines = pgTable(
+  "shop_sale_lines",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     shopSaleId: uuid("shop_sale_id")
@@ -80,7 +80,7 @@ export const shopSaleItems = pgTable(
     totalPriceUgx: numeric("total_price_ugx", { precision: 15, scale: 2 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("idx_ssi_sale").on(table.shopSaleId)],
+  (table) => [index("idx_ssl_sale").on(table.shopSaleId)],
 )
 
 // Relations
@@ -100,16 +100,19 @@ export const shopSaleRelations = relations(shopSales, ({ one, many }) => ({
     fields: [shopSales.bankAccountId],
     references: [bankAccounts.id],
   }),
-  items: many(shopSaleItems),
+  // Relation key `items` retained as a stable JS API (see comment in
+  // supply-routes.ts on the same pattern). Underlying table is now
+  // `shop_sale_lines` (#8).
+  items: many(shopSaleLines),
 }))
 
-export const shopSaleItemRelations = relations(shopSaleItems, ({ one }) => ({
+export const shopSaleLineRelations = relations(shopSaleLines, ({ one }) => ({
   shopSale: one(shopSales, {
-    fields: [shopSaleItems.shopSaleId],
+    fields: [shopSaleLines.shopSaleId],
     references: [shopSales.id],
   }),
   shopStockItem: one(shopStock, {
-    fields: [shopSaleItems.shopStockId],
+    fields: [shopSaleLines.shopStockId],
     references: [shopStock.id],
   }),
 }))

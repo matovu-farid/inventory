@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { eq, ilike } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
-import { supplyRouteItems, items, itemColors } from "#/db/schema"
+import { supplyRouteLines, items, itemColors } from "#/db/schema"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 import {
@@ -19,7 +19,7 @@ export const addSupplyRouteVariants = createServerFn()
     const session = await requireSession()
     requireRole(session, ["admin"])
     const rows = materializeVariantRows(data)
-    return db.insert(supplyRouteItems).values(rows).returning()
+    return db.insert(supplyRouteLines).values(rows).returning()
   })
 
 export const deleteSupplyRouteItem = createServerFn()
@@ -27,7 +27,7 @@ export const deleteSupplyRouteItem = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
-    await db.delete(supplyRouteItems).where(eq(supplyRouteItems.id, data.id))
+    await db.delete(supplyRouteLines).where(eq(supplyRouteLines.id, data.id))
   })
 
 export const getProductNameSuggestions = createServerFn()
@@ -65,8 +65,8 @@ export const splitSupplyRouteItem = createServerFn()
     requireRole(session, ["admin"])
 
     return db.transaction(async (tx) => {
-      const original = await tx.query.supplyRouteItems.findFirst({
-        where: eq(supplyRouteItems.id, data.itemId),
+      const original = await tx.query.supplyRouteLines.findFirst({
+        where: eq(supplyRouteLines.id, data.itemId),
       })
       if (!original) throw new Error("Supply route item not found")
 
@@ -115,8 +115,8 @@ export const splitSupplyRouteItem = createServerFn()
       )
 
       await tx
-        .delete(supplyRouteItems)
-        .where(eq(supplyRouteItems.id, data.itemId))
-      return tx.insert(supplyRouteItems).values(rows).returning()
+        .delete(supplyRouteLines)
+        .where(eq(supplyRouteLines.id, data.itemId))
+      return tx.insert(supplyRouteLines).values(rows).returning()
     })
   })

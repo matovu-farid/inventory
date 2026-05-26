@@ -6,7 +6,7 @@ import {
   itemCategories,
   suppliers,
   supplyRoutes,
-  supplyRouteItems,
+  supplyRouteLines,
   user,
 } from "#/db/schema"
 import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
@@ -55,7 +55,7 @@ beforeAll(async () => {
   const [route] = await db.insert(supplyRoutes).values({ name: "Resolver Route" }).returning()
   ids.routeId = route.id
 
-  const [sriA] = await db.insert(supplyRouteItems).values({
+  const [sriA] = await db.insert(supplyRouteLines).values({
     supplyRouteId: route.id,
     supplierId: sup.id,
     itemId: pa.id,
@@ -68,7 +68,7 @@ beforeAll(async () => {
   }).returning()
   ids.sriA = sriA.id
 
-  const [sriA2] = await db.insert(supplyRouteItems).values({
+  const [sriA2] = await db.insert(supplyRouteLines).values({
     supplyRouteId: route.id,
     supplierId: sup.id,
     itemId: pa.id,
@@ -83,7 +83,7 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  await db.delete(supplyRouteItems).where(eq(supplyRouteItems.supplyRouteId, ids.routeId))
+  await db.delete(supplyRouteLines).where(eq(supplyRouteLines.supplyRouteId, ids.routeId))
   await db.delete(supplyRoutes).where(eq(supplyRoutes.id, ids.routeId))
   await db.delete(suppliers).where(eq(suppliers.id, ids.supplierId))
   await db.delete(itemColors).where(eq(itemColors.itemId, ids.productA))

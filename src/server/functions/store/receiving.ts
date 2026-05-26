@@ -7,7 +7,7 @@ import {
   storeReceivings,
   storeStock,
   supplyRoutes,
-  supplyRouteItems,
+  supplyRouteLines,
   variants,
 } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
@@ -54,16 +54,16 @@ export const listReceivableRoutes = createServerFn().handler(async () => {
   if (allItemIds.length === 0) return []
 
   const receivedRows = await db
-    .select({ supplyRouteItemId: storeReceivings.supplyRouteItemId })
+    .select({ supplyRouteLineId: storeReceivings.supplyRouteLineId })
     .from(storeReceivings)
     .where(
-      sql`${storeReceivings.supplyRouteItemId} IN (${sql.join(
+      sql`${storeReceivings.supplyRouteLineId} IN (${sql.join(
         allItemIds.map((id) => sql`${id}`),
         sql`, `,
       )})`,
     )
 
-  const receivedItemIds = new Set(receivedRows.map((r) => r.supplyRouteItemId))
+  const receivedItemIds = new Set(receivedRows.map((r) => r.supplyRouteLineId))
   return filterRoutesWithUnreceivedItems(routes, receivedItemIds)
 })
 
@@ -77,8 +77,8 @@ export const getUnreceivedItems = createServerFn()
     const session = await requireSession()
     requireRole(session, ["admin"])
 
-    const items = await db.query.supplyRouteItems.findMany({
-      where: eq(supplyRouteItems.supplyRouteId, data.supplyRouteId),
+    const items = await db.query.supplyRouteLines.findMany({
+      where: eq(supplyRouteLines.supplyRouteId, data.supplyRouteId),
       with: {
         supplier: true,
         productColor: { with: { product: true } },
@@ -90,22 +90,22 @@ export const getUnreceivedItems = createServerFn()
     const receivedIds = new Set(
       (
         await db
-          .select({ supplyRouteItemId: storeReceivings.supplyRouteItemId })
+          .select({ supplyRouteLineId: storeReceivings.supplyRouteLineId })
           .from(storeReceivings)
           .where(
-            sql`${storeReceivings.supplyRouteItemId} IN (${sql.join(
+            sql`${storeReceivings.supplyRouteLineId} IN (${sql.join(
               items.map((i) => sql`${i.id}`),
               sql`, `,
             )})`,
           )
-      ).map((r) => r.supplyRouteItemId),
+      ).map((r) => r.supplyRouteLineId),
     )
 
     return items.filter((item) => !receivedIds.has(item.id))
   })
 
 const receiveItemInput = z.object({
-  supplyRouteItemId: z.uuid(),
+  supplyRouteLineId: z.uuid(),
   quantityReceived: z.number().int().min(0),
   discrepancyNotes: z.string().optional(),
 })
@@ -169,7 +169,7 @@ export const receiveGoods = createServerFn()
         transitLoss: number
       }> = []
       const auditLines: Array<{
-        supplyRouteItemId: string
+        supplyRouteLineId: string
         variantId: string
         colorName: string
         size: string
@@ -178,11 +178,11 @@ export const receiveGoods = createServerFn()
 
       for (const item of data.items) {
         // Get the supply route item with product chain for log strings
-        const sri = await tx.query.supplyRouteItems.findFirst({
-          where: eq(supplyRouteItems.id, item.supplyRouteItemId),
+        const sri = await tx.query.supplyRouteLines.findFirst({
+          where: eq(supplyRouteLines.id, item.supplyRouteLineId),
           with: { productColor: { with: { product: true } } },
         })
-        if (!sri) throw new Error(`Supply route item not found: ${item.supplyRouteItemId}`)
+        if (!sri) throw new Error(`Supply route item not found: ${item.supplyRouteLineId}`)
 
         // Receiving requires a fully-resolved variant. Aggregate/color-only
         // procurement rows (Task 1) must be split into color+size variants
@@ -201,7 +201,7 @@ export const receiveGoods = createServerFn()
         // `pnpm backfill:variants`; otherwise materialise it on the fly so
         // the supply line can still land in stock without an admin detour.
         // Spec: docs/superpowers/specs/2026-05-24-category-item-variant-design.md
-        // §3 "Special case — supply_route_items".
+        // §3 "Special case — supply_route_lines".
         let variantRow = await tx.query.variants.findFirst({
           where: and(
             eq(variants.colorId, sriColorId),
@@ -228,7 +228,7 @@ export const receiveGoods = createServerFn()
 
         // One receipt per item — refuse if already received
         const prior = await tx.query.storeReceivings.findFirst({
-          where: eq(storeReceivings.supplyRouteItemId, sri.id),
+          where: eq(storeReceivings.supplyRouteLineId, sri.id),
         })
         if (prior) {
           throw new Error(
@@ -247,7 +247,7 @@ export const receiveGoods = createServerFn()
         // 1. Create StoreReceiving record
         await tx.insert(storeReceivings).values({
           storeId: store.id,
-          supplyRouteItemId: sri.id,
+          supplyRouteLineId: sri.id,
           receivedDate: receivedDate,
           quantityExpected: sri.quantity,
           quantityReceived: item.quantityReceived,
@@ -267,7 +267,7 @@ export const receiveGoods = createServerFn()
             .values({
               storeId: store.id,
               variantId: variantRow.id,
-              supplyRouteItemId: sri.id,
+              supplyRouteLineId: sri.id,
               quantityOnHand: item.quantityReceived,
               costPerUnitUgx: costPerUnit.toFixed(2),
               minimumSellPriceUgx: costPerUnit.toFixed(2), // default; admin sets real price later
@@ -325,7 +325,7 @@ export const receiveGoods = createServerFn()
           transitLoss,
         })
         auditLines.push({
-          supplyRouteItemId: sri.id,
+          supplyRouteLineId: sri.id,
           variantId: variantRow.id,
           colorName: productColor.colorName,
           size: sriSize,

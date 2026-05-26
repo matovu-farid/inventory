@@ -48,8 +48,8 @@ export const storeTransfers = pgTable(
   ],
 )
 
-export const storeTransferItems = pgTable(
-  "store_transfer_items",
+export const storeTransferLines = pgTable(
+  "store_transfer_lines",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     storeTransferId: uuid("store_transfer_id")
@@ -72,7 +72,7 @@ export const storeTransferItems = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("idx_sti_transfer").on(table.storeTransferId)],
+  (table) => [index("idx_stl_transfer").on(table.storeTransferId)],
 )
 
 // Relations
@@ -95,16 +95,18 @@ export const storeTransferRelations = relations(storeTransfers, ({ one, many }) 
     references: [user.id],
     relationName: "receivedBy",
   }),
-  items: many(storeTransferItems),
+  // Relation key `items` retained as a stable JS API (see supply-routes.ts).
+  // Underlying table is now `store_transfer_lines` (#8).
+  items: many(storeTransferLines),
 }))
 
-export const storeTransferItemRelations = relations(storeTransferItems, ({ one }) => ({
+export const storeTransferLineRelations = relations(storeTransferLines, ({ one }) => ({
   storeTransfer: one(storeTransfers, {
-    fields: [storeTransferItems.storeTransferId],
+    fields: [storeTransferLines.storeTransferId],
     references: [storeTransfers.id],
   }),
   storeStockItem: one(storeStock, {
-    fields: [storeTransferItems.storeStockId],
+    fields: [storeTransferLines.storeStockId],
     references: [storeStock.id],
   }),
 }))

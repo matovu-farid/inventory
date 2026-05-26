@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
-import { stockTakes, stockTakeItems, storeStock, shopStock, shops, stores } from "#/db/schema"
+import { stockTakes, stockTakeLines, storeStock, shopStock, shops, stores } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
@@ -75,7 +75,7 @@ export const startStockTake = createServerFn()
             item.variant.color.colorName,
             item.variant.size,
           )
-          await tx.insert(stockTakeItems).values({
+          await tx.insert(stockTakeLines).values({
             stockTakeId: st.id,
             storeStockId: item.id,
             productName: productLabel,
@@ -96,7 +96,7 @@ export const startStockTake = createServerFn()
             item.variant.color.colorName,
             item.variant.size,
           )
-          await tx.insert(stockTakeItems).values({
+          await tx.insert(stockTakeLines).values({
             stockTakeId: st.id,
             shopStockId: item.id,
             productName: productLabel,
@@ -162,21 +162,21 @@ export const recordPhysicalCount = createServerFn()
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
 
-    const item = await db.query.stockTakeItems.findFirst({
-      where: eq(stockTakeItems.id, data.stockTakeItemId),
+    const item = await db.query.stockTakeLines.findFirst({
+      where: eq(stockTakeLines.id, data.stockTakeItemId),
     })
     if (!item) throw new Error("Stock take item not found")
 
     const discrepancy = data.physicalQuantity - item.systemQuantity
 
     const [updated] = await db
-      .update(stockTakeItems)
+      .update(stockTakeLines)
       .set({
         physicalQuantity: data.physicalQuantity,
         discrepancy,
         notes: data.notes,
       })
-      .where(eq(stockTakeItems.id, data.stockTakeItemId))
+      .where(eq(stockTakeLines.id, data.stockTakeItemId))
       .returning()
 
     return updated

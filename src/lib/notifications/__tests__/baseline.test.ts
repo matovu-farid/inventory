@@ -13,10 +13,10 @@ import {
   storeStock,
   storeReceivings,
   storeTransfers,
-  storeTransferItems,
+  storeTransferLines,
   shops,
   supplyRoutes,
-  supplyRouteItems,
+  supplyRouteLines,
   suppliers,
   user as userTable,
 } from '#/db/schema'
@@ -84,7 +84,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // Delete in reverse FK order.
-  // storeTransferItems cascade-delete when storeTransfers row is deleted.
+  // storeTransferLines cascade-delete when storeTransfers row is deleted.
   await db
     .delete(storeTransfers)
     .where(eq(storeTransfers.storeId, ctx.store.id))
@@ -92,7 +92,7 @@ afterAll(async () => {
     .delete(storeReceivings)
     .where(eq(storeReceivings.storeId, ctx.store.id))
   await db.delete(storeStock).where(eq(storeStock.storeId, ctx.store.id))
-  // supplyRouteItems are cascade-deleted when the route is deleted.
+  // supplyRouteLines are cascade-deleted when the route is deleted.
   // Delete the 4 routes inserted by the storeBaseline test.
   await db
     .delete(supplyRoutes)
@@ -141,7 +141,7 @@ describe('computeStoreBaseline', () => {
         .values({ name: routeNames[i], status: 'received' })
         .returning()
       const [item] = await db
-        .insert(supplyRouteItems)
+        .insert(supplyRouteLines)
         .values({
           supplyRouteId: route.id,
           supplierId: ctx.supplier.id,
@@ -163,7 +163,7 @@ describe('computeStoreBaseline', () => {
     for (let i = 0; i < quantities.length; i++) {
       await db.insert(storeReceivings).values({
         storeId: ctx.store.id,
-        supplyRouteItemId: routeItems[i].id,
+        supplyRouteLineId: routeItems[i].id,
         receivedDate: new Date(2026, 0, i + 1),
         quantityExpected: quantities[i],
         quantityReceived: quantities[i],
@@ -211,7 +211,7 @@ describe('computeShopBaseline', () => {
         status: 'received',
       })
       .returning()
-    await db.insert(storeTransferItems).values({
+    await db.insert(storeTransferLines).values({
       storeTransferId: t1.id,
       storeStockId: ss.id,
       quantityDispatched: 60,
@@ -230,7 +230,7 @@ describe('computeShopBaseline', () => {
         status: 'dispatched',
       })
       .returning()
-    await db.insert(storeTransferItems).values({
+    await db.insert(storeTransferLines).values({
       storeTransferId: t2.id,
       storeStockId: ss.id,
       quantityDispatched: 70,

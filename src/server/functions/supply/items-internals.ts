@@ -16,7 +16,8 @@ import BigNumber from "bignumber.js"
  * spellings because the route + form components have not migrated to the
  * "item" vocabulary yet (UI rename is queued behind #7). On the way out,
  * `materializeVariantRows` maps them to the `colorId` / `itemId` columns
- * that supply_route_items uses after #6.
+ * that supply_route_lines uses after #6 / #8 (the table itself was
+ * renamed `supply_route_items` → `supply_route_lines` in Phase 2 / #8).
  */
 export const cellSchema = z.object({
   productColorId: z.uuid().optional(),
@@ -38,8 +39,9 @@ export const variantInput = z.object({
 export type MaterializedRow = {
   supplyRouteId: string
   supplierId: string
-  // Column names match supply_route_items after the #6 rename
-  // (product_id → item_id, product_color_id → color_id).
+  // Column names match supply_route_lines after the #6 / #8 renames
+  // (product_id → item_id, product_color_id → color_id; table renamed
+  // supply_route_items → supply_route_lines).
   itemId: string
   colorId: string | null
   size: string | null

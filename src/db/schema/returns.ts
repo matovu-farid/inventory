@@ -72,8 +72,8 @@ export const shopReturns = pgTable(
   ],
 )
 
-export const shopReturnItems = pgTable(
-  "shop_return_items",
+export const shopReturnLines = pgTable(
+  "shop_return_lines",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     shopReturnId: uuid("shop_return_id")
@@ -94,7 +94,8 @@ export const shopReturnItems = pgTable(
     }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("idx_sri_return").on(table.shopReturnId)],
+  // Disambiguated from supply_route_lines (`idx_srl_*`) by using `shrl`.
+  (table) => [index("idx_shrl_return").on(table.shopReturnId)],
 )
 
 // ============== Shop → Store returns ==============
@@ -140,8 +141,8 @@ export const storeReturns = pgTable(
   ],
 )
 
-export const storeReturnItems = pgTable(
-  "store_return_items",
+export const storeReturnLines = pgTable(
+  "store_return_lines",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     storeReturnId: uuid("store_return_id")
@@ -162,7 +163,7 @@ export const storeReturnItems = pgTable(
     }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("idx_storeri_return").on(table.storeReturnId)],
+  (table) => [index("idx_storerl_return").on(table.storeReturnId)],
 )
 
 export const shopReturnRelations = relations(shopReturns, ({ one, many }) => ({
@@ -175,12 +176,14 @@ export const shopReturnRelations = relations(shopReturns, ({ one, many }) => ({
     fields: [shopReturns.customerId],
     references: [customers.id],
   }),
-  items: many(shopReturnItems),
+  // Relation key `items` retained as a stable JS API (see supply-routes.ts).
+  // Underlying table is now `shop_return_lines` (#8).
+  items: many(shopReturnLines),
 }))
 
-export const shopReturnItemRelations = relations(shopReturnItems, ({ one }) => ({
+export const shopReturnLineRelations = relations(shopReturnLines, ({ one }) => ({
   shopReturn: one(shopReturns, {
-    fields: [shopReturnItems.shopReturnId],
+    fields: [shopReturnLines.shopReturnId],
     references: [shopReturns.id],
   }),
 }))
@@ -192,16 +195,18 @@ export const storeReturnRelations = relations(storeReturns, ({ one, many }) => (
     fields: [storeReturns.originalTransferId],
     references: [storeTransfers.id],
   }),
-  items: many(storeReturnItems),
+  // Relation key `items` retained as a stable JS API (see supply-routes.ts).
+  // Underlying table is now `store_return_lines` (#8).
+  items: many(storeReturnLines),
 }))
 
-export const storeReturnItemRelations = relations(storeReturnItems, ({ one }) => ({
+export const storeReturnLineRelations = relations(storeReturnLines, ({ one }) => ({
   storeReturn: one(storeReturns, {
-    fields: [storeReturnItems.storeReturnId],
+    fields: [storeReturnLines.storeReturnId],
     references: [storeReturns.id],
   }),
   shopStock: one(shopStock, {
-    fields: [storeReturnItems.shopStockId],
+    fields: [storeReturnLines.shopStockId],
     references: [shopStock.id],
   }),
 }))

@@ -5,7 +5,7 @@ import BigNumber from "bignumber.js"
 import { db } from "#/db"
 import {
   storeReturns,
-  storeReturnItems,
+  storeReturnLines,
   shopStock,
   storeStock,
   shops,
@@ -87,7 +87,7 @@ export const dispatchStoreReturn = createServerFn()
         .returning()
 
       for (const detail of itemDetails) {
-        await tx.insert(storeReturnItems).values({
+        await tx.insert(storeReturnLines).values({
           storeReturnId: storeReturn.id,
           shopStockId: detail.stock.id,
           quantityDispatched: detail.quantityDispatched,
@@ -219,9 +219,9 @@ export const receiveStoreReturn = createServerFn()
           )
         }
         await tx
-          .update(storeReturnItems)
+          .update(storeReturnLines)
           .set({ quantityReceived: receipt.quantityReceived })
-          .where(eq(storeReturnItems.id, receipt.storeReturnItemId))
+          .where(eq(storeReturnLines.id, receipt.storeReturnItemId))
 
         const transferAmount = new BigNumber(item.unitTransferPriceUgx).times(
           receipt.quantityReceived,
