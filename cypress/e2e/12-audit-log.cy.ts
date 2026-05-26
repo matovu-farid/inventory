@@ -51,14 +51,14 @@ describe("Backdated receipt audit log", () => {
 
     cy.task(
       "dbQuery",
-      `INSERT INTO products (id, article_number, name) VALUES (gen_random_uuid(), '${ART}', 'Audit Test Product') RETURNING id;`,
+      `INSERT INTO items (id, article_number, name, item_category_id) VALUES (gen_random_uuid(), '${ART}', 'Audit Test Product', (SELECT id FROM item_categories WHERE name = 'Uncategorized')) RETURNING id;`,
     ).as("productId")
 
     cy.then(function () {
       const productId = (this.productId as Array<{ id: string }>)[0].id
       cy.task(
         "dbQuery",
-        `INSERT INTO product_colors (id, product_id, color_name, color_hex) VALUES (gen_random_uuid(), '${productId}', 'Black', '#000000') RETURNING id;`,
+        `INSERT INTO item_colors (id, item_id, color_name, color_hex) VALUES (gen_random_uuid(), '${productId}', 'Black', '#000000') RETURNING id;`,
       ).as("pcId")
     })
 
