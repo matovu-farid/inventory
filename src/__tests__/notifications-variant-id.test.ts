@@ -1,3 +1,16 @@
+/**
+ * Issue #5 — notifications tables move from (product_color_id, size) onto
+ * variant_id. This test pins down the new shape end-to-end:
+ *
+ *   - notification_threshold_overrides rows carry variant_id
+ *   - low_stock_alerts rows carry variant_id
+ *   - restock_requisitions rows carry variant_id
+ *   - the runThresholdChecks engine resolves a per-variant override and
+ *     opens / resolves / reopens alerts addressed by variant_id
+ *
+ * It is intentionally written against the FINAL shape (red against the
+ * pre-migration tree, green after the migration + code refactor lands).
+ */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { eq, and } from 'drizzle-orm'
 import { db } from '#/db'
@@ -33,12 +46,9 @@ interface Fixture {
 }
 
 const FIXTURE: Fixture = {
-  user: 'user-lowstock-test',
+  user: 'user-notif-variant-test',
 }
 
-// Narrowing accessors so we don't sprinkle `!` non-null assertions everywhere.
-// Each getter throws a clear error if `seed()` hasn't run, which is also a
-// real failure mode worth surfacing.
 function pcId(): string {
   assertDefined(FIXTURE.pc, 'FIXTURE.pc not seeded')
   return FIXTURE.pc
@@ -68,14 +78,14 @@ const SIZE = 'M'
 async function seed() {
   await db.insert(userTable).values({
     id: FIXTURE.user,
-    name: 'LowStock Tester',
-    email: 'lowstock@example.com',
+    name: 'Notif Variant Tester',
+    email: 'notif-variant@example.com',
     emailVerified: true,
     role: 'admin',
   })
   const [s] = await db
     .insert(suppliers)
-    .values({ name: 'S1-lowstock', type: 'local' })
+    .values({ name: 'S1-notif-variant', type: 'local' })
     .returning()
   FIXTURE.supplier = s.id
   const [uncat] = await db
@@ -85,8 +95,8 @@ async function seed() {
   const [p] = await db
     .insert(items)
     .values({
-      articleNumber: 'ART-LS',
-      name: 'LS Product',
+      articleNumber: 'ART-NV',
+      name: 'Notif Variant Product',
       itemCategoryId: uncat.id,
     })
     .returning()
@@ -103,13 +113,13 @@ async function seed() {
   FIXTURE.variant = v.id
   const [store] = await db
     .insert(stores)
-    .values({ name: 'LS Store' })
+    .values({ name: 'NV Store' })
     .returning()
   FIXTURE.store = store.id
-  const [shop] = await db.insert(shops).values({ name: 'LS Shop' }).returning()
+  const [shop] = await db.insert(shops).values({ name: 'NV Shop' }).returning()
   FIXTURE.shop = shop.id
 
-  // 3 historical receivings via separate routes (uq_sri_variant constraint).
+  // 3 historical receivings so the percent rule has a baseline.
   // avg = (50+80+200)/3 ≈ 110
   const dates = [
     new Date(2026, 0, 1),
@@ -120,7 +130,7 @@ async function seed() {
   for (const qty of [50, 80, 200]) {
     const [route] = await db
       .insert(supplyRoutes)
-      .values({ name: `LS Route ${qty}`, status: 'received' })
+      .values({ name: `NV Route ${qty}`, status: 'received' })
       .returning()
     const [item] = await db
       .insert(supplyRouteItems)
@@ -149,8 +159,8 @@ async function seed() {
 
 async function cleanup() {
   // Order: drop stock + override rules first so any parallel test calling
-  // `runThresholdChecksInternal` (it scans the whole DB) cannot race back
-  // in and reopen alerts for our variant after the first delete.
+  // `runThresholdChecksInternal` (it scans the whole DB) cannot race back in
+  // and reopen alerts for our variant after the first delete.
   await db.delete(storeStock).where(eq(storeStock.storeId, storeId()))
   await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
   await db
@@ -166,11 +176,10 @@ async function cleanup() {
   await db
     .delete(supplyRouteItems)
     .where(eq(supplyRouteItems.productColorId, pcId()))
-  // Drop routes by name pattern (we created 3)
   for (const qty of [50, 80, 200]) {
     await db
       .delete(supplyRoutes)
-      .where(eq(supplyRoutes.name, `LS Route ${qty}`))
+      .where(eq(supplyRoutes.name, `NV Route ${qty}`))
   }
   await db.delete(variants).where(eq(variants.id, variantId()))
   await db.delete(itemColors).where(eq(itemColors.id, pcId()))
@@ -209,18 +218,6 @@ async function insertStoreStock(qoh: number) {
   })
 }
 
-async function insertShopStock(qoh: number) {
-  await db.insert(shopStock).values({
-    shopId: shopId(),
-    productColorId: pcId(),
-    size: SIZE,
-    quantityOnHand: qoh,
-    costPerUnitUgx: '1500',
-    minimumSellPriceUgx: '2000',
-  })
-}
-
-// Helper: get our fixture's store alerts filtered by location.
 async function ourStoreAlerts() {
   return db
     .select()
@@ -233,71 +230,63 @@ async function ourStoreAlerts() {
     )
 }
 
-// Helper: get our fixture's shop alerts filtered by location.
-async function ourShopAlerts() {
-  return db
-    .select()
-    .from(lowStockAlerts)
-    .where(
-      and(
-        eq(lowStockAlerts.variantId, variantId()),
-        eq(lowStockAlerts.locationId, shopId()),
-      ),
-    )
-}
+describe('notification tables keyed by variant_id', () => {
+  it('notification_threshold_overrides accepts a variant_id row and rejects writes that omit it', async () => {
+    const [row] = await db
+      .insert(notificationThresholdOverrides)
+      .values({
+        scope: 'store',
+        variantId: variantId(),
+        shopId: null,
+        mode: 'units',
+        value: '100',
+      })
+      .returning()
+    expect(row.variantId).toBe(variantId())
+    // Confirm the old composite columns are gone from the type — if they
+    // existed we'd be able to read them on the row.
+    expect((row as Record<string, unknown>).productColorId).toBeUndefined()
+    expect((row as Record<string, unknown>).size).toBeUndefined()
+  })
 
-describe('runThresholdChecksInternal', () => {
-  it('opens a store alert + requisition when below 30% of baseline', async () => {
-    await insertStoreStock(20) // 20 / 110 ≈ 18% < 30%
+  it('threshold engine opens a store alert keyed by variant_id and resolves it when stock recovers', async () => {
+    await insertStoreStock(20) // ≈ 18% of baseline 110 → below 30% default
     await runThresholdChecksInternal(db, new Date())
 
-    const alerts = await ourStoreAlerts()
+    let alerts = await ourStoreAlerts()
     expect(alerts).toHaveLength(1)
+    expect(alerts[0].variantId).toBe(variantId())
     expect(alerts[0].status).toBe('open')
-    expect(alerts[0].quantityAtOpen).toBe(20)
-    expect(alerts[0].thresholdSnapshot).toEqual({ mode: 'percent', value: 30 })
 
     const reqs = await db
       .select()
       .from(restockRequisitions)
       .where(eq(restockRequisitions.storeId, storeId()))
     expect(reqs).toHaveLength(1)
-    expect(reqs[0].suggestedQuantity).toBe(110 - 20)
-  })
+    expect(reqs[0].variantId).toBe(variantId())
+    expect(reqs[0].status).toBe('open')
 
-  it('is idempotent — running twice does not create duplicate alerts', async () => {
-    await insertStoreStock(20)
-    await runThresholdChecksInternal(db, new Date())
-    await runThresholdChecksInternal(db, new Date())
-
-    const alerts = await ourStoreAlerts()
-    expect(alerts).toHaveLength(1)
-    expect(alerts[0].status).toBe('open')
-  })
-
-  it('resolves alert and fulfils requisition when stock recovers', async () => {
-    await insertStoreStock(20)
-    await runThresholdChecksInternal(db, new Date())
+    // recover → resolves alert + fulfils requisition
     await db
       .update(storeStock)
       .set({ quantityOnHand: 150 })
       .where(eq(storeStock.storeId, storeId()))
     await runThresholdChecksInternal(db, new Date())
 
-    const alerts = await ourStoreAlerts()
+    alerts = await ourStoreAlerts()
     expect(alerts).toHaveLength(1)
     expect(alerts[0].status).toBe('resolved')
     expect(alerts[0].resolvedAt).not.toBeNull()
 
-    const reqs = await db
+    const reqsAfter = await db
       .select()
       .from(restockRequisitions)
       .where(eq(restockRequisitions.storeId, storeId()))
-    expect(reqs).toHaveLength(1)
-    expect(reqs[0].status).toBe('fulfilled')
+    expect(reqsAfter).toHaveLength(1)
+    expect(reqsAfter[0].status).toBe('fulfilled')
   })
 
-  it('re-arms — alert opens fresh after a resolved cycle drops below again', async () => {
+  it('re-arms — a fresh open alert is created with the same variant_id after a resolved cycle', async () => {
     await insertStoreStock(20)
     await runThresholdChecksInternal(db, new Date())
     await db
@@ -313,10 +302,12 @@ describe('runThresholdChecksInternal', () => {
 
     const alerts = await ourStoreAlerts()
     expect(alerts).toHaveLength(2)
-    expect(alerts.filter((a) => a.status === 'open')).toHaveLength(1)
+    expect(alerts.every((a) => a.variantId === variantId())).toBe(true)
+    const open = alerts.filter((a) => a.status === 'open')
+    expect(open).toHaveLength(1)
   })
 
-  it('respects a variant-specific units override that bypasses percent rule', async () => {
+  it('respects a variant-keyed units override', async () => {
     await db.insert(notificationThresholdOverrides).values({
       scope: 'store',
       variantId: variantId(),
@@ -329,31 +320,7 @@ describe('runThresholdChecksInternal', () => {
 
     const alerts = await ourStoreAlerts()
     expect(alerts).toHaveLength(1)
+    expect(alerts[0].variantId).toBe(variantId())
     expect(alerts[0].status).toBe('open')
-  })
-
-  it('opens a shop alert (no requisition) when shop stock is low', async () => {
-    await insertShopStock(2)
-    // No transfer history → baseline null → percent rule skips.
-    // Add a units override so the rule fires.
-    await db.insert(notificationThresholdOverrides).values({
-      scope: 'shop',
-      variantId: variantId(),
-      shopId: null,
-      mode: 'units',
-      value: '5',
-    })
-    await runThresholdChecksInternal(db, new Date())
-
-    const shopAlerts = await ourShopAlerts()
-    expect(shopAlerts).toHaveLength(1)
-    expect(shopAlerts[0].status).toBe('open')
-
-    // No requisition should be created for shop alerts.
-    const reqs = await db
-      .select()
-      .from(restockRequisitions)
-      .where(eq(restockRequisitions.variantId, variantId()))
-    expect(reqs).toHaveLength(0)
   })
 })

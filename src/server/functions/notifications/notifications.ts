@@ -1,17 +1,17 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, desc, eq, inArray, isNull } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import { notifications, shopSales, lowStockAlerts } from "#/db/schema"
-import { shouldNotifyOverdueCredit } from "#/lib/notifications/thresholds"
-import { emitToRoles } from "#/lib/notifications/emit"
-import { formatUgxTotal } from "#/lib/format"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { OPEN_PAYMENT_STATUSES } from "#/lib/payment-status"
-import { runThresholdChecksInternal } from "#/server/scheduled/run-threshold-checks"
+import { createServerFn } from '@tanstack/react-start'
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { notifications, shopSales, lowStockAlerts } from '#/db/schema'
+import { shouldNotifyOverdueCredit } from '#/lib/notifications/thresholds'
+import { emitToRoles } from '#/lib/notifications/emit'
+import { formatUgxTotal } from '#/lib/format'
+import { requireSession } from '#/server/middleware/auth'
+import { requireRole } from '#/server/middleware/rbac'
+import { OPEN_PAYMENT_STATUSES } from '#/lib/payment-status'
+import { runThresholdChecksInternal } from '#/server/scheduled/run-threshold-checks'
 
-export { emitToRoles } from "#/lib/notifications/emit"
+export { emitToRoles } from '#/lib/notifications/emit'
 
 export const listMyNotifications = createServerFn().handler(async () => {
   const session = await requireSession()
@@ -42,12 +42,11 @@ export const getLowStockAlertNavTarget = createServerFn()
         .from(lowStockAlerts)
         .where(eq(lowStockAlerts.id, data.id))
     ).at(0)
-    if (!row) throw new Error("Alert not found")
+    if (!row) throw new Error('Alert not found')
     return {
       scope: row.scope,
       locationId: row.locationId,
-      productColorId: row.productColorId,
-      size: row.size,
+      variantId: row.variantId,
     }
   })
 
@@ -91,18 +90,18 @@ async function runOverdueCreditChecks(
       ) {
         await tenantDb.transaction(async (tx) => {
           await emitToRoles(tx, {
-            kind: "credit_overdue",
+            kind: 'credit_overdue',
             title: `Overdue credit sale ${sale.documentNumber ?? sale.id.slice(0, 8)}`,
             body: `Outstanding balance ${formatUgxTotal(sale.outstandingBalance)} is past the ${OVERDUE_DAYS}-day window.`,
-            roles: ["admin", "supervisor"],
-            entityType: "shop_sale",
+            roles: ['admin', 'supervisor'],
+            entityType: 'shop_sale',
             entityId: sale.id,
           })
         })
         overdueEmitted++
       }
     } catch (error) {
-      console.error("[runOverdueCreditChecks] sale failed", {
+      console.error('[runOverdueCreditChecks] sale failed', {
         saleId: sale.id,
         error,
       })
@@ -118,7 +117,7 @@ async function runOverdueCreditChecks(
  */
 export const runThresholdChecksNow = createServerFn().handler(async () => {
   const session = await requireSession()
-  requireRole(session, ["admin"])
+  requireRole(session, ['admin'])
 
   const now = new Date()
   const [stockSummary, creditSummary] = await Promise.all([
