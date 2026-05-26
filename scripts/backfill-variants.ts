@@ -8,20 +8,23 @@ import { db } from '../src/db'
  * Spec: docs/superpowers/specs/2026-05-24-category-item-variant-design.md
  *       §4 step 4.
  *
- * Pre-flight assertions (each rolls the whole transaction back if non-zero):
+ * Pre-flight assertion (rolls the whole transaction back if non-zero):
  *
- *   1. Every stock/notification row addressed by (product_color_id, size)
- *      must reference a size that lives in `items.sizes` for the parent
- *      item. Drift here means orphan variants we cannot back-link, so we
- *      ABORT rather than silently dropping inventory.
- *
- *   2. No item may have duplicate sizes in `items.sizes`. The schema
- *      allows it (Postgres text[] is not a set), but it would let us insert
- *      duplicates with `unnest` and would violate the unique
- *      (item_id, color_id, size) constraint anyway.
+ *   - No item may have duplicate sizes in `items.sizes`. The schema
+ *     allows it (Postgres text[] is not a set), but it would let us insert
+ *     duplicates with `unnest` and would violate the unique
+ *     (item_id, color_id, size) constraint anyway.
  *
  * Backfill itself uses `INSERT … SELECT DISTINCT … ON CONFLICT DO NOTHING`
  * so re-running the script is a no-op.
+ *
+ * Historical note: an earlier version also asserted that every
+ * (product_color_id, size) row in `store_stock` / `shop_stock` mapped to a
+ * size in `items.sizes`. Issue #4 dropped those composite columns from both
+ * stock tables in favour of `variant_id`, so the orphan check is no longer
+ * runnable (the columns it scanned no longer exist). The orphan-count
+ * fields on `BackfillSummary` are kept for backwards compatibility and
+ * always report 0.
  */
 export interface BackfillSummary {
   inserted: number
@@ -45,14 +48,9 @@ export interface BackfillOptions {
   itemIds?: string[]
 }
 
-// Notification tables (notification_threshold_overrides / low_stock_alerts /
-// restock_requisitions) used to live in this list, but #5 swapped them off
-// (product_color_id, size) onto variant_id directly, so they no longer carry
-// a composite key to check for orphans.
-const STOCK_TABLES = ['store_stock', 'shop_stock'] as const
-
-type StockTable = (typeof STOCK_TABLES)[number]
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+// Stock + notification tables both used to live here; #4 swapped stock onto
+// `variant_id` and #5 did the same for notifications. Neither carries the
+// composite key any more, so the orphan check has no rows to scan.
 
 function normaliseRows<T>(result: unknown): T[] {
   if (Array.isArray(result)) return result as T[]
@@ -67,23 +65,10 @@ function itemFilterClause(itemIds: string[] | undefined) {
   )})`
 }
 
-async function countOrphans(
-  tx: Tx,
-  table: StockTable,
-  itemIds: string[] | undefined,
-): Promise<number> {
-  // Count rows where (product_color_id, size) does NOT correspond to a
-  // size in the parent product's sizes[] array.
-  const result = await tx.execute<{ orphans: number }>(sql`
-    SELECT COUNT(*)::int AS orphans
-    FROM ${sql.identifier(table)} AS s
-    JOIN item_colors pc ON pc.id = s.product_color_id
-    JOIN items p ON p.id = pc.item_id
-    WHERE NOT (s.size = ANY (p.sizes))${itemFilterClause(itemIds)}
-  `)
-  const rows = normaliseRows<{ orphans: number }>(result)
-  return rows[0]?.orphans ?? 0
-}
+// Historical: prior to #4, this scanned shop_stock / store_stock for rows
+// whose (product_color_id, size) did not match items.sizes. Once #4 dropped
+// those columns, there is nothing left to scan, so the function is a no-op
+// kept for shape-compatibility with `BackfillSummary.assertions.*Orphans`.
 
 export async function backfillVariants(
   options: BackfillOptions = {},
@@ -91,22 +76,7 @@ export async function backfillVariants(
   const { itemIds } = options
 
   return db.transaction(async (tx) => {
-    // 1. Per-table pre-flight: every (product_color_id, size) in inventory
-    //    must point to a size that the parent product actually carries.
-    const orphanCounts: Record<StockTable, number> = {
-      store_stock: await countOrphans(tx, 'store_stock', itemIds),
-      shop_stock: await countOrphans(tx, 'shop_stock', itemIds),
-    }
-
-    for (const [table, n] of Object.entries(orphanCounts)) {
-      if (n > 0) {
-        throw new Error(
-          `backfill aborted: ${table} has ${n} row(s) whose (product_color_id, size) does not match items.sizes — fix the data drift before continuing.`,
-        )
-      }
-    }
-
-    // 2. No product may carry duplicate sizes in its sizes[] array.
+    // No product may carry duplicate sizes in its sizes[] array.
     // COALESCE handles the sizes=[] case (array_length returns NULL while
     // COUNT(DISTINCT …) returns 0 — without coalesce, every empty array
     // would be mis-flagged as a duplicate).
@@ -163,8 +133,8 @@ export async function backfillVariants(
       inserted,
       skipped: Math.max(totalCandidates - inserted, 0),
       assertions: {
-        storeStockOrphans: orphanCounts.store_stock,
-        shopStockOrphans: orphanCounts.shop_stock,
+        storeStockOrphans: 0,
+        shopStockOrphans: 0,
         productsWithDuplicateSizes,
       },
     }

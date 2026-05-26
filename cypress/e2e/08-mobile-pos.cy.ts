@@ -41,13 +41,26 @@ describe.skip("Mobile POS happy path", () => {
        SELECT id, 'Red', '#dc2626' FROM items WHERE article_number = 'TR-POS'
        ON CONFLICT DO NOTHING`,
     )
+    // Stock tables key on variant_id after issue #4 — seed the variant
+    // row first (one per color × size), then point shop_stock at it.
     cy.task(
       "dbQuery",
-      `INSERT INTO shop_stock (shop_id, product_color_id, size, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
+      `INSERT INTO variants (item_id, color_id, size)
+       SELECT p.id, pc.id, 'M'
+       FROM items p JOIN item_colors pc ON pc.item_id = p.id
+       WHERE p.article_number = 'TR-POS' AND pc.color_name = 'Red'
+       ON CONFLICT DO NOTHING`,
+    )
+    cy.task(
+      "dbQuery",
+      `INSERT INTO shop_stock (shop_id, variant_id, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
        SELECT
          (SELECT id FROM shops WHERE name = 'POS Shop' LIMIT 1),
-         (SELECT pc.id FROM item_colors pc JOIN items p ON p.id = pc.item_id WHERE p.article_number = 'TR-POS' AND pc.color_name = 'Red' LIMIT 1),
-         'M',
+         (SELECT v.id FROM variants v
+            JOIN item_colors pc ON pc.id = v.color_id
+            JOIN items p ON p.id = pc.item_id
+            WHERE p.article_number = 'TR-POS' AND pc.color_name = 'Red' AND v.size = 'M'
+            LIMIT 1),
          10,
          30000,
          50000

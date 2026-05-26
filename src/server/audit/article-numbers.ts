@@ -10,6 +10,7 @@ import {
   shopReturnItems,
   storeReturnItems,
   stockTakeItems,
+  variants,
 } from "#/db/schema"
 import type { Database } from "#/db"
 
@@ -54,12 +55,15 @@ const RESOLVERS: Partial<Record<string, Resolver>> = {
   "stockTake.start": resolveByStockTakeId,
 }
 
+// Stock tables now address inventory via `variant_id` (issue #4), so we
+// hop stock → variants → item_colors → items instead of stock → item_colors.
 async function resolveByTransferId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
   const rows = await tx
     .select({ articleNumber: items.articleNumber })
     .from(storeTransferItems)
     .innerJoin(storeStock, eq(storeStock.id, storeTransferItems.storeStockId))
-    .innerJoin(itemColors, eq(itemColors.id, storeStock.productColorId))
+    .innerJoin(variants, eq(variants.id, storeStock.variantId))
+    .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(storeTransferItems.storeTransferId, entityId))
   return rows.map((r) => r.articleNumber)
@@ -70,7 +74,8 @@ async function resolveBySaleId(tx: Tx, { entityId }: ResolverInput): Promise<str
     .select({ articleNumber: items.articleNumber })
     .from(shopSaleItems)
     .innerJoin(shopStock, eq(shopStock.id, shopSaleItems.shopStockId))
-    .innerJoin(itemColors, eq(itemColors.id, shopStock.productColorId))
+    .innerJoin(variants, eq(variants.id, shopStock.variantId))
+    .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(shopSaleItems.shopSaleId, entityId))
   return rows.map((r) => r.articleNumber)
@@ -81,7 +86,8 @@ async function resolveByShopReturnId(tx: Tx, { entityId }: ResolverInput): Promi
     .select({ articleNumber: items.articleNumber })
     .from(shopReturnItems)
     .innerJoin(shopStock, eq(shopStock.id, shopReturnItems.shopStockId))
-    .innerJoin(itemColors, eq(itemColors.id, shopStock.productColorId))
+    .innerJoin(variants, eq(variants.id, shopStock.variantId))
+    .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(shopReturnItems.shopReturnId, entityId))
   return rows.map((r) => r.articleNumber)
@@ -94,13 +100,14 @@ async function resolveByStoreReturnId(tx: Tx, { entityId }: ResolverInput): Prom
     .select({ articleNumber: items.articleNumber })
     .from(storeReturnItems)
     .innerJoin(shopStock, eq(shopStock.id, storeReturnItems.shopStockId))
-    .innerJoin(itemColors, eq(itemColors.id, shopStock.productColorId))
+    .innerJoin(variants, eq(variants.id, shopStock.variantId))
+    .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(storeReturnItems.storeReturnId, entityId))
   return rows.map((r) => r.articleNumber)
 }
 
-// stockTakeItems has nullable storeStockId and shopStockId (no direct productColorId).
+// stockTakeItems has nullable storeStockId and shopStockId (no direct variantId).
 // Resolve by joining through either storeStock or shopStock, depending on which column is set.
 // Two queries unioned in JS — simpler than a CASE/COALESCE join. innerJoin skips NULL rows.
 async function resolveByStockTakeId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
@@ -108,7 +115,8 @@ async function resolveByStockTakeId(tx: Tx, { entityId }: ResolverInput): Promis
     .select({ articleNumber: items.articleNumber })
     .from(stockTakeItems)
     .innerJoin(storeStock, eq(storeStock.id, stockTakeItems.storeStockId))
-    .innerJoin(itemColors, eq(itemColors.id, storeStock.productColorId))
+    .innerJoin(variants, eq(variants.id, storeStock.variantId))
+    .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(stockTakeItems.stockTakeId, entityId))
 
@@ -116,7 +124,8 @@ async function resolveByStockTakeId(tx: Tx, { entityId }: ResolverInput): Promis
     .select({ articleNumber: items.articleNumber })
     .from(stockTakeItems)
     .innerJoin(shopStock, eq(shopStock.id, stockTakeItems.shopStockId))
-    .innerJoin(itemColors, eq(itemColors.id, shopStock.productColorId))
+    .innerJoin(variants, eq(variants.id, shopStock.variantId))
+    .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(stockTakeItems.stockTakeId, entityId))
 

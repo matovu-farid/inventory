@@ -210,8 +210,7 @@ beforeEach(async () => {
 async function insertStoreStock(qoh: number) {
   await db.insert(storeStock).values({
     storeId: storeId(),
-    productColorId: pcId(),
-    size: SIZE,
+    variantId: variantId(),
     quantityOnHand: qoh,
     costPerUnitUgx: '1000',
     minimumSellPriceUgx: '1500',

@@ -12,9 +12,10 @@ import {
   transactionCategories,
   auditLogs,
   user,
+  variants,
 } from "#/db/schema"
 import { addStoreOpeningBalance } from "#/server/functions/admin/opening-balance"
-import { eq } from "drizzle-orm"
+import { eq, inArray } from "drizzle-orm"
 
 // TanStack Start's server-fn machinery (createServerFn / requireSession via
 // getRequestHeaders) needs a request context that is unavailable in Vitest.
@@ -101,6 +102,17 @@ describe("addStoreOpeningBalance — variants", () => {
       .insert(itemColors)
       .values({ itemId: p.id, colorName: "Red", colorHex: "#cc2828" })
       .returning()
+    // The opening-balance handler now resolves (color, size) → variant_id
+    // before writing to store_stock (issue #4). Seed the two variants the
+    // test exercises so the resolver hits a row.
+    const variantRows = await db
+      .insert(variants)
+      .values([
+        { itemId: p.id, colorId: c.id, size: "S" },
+        { itemId: p.id, colorId: c.id, size: "M" },
+      ])
+      .returning()
+    const variantIds = variantRows.map((v) => v.id)
     await db.insert(stores).values({ name: "Test Store" }).onConflictDoNothing()
 
     await callServerFn(() =>
@@ -124,12 +136,16 @@ describe("addStoreOpeningBalance — variants", () => {
     // run outside SSR, so we assert via persisted rows. itemCount === 2 is
     // implied by the 2-row insert below.
     const rows = await db.query.storeStock.findMany({
-      where: eq(storeStock.productColorId, c.id),
+      where: inArray(storeStock.variantId, variantIds),
+      with: { variant: true },
     })
     expect(rows).toHaveLength(2)
-    expect(rows.map((r) => r.size).sort()).toEqual(["M", "S"])
+    expect(rows.map((r) => r.variant.size).sort()).toEqual(["M", "S"])
 
-    await db.delete(storeStock).where(eq(storeStock.productColorId, c.id))
+    await db
+      .delete(storeStock)
+      .where(inArray(storeStock.variantId, variantIds))
+    await db.delete(variants).where(inArray(variants.id, variantIds))
     await db.delete(itemColors).where(eq(itemColors.id, c.id))
     await db.delete(items).where(eq(items.id, p.id))
   })

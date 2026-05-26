@@ -23,11 +23,15 @@ export interface ReceivableTransfer {
     id: string
     quantityDispatched: number
     storeStockItem: {
-      size: string
-      productColor: {
-        colorName: string
-        colorHex: string
-        product: { name: string; articleNumber: string }
+      // Stock now references variant_id (issue #4); the joined variant
+      // carries size + color (with parent item/product).
+      variant: {
+        size: string
+        color: {
+          colorName: string
+          colorHex: string
+          product: { name: string; articleNumber: string }
+        }
       }
     }
   }>
@@ -144,19 +148,19 @@ export function ReceiveTransferForm({
                 cell: (item) => (
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      {item.storeStockItem.productColor.product.name}
+                      {item.storeStockItem.variant.color.product.name}
                     </span>
                     <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
                       <span
                         className="size-3 rounded-full border"
                         style={{
                           backgroundColor:
-                            item.storeStockItem.productColor.colorHex,
+                            item.storeStockItem.variant.color.colorHex,
                         }}
                         aria-hidden
                       />
-                      {item.storeStockItem.productColor.colorName} ·{" "}
-                      {item.storeStockItem.size}
+                      {item.storeStockItem.variant.color.colorName} ·{" "}
+                      {item.storeStockItem.variant.size}
                     </span>
                   </div>
                 ),
@@ -204,9 +208,9 @@ export function ReceiveTransferForm({
                   <div key={item.id} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">
-                        {item.storeStockItem.productColor.product.name} ·{" "}
-                        {item.storeStockItem.productColor.colorName} ·{" "}
-                        {item.storeStockItem.size}
+                        {item.storeStockItem.variant.color.product.name} ·{" "}
+                        {item.storeStockItem.variant.color.colorName} ·{" "}
+                        {item.storeStockItem.variant.size}
                       </span>
                       <Badge variant="destructive">{missing} missing</Badge>
                     </div>

@@ -21,14 +21,23 @@ export function productImageUrl(s3Key: string | null | undefined): string | null
   return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${s3Key}`
 }
 
+/**
+ * Stock row consumed by the POS/aggregation UI. Stock tables now reference
+ * inventory via `variant_id` (issue #4) — each row carries the joined
+ * variant, which in turn exposes the color (with its parent item/product)
+ * and the size string the row corresponds to.
+ */
 interface StockRow {
   quantityOnHand: number
-  productColor: {
-    id: string
-    colorName: string
-    colorHex: string
-    imageS3Key: string | null
-    product: { id: string; articleNumber: string; name: string; sizes: string[] }
+  variant: {
+    size: string
+    color: {
+      id: string
+      colorName: string
+      colorHex: string
+      imageS3Key: string | null
+      product: { id: string; articleNumber: string; name: string; sizes: string[] }
+    }
   }
 }
 
@@ -41,18 +50,19 @@ export interface AggregatedProduct {
 export function aggregateStockByArticle(rows: ReadonlyArray<StockRow>): AggregatedProduct[] {
   const byArticle = new Map<string, AggregatedProduct>()
   for (const row of rows) {
-    const key = row.productColor.product.articleNumber
+    const color = row.variant.color
+    const key = color.product.articleNumber
     let entry = byArticle.get(key)
     if (!entry) {
-      entry = { product: row.productColor.product, colors: [], total: 0 }
+      entry = { product: color.product, colors: [], total: 0 }
       byArticle.set(key, entry)
     }
-    if (!entry.colors.some((c) => c.id === row.productColor.id)) {
+    if (!entry.colors.some((c) => c.id === color.id)) {
       entry.colors.push({
-        id: row.productColor.id,
-        colorName: row.productColor.colorName,
-        colorHex: row.productColor.colorHex,
-        imageS3Key: row.productColor.imageS3Key,
+        id: color.id,
+        colorName: color.colorName,
+        colorHex: color.colorHex,
+        imageS3Key: color.imageS3Key,
       })
     }
     entry.total += row.quantityOnHand

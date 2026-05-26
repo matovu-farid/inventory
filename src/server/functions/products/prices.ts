@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
-import { storeStock, shopStock, itemColors } from "#/db/schema"
+import { storeStock, shopStock, itemColors, variants } from "#/db/schema"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
@@ -19,19 +19,37 @@ export const listProductStockPrices = createServerFn()
     const colorIds = colors.map((c) => c.id)
     if (colorIds.length === 0) return { store: [], shop: [] }
 
+    // Stock now references variant_id (issue #4). Resolve every variant
+    // that belongs to one of the product's colors and look stock up by
+    // variant_id.
+    const variantRows = await db.query.variants.findMany({
+      where: inArray(variants.colorId, colorIds),
+      columns: { id: true },
+    })
+    const variantIds = variantRows.map((v) => v.id)
+    if (variantIds.length === 0) return { store: [], shop: [] }
+
     const [store, shop] = await Promise.all([
       db.query.storeStock.findMany({
-        where: (t, { inArray }) => inArray(t.productColorId, colorIds),
+        where: inArray(storeStock.variantId, variantIds),
         with: {
           store: { columns: { name: true } },
-          productColor: { columns: { colorName: true, colorHex: true } },
+          variant: {
+            with: {
+              color: { columns: { colorName: true, colorHex: true } },
+            },
+          },
         },
       }),
       db.query.shopStock.findMany({
-        where: (t, { inArray }) => inArray(t.productColorId, colorIds),
+        where: inArray(shopStock.variantId, variantIds),
         with: {
           shop: { columns: { name: true } },
-          productColor: { columns: { colorName: true, colorHex: true } },
+          variant: {
+            with: {
+              color: { columns: { colorName: true, colorHex: true } },
+            },
+          },
         },
       }),
     ])

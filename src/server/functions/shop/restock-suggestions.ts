@@ -25,10 +25,6 @@ export const listShopRestockSuggestions = createServerFn()
     // Join open alerts (variant-keyed per #5) with the live shop_stock row
     // and the matching store_stock row (same variant in warehouse) so the
     // restock UI can show "currently in shop / in store" side-by-side.
-    //
-    // shop_stock / store_stock still carry (product_color_id, size) until
-    // #4 swaps them onto variant_id. Until then we resolve via the variant
-    // table's colorId + size.
     const rows = await db
       .select({
         alertId: lowStockAlerts.id,
@@ -50,17 +46,10 @@ export const listShopRestockSuggestions = createServerFn()
         shopStock,
         and(
           eq(shopStock.shopId, lowStockAlerts.locationId),
-          eq(shopStock.productColorId, variants.colorId),
-          eq(shopStock.size, variants.size),
+          eq(shopStock.variantId, variants.id),
         ),
       )
-      .leftJoin(
-        storeStock,
-        and(
-          eq(storeStock.productColorId, variants.colorId),
-          eq(storeStock.size, variants.size),
-        ),
-      )
+      .leftJoin(storeStock, eq(storeStock.variantId, variants.id))
       .where(
         and(
           eq(lowStockAlerts.scope, 'shop'),

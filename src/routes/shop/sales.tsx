@@ -45,13 +45,17 @@ function SalesPage() {
         unitPriceUgx: string
         isBelowMinimum: boolean
         shopStockItem: {
-          size: string
-          productColor: {
-            colorName: string
-            colorHex: string
-            product: {
-              articleNumber: string
-              name: string
+          // Stock now references a single variant_id (issue #4); the
+          // joined variant carries size + color (with parent item/product).
+          variant: {
+            size: string
+            color: {
+              colorName: string
+              colorHex: string
+              product: {
+                articleNumber: string
+                name: string
+              }
             }
           }
         }
@@ -142,18 +146,18 @@ function SalesPage() {
                 cell: (s) => (
                   <div className="flex flex-col gap-1">
                     {s.items.map((i, idx) => {
-                      const pc = i.shopStockItem.productColor
+                      const v = i.shopStockItem.variant
                       return (
                         <div key={idx} className="flex items-center gap-2 text-sm">
-                          <span className="font-mono">{i.quantity}x {pc.product.articleNumber}</span>
-                          <span className="text-muted-foreground">{pc.product.name}</span>
+                          <span className="font-mono">{i.quantity}x {v.color.product.articleNumber}</span>
+                          <span className="text-muted-foreground">{v.color.product.name}</span>
                           <span
                             className="inline-block h-3 w-3 rounded-full border"
-                            style={{ backgroundColor: pc.colorHex }}
+                            style={{ backgroundColor: v.color.colorHex }}
                             aria-hidden
                           />
                           <span className="text-muted-foreground text-xs">
-                            {pc.colorName} / {i.shopStockItem.size}
+                            {v.color.colorName} / {v.size}
                           </span>
                         </div>
                       )

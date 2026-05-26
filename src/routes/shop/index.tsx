@@ -321,7 +321,9 @@ function ShopPage() {
 /* ------------------------------------------------------------------ */
 
 function productLabel(s: ShopStockItem): string {
-  return `${s.productColor.product.name} — ${s.productColor.colorName} / ${s.size}`
+  // Stock now references variant_id (issue #4); the joined variant
+  // carries color + size — the picker still groups rows as (color × size).
+  return `${s.variant.color.product.name} — ${s.variant.color.colorName} / ${s.variant.size}`
 }
 
 function NewSaleForm({
@@ -458,7 +460,7 @@ function NewSaleForm({
             {stock.map((s) => {
               const isSelected = selectedIds.has(s.id)
               const label = productLabel(s)
-              const article = s.productColor.product.articleNumber
+              const article = s.variant.color.product.articleNumber
               return (
                 <CommandItem
                   key={s.id}

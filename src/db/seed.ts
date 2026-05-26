@@ -13,6 +13,7 @@ import {
   supplyRouteSuppliers,
   supplyRouteItems,
   storeStock,
+  variants,
 } from "./schema"
 
 const DEFAULT_CATEGORIES = [
@@ -351,21 +352,59 @@ async function seed() {
       })),
     ]
 
+    // Seed needs a variant_id per stock row (issue #4). The variants table
+    // is backfilled from (item_colors × items.sizes) by
+    // `pnpm backfill:variants`; for the seed we (idempotently) ensure the
+    // exact (color, size) pairs we're about to seed exist as variants.
+    for (const s of stockSeeds) {
+      const itemRow = (
+        await db
+          .select({ itemId: itemColors.itemId })
+          .from(itemColors)
+          .where(eq(itemColors.id, s.productColorId))
+      ).at(0)
+      if (!itemRow) {
+        throw new Error(
+          `Seed: item_colors row not found for ${s.productColorId}`,
+        )
+      }
+      await db
+        .insert(variants)
+        .values({
+          itemId: itemRow.itemId,
+          colorId: s.productColorId,
+          size: s.size,
+        })
+        .onConflictDoNothing()
+    }
+
     let stockInserted = 0
     for (const s of stockSeeds) {
       const sellFloor = (Number(s.costUgx) * 1.8).toFixed(2)
+      const variantRow = (
+        await db
+          .select({ id: variants.id })
+          .from(variants)
+          .where(
+            sql`${variants.colorId} = ${s.productColorId}::uuid AND ${variants.size} = ${s.size}`,
+          )
+      ).at(0)
+      if (!variantRow) {
+        throw new Error(
+          `Seed: variant missing for (${s.productColorId}, ${s.size}) — run pnpm backfill:variants`,
+        )
+      }
       const result = await db
         .insert(storeStock)
         .values({
           storeId: store.id,
-          productColorId: s.productColorId,
-          size: s.size,
+          variantId: variantRow.id,
           quantityOnHand: s.qty,
           costPerUnitUgx: s.costUgx,
           minimumSellPriceUgx: sellFloor,
         })
         .onConflictDoNothing({
-          target: [storeStock.storeId, storeStock.productColorId, storeStock.size],
+          target: [storeStock.storeId, storeStock.variantId],
         })
         .returning()
       stockInserted += result.length

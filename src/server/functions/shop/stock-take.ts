@@ -67,13 +67,13 @@ export const startStockTake = createServerFn()
       if (data.locationType === "store") {
         const items = await tx.query.storeStock.findMany({
           where: eq(storeStock.storeId, data.locationId),
-          with: { productColor: { with: { product: true } } },
+          with: { variant: { with: { color: { with: { product: true } } } } },
         })
         for (const item of items) {
           const productLabel = formatProductLabel(
-            item.productColor.product.articleNumber,
-            item.productColor.colorName,
-            item.size,
+            item.variant.color.product.articleNumber,
+            item.variant.color.colorName,
+            item.variant.size,
           )
           await tx.insert(stockTakeItems).values({
             stockTakeId: st.id,
@@ -88,13 +88,13 @@ export const startStockTake = createServerFn()
       } else {
         const items = await tx.query.shopStock.findMany({
           where: eq(shopStock.shopId, data.locationId),
-          with: { productColor: { with: { product: true } } },
+          with: { variant: { with: { color: { with: { product: true } } } } },
         })
         for (const item of items) {
           const productLabel = formatProductLabel(
-            item.productColor.product.articleNumber,
-            item.productColor.colorName,
-            item.size,
+            item.variant.color.product.articleNumber,
+            item.variant.color.colorName,
+            item.variant.size,
           )
           await tx.insert(stockTakeItems).values({
             stockTakeId: st.id,

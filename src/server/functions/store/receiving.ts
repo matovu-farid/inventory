@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
-import { eq, sql } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
@@ -8,6 +8,7 @@ import {
   storeStock,
   supplyRoutes,
   supplyRouteItems,
+  variants,
 } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
@@ -188,6 +189,21 @@ export const receiveGoods = createServerFn()
           )
         }
 
+        // Resolve the variant the stock row should target. The variants
+        // table is seeded from (item_colors × items.sizes) so this lookup
+        // is guaranteed to hit a row for any size that the catalog declared.
+        const variantRow = await tx.query.variants.findFirst({
+          where: and(
+            eq(variants.colorId, sriProductColorId),
+            eq(variants.size, sriSize),
+          ),
+        })
+        if (!variantRow) {
+          throw new Error(
+            `Variant not found for color=${sriProductColorId} size=${sriSize}. Run pnpm backfill:variants or split the supply line first.`,
+          )
+        }
+
         const productLabel = formatProductLabel(
           productColor.product.articleNumber,
           productColor.colorName,
@@ -223,7 +239,7 @@ export const receiveGoods = createServerFn()
           receivedBy: session.user.id,
         })
 
-        // 2. Upsert StoreStock — merge into existing (storeId, productColorId, size) row
+        // 2. Upsert StoreStock — merge into existing (storeId, variantId) row
         if (sri.quantity <= 0) throw new Error("Invalid supply route item quantity")
         const costPerUnit = new BigNumber(sri.totalCostUgx)
           .div(sri.quantity)
@@ -234,15 +250,14 @@ export const receiveGoods = createServerFn()
             .insert(storeStock)
             .values({
               storeId: store.id,
-              productColorId: sriProductColorId,
-              size: sriSize,
+              variantId: variantRow.id,
               supplyRouteItemId: sri.id,
               quantityOnHand: item.quantityReceived,
               costPerUnitUgx: costPerUnit.toFixed(2),
               minimumSellPriceUgx: costPerUnit.toFixed(2), // default; admin sets real price later
             })
             .onConflictDoUpdate({
-              target: [storeStock.storeId, storeStock.productColorId, storeStock.size],
+              target: [storeStock.storeId, storeStock.variantId],
               set: {
                 quantityOnHand: sql`${storeStock.quantityOnHand} + ${item.quantityReceived}`,
               },
@@ -359,7 +374,7 @@ export const getStoreStock = createServerFn().handler(async () => {
 
   return db.query.storeStock.findMany({
     where: eq(storeStock.storeId, store.id),
-    with: { productColor: { with: { product: true } } },
+    with: { variant: { with: { color: { with: { product: true } } } } },
   })
 })
 

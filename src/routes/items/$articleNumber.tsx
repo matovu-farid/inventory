@@ -175,21 +175,28 @@ function ProductDetailPage() {
 }
 
 type StockPrices = {
+  // Stock now references variant_id (issue #4); color + size live on the
+  // joined variant. The shape here mirrors the `listProductStockPrices`
+  // server-fn return type.
   store: Array<{
     id: string
-    size: string
     quantityOnHand: number
     minimumSellPriceUgx: string
     store: { name: string }
-    productColor: { colorName: string; colorHex: string }
+    variant: {
+      size: string
+      color: { colorName: string; colorHex: string }
+    }
   }>
   shop: Array<{
     id: string
-    size: string
     quantityOnHand: number
     minimumSellPriceUgx: string
     shop: { name: string }
-    productColor: { colorName: string; colorHex: string }
+    variant: {
+      size: string
+      color: { colorName: string; colorHex: string }
+    }
   }>
 }
 
@@ -198,16 +205,16 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
     ...prices.store.map((s) => ({
       key: `store-${s.id}`,
       location: `Store · ${s.store.name}`,
-      color: s.productColor,
-      size: s.size,
+      color: s.variant.color,
+      size: s.variant.size,
       qty: s.quantityOnHand,
       price: s.minimumSellPriceUgx,
     })),
     ...prices.shop.map((s) => ({
       key: `shop-${s.id}`,
       location: `Shop · ${s.shop.name}`,
-      color: s.productColor,
-      size: s.size,
+      color: s.variant.color,
+      size: s.variant.size,
       qty: s.quantityOnHand,
       price: s.minimumSellPriceUgx,
     })),
@@ -278,8 +285,8 @@ function PriceEditor({
       stockType: "store" as const,
       stockId: s.id,
       location: `Store · ${s.store.name}`,
-      color: s.productColor,
-      size: s.size,
+      color: s.variant.color,
+      size: s.variant.size,
       qty: s.quantityOnHand,
       original: s.minimumSellPriceUgx,
       value: s.minimumSellPriceUgx,
@@ -289,8 +296,8 @@ function PriceEditor({
       stockType: "shop" as const,
       stockId: s.id,
       location: `Shop · ${s.shop.name}`,
-      color: s.productColor,
-      size: s.size,
+      color: s.variant.color,
+      size: s.variant.size,
       qty: s.quantityOnHand,
       original: s.minimumSellPriceUgx,
       value: s.minimumSellPriceUgx,

@@ -17,6 +17,7 @@ import {
   transactionCategories,
   auditLogs,
   user,
+  variants,
 } from "#/db/schema"
 import { receiveGoods } from "#/server/functions/store/receiving"
 
@@ -133,6 +134,13 @@ beforeAll(async () => {
     .returning()
   colorId = c.id
 
+  // Receiving now writes store_stock keyed on variant_id (issue #4).
+  // Seed the matching variant row for (color, size).
+  await db
+    .insert(variants)
+    .values({ itemId: productId, colorId: colorId, size: "M" })
+    .onConflictDoNothing()
+
   const [route] = await db
     .insert(supplyRoutes)
     .values({
@@ -164,11 +172,20 @@ beforeAll(async () => {
 afterAll(async () => {
   // Tear down anything we might have created. Order matters for FKs.
   await db.delete(storeReceivings).where(eq(storeReceivings.supplyRouteItemId, itemId))
-  await db.delete(storeStock).where(eq(storeStock.productColorId, colorId))
+  // Stock now references variant_id; we delete by the variant we seeded
+  // (one variant per (color, size)).
+  const seededVariants = await db
+    .select({ id: variants.id })
+    .from(variants)
+    .where(eq(variants.colorId, colorId))
+  for (const v of seededVariants) {
+    await db.delete(storeStock).where(eq(storeStock.variantId, v.id))
+  }
   await db.delete(transactions).where(eq(transactions.recordedBy, TEST_USER_ID))
   await db.delete(auditLogs).where(eq(auditLogs.actorUserId, TEST_USER_ID))
   await db.delete(supplyRouteItems).where(eq(supplyRouteItems.id, itemId))
   await db.delete(supplyRoutes).where(eq(supplyRoutes.id, routeId))
+  await db.delete(variants).where(eq(variants.colorId, colorId))
   await db.delete(itemColors).where(eq(itemColors.id, colorId))
   await db.delete(items).where(eq(items.id, productId))
   await db.delete(suppliers).where(eq(suppliers.id, supplierId))

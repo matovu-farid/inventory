@@ -67,8 +67,11 @@ function PosInner() {
     () =>
       stock.map((s) => ({
         id: s.id,
-        productColorId: s.productColorId,
-        size: s.size,
+        // Stock now keys on variant_id (issue #4). The variant picker UI
+        // still groups rows by (color × size); expose the variant's
+        // colorId + size so its existing data shape stays intact.
+        productColorId: s.variant.color.id,
+        size: s.variant.size,
         quantityOnHand: s.quantityOnHand,
         minimumSellPriceUgx: s.minimumSellPriceUgx,
       })),
