@@ -20,14 +20,14 @@ export interface VariantLike {
  * numeric size (sorted numerically) or a freeform label (lexicographic).
  */
 const LETTER_SIZE_ORDER = [
-  "XXS",
-  "XS",
-  "S",
-  "M",
-  "L",
-  "XL",
-  "XXL",
-  "XXXL",
+  'XXS',
+  'XS',
+  'S',
+  'M',
+  'L',
+  'XL',
+  'XXL',
+  'XXXL',
 ] as const
 
 type LetterSize = (typeof LETTER_SIZE_ORDER)[number]

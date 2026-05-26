@@ -1,10 +1,10 @@
-import { createServerFn } from "@tanstack/react-start"
-import { eq, sql, inArray, and, gt } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import { variants, storeStock, shopStock } from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { eq, sql, inArray, and, gt } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { variants, storeStock, shopStock } from '#/db/schema'
+import { requireSession } from '#/server/middleware/auth'
+import { requireRole } from '#/server/middleware/rbac'
 
 /**
  * Per-variant rollup used by the item-detail "Variants" subsection.
@@ -19,7 +19,7 @@ export const countVariantStockLocations = createServerFn()
   .inputValidator(z.object({ itemId: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor", "sales"])
+    requireRole(session, ['admin', 'supervisor', 'sales'])
 
     const variantRows = await db
       .select({ id: variants.id })
@@ -61,19 +61,20 @@ export const countVariantStockLocations = createServerFn()
 
     const totals = new Map<string, { qty: number; locations: number }>()
     for (const id of variantIds) totals.set(id, { qty: 0, locations: 0 })
-    for (const r of storeCounts) {
-      const entry = totals.get(r.variantId)!
-      entry.qty += r.qty
-      entry.locations += r.locations
+    const addTo = (variantId: string, qty: number, locations: number) => {
+      const entry = totals.get(variantId)
+      if (!entry) return
+      entry.qty += qty
+      entry.locations += locations
     }
-    for (const r of shopCounts) {
-      const entry = totals.get(r.variantId)!
-      entry.qty += r.qty
-      entry.locations += r.locations
-    }
-    return variantIds.map((id) => ({
-      variantId: id,
-      qty: totals.get(id)!.qty,
-      locations: totals.get(id)!.locations,
-    }))
+    for (const r of storeCounts) addTo(r.variantId, r.qty, r.locations)
+    for (const r of shopCounts) addTo(r.variantId, r.qty, r.locations)
+    return variantIds.map((id) => {
+      const entry = totals.get(id) ?? { qty: 0, locations: 0 }
+      return {
+        variantId: id,
+        qty: entry.qty,
+        locations: entry.locations,
+      }
+    })
   })

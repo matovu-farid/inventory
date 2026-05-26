@@ -10,34 +10,34 @@
  * server-fn machinery under runWithStartContext, then reads the DB to
  * verify the side effects).
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest"
-import { eq, inArray } from "drizzle-orm"
-import { runWithStartContext } from "@tanstack/start-storage-context"
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
+import { eq, inArray } from 'drizzle-orm'
+import { runWithStartContext } from '@tanstack/start-storage-context'
 
-import { db } from "#/db"
-import { items, itemColors, itemCategories, variants } from "#/db/schema"
-import { createProduct } from "#/server/functions/products/products"
-import { addProductColor } from "#/server/functions/products/colors"
+import { db } from '#/db'
+import { items, itemColors, itemCategories, variants } from '#/db/schema'
+import { createProduct } from '#/server/functions/products/products'
+import { addProductColor } from '#/server/functions/products/colors'
 
-const TEST_USER_ID = "00000000-0000-0000-0000-0000000000c7"
-vi.mock("#/server/middleware/auth", () => ({
+const TEST_USER_ID = '00000000-0000-0000-0000-0000000000c7'
+vi.mock('#/server/middleware/auth', () => ({
   requireSession: () =>
-    Promise.resolve({ user: { id: TEST_USER_ID, role: "admin" } }),
+    Promise.resolve({ user: { id: TEST_USER_ID, role: 'admin' } }),
 }))
-vi.mock("#/server/middleware/rbac", () => ({
+vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
 }))
 
 const stubStartContext = {
   getRouter: (() => {
-    throw new Error("router not available in tests")
+    throw new Error('router not available in tests')
   }) as never,
-  request: new Request("http://localhost/test"),
+  request: new Request('http://localhost/test'),
   startOptions: { functionMiddleware: [] },
   contextAfterGlobalMiddlewares: {},
   executedRequestMiddlewares: new Set(),
-  handlerType: "serverFn" as const,
+  handlerType: 'serverFn' as const,
 }
 function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
   return runWithStartContext(stubStartContext, fn)
@@ -48,9 +48,9 @@ const createdItemIds: string[] = []
 
 async function uncategorizedId(): Promise<string> {
   const row = await db.query.itemCategories.findFirst({
-    where: eq(itemCategories.name, "Uncategorized"),
+    where: eq(itemCategories.name, 'Uncategorized'),
   })
-  if (!row) throw new Error("Missing Uncategorized seed row")
+  if (!row) throw new Error('Missing Uncategorized seed row')
   return row.id
 }
 
@@ -61,15 +61,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (createdItemIds.length > 0) {
-    await db
-      .delete(variants)
-      .where(inArray(variants.itemId, createdItemIds))
+    await db.delete(variants).where(inArray(variants.itemId, createdItemIds))
     await db.delete(items).where(inArray(items.id, createdItemIds))
   }
 })
 
-describe("createProduct — materializes variants when colors + sizes given", () => {
-  it("createProduct materializes variants when colors + sizes both arrive together", async () => {
+describe('createProduct — materializes variants when colors + sizes given', () => {
+  it('createProduct materializes variants when colors + sizes both arrive together', async () => {
     const articleNumber = `cm-${SUFFIX}-a`
 
     // The form collects colors + sizes in one shot before submit and
@@ -78,11 +76,11 @@ describe("createProduct — materializes variants when colors + sizes given", ()
       createProduct({
         data: {
           articleNumber,
-          name: "Materialize tester",
-          sizes: ["S", "M", "L"],
+          name: 'Materialize tester',
+          sizes: ['S', 'M', 'L'],
           colors: [
-            { colorName: "Indigo", colorHex: "#2a3a8b" },
-            { colorName: "Crimson", colorHex: "#a01b1b" },
+            { colorName: 'Indigo', colorHex: '#2a3a8b' },
+            { colorName: 'Crimson', colorHex: '#a01b1b' },
           ],
         },
       }),
@@ -109,14 +107,14 @@ describe("createProduct — materializes variants when colors + sizes given", ()
     expect(variantRows).toHaveLength(6)
   })
 
-  it("addProductColor with explicit sizes materializes variants for the new color", async () => {
+  it('addProductColor with explicit sizes materializes variants for the new color', async () => {
     const articleNumber = `cm-${SUFFIX}-b`
 
     await callServerFn(() =>
       createProduct({
         data: {
           articleNumber,
-          name: "Materialize tester B",
+          name: 'Materialize tester B',
           sizes: [],
           colors: [],
         },
@@ -134,9 +132,9 @@ describe("createProduct — materializes variants when colors + sizes given", ()
       addProductColor({
         data: {
           productId: created.id,
-          colorName: "Olive",
-          colorHex: "#556b2f",
-          sizes: ["M", "L"],
+          colorName: 'Olive',
+          colorHex: '#556b2f',
+          sizes: ['M', 'L'],
         },
       }),
     )
@@ -147,6 +145,6 @@ describe("createProduct — materializes variants when colors + sizes given", ()
       .where(eq(variants.itemId, created.id))
     expect(variantRows).toHaveLength(2)
     const sizes = variantRows.map((v) => v.size).sort()
-    expect(sizes).toEqual(["L", "M"])
+    expect(sizes).toEqual(['L', 'M'])
   })
 })

@@ -1,10 +1,10 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import { variants } from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { and, eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { variants } from '#/db/schema'
+import { requireSession } from '#/server/middleware/auth'
+import { requireRole } from '#/server/middleware/rbac'
 
 /**
  * Variant-level server functions for the item detail page (issue #7).
@@ -19,8 +19,8 @@ import { requireRole } from "#/server/middleware/rbac"
  * human-readable message instead of the raw pg error.
  */
 
-const PG_FK_VIOLATION = "23503"
-const PG_UNIQUE_VIOLATION = "23505"
+const PG_FK_VIOLATION = '23503'
+const PG_UNIQUE_VIOLATION = '23505'
 
 function pgErrorCode(err: unknown): string | undefined {
   return (err as { cause?: { code?: string } }).cause?.code
@@ -36,7 +36,7 @@ export const createVariant = createServerFn()
   )
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ['admin', 'supervisor'])
 
     try {
       const [row] = await db.insert(variants).values(data).returning()
@@ -55,7 +55,7 @@ export const deleteVariant = createServerFn()
   .inputValidator(z.object({ variantId: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ['admin', 'supervisor'])
 
     try {
       const removed = (
@@ -65,13 +65,13 @@ export const deleteVariant = createServerFn()
           .returning()
       ).at(0)
       if (!removed) {
-        throw new Error("Variant not found.")
+        throw new Error('Variant not found.')
       }
       return removed
     } catch (err) {
       if (pgErrorCode(err) === PG_FK_VIOLATION) {
         throw new Error(
-          "This variant is in use by stock, sales, or notifications and cannot be deleted. Move or sell out its stock first.",
+          'This variant is in use by stock, sales, or notifications and cannot be deleted. Move or sell out its stock first.',
         )
       }
       throw err
@@ -86,7 +86,7 @@ export const listVariantsByItem = createServerFn()
   .inputValidator(z.object({ itemId: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor", "sales"])
+    requireRole(session, ['admin', 'supervisor', 'sales'])
     return db.query.variants.findMany({
       where: eq(variants.itemId, data.itemId),
       with: {

@@ -1,5 +1,5 @@
-import { db } from "#/db"
-import { variants } from "#/db/schema"
+import { db } from '#/db'
+import { variants } from '#/db/schema'
 
 /**
  * Materialize the (colorIds × sizes) cross-product into the variants

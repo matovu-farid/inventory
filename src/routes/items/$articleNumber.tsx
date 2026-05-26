@@ -59,7 +59,7 @@ function ProductDetailPage() {
   )
   const active =
     product.colors.find((c) => c.id === activeColorId) ?? product.colors[0]
-  const sizes = deriveSizes(product.variants ?? [])
+  const sizes = deriveSizes(product.variants)
 
   return (
     <div className="space-y-6">
@@ -138,7 +138,7 @@ function ProductDetailPage() {
       <VariantsSection
         itemId={product.id}
         colors={product.colors}
-        variants={product.variants ?? []}
+        variants={product.variants}
         stockCounts={variantStockCounts}
         canManage={canManage}
         onChanged={() => {

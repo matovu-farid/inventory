@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
 import { productImageUrl } from "#/lib/products"
-import { deriveSizes, type VariantLike } from "#/lib/variants"
+import { deriveSizes } from "#/lib/variants"
+import type { VariantLike } from "#/lib/variants"
 import { cn } from "#/lib/utils"
 
 /**
