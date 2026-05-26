@@ -35,7 +35,7 @@ import {
   it,
   vi,
 } from 'vitest'
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { runWithStartContext } from '@tanstack/start-storage-context'
 
 import { db } from '#/db'
@@ -217,7 +217,12 @@ afterAll(async () => {
   // Drop the dependent rows before the parents.
   await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
   await db.delete(storeStock).where(eq(storeStock.storeId, storeId()))
-  await db.delete(storeReceivings).where(eq(storeReceivings.storeId, storeId()))
+  await db.delete(storeReceivings).where(
+    sql`${storeReceivings.supplyRouteItemId} IN (
+        SELECT id FROM ${supplyRouteItems}
+        WHERE ${supplyRouteItems.supplierId} = ${supplierId()}::uuid
+    )`,
+  )
   await db.delete(supplyRouteItems).where(eq(supplyRouteItems.supplierId, supplierId()))
   await db.delete(supplyRoutes).where(sql`${supplyRoutes.name} LIKE 'SV-Route-%'`)
   await db.delete(variants).where(eq(variants.itemId, itemId()))
@@ -233,12 +238,19 @@ afterAll(async () => {
   await db.delete(userTable).where(eq(userTable.id, TEST_USER_ID))
 })
 
-beforeEach(async () => {
-  // Order: storeStock first (it FK's into supply_route_items), then
-  // storeReceivings, then the supply lines, then auditLogs / supplyRoutes.
+async function clearTestRows(): Promise<void> {
+  // Order: storeStock first (it FK's into supply_route_items), then the
+  // receivings, then the supply lines, then audit / variants.
   await db.delete(storeStock).where(eq(storeStock.storeId, storeId()))
   await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
-  await db.delete(storeReceivings).where(eq(storeReceivings.storeId, storeId()))
+  // Use a subquery so we only drop the receivings WE created — other
+  // suites running in parallel may share `storeId()` via findFirst().
+  await db.delete(storeReceivings).where(
+    sql`${storeReceivings.supplyRouteItemId} IN (
+        SELECT id FROM ${supplyRouteItems}
+        WHERE ${supplyRouteItems.supplierId} = ${supplierId()}::uuid
+    )`,
+  )
   await db.delete(supplyRouteItems).where(eq(supplyRouteItems.supplierId, supplierId()))
   await db.delete(supplyRoutes).where(sql`${supplyRoutes.name} LIKE 'SV-Route-%'`)
   await db.delete(auditLogs).where(eq(auditLogs.actorUserId, TEST_USER_ID))
@@ -248,7 +260,9 @@ beforeEach(async () => {
   await db
     .delete(variants)
     .where(and(eq(variants.itemId, itemId()), sql`${variants.size} <> 'M'`))
-})
+}
+
+beforeEach(clearTestRows)
 
 describe('supply_route_items renamed catalog columns (#6)', () => {
   it('exposes item_id and color_id (not the old product_* names)', async () => {
@@ -499,11 +513,3 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
   })
 })
 
-// Belongs to the same test file because the cleanup of inserted rows uses the
-// shared FIXTURE map.
-async function _suppressUnused() {
-  // Drizzle's inArray needs an array; reference it so vitest doesn't strip
-  // the import when this fixture grows.
-  inArray(storeStock.id, [])
-}
-void _suppressUnused
