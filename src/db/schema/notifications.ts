@@ -11,173 +11,183 @@ import {
   unique,
   uniqueIndex,
   check,
-} from "drizzle-orm/pg-core"
-import { relations, sql } from "drizzle-orm"
-import { user } from "./auth"
-import { shops } from "./shops"
-import { stores } from "./store"
-import { itemColors } from "./items"
-import { supplyRouteItems } from "./supply-routes"
+} from 'drizzle-orm/pg-core'
+import { relations, sql } from 'drizzle-orm'
+import { user } from './auth'
+import { shops } from './shops'
+import { stores } from './store'
+import { variants } from './variants'
+import { supplyRouteItems } from './supply-routes'
 
 export const notifications = pgTable(
-  "notifications",
+  'notifications',
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    kind: text("kind").notNull(),
-    title: text("title").notNull(),
-    body: text("body").notNull(),
-    entityType: text("entity_type"),
-    entityId: text("entity_id"),
-    readAt: timestamp("read_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+      .references(() => user.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    entityType: text('entity_type'),
+    entityId: text('entity_id'),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
-    index("idx_notif_user").on(table.userId, table.readAt),
-    index("idx_notif_kind").on(table.kind),
+    index('idx_notif_user').on(table.userId, table.readAt),
+    index('idx_notif_kind').on(table.kind),
   ],
 )
 
-export const systemSettings = pgTable("system_settings", {
-  key: text("key").primaryKey(),
-  value: jsonb("value").notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
+export const systemSettings = pgTable('system_settings', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
 })
 
-export const thresholdModeEnum = pgEnum("threshold_mode", ["percent", "units"])
-export const thresholdScopeEnum = pgEnum("threshold_scope", ["store", "shop"])
-export const lowStockAlertStatusEnum = pgEnum("low_stock_alert_status", [
-  "open",
-  "resolved",
+export const thresholdModeEnum = pgEnum('threshold_mode', ['percent', 'units'])
+export const thresholdScopeEnum = pgEnum('threshold_scope', ['store', 'shop'])
+export const lowStockAlertStatusEnum = pgEnum('low_stock_alert_status', [
+  'open',
+  'resolved',
 ])
 export const restockRequisitionStatusEnum = pgEnum(
-  "restock_requisition_status",
-  ["open", "planned", "fulfilled", "dismissed"],
+  'restock_requisition_status',
+  ['open', 'planned', 'fulfilled', 'dismissed'],
 )
 
 export const notificationThresholds = pgTable(
-  "notification_thresholds",
+  'notification_thresholds',
   {
-    id: text("id").primaryKey().default("global"),
-    storeMode: thresholdModeEnum("store_mode").notNull().default("percent"),
-    storeValue: numeric("store_value", { precision: 10, scale: 2 })
+    id: text('id').primaryKey().default('global'),
+    storeMode: thresholdModeEnum('store_mode').notNull().default('percent'),
+    storeValue: numeric('store_value', { precision: 10, scale: 2 })
       .notNull()
-      .default("30"),
-    shopMode: thresholdModeEnum("shop_mode").notNull().default("percent"),
-    shopValue: numeric("shop_value", { precision: 10, scale: 2 })
+      .default('30'),
+    shopMode: thresholdModeEnum('shop_mode').notNull().default('percent'),
+    shopValue: numeric('shop_value', { precision: 10, scale: 2 })
       .notNull()
-      .default("15"),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default('15'),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
-    updatedBy: text("updated_by").references(() => user.id, {
-      onDelete: "set null",
+    updatedBy: text('updated_by').references(() => user.id, {
+      onDelete: 'set null',
     }),
   },
-  (table) => [check("ck_thresholds_singleton", sql`${table.id} = 'global'`)],
+  (table) => [check('ck_thresholds_singleton', sql`${table.id} = 'global'`)],
 )
 
+/**
+ * Per-variant override of the global low-stock threshold rule.
+ *
+ * Keyed by `variant_id` (one row per (item, color, size) combination); the
+ * older `(product_color_id, size)` composite was swapped out in
+ * drizzle/0012_notification_variant_id.sql.
+ *
+ * The unique constraint treats NULL `shop_id` as a distinct value
+ * (`nullsNotDistinct: false` semantics via `NULLS NOT DISTINCT`) so the
+ * "all shops" override coexists with per-shop overrides on the same variant.
+ */
 export const notificationThresholdOverrides = pgTable(
-  "notification_threshold_overrides",
+  'notification_threshold_overrides',
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    scope: thresholdScopeEnum("scope").notNull(),
-    productColorId: uuid("product_color_id")
+    id: uuid('id').primaryKey().defaultRandom(),
+    scope: thresholdScopeEnum('scope').notNull(),
+    variantId: uuid('variant_id')
       .notNull()
-      .references(() => itemColors.id, { onDelete: "cascade" }),
-    size: text("size").notNull(),
-    shopId: uuid("shop_id").references(() => shops.id, { onDelete: "cascade" }),
-    mode: thresholdModeEnum("mode").notNull(),
-    value: numeric("value", { precision: 10, scale: 2 }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
+      .references(() => variants.id, { onDelete: 'restrict' }),
+    shopId: uuid('shop_id').references(() => shops.id, { onDelete: 'cascade' }),
+    mode: thresholdModeEnum('mode').notNull(),
+    value: numeric('value', { precision: 10, scale: 2 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+    updatedAt: timestamp('updated_at', { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [
-    unique("uq_thr_override")
-      .on(table.scope, table.productColorId, table.size, table.shopId)
+    unique('uq_thr_override')
+      .on(table.scope, table.variantId, table.shopId)
       .nullsNotDistinct(),
     check(
-      "ck_override_scope_shop",
+      'ck_override_scope_shop',
       sql`${table.scope} = 'shop' OR ${table.shopId} IS NULL`,
     ),
-    index("idx_thr_override_variant").on(table.productColorId, table.size),
+    index('idx_thr_override_variant').on(table.variantId),
   ],
 )
 
 export const lowStockAlerts = pgTable(
-  "low_stock_alerts",
+  'low_stock_alerts',
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    scope: thresholdScopeEnum("scope").notNull(),
+    id: uuid('id').primaryKey().defaultRandom(),
+    scope: thresholdScopeEnum('scope').notNull(),
     // Polymorphic: stores.id when scope='store', shops.id when scope='shop'. No FK by design.
-    locationId: uuid("location_id").notNull(),
-    productColorId: uuid("product_color_id")
+    locationId: uuid('location_id').notNull(),
+    variantId: uuid('variant_id')
       .notNull()
-      .references(() => itemColors.id, { onDelete: "restrict" }),
-    size: text("size").notNull(),
-    status: lowStockAlertStatusEnum("status").notNull().default("open"),
-    baselineQuantity: integer("baseline_quantity").notNull(),
-    thresholdSnapshot: jsonb("threshold_snapshot")
-      .$type<{ mode: "percent" | "units"; value: number }>()
+      .references(() => variants.id, { onDelete: 'restrict' }),
+    status: lowStockAlertStatusEnum('status').notNull().default('open'),
+    baselineQuantity: integer('baseline_quantity').notNull(),
+    thresholdSnapshot: jsonb('threshold_snapshot')
+      .$type<{ mode: 'percent' | 'units'; value: number }>()
       .notNull(),
-    quantityAtOpen: integer("quantity_at_open").notNull(),
-    openedAt: timestamp("opened_at", { withTimezone: true })
+    quantityAtOpen: integer('quantity_at_open').notNull(),
+    openedAt: timestamp('opened_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
-    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
-    notificationId: uuid("notification_id").references(() => notifications.id, {
-      onDelete: "set null",
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    notificationId: uuid('notification_id').references(() => notifications.id, {
+      onDelete: 'set null',
     }),
   },
   (table) => [
-    index("idx_lsa_status_scope").on(table.status, table.scope),
-    index("idx_lsa_location").on(table.locationId),
-    uniqueIndex("uq_lsa_open")
-      .on(table.scope, table.locationId, table.productColorId, table.size)
+    index('idx_lsa_status_scope').on(table.status, table.scope),
+    index('idx_lsa_location').on(table.locationId),
+    uniqueIndex('uq_lsa_open')
+      .on(table.scope, table.locationId, table.variantId)
       .where(sql`status = 'open'`),
   ],
 )
 
 export const restockRequisitions = pgTable(
-  "restock_requisitions",
+  'restock_requisitions',
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    storeId: uuid("store_id")
+    id: uuid('id').primaryKey().defaultRandom(),
+    storeId: uuid('store_id')
       .notNull()
-      .references(() => stores.id, { onDelete: "restrict" }),
-    productColorId: uuid("product_color_id")
+      .references(() => stores.id, { onDelete: 'restrict' }),
+    variantId: uuid('variant_id')
       .notNull()
-      .references(() => itemColors.id, { onDelete: "restrict" }),
-    size: text("size").notNull(),
-    suggestedQuantity: integer("suggested_quantity").notNull(),
-    baselineQuantity: integer("baseline_quantity").notNull(),
-    quantityAtOpen: integer("quantity_at_open").notNull(),
-    status: restockRequisitionStatusEnum("status").notNull().default("open"),
-    supplyRouteItemId: uuid("supply_route_item_id").references(
+      .references(() => variants.id, { onDelete: 'restrict' }),
+    suggestedQuantity: integer('suggested_quantity').notNull(),
+    baselineQuantity: integer('baseline_quantity').notNull(),
+    quantityAtOpen: integer('quantity_at_open').notNull(),
+    status: restockRequisitionStatusEnum('status').notNull().default('open'),
+    supplyRouteItemId: uuid('supply_route_item_id').references(
       () => supplyRouteItems.id,
-      { onDelete: "set null" },
+      { onDelete: 'set null' },
     ),
-    dismissedReason: text("dismissed_reason"),
-    openedAt: timestamp("opened_at", { withTimezone: true })
+    dismissedReason: text('dismissed_reason'),
+    openedAt: timestamp('opened_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
-    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
   },
   (table) => [
-    index("idx_req_store_status").on(table.storeId, table.status),
-    uniqueIndex("uq_req_open")
-      .on(table.storeId, table.productColorId, table.size)
+    index('idx_req_store_status').on(table.storeId, table.status),
+    uniqueIndex('uq_req_open')
+      .on(table.storeId, table.variantId)
       .where(sql`status = 'open'`),
   ],
 )
@@ -195,9 +205,9 @@ export const notificationThresholdsRelations = relations(
 export const notificationThresholdOverridesRelations = relations(
   notificationThresholdOverrides,
   ({ one }) => ({
-    productColor: one(itemColors, {
-      fields: [notificationThresholdOverrides.productColorId],
-      references: [itemColors.id],
+    variant: one(variants, {
+      fields: [notificationThresholdOverrides.variantId],
+      references: [variants.id],
     }),
     shop: one(shops, {
       fields: [notificationThresholdOverrides.shopId],
@@ -207,9 +217,9 @@ export const notificationThresholdOverridesRelations = relations(
 )
 
 export const lowStockAlertsRelations = relations(lowStockAlerts, ({ one }) => ({
-  productColor: one(itemColors, {
-    fields: [lowStockAlerts.productColorId],
-    references: [itemColors.id],
+  variant: one(variants, {
+    fields: [lowStockAlerts.variantId],
+    references: [variants.id],
   }),
   notification: one(notifications, {
     fields: [lowStockAlerts.notificationId],
@@ -224,9 +234,9 @@ export const restockRequisitionsRelations = relations(
       fields: [restockRequisitions.storeId],
       references: [stores.id],
     }),
-    productColor: one(itemColors, {
-      fields: [restockRequisitions.productColorId],
-      references: [itemColors.id],
+    variant: one(variants, {
+      fields: [restockRequisitions.variantId],
+      references: [variants.id],
     }),
     supplyRouteItem: one(supplyRouteItems, {
       fields: [restockRequisitions.supplyRouteItemId],

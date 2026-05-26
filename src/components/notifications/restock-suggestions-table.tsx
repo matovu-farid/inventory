@@ -1,6 +1,6 @@
-import { useState } from "react"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
+import { useState } from 'react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import {
   Table,
   TableBody,
@@ -8,13 +8,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "#/components/ui/table"
+} from '#/components/ui/table'
 
 export interface SuggestionRow {
   alertId: string
   shopStockId: string
   storeStockId: string | null
-  productColorId: string
+  variantId: string
   size: string
   productLabel: string
   quantityOnHand: number
@@ -45,7 +45,7 @@ export function RestockSuggestionsTable({
       rows.map((r) => [
         r.alertId,
         {
-          checked: preselectVariantId === r.productColorId,
+          checked: preselectVariantId === r.variantId,
           quantity: Math.min(r.suggestedQuantity, r.storeQuantity),
         },
       ]),
@@ -156,7 +156,7 @@ export function RestockSuggestionsTable({
         }}
         disabled={submitting}
       >
-        {submitting ? "Creating transfer…" : "Create transfer"}
+        {submitting ? 'Creating transfer…' : 'Create transfer'}
       </Button>
     </div>
   )

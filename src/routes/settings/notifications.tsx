@@ -1,60 +1,60 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import { Button } from "#/components/ui/button"
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { useState } from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import { Button } from '#/components/ui/button'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "#/components/ui/card"
-import { InfoTip } from "#/components/ui/info-tip"
+} from '#/components/ui/card'
+import { InfoTip } from '#/components/ui/info-tip'
 import {
   getThresholds,
   updateThresholds,
   listOverrides,
-} from "#/server/functions/notifications/thresholds"
-import { runThresholdChecksNow } from "#/server/functions/notifications/notifications"
-import { ThresholdField } from "#/components/notifications/threshold-form"
-import type { ThresholdValue } from "#/components/notifications/threshold-form"
-import { OverrideTable } from "#/components/notifications/override-table"
-import { listProductColorsForOverrides } from "#/server/functions/products/colors"
-import { listShopsForReports } from "#/server/functions/shop/list-shops"
+} from '#/server/functions/notifications/thresholds'
+import { runThresholdChecksNow } from '#/server/functions/notifications/notifications'
+import { ThresholdField } from '#/components/notifications/threshold-form'
+import type { ThresholdValue } from '#/components/notifications/threshold-form'
+import { OverrideTable } from '#/components/notifications/override-table'
+import { listVariantsForOverrides } from '#/server/functions/products/colors'
+import { listShopsForReports } from '#/server/functions/shop/list-shops'
 
-export const Route = createFileRoute("/settings/notifications")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "notifications.manage"),
+export const Route = createFileRoute('/settings/notifications')({
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, 'notifications.manage'),
   loader: async () => {
-    const [thresholds, allOverrides, productColorsRaw, shops] =
-      await Promise.all([
-        getThresholds(),
-        listOverrides({ data: {} }),
-        listProductColorsForOverrides(),
-        listShopsForReports(),
-      ])
+    const [thresholds, allOverrides, variantsRaw, shops] = await Promise.all([
+      getThresholds(),
+      listOverrides({ data: {} }),
+      listVariantsForOverrides(),
+      listShopsForReports(),
+    ])
 
     // Product-scope overrides: shopId is null (no shop filter)
     const productOverrides = allOverrides.filter((o) => o.shopId === null)
 
-    const productOptions = productColorsRaw.map((pc) => ({
-      productColorId: pc.id,
-      label: `${pc.product.articleNumber} · ${pc.colorName}`,
-      sizes: pc.product.sizes.length > 0
-        ? pc.product.sizes
-        : ["S", "M", "L", "XL", "XXL"],
+    const variantOptions = variantsRaw.map((v) => ({
+      variantId: v.id,
+      label: `${v.item.articleNumber} · ${v.color.colorName}`,
+      size: v.size,
     }))
 
-    return { thresholds, productOverrides, productOptions, shops }
+    return { thresholds, productOverrides, variantOptions, shops }
   },
   component: NotificationsSettingsPage,
 })
 
-type Banner = { kind: "success" | "error"; text: string }
+type Banner = { kind: 'success' | 'error'; text: string }
 
 function NotificationsSettingsPage() {
   const loaderData = Route.useLoaderData()
   const router = useRouter()
-  const [store, setStore] = useState<ThresholdValue>(loaderData.thresholds.store)
+  const [store, setStore] = useState<ThresholdValue>(
+    loaderData.thresholds.store,
+  )
   const [shop, setShop] = useState<ThresholdValue>(loaderData.thresholds.shop)
   const [saving, setSaving] = useState(false)
   const [running, setRunning] = useState(false)
@@ -66,12 +66,12 @@ function NotificationsSettingsPage() {
     setSaveBanner(null)
     try {
       await updateThresholds({ data: { store, shop } })
-      setSaveBanner({ kind: "success", text: "Thresholds saved." })
+      setSaveBanner({ kind: 'success', text: 'Thresholds saved.' })
       await router.invalidate()
     } catch (err) {
       setSaveBanner({
-        kind: "error",
-        text: err instanceof Error ? err.message : "Failed to save.",
+        kind: 'error',
+        text: err instanceof Error ? err.message : 'Failed to save.',
       })
     } finally {
       setSaving(false)
@@ -86,13 +86,13 @@ function NotificationsSettingsPage() {
       const opened = r.shopAlertsOpened + r.storeAlertsOpened
       const resolved = r.shopAlertsResolved + r.storeAlertsResolved
       setRunBanner({
-        kind: "success",
+        kind: 'success',
         text: `Check complete. Opened: ${opened}, resolved: ${resolved}.`,
       })
     } catch (err) {
       setRunBanner({
-        kind: "error",
-        text: err instanceof Error ? err.message : "Check failed.",
+        kind: 'error',
+        text: err instanceof Error ? err.message : 'Check failed.',
       })
     } finally {
       setRunning(false)
@@ -134,8 +134,13 @@ function NotificationsSettingsPage() {
             valueHelpKey="notifications.thresholds.shopValue"
           />
           {saveBanner && <FormMessage message={saveBanner} />}
-          <Button onClick={() => { void onSave() }} disabled={saving}>
-            {saving ? "Saving…" : "Save defaults"}
+          <Button
+            onClick={() => {
+              void onSave()
+            }}
+            disabled={saving}
+          >
+            {saving ? 'Saving…' : 'Save defaults'}
           </Button>
         </CardContent>
       </Card>
@@ -151,10 +156,12 @@ function NotificationsSettingsPage() {
           {runBanner && <FormMessage message={runBanner} />}
           <Button
             variant="outline"
-            onClick={() => { void onRunNow() }}
+            onClick={() => {
+              void onRunNow()
+            }}
             disabled={running}
           >
-            {running ? "Running…" : "Run check now"}
+            {running ? 'Running…' : 'Run check now'}
           </Button>
         </CardContent>
       </Card>
@@ -168,7 +175,7 @@ function NotificationsSettingsPage() {
           <CardDescription>
             Override the global defaults for specific product variants. These
             rules apply across all shops unless a per-shop override takes
-            precedence.{" "}
+            precedence.{' '}
             <span className="text-muted-foreground">
               Per-shop overrides can be set on each shop&apos;s settings page.
             </span>
@@ -178,9 +185,11 @@ function NotificationsSettingsPage() {
           <OverrideTable
             rows={loaderData.productOverrides}
             showShopColumn={false}
-            productOptions={loaderData.productOptions}
+            variantOptions={loaderData.variantOptions}
             shopOptions={loaderData.shops}
-            onChanged={() => { void router.invalidate() }}
+            onChanged={() => {
+              void router.invalidate()
+            }}
           />
         </CardContent>
       </Card>
@@ -190,8 +199,8 @@ function NotificationsSettingsPage() {
 
 function FormMessage({ message }: { message: Banner }) {
   const cls =
-    message.kind === "success"
-      ? "rounded-md bg-emerald-500/10 px-3 py-2 text-[13px] text-emerald-700"
-      : "rounded-md bg-destructive/10 px-3 py-2 text-[13px] text-destructive"
+    message.kind === 'success'
+      ? 'rounded-md bg-emerald-500/10 px-3 py-2 text-[13px] text-emerald-700'
+      : 'rounded-md bg-destructive/10 px-3 py-2 text-[13px] text-destructive'
   return <div className={cls}>{message.text}</div>
 }

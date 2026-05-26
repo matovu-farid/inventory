@@ -1,6 +1,6 @@
-import { useState } from "react"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
+import { useState } from 'react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import {
   Table,
   TableBody,
@@ -8,50 +8,60 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "#/components/ui/table"
+} from '#/components/ui/table'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
-import { InfoTip } from "#/components/ui/info-tip"
+} from '#/components/ui/select'
+import { InfoTip } from '#/components/ui/info-tip'
 import {
   upsertOverride,
   deleteOverride,
-} from "#/server/functions/notifications/thresholds"
+} from '#/server/functions/notifications/thresholds'
 
+/**
+ * Per-variant override row as returned by `listOverrides`. The relational
+ * query traverses `variant → item / color` so the row carries enough catalog
+ * data to render item + color + size in the table.
+ */
 export interface OverrideRow {
   id: string
-  scope: "store" | "shop"
-  productColor: {
+  scope: 'store' | 'shop'
+  variantId: string
+  variant: {
     id: string
-    colorName: string
-    product: { id: string; articleNumber: string; name: string }
+    size: string
+    item: { id: string; articleNumber: string; name: string }
+    color: { id: string; colorName: string }
   }
-  size: string
   shopId: string | null
   shop: { id: string; name: string } | null
-  mode: "percent" | "units"
+  mode: 'percent' | 'units'
   value: string
+}
+
+/** A variant the override-form dropdown can pick from. */
+export interface VariantOption {
+  variantId: string
+  /** Article + color label, e.g. "SH-2045 · Black". */
+  label: string
+  size: string
 }
 
 export function OverrideTable({
   rows,
   showShopColumn,
-  productOptions,
+  variantOptions,
   shopOptions,
   defaultShopId,
   onChanged,
 }: {
   rows: OverrideRow[]
   showShopColumn: boolean
-  productOptions: Array<{
-    productColorId: string
-    label: string
-    sizes: string[]
-  }>
+  variantOptions: VariantOption[]
   shopOptions?: Array<{ id: string; name: string }>
   defaultShopId?: string | null
   onChanged: () => void
@@ -70,7 +80,13 @@ export function OverrideTable({
             </TableHead>
             <TableHead>
               <span className="flex items-center gap-1">
-                Product
+                Item
+                <InfoTip term="notifications.overrides.product" />
+              </span>
+            </TableHead>
+            <TableHead>
+              <span className="flex items-center gap-1">
+                Color
                 <InfoTip term="notifications.overrides.product" />
               </span>
             </TableHead>
@@ -94,17 +110,14 @@ export function OverrideTable({
           {rows.map((r) => (
             <TableRow key={r.id}>
               <TableCell className="capitalize">{r.scope}</TableCell>
-              <TableCell>
-                {r.productColor.product.articleNumber} {r.productColor.colorName}
-              </TableCell>
-              <TableCell>{r.size}</TableCell>
+              <TableCell>{r.variant.item.articleNumber}</TableCell>
+              <TableCell>{r.variant.color.colorName}</TableCell>
+              <TableCell>{r.variant.size}</TableCell>
               {showShopColumn && (
-                <TableCell>{r.shop?.name ?? "(all shops)"}</TableCell>
+                <TableCell>{r.shop?.name ?? '(all shops)'}</TableCell>
               )}
               <TableCell>
-                {r.mode === "percent"
-                  ? `≤ ${r.value}%`
-                  : `≤ ${r.value} units`}
+                {r.mode === 'percent' ? `≤ ${r.value}%` : `≤ ${r.value} units`}
               </TableCell>
               <TableCell>
                 <Button
@@ -122,7 +135,7 @@ export function OverrideTable({
           {rows.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={showShopColumn ? 6 : 5}
+                colSpan={showShopColumn ? 7 : 6}
                 className="text-muted-foreground text-sm text-center"
               >
                 No overrides yet — defaults apply to everything.
@@ -135,7 +148,7 @@ export function OverrideTable({
       {adding ? (
         <AddOverrideForm
           showShopField={showShopColumn}
-          productOptions={productOptions}
+          variantOptions={variantOptions}
           shopOptions={shopOptions ?? []}
           defaultShopId={defaultShopId ?? null}
           onCancel={() => setAdding(false)}
@@ -155,43 +168,27 @@ export function OverrideTable({
 
 function AddOverrideForm({
   showShopField,
-  productOptions,
+  variantOptions,
   shopOptions,
   defaultShopId,
   onCancel,
   onSaved,
 }: {
   showShopField: boolean
-  productOptions: Array<{
-    productColorId: string
-    label: string
-    sizes: string[]
-  }>
+  variantOptions: VariantOption[]
   shopOptions: Array<{ id: string; name: string }>
   defaultShopId: string | null
   onCancel: () => void
   onSaved: () => void
 }) {
-  const [scope, setScope] = useState<"store" | "shop">(
-    showShopField ? "shop" : "store",
+  const [scope, setScope] = useState<'store' | 'shop'>(
+    showShopField ? 'shop' : 'store',
   )
-  const [productColorId, setProductColorId] = useState(
-    productOptions[0]?.productColorId ?? "",
-  )
-  const sizes =
-    productOptions.find((p) => p.productColorId === productColorId)?.sizes ?? []
-  const [size, setSize] = useState(sizes[0] ?? "")
+  const [variantId, setVariantId] = useState(variantOptions[0]?.variantId ?? '')
   const [shopId, setShopId] = useState<string | null>(defaultShopId)
-  const [mode, setMode] = useState<"percent" | "units">("percent")
-  const [value, setValue] = useState("20")
+  const [mode, setMode] = useState<'percent' | 'units'>('percent')
+  const [value, setValue] = useState('20')
   const [saving, setSaving] = useState(false)
-
-  function handleProductColorChange(id: string) {
-    setProductColorId(id)
-    const newSizes =
-      productOptions.find((p) => p.productColorId === id)?.sizes ?? []
-    setSize(newSizes[0] ?? "")
-  }
 
   async function onSubmit() {
     setSaving(true)
@@ -199,9 +196,8 @@ function AddOverrideForm({
       await upsertOverride({
         data: {
           scope,
-          productColorId,
-          size,
-          shopId: scope === "shop" ? shopId : null,
+          variantId,
+          shopId: scope === 'shop' ? shopId : null,
           mode,
           value: Number(value),
         },
@@ -232,43 +228,25 @@ function AddOverrideForm({
         </div>
         <div>
           <label className="text-xs font-medium">Variant</label>
-          <Select
-            value={productColorId}
-            onValueChange={handleProductColorChange}
-          >
+          <Select value={variantId} onValueChange={setVariantId}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {productOptions.map((p) => (
-                <SelectItem key={p.productColorId} value={p.productColorId}>
-                  {p.label}
+              {variantOptions.map((v) => (
+                <SelectItem key={v.variantId} value={v.variantId}>
+                  {v.label} · {v.size}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <label className="text-xs font-medium">Size</label>
-          <Select value={size} onValueChange={setSize}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {sizes.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {showShopField && scope === "shop" && (
+        {showShopField && scope === 'shop' && (
           <div>
             <label className="text-xs font-medium">Shop</label>
             <Select
-              value={shopId ?? "ALL"}
-              onValueChange={(v) => setShopId(v === "ALL" ? null : v)}
+              value={shopId ?? 'ALL'}
+              onValueChange={(v) => setShopId(v === 'ALL' ? null : v)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -286,10 +264,7 @@ function AddOverrideForm({
         )}
         <div>
           <label className="text-xs font-medium">Mode</label>
-          <Select
-            value={mode}
-            onValueChange={(v) => setMode(v as typeof mode)}
-          >
+          <Select value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -310,8 +285,13 @@ function AddOverrideForm({
         </div>
       </div>
       <div className="flex gap-2">
-        <Button onClick={() => { void onSubmit() }} disabled={saving}>
-          {saving ? "Saving…" : "Save override"}
+        <Button
+          onClick={() => {
+            void onSubmit()
+          }}
+          disabled={saving}
+        >
+          {saving ? 'Saving…' : 'Save override'}
         </Button>
         <Button variant="ghost" onClick={onCancel}>
           Cancel

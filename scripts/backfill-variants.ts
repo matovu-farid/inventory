@@ -29,9 +29,6 @@ export interface BackfillSummary {
   assertions: {
     storeStockOrphans: number
     shopStockOrphans: number
-    overrideOrphans: number
-    lowStockAlertOrphans: number
-    restockRequisitionOrphans: number
     productsWithDuplicateSizes: number
   }
 }
@@ -48,13 +45,11 @@ export interface BackfillOptions {
   itemIds?: string[]
 }
 
-const STOCK_TABLES = [
-  'store_stock',
-  'shop_stock',
-  'notification_threshold_overrides',
-  'low_stock_alerts',
-  'restock_requisitions',
-] as const
+// Notification tables (notification_threshold_overrides / low_stock_alerts /
+// restock_requisitions) used to live in this list, but #5 swapped them off
+// (product_color_id, size) onto variant_id directly, so they no longer carry
+// a composite key to check for orphans.
+const STOCK_TABLES = ['store_stock', 'shop_stock'] as const
 
 type StockTable = (typeof STOCK_TABLES)[number]
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
@@ -101,17 +96,6 @@ export async function backfillVariants(
     const orphanCounts: Record<StockTable, number> = {
       store_stock: await countOrphans(tx, 'store_stock', itemIds),
       shop_stock: await countOrphans(tx, 'shop_stock', itemIds),
-      notification_threshold_overrides: await countOrphans(
-        tx,
-        'notification_threshold_overrides',
-        itemIds,
-      ),
-      low_stock_alerts: await countOrphans(tx, 'low_stock_alerts', itemIds),
-      restock_requisitions: await countOrphans(
-        tx,
-        'restock_requisitions',
-        itemIds,
-      ),
     }
 
     for (const [table, n] of Object.entries(orphanCounts)) {
@@ -181,9 +165,6 @@ export async function backfillVariants(
       assertions: {
         storeStockOrphans: orphanCounts.store_stock,
         shopStockOrphans: orphanCounts.shop_stock,
-        overrideOrphans: orphanCounts.notification_threshold_overrides,
-        lowStockAlertOrphans: orphanCounts.low_stock_alerts,
-        restockRequisitionOrphans: orphanCounts.restock_requisitions,
         productsWithDuplicateSizes,
       },
     }

@@ -1,15 +1,15 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm"
-import type { db as defaultDb } from "#/db"
-import { lowStockAlerts, shops, stores, user } from "#/db/schema"
-import { sendLowStockDigest } from "#/lib/email"
-import { formatProductLabel } from "#/lib/products"
-import { severityForAlert, severityRank } from "#/lib/notifications/severity"
-import { env } from "#/env"
-import type { LowStockDigestData } from "#/lib/emails"
-import type { Role } from "#/lib/roles"
+import { and, eq, inArray, isNotNull } from 'drizzle-orm'
+import type { db as defaultDb } from '#/db'
+import { lowStockAlerts, shops, stores, user } from '#/db/schema'
+import { sendLowStockDigest } from '#/lib/email'
+import { formatProductLabel } from '#/lib/products'
+import { severityForAlert, severityRank } from '#/lib/notifications/severity'
+import { env } from '#/env'
+import type { LowStockDigestData } from '#/lib/emails'
+import type { Role } from '#/lib/roles'
 
 type Db = typeof defaultDb
-const RECIPIENT_ROLES: Role[] = ["admin", "supervisor"]
+const RECIPIENT_ROLES: Role[] = ['admin', 'supervisor']
 const TOP_N = 10
 
 export interface DigestSummary {
@@ -22,17 +22,27 @@ export async function sendDailyLowStockDigestInternal(
   db: Db,
   now: Date,
 ): Promise<DigestSummary> {
+  // Hydrate `variant → item / color` so the digest can render a human
+  // product label per alert (#5 swapped (product_color_id, size) for
+  // variant_id on low_stock_alerts).
   const alerts = await db.query.lowStockAlerts.findMany({
-    where: eq(lowStockAlerts.status, "open"),
-    with: { productColor: { with: { product: true } } },
+    where: eq(lowStockAlerts.status, 'open'),
+    with: {
+      variant: {
+        with: {
+          item: true,
+          color: true,
+        },
+      },
+    },
   })
 
   if (alerts.length === 0) {
     return { emailsSent: 0, alertCount: 0, recipientCount: 0 }
   }
 
-  const shopAlerts = alerts.filter((a) => a.scope === "shop")
-  const storeAlerts = alerts.filter((a) => a.scope === "store")
+  const shopAlerts = alerts.filter((a) => a.scope === 'shop')
+  const storeAlerts = alerts.filter((a) => a.scope === 'store')
   const shopIds = new Set(shopAlerts.map((a) => a.locationId))
   const storeIds = new Set(storeAlerts.map((a) => a.locationId))
 
@@ -61,11 +71,11 @@ export async function sendDailyLowStockDigestInternal(
       const qoh = a.quantityAtOpen
       return {
         scope: a.scope,
-        locationName: locationName.get(a.locationId) ?? "(unknown)",
+        locationName: locationName.get(a.locationId) ?? '(unknown)',
         productLabel: formatProductLabel(
-          a.productColor.product.articleNumber,
-          a.productColor.colorName,
-          a.size,
+          a.variant.item.articleNumber,
+          a.variant.color.colorName,
+          a.variant.size,
         ),
         quantityAtOpen: qoh,
         baseline,
@@ -109,7 +119,7 @@ export async function sendDailyLowStockDigestInternal(
       await sendLowStockDigest({ to: r.email, data })
       sent++
     } catch (error) {
-      console.error("[sendDailyLowStockDigest] recipient failed", {
+      console.error('[sendDailyLowStockDigest] recipient failed', {
         userId: r.id,
         error,
       })

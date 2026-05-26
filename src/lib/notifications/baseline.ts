@@ -1,12 +1,13 @@
-import type { db as defaultDb } from "#/db"
+import type { db as defaultDb } from '#/db'
 import {
   storeReceivings,
   supplyRouteItems,
   storeTransfers,
   storeTransferItems,
   storeStock,
-} from "#/db/schema"
-import { and, desc, eq, sql } from "drizzle-orm"
+  variants,
+} from '#/db/schema'
+import { and, desc, eq, sql } from 'drizzle-orm'
 
 export interface BaselineResult {
   baseline: number | null
@@ -14,8 +15,12 @@ export interface BaselineResult {
 }
 
 interface VariantKey {
-  productColorId: string
-  size: string
+  /**
+   * Variant the baseline is computed for. Stock / supply-route tables still
+   * carry `(product_color_id, size)` (rename owned by #4), so we resolve them
+   * via the variants table on the way in.
+   */
+  variantId: string
 }
 
 type Db = typeof defaultDb
@@ -31,11 +36,17 @@ export async function computeStoreBaseline(
       supplyRouteItems,
       eq(storeReceivings.supplyRouteItemId, supplyRouteItems.id),
     )
+    .innerJoin(
+      variants,
+      and(
+        eq(variants.colorId, supplyRouteItems.productColorId),
+        eq(variants.size, supplyRouteItems.size),
+      ),
+    )
     .where(
       and(
         eq(storeReceivings.storeId, args.storeId),
-        eq(supplyRouteItems.productColorId, args.productColorId),
-        eq(supplyRouteItems.size, args.size),
+        eq(variants.id, args.variantId),
       ),
     )
     .orderBy(desc(storeReceivings.receivedDate))
@@ -58,11 +69,17 @@ export async function computeShopBaseline(
       eq(storeTransferItems.storeTransferId, storeTransfers.id),
     )
     .innerJoin(storeStock, eq(storeTransferItems.storeStockId, storeStock.id))
+    .innerJoin(
+      variants,
+      and(
+        eq(variants.colorId, storeStock.productColorId),
+        eq(variants.size, storeStock.size),
+      ),
+    )
     .where(
       and(
         eq(storeTransfers.shopId, args.shopId),
-        eq(storeStock.productColorId, args.productColorId),
-        eq(storeStock.size, args.size),
+        eq(variants.id, args.variantId),
       ),
     )
     .orderBy(desc(storeTransferItems.createdAt))

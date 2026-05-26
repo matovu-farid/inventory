@@ -1,36 +1,46 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, sql } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
+import { createServerFn } from '@tanstack/react-start'
+import { and, eq, inArray } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
 import {
   restockRequisitions,
   supplyRouteItems,
   supplyRoutes,
-} from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { formatProductLabel } from "#/lib/products"
+} from '#/db/schema'
+import { requireSession } from '#/server/middleware/auth'
+import { requireRole } from '#/server/middleware/rbac'
+import { formatProductLabel } from '#/lib/products'
 
+/**
+ * Lists open restock requisitions. Each requisition is keyed by `variant_id`
+ * (per #5); we hydrate item + color + size from the variant relation so
+ * downstream UI can render a human-readable product label.
+ */
 export const listOpenRequisitions = createServerFn().handler(async () => {
   const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  requireRole(session, ['admin', 'supervisor'])
   const rows = await db.query.restockRequisitions.findMany({
-    where: eq(restockRequisitions.status, "open"),
+    where: eq(restockRequisitions.status, 'open'),
     with: {
       store: true,
-      productColor: { with: { product: true } },
+      variant: {
+        with: {
+          item: true,
+          color: true,
+        },
+      },
     },
   })
   return rows.map((r) => ({
     id: r.id,
     storeId: r.storeId,
     storeName: r.store.name,
-    productColorId: r.productColorId,
-    size: r.size,
+    variantId: r.variantId,
+    size: r.variant.size,
     productLabel: formatProductLabel(
-      r.productColor.product.articleNumber,
-      r.productColor.colorName,
-      r.size,
+      r.variant.item.articleNumber,
+      r.variant.color.colorName,
+      r.variant.size,
     ),
     suggestedQuantity: r.suggestedQuantity,
     baseline: r.baselineQuantity,
@@ -45,11 +55,19 @@ const promoteInput = z.object({
   supplierId: z.uuid(),
 })
 
+/**
+ * Promotes a set of open restock requisitions into supply-route line items.
+ *
+ * Requisitions are addressed by `variant_id` (per #5); the supply-route
+ * `*_items` tables still carry `(product_id, product_color_id, size)`
+ * (rename to `*_lines` lives in Phase 2 of the spec). We project the variant
+ * back to its color + size + parent item to fill in those legacy columns.
+ */
 export const promoteRequisitionsToRoute = createServerFn()
   .inputValidator(promoteInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin"])
+    requireRole(session, ['admin'])
 
     return db.transaction(async (tx) => {
       // Lock target requisitions
@@ -57,12 +75,12 @@ export const promoteRequisitionsToRoute = createServerFn()
         .select()
         .from(restockRequisitions)
         .where(inArray(restockRequisitions.id, data.requisitionIds))
-        .for("update")
+        .for('update')
 
-      const stillOpen = target.filter((r) => r.status === "open")
+      const stillOpen = target.filter((r) => r.status === 'open')
       if (stillOpen.length !== target.length) {
         throw new Error(
-          "Some requisitions are no longer open (already planned or dismissed).",
+          'Some requisitions are no longer open (already planned or dismissed).',
         )
       }
 
@@ -72,32 +90,43 @@ export const promoteRequisitionsToRoute = createServerFn()
           .from(supplyRoutes)
           .where(eq(supplyRoutes.id, data.supplyRouteId))
       ).at(0)
-      if (!route || route.status !== "planning") {
+      if (!route || route.status !== 'planning') {
         throw new Error("Supply route must be in 'planning' status.")
       }
 
+      // Resolve each requisition's variant_id back to (item_id, color_id, size)
+      // so we can keep supply_route_items happy with its legacy column shape.
+      const variantIds = stillOpen.map((r) => r.variantId)
+      const variantRows = await tx.query.variants.findMany({
+        where: (v, ops) => ops.inArray(v.id, variantIds),
+      })
+      const variantById = new Map(variantRows.map((v) => [v.id, v]))
+
       for (const req of stillOpen) {
+        const variant = variantById.get(req.variantId)
+        if (!variant) {
+          throw new Error(
+            `Variant ${req.variantId} for requisition ${req.id} not found.`,
+          )
+        }
         const [item] = await tx
           .insert(supplyRouteItems)
           .values({
             supplyRouteId: data.supplyRouteId,
             supplierId: data.supplierId,
-            productColorId: req.productColorId,
-            // productId set via subquery on item_colors (table renamed from
-            // product_colors in #3; the FK column item_id was previously
-            // named product_id and renamed in the same migration).
-            productId: sql`(SELECT item_id FROM item_colors WHERE id = ${req.productColorId})`,
-            size: req.size,
+            productColorId: variant.colorId,
+            productId: variant.itemId,
+            size: variant.size,
             quantity: req.suggestedQuantity,
-            unitPriceForeign: "0",
-            foreignCurrency: "RMB",
-            totalAmountForeign: "0",
-            totalCostUgx: "0",
+            unitPriceForeign: '0',
+            foreignCurrency: 'RMB',
+            totalAmountForeign: '0',
+            totalCostUgx: '0',
           })
           .returning()
         await tx
           .update(restockRequisitions)
-          .set({ status: "planned", supplyRouteItemId: item.id })
+          .set({ status: 'planned', supplyRouteItemId: item.id })
           .where(eq(restockRequisitions.id, req.id))
       }
       return { promoted: stillOpen.length }
@@ -113,18 +142,18 @@ export const dismissRequisition = createServerFn()
   .inputValidator(dismissInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    requireRole(session, ['admin', 'supervisor'])
     await db
       .update(restockRequisitions)
       .set({
-        status: "dismissed",
+        status: 'dismissed',
         dismissedReason: data.reason,
         resolvedAt: new Date(),
       })
       .where(
         and(
           eq(restockRequisitions.id, data.id),
-          eq(restockRequisitions.status, "open"),
+          eq(restockRequisitions.status, 'open'),
         ),
       )
     return { ok: true }

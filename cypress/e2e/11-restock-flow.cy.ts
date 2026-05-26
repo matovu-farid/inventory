@@ -15,28 +15,34 @@
 
 const TIMESTAMP = Date.now()
 const TEST_EMAIL = `e2e-restock-${TIMESTAMP}@test.com`
-const TEST_PASSWORD = "E2EPassword123!"
+const TEST_PASSWORD = 'E2EPassword123!'
 const ART = `RST-${TIMESTAMP}`
 
-describe("Low-stock restock flow", () => {
+describe('Low-stock restock flow', () => {
   before(() => {
-    cy.task("cleanupAllTestData", null)
+    cy.task('cleanupAllTestData', null)
 
     // Create admin user
     cy.request({
-      method: "POST",
-      url: "/api/auth/sign-up/email",
-      headers: { Origin: "http://localhost:3000" },
-      body: { name: "Restock Admin", email: TEST_EMAIL, password: TEST_PASSWORD },
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      headers: { Origin: 'http://localhost:3000' },
+      body: {
+        name: 'Restock Admin',
+        email: TEST_EMAIL,
+        password: TEST_PASSWORD,
+      },
     })
     cy.task(
-      "dbQuery",
+      'dbQuery',
       `UPDATE "user" SET role = 'admin', email_verified = TRUE WHERE email = '${TEST_EMAIL}'`,
     )
 
     // Seed item + color (catalog tables renamed in #3; item_category_id is
     // NOT NULL so we point new rows at the seeded "Uncategorized" bucket).
-    cy.task("dbQuery", `
+    cy.task(
+      'dbQuery',
+      `
       INSERT INTO items (id, article_number, name, item_category_id)
       VALUES (
         gen_random_uuid(),
@@ -45,104 +51,146 @@ describe("Low-stock restock flow", () => {
         (SELECT id FROM item_categories WHERE name = 'Uncategorized')
       )
       RETURNING id;
-    `).as("productId")
+    `,
+    ).as('productId')
 
     cy.then(function () {
       const productId = (this.productId as Array<{ id: string }>)[0].id
-      cy.task("dbQuery", `
+      cy.task(
+        'dbQuery',
+        `
         INSERT INTO item_colors (id, item_id, color_name, color_hex)
         VALUES (gen_random_uuid(), '${productId}', 'Red', '#FF0000')
         RETURNING id;
-      `).as("pcId")
+      `,
+      ).as('pcId')
     })
 
     // Seed store and shop
-    cy.task("dbQuery", `
+    cy.task(
+      'dbQuery',
+      `
       INSERT INTO stores (id, name) VALUES (gen_random_uuid(), 'RST Store ${TIMESTAMP}') RETURNING id;
-    `).as("storeId")
+    `,
+    ).as('storeId')
 
-    cy.task("dbQuery", `
+    cy.task(
+      'dbQuery',
+      `
       INSERT INTO shops (id, name) VALUES (gen_random_uuid(), 'RST Shop ${TIMESTAMP}') RETURNING id;
-    `).as("shopId")
+    `,
+    ).as('shopId')
 
-    // Seed stock rows and alert — all depend on pcId, storeId, shopId
+    // Seed a variant row so notification tables can address inventory via
+    // variant_id (the swap from (product_color_id, size) → variant_id landed
+    // in #5).
+    cy.then(function () {
+      const productId = (this.productId as Array<{ id: string }>)[0].id
+      const pcId = (this.pcId as Array<{ id: string }>)[0].id
+      cy.task(
+        'dbQuery',
+        `
+        INSERT INTO variants (id, item_id, color_id, size)
+        VALUES (gen_random_uuid(), '${productId}', '${pcId}', 'M')
+        RETURNING id;
+      `,
+      ).as('variantId')
+    })
+
+    // Seed stock rows and alert — all depend on pcId, variantId, storeId, shopId
     cy.then(function () {
       const pcId = (this.pcId as Array<{ id: string }>)[0].id
+      const variantId = (this.variantId as Array<{ id: string }>)[0].id
       const shopId = (this.shopId as Array<{ id: string }>)[0].id
       const storeId = (this.storeId as Array<{ id: string }>)[0].id
 
-      Cypress.env("RESTOCK_SHOP_ID", shopId)
+      Cypress.env('RESTOCK_SHOP_ID', shopId)
 
-      // Store stock — warehouse has 100 units available
-      cy.task("dbQuery", `
+      // Store stock — warehouse has 100 units available.
+      // (shop_stock / store_stock still address inventory via
+      // (product_color_id, size) until #4 swaps them onto variant_id.)
+      cy.task(
+        'dbQuery',
+        `
         INSERT INTO store_stock (id, store_id, product_color_id, size, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
         VALUES (gen_random_uuid(), '${storeId}', '${pcId}', 'M', 100, 1000, 1500)
         RETURNING id;
-      `).as("storeStockId")
+      `,
+      ).as('storeStockId')
 
       // Shop stock — only 2 units (below the threshold of 5)
-      cy.task("dbQuery", `
+      cy.task(
+        'dbQuery',
+        `
         INSERT INTO shop_stock (id, shop_id, product_color_id, size, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
         VALUES (gen_random_uuid(), '${shopId}', '${pcId}', 'M', 2, 1500, 2000);
-      `)
+      `,
+      )
 
-      // Per-variant units override: threshold = 5 (qoh=2 is below it)
-      cy.task("dbQuery", `
-        INSERT INTO notification_threshold_overrides (id, scope, product_color_id, size, shop_id, mode, value)
-        VALUES (gen_random_uuid(), 'shop', '${pcId}', 'M', NULL, 'units', 5);
-      `)
+      // Per-variant units override: threshold = 5 (qoh=2 is below it).
+      // Keyed by variant_id now that #5 has landed.
+      cy.task(
+        'dbQuery',
+        `
+        INSERT INTO notification_threshold_overrides (id, scope, variant_id, shop_id, mode, value)
+        VALUES (gen_random_uuid(), 'shop', '${variantId}', NULL, 'units', 5);
+      `,
+      )
 
       // Pre-seed an open low_stock_alert so the restock page shows results
-      // even if the manual check button doesn't re-open one already open
-      cy.task("dbQuery", `
+      // even if the manual check button doesn't re-open one already open.
+      cy.task(
+        'dbQuery',
+        `
         INSERT INTO low_stock_alerts (
-          id, scope, location_id, product_color_id, size, status,
+          id, scope, location_id, variant_id, status,
           baseline_quantity, threshold_snapshot, quantity_at_open
         )
         VALUES (
-          gen_random_uuid(), 'shop', '${shopId}', '${pcId}', 'M', 'open',
+          gen_random_uuid(), 'shop', '${shopId}', '${variantId}', 'open',
           10,
           '{"mode":"units","value":5}',
           2
         );
-      `)
+      `,
+      )
     })
   })
 
   beforeEach(() => {
     cy.loginAndCache(TEST_EMAIL, TEST_PASSWORD)
     // Suppress hydration errors that don't affect the flow
-    cy.on("uncaught:exception", () => false)
+    cy.on('uncaught:exception', () => false)
   })
 
   after(() => {
-    cy.task("cleanupAllTestData", null)
+    cy.task('cleanupAllTestData', null)
   })
 
-  it("runs the manual check from settings and sees a completion banner", () => {
-    cy.visit("/settings/notifications")
+  it('runs the manual check from settings and sees a completion banner', () => {
+    cy.visit('/settings/notifications')
     cy.wait(3500) // TanStack Start SSR + client hydration
 
-    cy.contains("button", "Run check now").should("be.visible").click()
+    cy.contains('button', 'Run check now').should('be.visible').click()
 
     // Banner text: "Check complete. Opened: N, resolved: N."
-    cy.contains(/check complete/i, { timeout: 10000 }).should("be.visible")
+    cy.contains(/check complete/i, { timeout: 10000 }).should('be.visible')
   })
 
-  it("shows low-stock item on the shop restock page", () => {
-    const shopId = Cypress.env("RESTOCK_SHOP_ID") as string
+  it('shows low-stock item on the shop restock page', () => {
+    const shopId = Cypress.env('RESTOCK_SHOP_ID') as string
     cy.visit(`/shop/${shopId}/restock`)
     cy.wait(3500)
 
     // Card header from the restock route
-    cy.contains("Currently low").should("be.visible")
+    cy.contains('Currently low').should('be.visible')
 
     // Product label includes the article number
-    cy.contains(ART).should("be.visible")
+    cy.contains(ART).should('be.visible')
   })
 
-  it("ticks a row, creates a transfer, and navigates away", () => {
-    const shopId = Cypress.env("RESTOCK_SHOP_ID") as string
+  it('ticks a row, creates a transfer, and navigates away', () => {
+    const shopId = Cypress.env('RESTOCK_SHOP_ID') as string
     cy.visit(`/shop/${shopId}/restock`)
     cy.wait(3500)
 
@@ -150,12 +198,12 @@ describe("Low-stock restock flow", () => {
     cy.get('input[type="checkbox"]').first().check()
 
     // Click the "Create transfer" button
-    cy.contains("button", /create transfer/i).click()
+    cy.contains('button', /create transfer/i).click()
 
     // After dispatch the route navigates to /store/transfers,
     // or stays on the restock page with a success banner
     cy.url({ timeout: 10000 }).should(
-      "match",
+      'match',
       /\/(store\/transfers|shop\/.*\/restock)/,
     )
   })
