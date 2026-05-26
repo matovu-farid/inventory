@@ -1,0 +1,208 @@
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest"
+import { and, eq, inArray } from "drizzle-orm"
+import { runWithStartContext } from "@tanstack/start-storage-context"
+
+import { db } from "#/db"
+import {
+  items,
+  itemColors,
+  itemCategories,
+  variants,
+  storeStock,
+  stores,
+} from "#/db/schema"
+import {
+  createVariant,
+  deleteVariant,
+} from "#/server/functions/products/variants"
+
+/**
+ * Issue #7 acceptance #3: deleting a variant must be blocked by FK
+ * restrict if stock / sales reference it, and the server function should
+ * surface a clean, user-readable error (not the raw pg SQLSTATE).
+ *
+ * `variants.color_id` has `onDelete: 'restrict'`, and `shop_stock.variant_id`
+ * / `store_stock.variant_id` reference variants with FK restrict too — so
+ * the underlying constraint already does the right thing at the DB layer.
+ * Here we just verify the server wrapper converts the violation into a
+ * friendly error and that the happy path (variant has no stock) succeeds.
+ */
+
+const TEST_USER_ID = "00000000-0000-0000-0000-0000000000d7"
+vi.mock("#/server/middleware/auth", () => ({
+  requireSession: () =>
+    Promise.resolve({ user: { id: TEST_USER_ID, role: "admin" } }),
+}))
+vi.mock("#/server/middleware/rbac", () => ({
+  requireRole: () => {},
+  hasRole: () => true,
+}))
+
+const stubStartContext = {
+  getRouter: (() => {
+    throw new Error("router not available in tests")
+  }) as never,
+  request: new Request("http://localhost/test"),
+  startOptions: { functionMiddleware: [] },
+  contextAfterGlobalMiddlewares: {},
+  executedRequestMiddlewares: new Set(),
+  handlerType: "serverFn" as const,
+}
+function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
+  return runWithStartContext(stubStartContext, fn)
+}
+
+const SUFFIX = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+const FIXTURE: {
+  itemId?: string
+  colorId?: string
+  variantWithStockId?: string
+  variantWithoutStockId?: string
+  storeId?: string
+} = {}
+
+async function uncategorizedId(): Promise<string> {
+  const row = await db.query.itemCategories.findFirst({
+    where: eq(itemCategories.name, "Uncategorized"),
+  })
+  if (!row) throw new Error("Missing Uncategorized seed row")
+  return row.id
+}
+
+beforeAll(async () => {
+  const uncat = await uncategorizedId()
+
+  const [item] = await db
+    .insert(items)
+    .values({
+      articleNumber: `dv-${SUFFIX}`,
+      name: "delete-variant tester",
+      itemCategoryId: uncat,
+    })
+    .returning()
+  FIXTURE.itemId = item.id
+
+  const [color] = await db
+    .insert(itemColors)
+    .values({ itemId: item.id, colorName: "Maroon", colorHex: "#800020" })
+    .returning()
+  FIXTURE.colorId = color.id
+
+  const [vStock, vFree] = await db
+    .insert(variants)
+    .values([
+      { itemId: item.id, colorId: color.id, size: "M" },
+      { itemId: item.id, colorId: color.id, size: "L" },
+    ])
+    .returning()
+  FIXTURE.variantWithStockId = vStock.id
+  FIXTURE.variantWithoutStockId = vFree.id
+
+  let existingStore = await db.query.stores.findFirst()
+  if (!existingStore) {
+    ;[existingStore] = await db
+      .insert(stores)
+      .values({ name: `DV Store ${SUFFIX}` })
+      .returning()
+  }
+  FIXTURE.storeId = existingStore.id
+
+  await db.insert(storeStock).values({
+    storeId: existingStore.id,
+    variantId: vStock.id,
+    quantityOnHand: 5,
+    costPerUnitUgx: "100",
+    minimumSellPriceUgx: "150",
+  })
+})
+
+afterAll(async () => {
+  if (FIXTURE.storeId && FIXTURE.variantWithStockId) {
+    await db
+      .delete(storeStock)
+      .where(
+        and(
+          eq(storeStock.storeId, FIXTURE.storeId),
+          eq(storeStock.variantId, FIXTURE.variantWithStockId),
+        ),
+      )
+  }
+  if (FIXTURE.itemId) {
+    await db.delete(items).where(eq(items.id, FIXTURE.itemId))
+  }
+})
+
+describe("createVariant", () => {
+  it("inserts a new (color, size) pair for the item", async () => {
+    const created = await callServerFn(() =>
+      createVariant({
+        data: {
+          itemId: FIXTURE.itemId!,
+          colorId: FIXTURE.colorId!,
+          size: "XL",
+        },
+      }),
+    )
+    expect(created.itemId).toBe(FIXTURE.itemId)
+    expect(created.colorId).toBe(FIXTURE.colorId)
+    expect(created.size).toBe("XL")
+
+    // Cleanup so afterAll cascade is clean.
+    await db.delete(variants).where(eq(variants.id, created.id))
+  })
+
+  it("rejects a duplicate (item, color, size) combination", async () => {
+    await expect(
+      callServerFn(() =>
+        createVariant({
+          data: {
+            itemId: FIXTURE.itemId!,
+            colorId: FIXTURE.colorId!,
+            size: "M",
+          },
+        }),
+      ),
+    ).rejects.toThrow(/already exists|duplicate|unique/i)
+  })
+})
+
+describe("deleteVariant", () => {
+  it("deletes a variant that has no stock referencing it", async () => {
+    await callServerFn(() =>
+      deleteVariant({ data: { variantId: FIXTURE.variantWithoutStockId! } }),
+    )
+    const rows = await db
+      .select()
+      .from(variants)
+      .where(eq(variants.id, FIXTURE.variantWithoutStockId!))
+    expect(rows).toHaveLength(0)
+  })
+
+  it("surfaces a friendly error when stock references the variant", async () => {
+    // The variant referenced by storeStock cannot be deleted — FK restrict
+    // on storeStock.variantId blocks it. The server fn should map the
+    // pg constraint violation to a human-readable message.
+    await expect(
+      callServerFn(() =>
+        deleteVariant({ data: { variantId: FIXTURE.variantWithStockId! } }),
+      ),
+    ).rejects.toThrow(/in use|cannot be deleted|stock|referenced/i)
+
+    // Confirm the row is still there.
+    const stillThere = await db
+      .select()
+      .from(variants)
+      .where(eq(variants.id, FIXTURE.variantWithStockId!))
+    expect(stillThere).toHaveLength(1)
+  })
+})
+
+// Cleanup any leftover variants (e.g. failed createVariant cleanup) that
+// the afterAll cascade will pick up via items → variants cascade.
+afterAll(async () => {
+  if (FIXTURE.itemId) {
+    await db
+      .delete(variants)
+      .where(inArray(variants.itemId, [FIXTURE.itemId]))
+  }
+})
