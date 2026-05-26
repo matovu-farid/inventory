@@ -16,9 +16,10 @@ export interface BaselineResult {
 
 interface VariantKey {
   /**
-   * Variant the baseline is computed for. Stock / supply-route tables still
-   * carry `(product_color_id, size)` (rename owned by #4), so we resolve them
-   * via the variants table on the way in.
+   * Variant the baseline is computed for. Supply-route tables still carry
+   * `(product_color_id, size)` (rename owned by #6); stock tables key on
+   * `variant_id` directly (#4). Joins resolve both shapes via the variants
+   * table.
    */
   variantId: string
 }
@@ -69,13 +70,7 @@ export async function computeShopBaseline(
       eq(storeTransferItems.storeTransferId, storeTransfers.id),
     )
     .innerJoin(storeStock, eq(storeTransferItems.storeStockId, storeStock.id))
-    .innerJoin(
-      variants,
-      and(
-        eq(variants.colorId, storeStock.productColorId),
-        eq(variants.size, storeStock.size),
-      ),
-    )
+    .innerJoin(variants, eq(variants.id, storeStock.variantId))
     .where(
       and(
         eq(storeTransfers.shopId, args.shopId),

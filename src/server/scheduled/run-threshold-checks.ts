@@ -107,16 +107,14 @@ async function processShopStock(
   maps: ReturnType<typeof buildOverrideMaps>,
   summary: CheckSummary,
 ) {
-  // Join shop_stock → variants (via color_id, size) so each row carries the
-  // variant_id used to key low_stock_alerts and threshold overrides.
-  // shop_stock itself is migrating to variant_id in #4 — until then we
-  // resolve through the variants table.
+  // shop_stock keys on variant_id directly (#4). Join through variants to
+  // collect the labels (item article number, color, size) needed for alert
+  // copy and threshold-override lookups.
   const rows = await db
     .select({
       stockId: shopStock.id,
       shopId: shopStock.shopId,
-      productColorId: shopStock.productColorId,
-      size: shopStock.size,
+      size: variants.size,
       quantityOnHand: shopStock.quantityOnHand,
       variantId: variants.id,
       articleNumber: items.articleNumber,
@@ -124,14 +122,8 @@ async function processShopStock(
       shopName: shops.name,
     })
     .from(shopStock)
-    .innerJoin(
-      variants,
-      and(
-        eq(variants.colorId, shopStock.productColorId),
-        eq(variants.size, shopStock.size),
-      ),
-    )
-    .innerJoin(itemColors, eq(itemColors.id, shopStock.productColorId))
+    .innerJoin(variants, eq(variants.id, shopStock.variantId))
+    .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
     .innerJoin(shops, eq(shops.id, shopStock.shopId))
   for (const row of rows) {
@@ -192,22 +184,15 @@ async function processStoreStock(
     .select({
       stockId: storeStock.id,
       storeId: storeStock.storeId,
-      productColorId: storeStock.productColorId,
-      size: storeStock.size,
+      size: variants.size,
       quantityOnHand: storeStock.quantityOnHand,
       variantId: variants.id,
       articleNumber: items.articleNumber,
       colorName: itemColors.colorName,
     })
     .from(storeStock)
-    .innerJoin(
-      variants,
-      and(
-        eq(variants.colorId, storeStock.productColorId),
-        eq(variants.size, storeStock.size),
-      ),
-    )
-    .innerJoin(itemColors, eq(itemColors.id, storeStock.productColorId))
+    .innerJoin(variants, eq(variants.id, storeStock.variantId))
+    .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
   for (const row of rows) {
     try {
