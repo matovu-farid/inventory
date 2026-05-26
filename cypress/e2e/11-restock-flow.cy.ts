@@ -107,13 +107,11 @@ describe('Low-stock restock flow', () => {
       Cypress.env('RESTOCK_SHOP_ID', shopId)
 
       // Store stock — warehouse has 100 units available.
-      // (shop_stock / store_stock still address inventory via
-      // (product_color_id, size) until #4 swaps them onto variant_id.)
       cy.task(
         'dbQuery',
         `
-        INSERT INTO store_stock (id, store_id, product_color_id, size, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
-        VALUES (gen_random_uuid(), '${storeId}', '${pcId}', 'M', 100, 1000, 1500)
+        INSERT INTO store_stock (id, store_id, variant_id, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
+        VALUES (gen_random_uuid(), '${storeId}', '${variantId}', 100, 1000, 1500)
         RETURNING id;
       `,
       ).as('storeStockId')
@@ -122,8 +120,8 @@ describe('Low-stock restock flow', () => {
       cy.task(
         'dbQuery',
         `
-        INSERT INTO shop_stock (id, shop_id, product_color_id, size, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
-        VALUES (gen_random_uuid(), '${shopId}', '${pcId}', 'M', 2, 1500, 2000);
+        INSERT INTO shop_stock (id, shop_id, variant_id, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
+        VALUES (gen_random_uuid(), '${shopId}', '${variantId}', 2, 1500, 2000);
       `,
       )
 

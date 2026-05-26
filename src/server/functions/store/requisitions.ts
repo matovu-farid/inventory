@@ -59,9 +59,10 @@ const promoteInput = z.object({
  * Promotes a set of open restock requisitions into supply-route line items.
  *
  * Requisitions are addressed by `variant_id` (per #5); the supply-route
- * `*_items` tables still carry `(product_id, product_color_id, size)`
- * (rename to `*_lines` lives in Phase 2 of the spec). We project the variant
- * back to its color + size + parent item to fill in those legacy columns.
+ * `*_items` tables now carry `(item_id, color_id, size)` after the column
+ * rename in #6 (the table rename to `*_lines` lives in Phase 2 / #8). We
+ * project the variant back to its color + size + parent item to fill in
+ * those columns.
  */
 export const promoteRequisitionsToRoute = createServerFn()
   .inputValidator(promoteInput)
@@ -95,7 +96,7 @@ export const promoteRequisitionsToRoute = createServerFn()
       }
 
       // Resolve each requisition's variant_id back to (item_id, color_id, size)
-      // so we can keep supply_route_items happy with its legacy column shape.
+      // to fill in supply_route_items's catalog FKs.
       const variantIds = stillOpen.map((r) => r.variantId)
       const variantRows = await tx.query.variants.findMany({
         where: (v, ops) => ops.inArray(v.id, variantIds),
@@ -114,8 +115,8 @@ export const promoteRequisitionsToRoute = createServerFn()
           .values({
             supplyRouteId: data.supplyRouteId,
             supplierId: data.supplierId,
-            productColorId: variant.colorId,
-            productId: variant.itemId,
+            colorId: variant.colorId,
+            itemId: variant.itemId,
             size: variant.size,
             quantity: req.suggestedQuantity,
             unitPriceForeign: '0',

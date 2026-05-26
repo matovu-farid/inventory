@@ -75,7 +75,7 @@ describe("Backdated receipt audit log", () => {
       cy.task(
         "dbQuery",
         `INSERT INTO supply_route_items
-          (id, supply_route_id, supplier_id, product_id, product_color_id, size, quantity, unit_price_foreign, total_amount_foreign, total_cost_ugx)
+          (id, supply_route_id, supplier_id, item_id, color_id, size, quantity, unit_price_foreign, total_amount_foreign, total_cost_ugx)
           VALUES (gen_random_uuid(), '${routeId}', '${supplierId}', '${productId}', '${pcId}', 'M', 10, '10', '100', '1000');`,
       )
       // The receive handler now resolves (color, size) → variant_id before

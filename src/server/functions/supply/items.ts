@@ -70,20 +70,20 @@ export const splitSupplyRouteItem = createServerFn()
       })
       if (!original) throw new Error("Supply route item not found")
 
-      // We need a productId to attach to each new row. Prefer the row's own
-      // productId; if missing (existing aggregate rows pre-migration), fall
-      // back to the productId reached through any productColor referenced in
-      // the split (they should all belong to the same product).
-      let productIdFallback = original.productId
-      if (!productIdFallback) {
+      // We need an itemId to attach to each new row. Prefer the row's own
+      // itemId; if missing (existing aggregate rows pre-migration), fall
+      // back to the itemId reached through any color referenced in the
+      // split (they should all belong to the same item).
+      let itemIdFallback = original.itemId
+      if (!itemIdFallback) {
         const firstColor = await tx.query.itemColors.findFirst({
           where: eq(itemColors.id, data.cells[0].productColorId),
         })
         if (!firstColor) throw new Error("Color not found")
-        productIdFallback = firstColor.itemId
+        itemIdFallback = firstColor.itemId
       }
 
-      // Sanity check: all referenced colors belong to that product.
+      // Sanity check: all referenced colors belong to that item.
       const referencedColorIds = Array.from(
         new Set(data.cells.map((c) => c.productColorId)),
       )
@@ -92,9 +92,9 @@ export const splitSupplyRouteItem = createServerFn()
         columns: { id: true, itemId: true },
       })
       for (const c of referencedColors) {
-        if (c.itemId !== productIdFallback) {
+        if (c.itemId !== itemIdFallback) {
           throw new Error(
-            "All colors in a split must belong to the same product",
+            "All colors in a split must belong to the same item",
           )
         }
       }
@@ -103,14 +103,14 @@ export const splitSupplyRouteItem = createServerFn()
         {
           supplyRouteId: original.supplyRouteId,
           supplierId: original.supplierId,
-          productId: original.productId,
+          productId: original.itemId,
           quantity: original.quantity,
           unitPriceForeign: original.unitPriceForeign,
           foreignCurrency: original.foreignCurrency,
           exchangeRateForeignToUsd: original.exchangeRateForeignToUsd,
           exchangeRateUsdToUgx: original.exchangeRateUsdToUgx,
         },
-        productIdFallback,
+        itemIdFallback,
         data.cells,
       )
 

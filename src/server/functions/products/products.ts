@@ -32,11 +32,22 @@ async function getUncategorizedId(): Promise<string> {
   return row.id
 }
 
+// Item-detail queries hydrate the variants list so UI flows that pick a
+// (color, size) cell — opening balance, supply route editor — can map that
+// pair back to a `variantId` client-side. The variant is the unit of stock
+// since #4 / #5 / #6.
+const ITEM_DETAIL_WITH = {
+  colors: true,
+  variants: {
+    columns: { id: true, colorId: true, size: true },
+  },
+} as const
+
 export const listProducts = createServerFn().handler(async () => {
   const session = await requireSession()
   requireRole(session, ["admin", "supervisor", "sales"])
   return db.query.items.findMany({
-    with: { colors: true },
+    with: ITEM_DETAIL_WITH,
     orderBy: (p, { asc }) => [asc(p.articleNumber)],
   })
 })
@@ -48,7 +59,7 @@ export const getProductByArticle = createServerFn()
     requireRole(session, ["admin", "supervisor", "sales"])
     return db.query.items.findFirst({
       where: eq(items.articleNumber, data.articleNumber),
-      with: { colors: true },
+      with: ITEM_DETAIL_WITH,
     })
   })
 
@@ -58,12 +69,12 @@ export const searchProducts = createServerFn()
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor", "sales"])
     if (!data.query.trim()) {
-      return db.query.items.findMany({ with: { colors: true }, limit: 20 })
+      return db.query.items.findMany({ with: ITEM_DETAIL_WITH, limit: 20 })
     }
     const like = `%${data.query}%`
     return db.query.items.findMany({
       where: or(ilike(items.articleNumber, like), ilike(items.name, like)),
-      with: { colors: true },
+      with: ITEM_DETAIL_WITH,
       limit: 20,
     })
   })

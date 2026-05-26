@@ -4,13 +4,19 @@ import BigNumber from "bignumber.js"
 /**
  * A "cell" is one slot in the procurement entry grid. Three shapes are valid:
  *
- *   aggregate     — neither productColorId nor size is set; the productId on
- *                   the variantInput identifies the product.
- *   color-only    — productColorId is set, size is omitted.
+ *   aggregate     — neither colorId nor size is set; the itemId on the
+ *                   variantInput identifies the item (article-numbered SKU).
+ *   color-only    — colorId is set, size is omitted.
  *   color + size  — both are set.
  *
  * Aggregate and color-only rows must later be "split" into full
  * (color + size) variants before goods can be received against them.
+ *
+ * The input field names keep their existing "productColorId" / "productId"
+ * spellings because the route + form components have not migrated to the
+ * "item" vocabulary yet (UI rename is queued behind #7). On the way out,
+ * `materializeVariantRows` maps them to the `colorId` / `itemId` columns
+ * that supply_route_items uses after #6.
  */
 export const cellSchema = z.object({
   productColorId: z.uuid().optional(),
@@ -32,8 +38,10 @@ export const variantInput = z.object({
 export type MaterializedRow = {
   supplyRouteId: string
   supplierId: string
-  productId: string
-  productColorId: string | null
+  // Column names match supply_route_items after the #6 rename
+  // (product_id → item_id, product_color_id → color_id).
+  itemId: string
+  colorId: string | null
   size: string | null
   quantity: number
   unitPriceForeign: string
@@ -83,8 +91,8 @@ export function materializeVariantRows(
     return {
       supplyRouteId: input.supplyRouteId,
       supplierId: input.supplierId,
-      productId: input.productId,
-      productColorId: cell.productColorId ?? null,
+      itemId: input.productId,
+      colorId: cell.productColorId ?? null,
       size: cell.size ?? null,
       quantity: cell.quantity,
       unitPriceForeign: input.unitPriceForeign,

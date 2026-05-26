@@ -145,8 +145,8 @@ describe('computeStoreBaseline', () => {
         .values({
           supplyRouteId: route.id,
           supplierId: ctx.supplier.id,
-          productId: ctx.product.id,
-          productColorId: ctx.pc.id,
+          itemId: ctx.product.id,
+          colorId: ctx.pc.id,
           size: SIZE,
           quantity: qty,
           unitPriceForeign: '10',

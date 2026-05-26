@@ -137,8 +137,8 @@ async function seed() {
       .values({
         supplyRouteId: route.id,
         supplierId: s.id,
-        productId: p.id,
-        productColorId: pc.id,
+        itemId: p.id,
+        colorId: pc.id,
         size: SIZE,
         quantity: qty,
         unitPriceForeign: '10',
@@ -175,7 +175,7 @@ async function cleanup() {
   await db.delete(storeReceivings).where(eq(storeReceivings.storeId, storeId()))
   await db
     .delete(supplyRouteItems)
-    .where(eq(supplyRouteItems.productColorId, pcId()))
+    .where(eq(supplyRouteItems.colorId, pcId()))
   for (const qty of [50, 80, 200]) {
     await db
       .delete(supplyRoutes)

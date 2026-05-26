@@ -168,6 +168,13 @@ export const receiveGoods = createServerFn()
         received: number
         transitLoss: number
       }> = []
+      const auditLines: Array<{
+        supplyRouteItemId: string
+        variantId: string
+        colorName: string
+        size: string
+        quantityReceived: number
+      }> = []
 
       for (const item of data.items) {
         // Get the supply route item with product chain for log strings
@@ -182,26 +189,35 @@ export const receiveGoods = createServerFn()
         // by an admin before they can land in store stock.
         const productColor = sri.productColor
         const sriSize = sri.size
-        const sriProductColorId = sri.productColorId
-        if (!productColor || !sriSize || !sriProductColorId) {
+        const sriColorId = sri.colorId
+        if (!productColor || !sriSize || !sriColorId) {
           throw new Error(
             `Item ${sri.id} is missing color or size — split it into full variants before receiving`,
           )
         }
 
-        // Resolve the variant the stock row should target. The variants
-        // table is seeded from (item_colors × items.sizes) so this lookup
-        // is guaranteed to hit a row for any size that the catalog declared.
-        const variantRow = await tx.query.variants.findFirst({
+        // Resolve the variant the stock row should target. If the catalog
+        // declared this (color, size) pair the variant was seeded by
+        // `pnpm backfill:variants`; otherwise materialise it on the fly so
+        // the supply line can still land in stock without an admin detour.
+        // Spec: docs/superpowers/specs/2026-05-24-category-item-variant-design.md
+        // §3 "Special case — supply_route_items".
+        let variantRow = await tx.query.variants.findFirst({
           where: and(
-            eq(variants.colorId, sriProductColorId),
+            eq(variants.colorId, sriColorId),
             eq(variants.size, sriSize),
           ),
         })
         if (!variantRow) {
-          throw new Error(
-            `Variant not found for color=${sriProductColorId} size=${sriSize}. Run pnpm backfill:variants or split the supply line first.`,
-          )
+          const [created] = await tx
+            .insert(variants)
+            .values({
+              itemId: productColor.itemId,
+              colorId: sriColorId,
+              size: sriSize,
+            })
+            .returning()
+          variantRow = created
         }
 
         const productLabel = formatProductLabel(
@@ -308,6 +324,13 @@ export const receiveGoods = createServerFn()
           received: item.quantityReceived,
           transitLoss,
         })
+        auditLines.push({
+          supplyRouteItemId: sri.id,
+          variantId: variantRow.id,
+          colorName: productColor.colorName,
+          size: sriSize,
+          quantityReceived: item.quantityReceived,
+        })
       }
 
       // Update route status to "received" if not already
@@ -355,6 +378,11 @@ export const receiveGoods = createServerFn()
           totalReceived,
           totalTransitLoss,
           receivedDate: receivedDate.toISOString(),
+          // Per-line variant breakdown ((colorName, size) + variant_id +
+          // received qty) so the audit row stays self-describing after the
+          // variant_id swap; `articleNumbers` continues to carry the
+          // denormalised SKU set for backwards compatibility.
+          lines: auditLines,
         },
       })
 

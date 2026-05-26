@@ -9,6 +9,13 @@ export interface ProductSummary {
   name: string
   sizes: string[]
   colors: Array<{ id: string; colorName: string; colorHex: string; imageS3Key: string | null }>
+  /**
+   * Every materialised variant for this item. Consumers that pick a
+   * (color, size) cell — opening balance, supply route editor — use this
+   * to translate that pair back to a `variantId` (the unit of stock since
+   * #4 / #5 / #6). Optional so callers that don't fetch variants compile.
+   */
+  variants?: Array<{ id: string; colorId: string; size: string }>
 }
 
 interface Props {

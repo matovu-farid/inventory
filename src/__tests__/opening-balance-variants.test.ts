@@ -120,11 +120,11 @@ describe("addStoreOpeningBalance — variants", () => {
         data: {
           items: [
             {
-              productId: p.id,
+              itemId: p.id,
               unitCostUgx: "10000",
               cells: [
-                { productColorId: c.id, size: "S", quantity: 5 },
-                { productColorId: c.id, size: "M", quantity: 3 },
+                { variantId: variantIds[0], quantity: 5 },
+                { variantId: variantIds[1], quantity: 3 },
               ],
             },
           ],

@@ -17,9 +17,9 @@ export interface BaselineResult {
 interface VariantKey {
   /**
    * Variant the baseline is computed for. Supply-route tables still carry
-   * `(product_color_id, size)` (rename owned by #6); stock tables key on
-   * `variant_id` directly (#4). Joins resolve both shapes via the variants
-   * table.
+   * `(color_id, size)` (renamed from `(product_color_id, size)` in #6);
+   * stock tables key on `variant_id` directly (#4). Joins resolve both
+   * shapes via the variants table.
    */
   variantId: string
 }
@@ -40,7 +40,7 @@ export async function computeStoreBaseline(
     .innerJoin(
       variants,
       and(
-        eq(variants.colorId, supplyRouteItems.productColorId),
+        eq(variants.colorId, supplyRouteItems.colorId),
         eq(variants.size, supplyRouteItems.size),
       ),
     )
