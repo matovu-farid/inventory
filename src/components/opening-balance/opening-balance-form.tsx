@@ -153,18 +153,32 @@ export function OpeningBalanceForm({
     setPending(true)
     setError(null)
     try {
-      const items = blocks
-        .filter(blockIsValid)
-        .map((b) => ({
-          productId: b.product.id,
+      const items = blocks.filter(blockIsValid).map((b) => {
+        // VariantGrid keys cells by `${productColorId}|${size}`. Opening
+        // balance writes to variant-keyed stock now (#6), so translate
+        // each (color, size) pair to its variantId via the hydrated
+        // variants list before the server call.
+        const variantsForBlock = b.product.variants ?? []
+        const variantByPair = new Map(
+          variantsForBlock.map((v) => [`${v.colorId}|${v.size}`, v.id]),
+        )
+        const cells = Object.entries(b.quantities)
+          .filter(([, q]) => q > 0)
+          .map(([key, q]) => {
+            const variantId = variantByPair.get(key)
+            if (!variantId) {
+              throw new Error(
+                `No variant exists for (${key}). Add the size to the item or create the variant first.`,
+              )
+            }
+            return { variantId, quantity: q }
+          })
+        return {
+          itemId: b.product.id,
           unitCostUgx: new BigNumber(b.unitCostUgx).toFixed(2),
-          cells: Object.entries(b.quantities)
-            .filter(([, q]) => q > 0)
-            .map(([key, q]) => {
-              const [productColorId, size] = key.split("|")
-              return { productColorId, size, quantity: q }
-            }),
-        }))
+          cells,
+        }
+      })
 
       const result =
         scope === "store"

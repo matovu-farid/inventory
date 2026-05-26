@@ -83,19 +83,27 @@ export const supplyRouteItems = pgTable(
     supplierId: uuid("supplier_id")
       .notNull()
       .references(() => suppliers.id, { onDelete: "restrict" }),
-    // productId is set on all newly created rows. It is nullable so existing
-    // rows (which only had productColorId) can be migrated without a backfill;
-    // for those rows the product is reachable through productColor.
-    productId: uuid("product_id").references(() => items.id, {
+    // itemId is set on all newly created rows. It is nullable so existing
+    // rows (which only had a color) can be migrated without a backfill;
+    // for those rows the item is reachable through itemColor.
+    //
+    // Renamed from `product_id` for #6 (the catalog rename landed `products
+    // → items` in #3 but supply_route_items kept the old column name until
+    // now — the table itself stays `supply_route_items`; the rename to
+    // `supply_route_lines` is Phase 2 / #8).
+    itemId: uuid("item_id").references(() => items.id, {
       onDelete: "restrict",
     }),
-    // productColorId and size are nullable to support three procurement modes:
-    //   1. aggregate     — productColorId NULL, size NULL
-    //   2. color-only    — productColorId set,  size NULL
-    //   3. color + size  — productColorId set,  size set
+    // colorId and size are nullable to support three procurement modes:
+    //   1. aggregate     — colorId NULL, size NULL
+    //   2. color-only    — colorId set,  size NULL
+    //   3. color + size  — colorId set,  size set
     // Aggregate/color-only rows must be "split" into full variants by an admin
-    // before goods can be received against them.
-    productColorId: uuid("product_color_id").references(() => itemColors.id, {
+    // before goods can be received against them. Receiving resolves a full
+    // line to a variant_id (creating the variant if it doesn't exist yet).
+    //
+    // Renamed from `product_color_id` for #6.
+    colorId: uuid("color_id").references(() => itemColors.id, {
       onDelete: "restrict",
     }),
     size: text("size"),
@@ -122,12 +130,12 @@ export const supplyRouteItems = pgTable(
   (table) => [
     index("idx_sri_route").on(table.supplyRouteId),
     index("idx_sri_supplier").on(table.supplierId),
-    index("idx_sri_pc").on(table.productColorId),
-    index("idx_sri_product").on(table.productId),
+    index("idx_sri_color").on(table.colorId),
+    index("idx_sri_item").on(table.itemId),
     unique("uq_sri_variant").on(
       table.supplyRouteId,
       table.supplierId,
-      table.productColorId,
+      table.colorId,
       table.size,
     ),
   ],
@@ -181,12 +189,17 @@ export const supplyRouteItemRelations = relations(supplyRouteItems, ({ one }) =>
     fields: [supplyRouteItems.supplierId],
     references: [suppliers.id],
   }),
+  // Relation names kept as `product` / `productColor` (rather than
+  // `item` / `color`) until the table itself is renamed to
+  // `supply_route_lines` in Phase 2 (#8). Renaming the relations here
+  // would churn every `with: { product, productColor }` callsite —
+  // separate from the FK column rename — for no behavioural gain.
   product: one(items, {
-    fields: [supplyRouteItems.productId],
+    fields: [supplyRouteItems.itemId],
     references: [items.id],
   }),
   productColor: one(itemColors, {
-    fields: [supplyRouteItems.productColorId],
+    fields: [supplyRouteItems.colorId],
     references: [itemColors.id],
   }),
 }))

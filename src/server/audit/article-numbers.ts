@@ -40,7 +40,7 @@ const RESOLVERS: Partial<Record<string, Resolver>> = {
     const rows = await tx
       .select({ articleNumber: items.articleNumber })
       .from(supplyRouteItems)
-      .innerJoin(itemColors, eq(itemColors.id, supplyRouteItems.productColorId))
+      .innerJoin(itemColors, eq(itemColors.id, supplyRouteItems.colorId))
       .innerJoin(items, eq(items.id, itemColors.itemId))
       .where(eq(supplyRouteItems.supplyRouteId, entityId))
     return rows.map((r) => r.articleNumber)

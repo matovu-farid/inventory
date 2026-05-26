@@ -58,8 +58,8 @@ beforeAll(async () => {
   const [sriA] = await db.insert(supplyRouteItems).values({
     supplyRouteId: route.id,
     supplierId: sup.id,
-    productId: pa.id,
-    productColorId: pca.id,
+    itemId: pa.id,
+    colorId: pca.id,
     size: "M",
     quantity: 10,
     unitPriceForeign: "10",
@@ -71,8 +71,8 @@ beforeAll(async () => {
   const [sriA2] = await db.insert(supplyRouteItems).values({
     supplyRouteId: route.id,
     supplierId: sup.id,
-    productId: pa.id,
-    productColorId: pca.id,
+    itemId: pa.id,
+    colorId: pca.id,
     size: "L",
     quantity: 5,
     unitPriceForeign: "10",

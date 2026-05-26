@@ -156,8 +156,8 @@ beforeAll(async () => {
     .values({
       supplyRouteId: routeId,
       supplierId,
-      productId,
-      productColorId: colorId,
+      itemId: productId,
+      colorId,
       size: "M",
       quantity: 10,
       unitPriceForeign: "100.00",

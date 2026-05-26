@@ -5,46 +5,37 @@ import {
   validateOpeningBalanceCell,
 } from "#/server/functions/admin/opening-balance-validate"
 
-const PC = "00000000-0000-0000-0000-000000000001"
+const VAR = "00000000-0000-0000-0000-000000000001"
 
 describe("validateOpeningBalanceCell", () => {
   it("accepts a well-formed cell", () => {
     expect(() =>
       validateOpeningBalanceCell(
-        { productColorId: PC, size: "M", quantity: 10 },
+        { variantId: VAR, quantity: 10 },
         "15000",
       ),
     ).not.toThrow()
   })
 
-  it("rejects a missing productColorId", () => {
+  it("rejects a missing variantId", () => {
     expect(() =>
       validateOpeningBalanceCell(
-        { productColorId: "", size: "M", quantity: 5 },
+        { variantId: "", quantity: 5 },
         "1000",
       ),
-    ).toThrow(/productColorId/i)
-  })
-
-  it("rejects a missing size", () => {
-    expect(() =>
-      validateOpeningBalanceCell(
-        { productColorId: PC, size: "", quantity: 5 },
-        "1000",
-      ),
-    ).toThrow(/size/i)
+    ).toThrow(/variantId/i)
   })
 
   it("rejects zero or negative quantity", () => {
     expect(() =>
       validateOpeningBalanceCell(
-        { productColorId: PC, size: "M", quantity: 0 },
+        { variantId: VAR, quantity: 0 },
         "1000",
       ),
     ).toThrow(/quantity/i)
     expect(() =>
       validateOpeningBalanceCell(
-        { productColorId: PC, size: "M", quantity: -3 },
+        { variantId: VAR, quantity: -3 },
         "1000",
       ),
     ).toThrow(/quantity/i)
@@ -53,7 +44,7 @@ describe("validateOpeningBalanceCell", () => {
   it("rejects non-integer quantity", () => {
     expect(() =>
       validateOpeningBalanceCell(
-        { productColorId: PC, size: "M", quantity: 1.5 },
+        { variantId: VAR, quantity: 1.5 },
         "1000",
       ),
     ).toThrow(/quantity/i)
@@ -62,13 +53,13 @@ describe("validateOpeningBalanceCell", () => {
   it("rejects zero or negative unit cost", () => {
     expect(() =>
       validateOpeningBalanceCell(
-        { productColorId: PC, size: "M", quantity: 5 },
+        { variantId: VAR, quantity: 5 },
         "0",
       ),
     ).toThrow(/unitCostUgx/i)
     expect(() =>
       validateOpeningBalanceCell(
-        { productColorId: PC, size: "M", quantity: 5 },
+        { variantId: VAR, quantity: 5 },
         "-100",
       ),
     ).toThrow(/unitCostUgx/i)
@@ -81,18 +72,18 @@ describe("computeOpeningBalanceTotal", () => {
   })
 
   it("multiplies cell quantities by entry unit cost and sums", () => {
-    // Ported scenario: "two products with different costs" — one entry per
-    // product, each with a single cell carrying the original quantity.
+    // Ported scenario: "two items with different costs" — one entry per
+    // item, each with a single cell carrying the original quantity.
     const total = computeOpeningBalanceTotal([
       {
-        productId: "p-1",
+        itemId: "p-1",
         unitCostUgx: "15000",
-        cells: [{ productColorId: PC, size: "M", quantity: 10 }],
+        cells: [{ variantId: VAR, quantity: 10 }],
       },
       {
-        productId: "p-2",
+        itemId: "p-2",
         unitCostUgx: "2500.50",
-        cells: [{ productColorId: PC, size: "M", quantity: 3 }],
+        cells: [{ variantId: VAR, quantity: 3 }],
       },
     ])
     // 10 * 15000 + 3 * 2500.50 = 150000 + 7501.50 = 157501.50
@@ -102,14 +93,14 @@ describe("computeOpeningBalanceTotal", () => {
   it("preserves precision via BigNumber arithmetic", () => {
     const total = computeOpeningBalanceTotal([
       {
-        productId: "p-1",
+        itemId: "p-1",
         unitCostUgx: "0.10",
-        cells: [{ productColorId: PC, size: "M", quantity: 3 }],
+        cells: [{ variantId: VAR, quantity: 3 }],
       },
       {
-        productId: "p-2",
+        itemId: "p-2",
         unitCostUgx: "0.20",
-        cells: [{ productColorId: PC, size: "M", quantity: 3 }],
+        cells: [{ variantId: VAR, quantity: 3 }],
       },
     ])
     // 0.30 + 0.60 = 0.90 — would suffer from float drift if not BigNumber
@@ -117,15 +108,15 @@ describe("computeOpeningBalanceTotal", () => {
   })
 
   it("sums multiple cells within one product entry", () => {
-    // New shape allows multiple variant cells under one product — they all
+    // New shape allows multiple variant cells under one item — they all
     // share the same unitCostUgx and contribute to the entry total.
     const total = computeOpeningBalanceTotal([
       {
-        productId: "p-1",
+        itemId: "p-1",
         unitCostUgx: "10000",
         cells: [
-          { productColorId: PC, size: "S", quantity: 5 },
-          { productColorId: PC, size: "M", quantity: 3 },
+          { variantId: VAR, quantity: 5 },
+          { variantId: VAR, quantity: 3 },
         ],
       },
     ])

@@ -157,9 +157,13 @@ beforeAll(async () => {
     .from(itemCategories)
     .where(eq(itemCategories.name, 'Uncategorized'))
 
+  // Unique suffix per run guards against leftover rows from a previous
+  // crash and against parallel test files (vitest runs files in parallel
+  // by default).
+  const SUFFIX = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const [s] = await db
     .insert(suppliers)
-    .values({ name: 'SV Supplier', type: 'international' })
+    .values({ name: `SV Supplier ${SUFFIX}`, type: 'international' })
     .returning()
   FIXTURE.supplierId = s.id
 
@@ -186,15 +190,31 @@ beforeAll(async () => {
     .returning()
   FIXTURE.variantId = v.id
 
-  const [store] = await db.insert(stores).values({ name: 'SV Store' }).returning()
-  FIXTURE.storeId = store.id
+  // `receiveGoods` resolves the store via `db.query.stores.findFirst()`,
+  // so we have to land on whatever row that returns. Use the existing one
+  // when present; create a fixture row only if the table is empty.
+  let existingStore = await db.query.stores.findFirst()
+  if (!existingStore) {
+    ;[existingStore] = await db
+      .insert(stores)
+      .values({ name: 'SV Store' })
+      .returning()
+  }
+  FIXTURE.storeId = existingStore.id
 
-  const [shop] = await db.insert(shops).values({ name: 'SV Shop' }).returning()
+  const [shop] = await db
+    .insert(shops)
+    .values({ name: `SV Shop ${Date.now()}` })
+    .returning()
   FIXTURE.shopId = shop.id
 })
 
 afterAll(async () => {
-  // Order matters because of FK chains: stock → variants → items.
+  // Order matters because of FK chains:
+  //   store_stock → supply_route_items
+  //   store_receivings → supply_route_items
+  //   shop_stock / store_stock → variants → items
+  // Drop the dependent rows before the parents.
   await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
   await db.delete(storeStock).where(eq(storeStock.storeId, storeId()))
   await db.delete(storeReceivings).where(eq(storeReceivings.storeId, storeId()))
@@ -204,7 +224,9 @@ afterAll(async () => {
   await db.delete(itemColors).where(eq(itemColors.id, colorId()))
   await db.delete(items).where(eq(items.id, itemId()))
   await db.delete(shops).where(eq(shops.id, shopId()))
-  await db.delete(stores).where(eq(stores.id, storeId()))
+  // We deliberately don't delete the store — receiveGoods locates one via
+  // `findFirst()`, so other suites running in parallel rely on the row
+  // we may have inherited.
   await db.delete(suppliers).where(eq(suppliers.id, supplierId()))
   await db.delete(transactions).where(eq(transactions.recordedBy, TEST_USER_ID))
   await db.delete(auditLogs).where(eq(auditLogs.actorUserId, TEST_USER_ID))
@@ -212,6 +234,8 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
+  // Order: storeStock first (it FK's into supply_route_items), then
+  // storeReceivings, then the supply lines, then auditLogs / supplyRoutes.
   await db.delete(storeStock).where(eq(storeStock.storeId, storeId()))
   await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
   await db.delete(storeReceivings).where(eq(storeReceivings.storeId, storeId()))

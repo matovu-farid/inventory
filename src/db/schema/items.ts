@@ -1,6 +1,10 @@
 import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { itemCategories } from "./item-categories"
+// `variants` is imported only as a relation target — the cyclical pairing
+// (variants → items → variants) is harmless because Drizzle's `relations()`
+// helper resolves lazily at first query.
+import { variants } from "./variants"
 
 /**
  * Catalog: items (renamed from `products` in issue #3) and item_colors
@@ -76,6 +80,12 @@ export const itemRelations = relations(items, ({ one, many }) => ({
     fields: [items.itemCategoryId],
     references: [itemCategories.id],
   }),
+  // `variants` (one row per item × color × size) was added in #2 and is
+  // now the unit of stock since #4 / #5 / #6. Exposing it as a relation
+  // lets item-detail queries hydrate the full catalog row in one round
+  // trip — UI flows that pick a (color, size) cell use it to resolve
+  // back to `variantId`.
+  variants: many(variants),
 }))
 
 export const itemColorRelations = relations(itemColors, ({ one }) => ({

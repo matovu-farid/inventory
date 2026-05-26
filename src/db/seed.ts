@@ -307,7 +307,7 @@ async function seed() {
         return {
           supplyRouteId: route.id,
           supplierId: existingSupplier.id,
-          productColorId: s.productColorId,
+          colorId: s.productColorId,
           size: s.size,
           quantity: s.quantity,
           unitPriceForeign: s.unitPriceForeign,
