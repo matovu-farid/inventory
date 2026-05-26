@@ -41,7 +41,7 @@ export async function materializeVariantsFromColorsSizes(
     .onConflictDoNothing({
       target: [variants.itemId, variants.colorId, variants.size],
     })
-    .returning({ id: variants.id })
+    .returning()
 
   return {
     inserted: inserted.length,

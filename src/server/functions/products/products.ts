@@ -2,15 +2,25 @@ import { createServerFn } from "@tanstack/react-start"
 import { eq, ilike, or } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
-import { items, itemCategories } from "#/db/schema"
+import { items, itemColors, itemCategories, variants } from "#/db/schema"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
+import { materializeVariantsFromColorsSizes } from "./variants-materialize"
+
+const colorInput = z.object({
+  colorName: z.string().min(1).max(40),
+  colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+})
 
 const upsertInput = z.object({
   articleNumber: z.string().min(1).max(64),
   name: z.string().min(1).max(120),
   description: z.string().max(1000).optional(),
+  // Sizes are no longer persisted on items (issue #7 drops items.sizes).
+  // The caller still passes them on create so the server can materialize
+  // the (colors × sizes) cross product into the variants table.
   sizes: z.array(z.string().min(1).max(16)).default([]),
+  colors: z.array(colorInput).default([]),
   itemCategoryId: z.uuid().optional(),
 })
 
@@ -35,7 +45,7 @@ async function getUncategorizedId(): Promise<string> {
 // Item-detail queries hydrate the variants list so UI flows that pick a
 // (color, size) cell — opening balance, supply route editor — can map that
 // pair back to a `variantId` client-side. The variant is the unit of stock
-// since #4 / #5 / #6.
+// since #4 / #5 / #6 and the source of truth for an item's sizes since #7.
 const ITEM_DETAIL_WITH = {
   colors: true,
   variants: {
@@ -93,23 +103,76 @@ export const createProduct = createServerFn()
         articleNumber: data.articleNumber,
         name: data.name,
         description: data.description,
-        sizes: data.sizes,
         itemCategoryId,
       })
       .returning()
+
+    // If the caller supplied colors, insert them now. If sizes were also
+    // supplied, materialize the (color × size) cross product into the
+    // variants table — that's how sizes are stored after #7 dropped the
+    // items.sizes column.
+    if (data.colors.length > 0) {
+      const insertedColors = await db
+        .insert(itemColors)
+        .values(
+          data.colors.map((c) => ({
+            itemId: row.id,
+            colorName: c.colorName,
+            colorHex: c.colorHex,
+          })),
+        )
+        .returning()
+      if (data.sizes.length > 0) {
+        await materializeVariantsFromColorsSizes({
+          itemId: row.id,
+          colorIds: insertedColors.map((c) => c.id),
+          sizes: data.sizes,
+        })
+      }
+    }
     return row
   })
 
 export const updateProduct = createServerFn()
-  .inputValidator(upsertInput.extend({ id: z.uuid() }))
+  .inputValidator(
+    upsertInput
+      .extend({ id: z.uuid() })
+      // On update, sizes/colors are managed independently through the
+      // variant + color endpoints; ignore them here so callers don't have
+      // to send the full payload.
+      .partial({ sizes: true, colors: true }),
+  )
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
-    const { id, itemCategoryId, ...fields } = data
+    const { id, itemCategoryId, sizes: _sizes, colors: _colors, ...fields } = data
+    void _sizes
+    void _colors
     const patch = {
-      ...fields,
+      articleNumber: fields.articleNumber,
+      name: fields.name,
+      description: fields.description,
       ...(itemCategoryId === undefined ? {} : { itemCategoryId }),
     }
     const [row] = await db.update(items).set(patch).where(eq(items.id, id)).returning()
     return row
+  })
+
+/**
+ * Lists the sizes currently materialized for an item by reading the
+ * variants table. Returns the unique set of sizes (preserves the
+ * insertion order); the UI sorts via deriveSizes() for display.
+ */
+export const listItemSizes = createServerFn()
+  .inputValidator(z.object({ itemId: z.uuid() }))
+  .handler(async ({ data }) => {
+    const session = await requireSession()
+    requireRole(session, ["admin", "supervisor", "sales"])
+    const rows = await db
+      .select({ size: variants.size })
+      .from(variants)
+      .where(eq(variants.itemId, data.itemId))
+    const seen = new Set<string>()
+    for (const r of rows) seen.add(r.size)
+    return [...seen]
   })
