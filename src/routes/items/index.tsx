@@ -52,7 +52,9 @@ function ProductsPage() {
               data={{
                 articleNumber: p.articleNumber,
                 name: p.name,
-                sizes: p.sizes,
+                // Sizes used to live on items.sizes; after #7 they
+                // derive from the variants array on the ItemCard side.
+                variants: p.variants,
                 colors: p.colors.map((c) => ({
                   id: c.id,
                   colorName: c.colorName,

@@ -36,7 +36,6 @@ describe("items table — exists after rename and round-trips", () => {
       .values({
         articleNumber: `${ART_BASE}-a`,
         name: "Test rename item",
-        sizes: ["S", "M"],
         itemCategoryId: uncat,
       })
       .returning()
@@ -78,7 +77,6 @@ describe("items.item_category_id — backfilled to Uncategorized, NOT NULL", () 
       .values({
         articleNumber: `${ART_BASE}-b`,
         name: "Auto-defaulted item",
-        sizes: [],
         itemCategoryId: uncat.id,
       })
       .returning()
@@ -99,7 +97,6 @@ describe("items.item_category_id — backfilled to Uncategorized, NOT NULL", () 
       .values({
         articleNumber: `${ART_BASE}-c`,
         name: "FK-tester",
-        sizes: [],
         itemCategoryId: uncat.id,
       })
       .returning()
@@ -124,7 +121,6 @@ describe("item_colors.item_id — column rename preserved FK", () => {
       .values({
         articleNumber: `${ART_BASE}-d`,
         name: "Cascade tester",
-        sizes: [],
         itemCategoryId: uncat,
       })
       .returning()

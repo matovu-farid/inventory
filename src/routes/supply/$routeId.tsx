@@ -2,6 +2,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import * as React from "react"
 import { useState } from "react"
 import { requireUiPermission } from "#/lib/permissions"
+import { deriveSizes } from "#/lib/variants"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
 import { Textarea } from "#/components/ui/textarea"
@@ -786,7 +787,7 @@ function SplitItemForm({
 
       {(mode === "variants" || lockedColor) && (
         <VariantGrid
-          sizes={product.sizes}
+          sizes={deriveSizes(product.variants ?? [])}
           colors={colorsToUse}
           quantities={cellQtys}
           onChange={setCellQtys}
@@ -1177,7 +1178,7 @@ function AddItemForm({
           {detailMode === "variants" && (
             <>
               <VariantGrid
-                sizes={product.sizes}
+                sizes={deriveSizes(product.variants ?? [])}
                 colors={product.colors}
                 quantities={quantities}
                 onChange={setQuantities}

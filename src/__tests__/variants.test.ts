@@ -3,7 +3,7 @@ import { eq, inArray, and, sql } from 'drizzle-orm'
 
 import { db } from '#/db'
 import { items, itemColors, itemCategories, variants } from '#/db/schema'
-import { backfillVariants } from '../../scripts/backfill-variants'
+import { materializeVariantsFromColorsSizes } from '#/server/functions/products/variants-materialize'
 
 // Drizzle's node-postgres adapter wraps DB errors as `Error("Failed query: …")`
 // and stashes the underlying pg error on `.cause` (which carries the SQLSTATE
@@ -24,6 +24,13 @@ async function pgErrorCode(p: Promise<unknown>): Promise<string | undefined> {
 // Real-DB integration tests. Mirror item-categories.test.ts: each test seeds
 // the rows it needs through the schema and cleans them up in afterAll. The
 // test database is set up via `pnpm db:push:test`.
+//
+// Issue #7 dropped `items.sizes`; this suite used to drive variant rows
+// through the one-shot `backfillVariants` script that read items.sizes.
+// After #7 the variants table is the source of truth for an item's sizes,
+// so the same scenarios are now expressed through
+// `materializeVariantsFromColorsSizes` (the helper the create / edit
+// flows use).
 
 const SUFFIX = `${Date.now()}`
 const ART_A = `var-test-a-${SUFFIX}`
@@ -50,26 +57,32 @@ async function uncategorizedId(): Promise<string> {
   return row.id
 }
 
-describe('variants — backfill from existing color×size', () => {
-  it('A: backfill row count equals distinct (color, size) pairs', async () => {
+describe('variants — materialize from (colors × sizes) cross product', () => {
+  it('A: cross-product row count equals colors × sizes', async () => {
     const uncat = await uncategorizedId()
     const [prod] = await db
       .insert(items)
       .values({
         articleNumber: ART_A,
         name: `var-test-a-${SUFFIX}`,
-        sizes: ['S', 'M', 'L'],
         itemCategoryId: uncat,
       })
       .returning()
     createdProductIds.push(prod.id)
 
-    await db.insert(itemColors).values([
-      { itemId: prod.id, colorName: 'Red', colorHex: '#ff0000' },
-      { itemId: prod.id, colorName: 'Blue', colorHex: '#0000ff' },
-    ])
+    const colors = await db
+      .insert(itemColors)
+      .values([
+        { itemId: prod.id, colorName: 'Red', colorHex: '#ff0000' },
+        { itemId: prod.id, colorName: 'Blue', colorHex: '#0000ff' },
+      ])
+      .returning()
 
-    const summary = await backfillVariants({ itemIds: [prod.id] })
+    const summary = await materializeVariantsFromColorsSizes({
+      itemId: prod.id,
+      colorIds: colors.map((c) => c.id),
+      sizes: ['S', 'M', 'L'],
+    })
 
     const rows = await db
       .select()
@@ -87,17 +100,21 @@ describe('variants — backfill from existing color×size', () => {
       .values({
         articleNumber: ART_B,
         name: `var-test-b-${SUFFIX}`,
-        sizes: [],
         itemCategoryId: uncat,
       })
       .returning()
     createdProductIds.push(prod.id)
 
-    await db
+    const [color] = await db
       .insert(itemColors)
       .values({ itemId: prod.id, colorName: 'Green', colorHex: '#00ff00' })
+      .returning()
 
-    await backfillVariants({ itemIds: [prod.id] })
+    await materializeVariantsFromColorsSizes({
+      itemId: prod.id,
+      colorIds: [color.id],
+      sizes: [],
+    })
 
     const rows = await db
       .select()
@@ -129,7 +146,7 @@ describe('variants — backfill from existing color×size', () => {
     expect(code).toBe(PG_UNIQUE_VIOLATION)
   })
 
-  it('C2: re-running backfill is idempotent (ON CONFLICT DO NOTHING)', async () => {
+  it('C2: re-running materialize is idempotent (ON CONFLICT DO NOTHING)', async () => {
     // Scope to the products this test file created so we don't measure
     // rows that other parallel test files may have inserted/deleted.
     const itemIds = [...createdProductIds]
@@ -137,7 +154,17 @@ describe('variants — backfill from existing color×size', () => {
       .select({ c: sql<number>`count(*)::int` })
       .from(variants)
       .where(inArray(variants.itemId, itemIds))
-    await backfillVariants({ itemIds })
+    // Re-materialize the original (Red, Blue × S, M, L) — should be a
+    // no-op because every row already exists.
+    const colors = await db
+      .select()
+      .from(itemColors)
+      .where(eq(itemColors.itemId, itemIds[0]))
+    await materializeVariantsFromColorsSizes({
+      itemId: itemIds[0],
+      colorIds: colors.map((c) => c.id),
+      sizes: ['S', 'M', 'L'],
+    })
     const after = await db
       .select({ c: sql<number>`count(*)::int` })
       .from(variants)
@@ -153,12 +180,13 @@ describe('variants — backfill from existing color×size', () => {
       .where(eq(itemColors.itemId, prodId))
 
     // Two existing variants without barcode should already coexist after
-    // backfill — both have NULL barcode, so a third NULL is fine. Insert
-    // a brand-new variant row for another size; idempotent backfill leaves
-    // existing rows untouched, so we exercise barcode uniqueness directly.
+    // materialize — both have NULL barcode, so a third NULL is fine.
+    // Insert a brand-new variant row for another size; materialize is
+    // idempotent and leaves existing rows untouched, so we exercise
+    // barcode uniqueness directly.
     const barcode = `bc-${SUFFIX}`
 
-    // Set barcode on the (color[0], "S") variant.
+    // Replace one existing variant's barcode with our value.
     await db
       .update(variants)
       .set({ barcode })
@@ -170,8 +198,7 @@ describe('variants — backfill from existing color×size', () => {
         ),
       )
 
-    // Trying to set the same non-NULL barcode on a different variant must
-    // fail because of the unique partial index.
+    // Same barcode on another row must violate the unique partial index.
     const code = await pgErrorCode(
       db
         .update(variants)

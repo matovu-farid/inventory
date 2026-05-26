@@ -1,19 +1,27 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
-import { Plus, Pencil } from "lucide-react"
+import { Plus, Pencil, Trash2 } from "lucide-react"
 import { requireUiPermission, useCan } from "#/lib/permissions"
 import { getProductByArticle } from "#/server/functions/products/products"
 import {
   listProductStockPrices,
   setStockMinimumPrice,
 } from "#/server/functions/products/prices"
+import { countVariantStockLocations } from "#/server/functions/products/variant-stock-counts"
+import {
+  createVariant,
+  deleteVariant,
+} from "#/server/functions/products/variants"
 import { ColorEditor } from "#/components/products/color-editor"
 import { PhotoHandoffQR } from "#/components/products/photo-handoff-qr"
 import { AuditActivityPanel } from "#/components/audit/audit-activity-panel"
 import { productImageUrl } from "#/lib/products"
+import { deriveSizes } from "#/lib/variants"
 import { Button } from "#/components/ui/button"
+import { Input } from "#/components/ui/input"
 import { MoneyInput } from "#/components/ui/money-input"
 import { Badge } from "#/components/ui/badge"
+import { InfoTip } from "#/components/ui/info-tip"
 import {
   Dialog,
   DialogContent,
@@ -30,14 +38,17 @@ export const Route = createFileRoute("/items/$articleNumber")({
       data: { articleNumber: params.articleNumber },
     })
     if (!product) throw new Error(`Product not found: ${params.articleNumber}`)
-    const prices = await listProductStockPrices({ data: { productId: product.id } })
-    return { product, prices }
+    const [prices, variantStockCounts] = await Promise.all([
+      listProductStockPrices({ data: { productId: product.id } }),
+      countVariantStockLocations({ data: { itemId: product.id } }),
+    ])
+    return { product, prices, variantStockCounts }
   },
   component: ProductDetailPage,
 })
 
 function ProductDetailPage() {
-  const { product, prices } = Route.useLoaderData()
+  const { product, prices, variantStockCounts } = Route.useLoaderData()
   const router = useRouter()
   const canManage = useCan("products.manage")
   const canSeeActivity = useCan("audit.viewArticleActivity")
@@ -48,6 +59,7 @@ function ProductDetailPage() {
   )
   const active =
     product.colors.find((c) => c.id === activeColorId) ?? product.colors[0]
+  const sizes = deriveSizes(product.variants ?? [])
 
   return (
     <div className="space-y-6">
@@ -110,7 +122,7 @@ function ProductDetailPage() {
         <div className="space-y-3">
           <div>
             <h2 className="font-medium">Sizes</h2>
-            <p className="text-sm">{product.sizes.join(", ") || "—"}</p>
+            <p className="text-sm">{sizes.join(", ") || "—"}</p>
           </div>
           {product.description && (
             <div>
@@ -122,6 +134,17 @@ function ProductDetailPage() {
           )}
         </div>
       </div>
+
+      <VariantsSection
+        itemId={product.id}
+        colors={product.colors}
+        variants={product.variants ?? []}
+        stockCounts={variantStockCounts}
+        canManage={canManage}
+        onChanged={() => {
+          void router.invalidate()
+        }}
+      />
 
       {canManage && (
         <section className="space-y-3">
@@ -401,5 +424,212 @@ function PriceEditor({
         </div>
       </div>
     </div>
+  )
+}
+
+interface VariantsSectionProps {
+  itemId: string
+  colors: Array<{
+    id: string
+    colorName: string
+    colorHex: string
+    imageS3Key: string | null
+  }>
+  variants: Array<{ id: string; colorId: string; size: string }>
+  stockCounts: Array<{ variantId: string; qty: number; locations: number }>
+  canManage: boolean
+  onChanged: () => void
+}
+
+/**
+ * Variants subsection on the item detail page (issue #7 acceptance #1
+ * + #3). Lists each materialised (color × size) variant with an
+ * "in stock at N locations" badge. Managers can create new variants
+ * or remove unused ones; deleting a variant referenced by stock or
+ * sales bubbles up the friendly FK-restrict error from `deleteVariant`.
+ */
+function VariantsSection({
+  itemId,
+  colors,
+  variants,
+  stockCounts,
+  canManage,
+  onChanged,
+}: VariantsSectionProps) {
+  const [newColorId, setNewColorId] = useState<string>(colors[0]?.id ?? "")
+  const [newSize, setNewSize] = useState("")
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const stockByVariant = new Map(
+    stockCounts.map((c) => [c.variantId, c]),
+  )
+
+  const sorted = [...variants].sort((a, b) => {
+    const ac = colors.find((c) => c.id === a.colorId)?.colorName ?? ""
+    const bc = colors.find((c) => c.id === b.colorId)?.colorName ?? ""
+    return ac === bc ? a.size.localeCompare(b.size) : ac.localeCompare(bc)
+  })
+
+  async function addVariant() {
+    if (!newColorId || !newSize.trim()) return
+    setPending(true)
+    setError(null)
+    try {
+      await createVariant({
+        data: { itemId, colorId: newColorId, size: newSize.trim() },
+      })
+      setNewSize("")
+      onChanged()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add variant")
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function removeVariant(variantId: string) {
+    if (!confirm("Remove this variant?")) return
+    setPending(true)
+    setError(null)
+    try {
+      await deleteVariant({ data: { variantId } })
+      onChanged()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete variant")
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <section className="space-y-3" data-cy="variants-section">
+      <div className="flex items-center gap-2">
+        <h2 className="text-lg font-semibold">Variants</h2>
+        <InfoTip term="variant.barcode" />
+      </div>
+
+      {sorted.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No variants yet. Add a color and a size to start tracking stock
+          for this item.
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-left">
+              <tr>
+                <th className="p-2 font-medium">Color</th>
+                <th className="p-2 font-medium">Size</th>
+                <th className="p-2 font-medium">Stock</th>
+                {canManage && <th className="p-2 w-10" aria-label="Actions" />}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((v) => {
+                const color = colors.find((c) => c.id === v.colorId)
+                const stock = stockByVariant.get(v.id)
+                return (
+                  <tr key={v.id} className="border-t" data-cy="variant-row">
+                    <td className="p-2">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className="inline-block size-3 rounded-full border"
+                          style={{ backgroundColor: color?.colorHex ?? "#888" }}
+                          aria-hidden
+                        />
+                        {color?.colorName ?? "—"}
+                      </span>
+                    </td>
+                    <td className="p-2 font-medium">{v.size}</td>
+                    <td className="p-2">
+                      {stock && stock.qty > 0 ? (
+                        <Badge variant="secondary">
+                          {stock.qty} in stock at {stock.locations}{" "}
+                          location{stock.locations === 1 ? "" : "s"}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          no stock
+                        </span>
+                      )}
+                    </td>
+                    {canManage && (
+                      <td className="p-2 text-right">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Remove variant ${color?.colorName ?? ""} ${v.size}`}
+                          disabled={pending}
+                          onClick={() => {
+                            void removeVariant(v.id)
+                          }}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {canManage && colors.length > 0 && (
+        <div
+          className="flex flex-wrap items-end gap-2"
+          data-cy="add-variant-form"
+        >
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground" htmlFor="new-variant-color">
+              Color
+            </label>
+            <select
+              id="new-variant-color"
+              value={newColorId}
+              onChange={(e) => setNewColorId(e.target.value)}
+              className="h-10 rounded-md border bg-background px-2 text-sm"
+            >
+              {colors.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.colorName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground" htmlFor="new-variant-size">
+              Size
+            </label>
+            <Input
+              id="new-variant-size"
+              value={newSize}
+              onChange={(e) => setNewSize(e.target.value)}
+              placeholder="e.g. M"
+              className="h-10 w-32"
+            />
+          </div>
+          <Button
+            type="button"
+            onClick={() => {
+              void addVariant()
+            }}
+            disabled={!newColorId || !newSize.trim() || pending}
+            data-cy="add-variant-submit"
+          >
+            <Plus className="mr-1 size-4" /> Add variant
+          </Button>
+        </div>
+      )}
+
+      {error && (
+        <p className="text-sm text-destructive" data-cy="variants-error">
+          {error}
+        </p>
+      )}
+    </section>
   )
 }

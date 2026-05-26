@@ -7,13 +7,16 @@ export interface ProductSummary {
   id: string
   articleNumber: string
   name: string
-  sizes: string[]
   colors: Array<{ id: string; colorName: string; colorHex: string; imageS3Key: string | null }>
   /**
    * Every materialised variant for this item. Consumers that pick a
-   * (color, size) cell — opening balance, supply route editor — use this
-   * to translate that pair back to a `variantId` (the unit of stock since
-   * #4 / #5 / #6). Optional so callers that don't fetch variants compile.
+   * (color, size) cell — opening balance, supply route editor — use
+   * this to translate that pair back to a `variantId` (the unit of
+   * stock since #4 / #5 / #6). After issue #7 dropped `items.sizes`,
+   * this is also the source for "what sizes does this item come in" —
+   * call `deriveSizes(p.variants)` to render the size grid.
+   *
+   * Optional so callers that don't fetch variants still compile.
    */
   variants?: Array<{ id: string; colorId: string; size: string }>
 }

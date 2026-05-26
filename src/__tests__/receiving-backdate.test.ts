@@ -122,7 +122,6 @@ beforeAll(async () => {
     .values({
       articleNumber: `BACKDATE-A-${SUFFIX}`,
       name: "Backdate Test Article",
-      sizes: ["M"],
       itemCategoryId: uncat.id,
     })
     .returning()

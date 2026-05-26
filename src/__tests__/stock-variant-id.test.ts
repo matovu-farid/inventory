@@ -87,7 +87,6 @@ async function seedVariantFixture(label: string): Promise<VariantFixture> {
     .values({
       articleNumber: `${ART}-${label}`,
       name: `stock-variant-${label}`,
-      sizes: ['S'],
       itemCategoryId: uncat,
     })
     .returning()

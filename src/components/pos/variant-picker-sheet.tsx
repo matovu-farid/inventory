@@ -18,6 +18,7 @@ import { productImageUrl } from "#/lib/products"
 import { formatUgx, formatUgxTotal } from "#/lib/format"
 import { cn } from "#/lib/utils"
 import type { AggregatedProduct } from "#/lib/products"
+import { deriveSizes } from "#/lib/variants"
 
 type StockRow = {
   id: string
@@ -73,7 +74,10 @@ export function VariantPickerSheet({ product, stock, open, onOpenChange }: Props
   }, [currentRow, price])
 
   const availableColors = product?.colors ?? []
-  const availableSizes = product?.product.sizes ?? []
+  // Sizes used to come from `items.sizes`; after #7 they're derived
+  // from the materialised variants attached to the AggregatedProduct
+  // entry. Falls back to an empty list when the product has no stock.
+  const availableSizes = deriveSizes(product?.variants ?? [])
   const stockForColor = (cid: string) => stock.filter((s) => s.productColorId === cid && s.quantityOnHand > 0)
   const sizeAvailableForColor = (cid: string, sz: string) => {
     const r = stock.find((s) => s.productColorId === cid && s.size === sz)

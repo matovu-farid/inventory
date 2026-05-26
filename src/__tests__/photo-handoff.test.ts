@@ -38,7 +38,6 @@ async function seed() {
       .values({
         articleNumber: runId,
         name: `T ${runId}`,
-        sizes: ["M"],
         itemCategoryId: uncat.id,
       })
       .returning()

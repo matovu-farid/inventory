@@ -8,23 +8,16 @@ import { db } from '../src/db'
  * Spec: docs/superpowers/specs/2026-05-24-category-item-variant-design.md
  *       §4 step 4.
  *
- * Pre-flight assertion (rolls the whole transaction back if non-zero):
+ * Historical note: this script was the one-shot backfill that fed
+ * variants from the (item_colors × items.sizes) cross-product at the
+ * time the variants table was introduced (issue #2). It has been kept
+ * idempotent so re-runs are safe.
  *
- *   - No item may have duplicate sizes in `items.sizes`. The schema
- *     allows it (Postgres text[] is not a set), but it would let us insert
- *     duplicates with `unnest` and would violate the unique
- *     (item_id, color_id, size) constraint anyway.
- *
- * Backfill itself uses `INSERT … SELECT DISTINCT … ON CONFLICT DO NOTHING`
- * so re-running the script is a no-op.
- *
- * Historical note: an earlier version also asserted that every
- * (product_color_id, size) row in `store_stock` / `shop_stock` mapped to a
- * size in `items.sizes`. Issue #4 dropped those composite columns from both
- * stock tables in favour of `variant_id`, so the orphan check is no longer
- * runnable (the columns it scanned no longer exist). The orphan-count
- * fields on `BackfillSummary` are kept for backwards compatibility and
- * always report 0.
+ * Issue #7 dropped `items.sizes`. After that drop the cross-product can
+ * no longer be derived from the catalog alone — the variants table is
+ * now the source of truth for an item's sizes. The script auto-detects
+ * the missing column and becomes a no-op (returns inserted=0, skipped=0)
+ * so `pnpm backfill:variants` is harmless on a post-#7 database.
  */
 export interface BackfillSummary {
   inserted: number
@@ -70,10 +63,38 @@ function itemFilterClause(itemIds: string[] | undefined) {
 // those columns, there is nothing left to scan, so the function is a no-op
 // kept for shape-compatibility with `BackfillSummary.assertions.*Orphans`.
 
+async function itemsSizesColumnExists(): Promise<boolean> {
+  // information_schema.columns survives across migrations and lets us
+  // detect the post-#7 state where `items.sizes` has been dropped.
+  const result = await db.execute<{ exists: boolean }>(sql`
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'items' AND column_name = 'sizes'
+    ) AS exists
+  `)
+  const rows = normaliseRows<{ exists: boolean }>(result)
+  return rows[0]?.exists ?? false
+}
+
 export async function backfillVariants(
   options: BackfillOptions = {},
 ): Promise<BackfillSummary> {
   const { itemIds } = options
+
+  // After issue #7 dropped items.sizes, there's nothing to read from.
+  // Treat the run as a no-op so re-runs against a migrated database
+  // don't crash.
+  if (!(await itemsSizesColumnExists())) {
+    return {
+      inserted: 0,
+      skipped: 0,
+      assertions: {
+        storeStockOrphans: 0,
+        shopStockOrphans: 0,
+        productsWithDuplicateSizes: 0,
+      },
+    }
+  }
 
   return db.transaction(async (tx) => {
     // No product may carry duplicate sizes in its sizes[] array.

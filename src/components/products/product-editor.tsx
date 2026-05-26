@@ -6,47 +6,95 @@ import { Badge } from "#/components/ui/badge"
 import { X } from "lucide-react"
 import { createProduct } from "#/server/functions/products/products"
 
-const DEFAULT_SIZE_SUGGESTIONS = ["XS","S","M","L","XL","XXL"]
+const DEFAULT_SIZE_SUGGESTIONS = ["XS", "S", "M", "L", "XL", "XXL"]
 
-interface Props { onCreated: (productId: string, articleNumber: string) => void }
+interface Props {
+  onCreated: (productId: string, articleNumber: string) => void
+}
 
+interface ColorDraft {
+  colorName: string
+  colorHex: string
+}
+
+/**
+ * Item create form. After issue #7 the server no longer persists
+ * `items.sizes`; this editor collects sizes (and optional colors) so
+ * the server can materialize the (color × size) cross-product into
+ * the variants table when saving.
+ */
 export function ProductEditor({ onCreated }: Props) {
   const [articleNumber, setArticleNumber] = useState("")
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [sizes, setSizes] = useState<string[]>(["S","M","L"])
+  const [sizes, setSizes] = useState<string[]>(["S", "M", "L"])
   const [sizeDraft, setSizeDraft] = useState("")
+  const [colors, setColors] = useState<ColorDraft[]>([])
+  const [colorNameDraft, setColorNameDraft] = useState("")
+  const [colorHexDraft, setColorHexDraft] = useState("#000000")
   const [submitting, setSubmitting] = useState(false)
 
   function addSize(value: string) {
     const v = value.trim()
     if (!v || sizes.includes(v)) return
-    setSizes([...sizes, v]); setSizeDraft("")
+    setSizes([...sizes, v])
+    setSizeDraft("")
+  }
+
+  function addColor() {
+    const cn = colorNameDraft.trim()
+    if (!cn || colors.some((c) => c.colorName === cn)) return
+    if (!/^#[0-9a-fA-F]{6}$/.test(colorHexDraft)) return
+    setColors([...colors, { colorName: cn, colorHex: colorHexDraft }])
+    setColorNameDraft("")
   }
 
   async function save() {
     setSubmitting(true)
     try {
-      const created = await createProduct({ data: {
-        articleNumber, name, description: description || undefined, sizes,
-      }})
+      const created = await createProduct({
+        data: {
+          articleNumber,
+          name,
+          description: description || undefined,
+          sizes,
+          colors,
+        },
+      })
       onCreated(created.id, created.articleNumber)
-    } finally { setSubmitting(false) }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
     <div className="space-y-4">
       <div className="space-y-1">
         <label className="text-sm font-medium">Article number</label>
-        <Input className="h-11 text-base" value={articleNumber} onChange={(e) => setArticleNumber(e.target.value)} placeholder="TR-001" />
+        <Input
+          className="h-11 text-base"
+          value={articleNumber}
+          onChange={(e) => setArticleNumber(e.target.value)}
+          placeholder="TR-001"
+        />
       </div>
       <div className="space-y-1">
         <label className="text-sm font-medium">Product name</label>
-        <Input className="h-11 text-base" value={name} onChange={(e) => setName(e.target.value)} placeholder="Crew-neck T-shirt" />
+        <Input
+          className="h-11 text-base"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Crew-neck T-shirt"
+        />
       </div>
       <div className="space-y-1">
         <label className="text-sm font-medium">Description (optional)</label>
-        <Textarea className="text-base" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
+        <Textarea
+          className="text-base"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+        />
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Sizes</label>
@@ -54,7 +102,11 @@ export function ProductEditor({ onCreated }: Props) {
           {sizes.map((s) => (
             <Badge key={s} variant="secondary" className="gap-1">
               {s}
-              <button type="button" onClick={() => setSizes(sizes.filter((x) => x !== s))} aria-label={`remove ${s}`}>
+              <button
+                type="button"
+                onClick={() => setSizes(sizes.filter((x) => x !== s))}
+                aria-label={`remove ${s}`}
+              >
                 <X className="size-3" />
               </button>
             </Badge>
@@ -65,16 +117,96 @@ export function ProductEditor({ onCreated }: Props) {
             className="h-11 text-base"
             value={sizeDraft}
             onChange={(e) => setSizeDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSize(sizeDraft) } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                addSize(sizeDraft)
+              }
+            }}
             placeholder="Add size and press Enter"
           />
-          {DEFAULT_SIZE_SUGGESTIONS.filter((s) => !sizes.includes(s)).slice(0, 4).map((s) => (
-            <Button key={s} type="button" size="sm" variant="ghost" onClick={() => addSize(s)}>{s}</Button>
+          {DEFAULT_SIZE_SUGGESTIONS.filter((s) => !sizes.includes(s))
+            .slice(0, 4)
+            .map((s) => (
+              <Button
+                key={s}
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => addSize(s)}
+              >
+                {s}
+              </Button>
+            ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">
+          Initial colors (optional)
+        </label>
+        <p className="text-xs text-muted-foreground">
+          Adding colors here materializes a variant for every (color × size)
+          combination on save. You can also add colors later from the item
+          detail page.
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {colors.map((c) => (
+            <Badge
+              key={c.colorName}
+              variant="secondary"
+              className="gap-1"
+              style={{ borderColor: c.colorHex }}
+            >
+              <span
+                className="inline-block size-3 rounded-full border"
+                style={{ backgroundColor: c.colorHex }}
+                aria-hidden
+              />
+              {c.colorName}
+              <button
+                type="button"
+                onClick={() =>
+                  setColors(colors.filter((x) => x.colorName !== c.colorName))
+                }
+                aria-label={`remove ${c.colorName}`}
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
           ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            className="h-10 text-sm"
+            value={colorNameDraft}
+            onChange={(e) => setColorNameDraft(e.target.value)}
+            placeholder="Color name (e.g. Burgundy)"
+          />
+          <input
+            type="color"
+            value={colorHexDraft}
+            onChange={(e) => setColorHexDraft(e.target.value)}
+            className="h-10 w-12 rounded border bg-background"
+            aria-label="Color picker"
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={addColor}
+            disabled={!colorNameDraft.trim()}
+          >
+            Add color
+          </Button>
         </div>
       </div>
       <div className="flex justify-end">
-        <Button onClick={() => void save()} disabled={!articleNumber || !name || sizes.length === 0 || submitting}>
+        <Button
+          onClick={() => void save()}
+          disabled={
+            !articleNumber || !name || sizes.length === 0 || submitting
+          }
+        >
           {submitting ? "Saving…" : "Create product"}
         </Button>
       </div>

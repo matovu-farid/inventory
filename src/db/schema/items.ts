@@ -25,7 +25,10 @@ export const items = pgTable(
     articleNumber: text("article_number").notNull().unique(),
     name: text("name").notNull(),
     description: text("description"),
-    sizes: text("sizes").array().notNull().default([]),
+    // The `sizes text[]` column was dropped by issue #7
+    // (drizzle/0015_drop_items_sizes.sql). The set of sizes for an item
+    // is now implicit in the rows of the `variants` table — UI surfaces
+    // call deriveSizes(item.variants) to render the size grid.
     /**
      * Catalog grouping for this item. NOT NULL — every item belongs to
      * exactly one category. Existing rows are backfilled to the seeded
