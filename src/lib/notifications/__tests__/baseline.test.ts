@@ -18,6 +18,7 @@ import {
   supplyRouteItems,
   suppliers,
   user as userTable,
+  variants,
 } from "#/db/schema"
 import { eq, inArray } from "drizzle-orm"
 
@@ -60,6 +61,13 @@ async function seed() {
       colorHex: "#FF0000",
     })
     .returning()
+  // Stock now references variant_id (issue #4); the baseline helpers
+  // bridge the notifications domain (still on (color, size)) by joining
+  // store_stock → variants. Seed a variant for the size under test.
+  const [variant] = await db
+    .insert(variants)
+    .values({ itemId: product.id, colorId: pc.id, size: SIZE })
+    .returning()
   const [store] = await db
     .insert(stores)
     .values({ name: "Test Store" })
@@ -68,7 +76,7 @@ async function seed() {
     .insert(shops)
     .values({ name: "Test Shop" })
     .returning()
-  return { user: u, supplier, product, pc, store, shop }
+  return { user: u, supplier, product, pc, variant, store, shop }
 }
 
 let ctx: Awaited<ReturnType<typeof seed>>
@@ -93,6 +101,8 @@ afterAll(async () => {
       "Test Route 4",
     ]),
   )
+  // variants reference itemColors on RESTRICT — clear first.
+  await db.delete(variants).where(eq(variants.colorId, ctx.pc.id))
   await db.delete(itemColors).where(eq(itemColors.id, ctx.pc.id))
   await db.delete(items).where(eq(items.id, ctx.product.id))
   await db.delete(shops).where(eq(shops.id, ctx.shop.id))
@@ -185,8 +195,7 @@ describe("computeShopBaseline", () => {
       .insert(storeStock)
       .values({
         storeId: ctx.store.id,
-        productColorId: ctx.pc.id,
-        size: SIZE,
+        variantId: ctx.variant.id,
         quantityOnHand: 1000,
         costPerUnitUgx: "1000",
         minimumSellPriceUgx: "1500",

@@ -17,6 +17,7 @@ import {
   lowStockAlerts,
   restockRequisitions,
   notificationThresholdOverrides,
+  variants,
 } from "#/db/schema"
 import { runThresholdChecksInternal } from "#/server/scheduled/run-threshold-checks"
 import { assertDefined } from "./test-helpers"
@@ -26,6 +27,7 @@ interface Fixture {
   supplier?: string
   product?: string
   pc?: string
+  variant?: string
   store?: string
   shop?: string
 }
@@ -40,6 +42,10 @@ const FIXTURE: Fixture = {
 function pcId(): string {
   assertDefined(FIXTURE.pc, "FIXTURE.pc not seeded")
   return FIXTURE.pc
+}
+function variantId(): string {
+  assertDefined(FIXTURE.variant, "FIXTURE.variant not seeded")
+  return FIXTURE.variant
 }
 function storeId(): string {
   assertDefined(FIXTURE.store, "FIXTURE.store not seeded")
@@ -87,6 +93,13 @@ async function seed() {
     .values({ itemId: p.id, colorName: "Red", colorHex: "#F00" })
     .returning()
   FIXTURE.pc = pc.id
+  // Stock tables now key on variant_id (issue #4) — seed a variant row
+  // for this (color, size) so the inserts below resolve.
+  const [v] = await db
+    .insert(variants)
+    .values({ itemId: p.id, colorId: pc.id, size: SIZE })
+    .returning()
+  FIXTURE.variant = v.id
   const [store] = await db.insert(stores).values({ name: "LS Store" }).returning()
   FIXTURE.store = store.id
   const [shop] = await db.insert(shops).values({ name: "LS Shop" }).returning()
@@ -148,6 +161,9 @@ async function cleanup() {
   for (const qty of [50, 80, 200]) {
     await db.delete(supplyRoutes).where(eq(supplyRoutes.name, `LS Route ${qty}`))
   }
+  // variants reference itemColors with onDelete: restrict — clear them
+  // first so the itemColors delete below doesn't FK-violate.
+  await db.delete(variants).where(eq(variants.colorId, pcId()))
   await db.delete(itemColors).where(eq(itemColors.id, pcId()))
   await db.delete(items).where(eq(items.id, productId()))
   await db.delete(shops).where(eq(shops.id, shopId()))
@@ -174,8 +190,7 @@ beforeEach(async () => {
 async function insertStoreStock(qoh: number) {
   await db.insert(storeStock).values({
     storeId: storeId(),
-    productColorId: pcId(),
-    size: SIZE,
+    variantId: variantId(),
     quantityOnHand: qoh,
     costPerUnitUgx: "1000",
     minimumSellPriceUgx: "1500",
@@ -185,8 +200,7 @@ async function insertStoreStock(qoh: number) {
 async function insertShopStock(qoh: number) {
   await db.insert(shopStock).values({
     shopId: shopId(),
-    productColorId: pcId(),
-    size: SIZE,
+    variantId: variantId(),
     quantityOnHand: qoh,
     costPerUnitUgx: "1500",
     minimumSellPriceUgx: "2000",

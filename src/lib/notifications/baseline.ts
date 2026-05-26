@@ -5,6 +5,7 @@ import {
   storeTransfers,
   storeTransferItems,
   storeStock,
+  variants,
 } from "#/db/schema"
 import { and, desc, eq, sql } from "drizzle-orm"
 
@@ -48,6 +49,11 @@ export async function computeShopBaseline(
   db: Db,
   args: { shopId: string } & VariantKey,
 ): Promise<BaselineResult> {
+  // store_stock now keys on variant_id (issue #4). The notification
+  // domain (alert keys, baseline lookups, threshold overrides) still
+  // operates on (product_color_id, size) until issue #5 lands, so we
+  // bridge by joining store_stock → variants and filtering on the
+  // variant's (color_id, size).
   const rows = await db
     .select({
       qty: sql<number>`COALESCE(${storeTransferItems.quantityReceived}, ${storeTransferItems.quantityDispatched})`,
@@ -58,11 +64,12 @@ export async function computeShopBaseline(
       eq(storeTransferItems.storeTransferId, storeTransfers.id),
     )
     .innerJoin(storeStock, eq(storeTransferItems.storeStockId, storeStock.id))
+    .innerJoin(variants, eq(variants.id, storeStock.variantId))
     .where(
       and(
         eq(storeTransfers.shopId, args.shopId),
-        eq(storeStock.productColorId, args.productColorId),
-        eq(storeStock.size, args.size),
+        eq(variants.colorId, args.productColorId),
+        eq(variants.size, args.size),
       ),
     )
     .orderBy(desc(storeTransferItems.createdAt))

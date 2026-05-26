@@ -35,7 +35,7 @@ export const listTransfers = createServerFn().handler(async () => {
       items: {
         with: {
           storeStockItem: {
-            with: { productColor: { with: { product: true } } },
+            with: { variant: { with: { color: { with: { product: true } } } } },
           },
         },
       },
@@ -99,13 +99,13 @@ export const createTransfer = createServerFn()
         // Validate stock
         const stock = await tx.query.storeStock.findFirst({
           where: eq(storeStock.id, item.storeStockId),
-          with: { productColor: { with: { product: true } } },
+          with: { variant: { with: { color: { with: { product: true } } } } },
         })
         if (!stock) throw new Error(`Store stock not found: ${item.storeStockId}`)
         const productLabel = formatProductLabel(
-          stock.productColor.product.articleNumber,
-          stock.productColor.colorName,
-          stock.size,
+          stock.variant.color.product.articleNumber,
+          stock.variant.color.colorName,
+          stock.variant.size,
         )
         if (stock.quantityOnHand < item.quantityDispatched) {
           throw new Error(`Insufficient stock for ${productLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`)
@@ -248,7 +248,7 @@ export const confirmTransferReceipt = createServerFn()
           items: {
             with: {
               storeStockItem: {
-                with: { productColor: { with: { product: true } } },
+                with: { variant: { with: { color: { with: { product: true } } } } },
               },
             },
           },
@@ -272,9 +272,9 @@ export const confirmTransferReceipt = createServerFn()
         }
 
         const productLabel = formatProductLabel(
-          ti.storeStockItem.productColor.product.articleNumber,
-          ti.storeStockItem.productColor.colorName,
-          ti.storeStockItem.size,
+          ti.storeStockItem.variant.color.product.articleNumber,
+          ti.storeStockItem.variant.color.colorName,
+          ti.storeStockItem.variant.size,
         )
 
         validateQuantityReceived(receiptItem.quantityReceived)
@@ -292,15 +292,14 @@ export const confirmTransferReceipt = createServerFn()
           })
           .where(eq(storeTransferItems.id, ti.id))
 
-        // Upsert shop stock — merge into existing (shopId, productColorId, size) row.
+        // Upsert shop stock — merge into existing (shopId, variantId) row.
         // The unique constraint forces aggregation across multiple transfers.
         if (receiptItem.quantityReceived > 0) {
           await tx
             .insert(shopStock)
             .values({
               shopId: transfer.shopId,
-              productColorId: ti.storeStockItem.productColorId,
-              size: ti.storeStockItem.size,
+              variantId: ti.storeStockItem.variantId,
               storeTransferItemId: ti.id,
               quantityOnHand: receiptItem.quantityReceived,
               costPerUnitUgx: ti.unitPriceUgx,
@@ -309,7 +308,7 @@ export const confirmTransferReceipt = createServerFn()
               minimumSellPriceUgx: ti.minimumSellPriceUgx ?? ti.unitPriceUgx,
             })
             .onConflictDoUpdate({
-              target: [shopStock.shopId, shopStock.productColorId, shopStock.size],
+              target: [shopStock.shopId, shopStock.variantId],
               set: {
                 quantityOnHand: sql`${shopStock.quantityOnHand} + ${receiptItem.quantityReceived}`,
               },

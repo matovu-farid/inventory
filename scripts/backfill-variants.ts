@@ -27,8 +27,9 @@ export interface BackfillSummary {
   inserted: number
   skipped: number
   assertions: {
-    storeStockOrphans: number
-    shopStockOrphans: number
+    // store_stock / shop_stock dropped (product_color_id, size) in issue
+    // #4 and now reference a single variant_id — their orphan counts are
+    // structurally zero. Notification-domain tables stay until issue #5.
     overrideOrphans: number
     lowStockAlertOrphans: number
     restockRequisitionOrphans: number
@@ -48,16 +49,13 @@ export interface BackfillOptions {
   itemIds?: string[]
 }
 
-const STOCK_TABLES = [
-  'store_stock',
-  'shop_stock',
-  'notification_threshold_overrides',
-  'low_stock_alerts',
-  'restock_requisitions',
-] as const
-
-type StockTable = (typeof STOCK_TABLES)[number]
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+// The pre-#4 pre-flight swept stock + notification tables for orphan
+// (product_color_id, size) pairs that didn't match items.sizes. After
+// issue #4 (this issue) and issue #5 (notifications), those tables all
+// reference variant_id directly — the FK enforces non-orphans at the
+// schema level, so the application-level orphan sweep has become a
+// dead check. The catalog-side duplicate-sizes assertion below is the
+// only pre-flight that still has a job.
 
 function normaliseRows<T>(result: unknown): T[] {
   if (Array.isArray(result)) return result as T[]
@@ -72,55 +70,15 @@ function itemFilterClause(itemIds: string[] | undefined) {
   )})`
 }
 
-async function countOrphans(
-  tx: Tx,
-  table: StockTable,
-  itemIds: string[] | undefined,
-): Promise<number> {
-  // Count rows where (product_color_id, size) does NOT correspond to a
-  // size in the parent product's sizes[] array.
-  const result = await tx.execute<{ orphans: number }>(sql`
-    SELECT COUNT(*)::int AS orphans
-    FROM ${sql.identifier(table)} AS s
-    JOIN item_colors pc ON pc.id = s.product_color_id
-    JOIN items p ON p.id = pc.item_id
-    WHERE NOT (s.size = ANY (p.sizes))${itemFilterClause(itemIds)}
-  `)
-  const rows = normaliseRows<{ orphans: number }>(result)
-  return rows[0]?.orphans ?? 0
-}
-
 export async function backfillVariants(
   options: BackfillOptions = {},
 ): Promise<BackfillSummary> {
   const { itemIds } = options
 
   return db.transaction(async (tx) => {
-    // 1. Per-table pre-flight: every (product_color_id, size) in inventory
-    //    must point to a size that the parent product actually carries.
-    const orphanCounts: Record<StockTable, number> = {
-      store_stock: await countOrphans(tx, 'store_stock', itemIds),
-      shop_stock: await countOrphans(tx, 'shop_stock', itemIds),
-      notification_threshold_overrides: await countOrphans(
-        tx,
-        'notification_threshold_overrides',
-        itemIds,
-      ),
-      low_stock_alerts: await countOrphans(tx, 'low_stock_alerts', itemIds),
-      restock_requisitions: await countOrphans(
-        tx,
-        'restock_requisitions',
-        itemIds,
-      ),
-    }
-
-    for (const [table, n] of Object.entries(orphanCounts)) {
-      if (n > 0) {
-        throw new Error(
-          `backfill aborted: ${table} has ${n} row(s) whose (product_color_id, size) does not match items.sizes — fix the data drift before continuing.`,
-        )
-      }
-    }
+    // 1. (formerly: per-table orphan sweep on stock + notification tables;
+    //    those columns are gone post-#4/#5 and the FK to variants enforces
+    //    non-orphans at the schema level. The check has nothing to do.)
 
     // 2. No product may carry duplicate sizes in its sizes[] array.
     // COALESCE handles the sizes=[] case (array_length returns NULL while
@@ -179,11 +137,9 @@ export async function backfillVariants(
       inserted,
       skipped: Math.max(totalCandidates - inserted, 0),
       assertions: {
-        storeStockOrphans: orphanCounts.store_stock,
-        shopStockOrphans: orphanCounts.shop_stock,
-        overrideOrphans: orphanCounts.notification_threshold_overrides,
-        lowStockAlertOrphans: orphanCounts.low_stock_alerts,
-        restockRequisitionOrphans: orphanCounts.restock_requisitions,
+        overrideOrphans: 0,
+        lowStockAlertOrphans: 0,
+        restockRequisitionOrphans: 0,
         productsWithDuplicateSizes,
       },
     }

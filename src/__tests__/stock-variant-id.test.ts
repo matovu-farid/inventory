@@ -1,7 +1,7 @@
-import { describe, it, expect, afterAll } from "vitest"
-import { eq, inArray, sql } from "drizzle-orm"
+import { describe, it, expect, afterAll } from 'vitest'
+import { eq, inArray, sql } from 'drizzle-orm'
 
-import { db } from "#/db"
+import { db } from '#/db'
 import {
   items,
   itemColors,
@@ -11,7 +11,7 @@ import {
   stores,
   shopStock,
   storeStock,
-} from "#/db/schema"
+} from '#/db/schema'
 
 /**
  * Migration-level acceptance tests for issue #4
@@ -24,8 +24,8 @@ import {
  * has applied the variant_id swap on both stock tables.
  */
 
-const PG_UNIQUE_VIOLATION = "23505"
-const PG_NOT_NULL_VIOLATION = "23502"
+const PG_UNIQUE_VIOLATION = '23505'
+const PG_NOT_NULL_VIOLATION = '23502'
 
 async function pgErrorCode(p: Promise<unknown>): Promise<string | undefined> {
   try {
@@ -46,7 +46,9 @@ const createdShopIds: string[] = []
 
 afterAll(async () => {
   if (createdStoreIds.length > 0) {
-    await db.delete(storeStock).where(inArray(storeStock.storeId, createdStoreIds))
+    await db
+      .delete(storeStock)
+      .where(inArray(storeStock.storeId, createdStoreIds))
     await db.delete(stores).where(inArray(stores.id, createdStoreIds))
   }
   if (createdShopIds.length > 0) {
@@ -62,7 +64,7 @@ async function uncategorizedId(): Promise<string> {
   const rows = await db
     .select()
     .from(itemCategories)
-    .where(eq(itemCategories.name, "Uncategorized"))
+    .where(eq(itemCategories.name, 'Uncategorized'))
   const row = rows.at(0)
   if (!row) {
     throw new Error('Missing "Uncategorized" seed row in test DB')
@@ -85,7 +87,7 @@ async function seedVariantFixture(label: string): Promise<VariantFixture> {
     .values({
       articleNumber: `${ART}-${label}`,
       name: `stock-variant-${label}`,
-      sizes: ["S"],
+      sizes: ['S'],
       itemCategoryId: uncat,
     })
     .returning()
@@ -93,12 +95,12 @@ async function seedVariantFixture(label: string): Promise<VariantFixture> {
 
   const [color] = await db
     .insert(itemColors)
-    .values({ itemId: item.id, colorName: "Indigo", colorHex: "#2a3a8b" })
+    .values({ itemId: item.id, colorName: 'Indigo', colorHex: '#2a3a8b' })
     .returning()
 
   const [variant] = await db
     .insert(variants)
-    .values({ itemId: item.id, colorId: color.id, size: "S" })
+    .values({ itemId: item.id, colorId: color.id, size: 'S' })
     .returning()
 
   const [shop] = await db
@@ -122,25 +124,26 @@ async function seedVariantFixture(label: string): Promise<VariantFixture> {
   }
 }
 
-describe("shop_stock — variant_id swap", () => {
-  it("schema column shape: variant_id exists, product_color_id and size are gone", async () => {
+describe('shop_stock — variant_id swap', () => {
+  it('schema column shape: variant_id exists, product_color_id and size are gone', async () => {
     const rows = await db.execute<{ column_name: string }>(sql`
       SELECT column_name
       FROM information_schema.columns
       WHERE table_name = 'shop_stock'
     `)
     const cols = new Set(
-      (Array.isArray(rows) ? rows : (rows as { rows?: { column_name: string }[] }).rows ?? []).map(
-        (r) => r.column_name,
-      ),
+      (Array.isArray(rows)
+        ? rows
+        : ((rows as { rows?: { column_name: string }[] }).rows ?? [])
+      ).map((r) => r.column_name),
     )
-    expect(cols.has("variant_id")).toBe(true)
-    expect(cols.has("product_color_id")).toBe(false)
-    expect(cols.has("size")).toBe(false)
+    expect(cols.has('variant_id')).toBe(true)
+    expect(cols.has('product_color_id')).toBe(false)
+    expect(cols.has('size')).toBe(false)
   })
 
-  it("inserts a shop_stock row with variant_id and reads it back via the variant relation", async () => {
-    const fx = await seedVariantFixture("shop-insert")
+  it('inserts a shop_stock row with variant_id and reads it back via the variant relation', async () => {
+    const fx = await seedVariantFixture('shop-insert')
 
     const [stock] = await db
       .insert(shopStock)
@@ -148,8 +151,8 @@ describe("shop_stock — variant_id swap", () => {
         shopId: fx.shopId,
         variantId: fx.variantId,
         quantityOnHand: 7,
-        costPerUnitUgx: "1000.00",
-        minimumSellPriceUgx: "1500.00",
+        costPerUnitUgx: '1000.00',
+        minimumSellPriceUgx: '1500.00',
       })
       .returning()
     expect(stock.variantId).toBe(fx.variantId)
@@ -160,32 +163,32 @@ describe("shop_stock — variant_id swap", () => {
     })
     expect(fetched?.variant.id).toBe(fx.variantId)
     expect(fetched?.variant.color.id).toBe(fx.colorId)
-    expect(fetched?.variant.size).toBe("S")
+    expect(fetched?.variant.size).toBe('S')
   })
 
-  it("unique(shop_id, variant_id) rejects a duplicate insert", async () => {
-    const fx = await seedVariantFixture("shop-uq")
+  it('unique(shop_id, variant_id) rejects a duplicate insert', async () => {
+    const fx = await seedVariantFixture('shop-uq')
     await db.insert(shopStock).values({
       shopId: fx.shopId,
       variantId: fx.variantId,
       quantityOnHand: 1,
-      costPerUnitUgx: "1.00",
-      minimumSellPriceUgx: "1.00",
+      costPerUnitUgx: '1.00',
+      minimumSellPriceUgx: '1.00',
     })
     const code = await pgErrorCode(
       db.insert(shopStock).values({
         shopId: fx.shopId,
         variantId: fx.variantId,
         quantityOnHand: 2,
-        costPerUnitUgx: "1.00",
-        minimumSellPriceUgx: "1.00",
+        costPerUnitUgx: '1.00',
+        minimumSellPriceUgx: '1.00',
       }),
     )
     expect(code).toBe(PG_UNIQUE_VIOLATION)
   })
 
-  it("variant_id is NOT NULL", async () => {
-    const fx = await seedVariantFixture("shop-nn")
+  it('variant_id is NOT NULL', async () => {
+    const fx = await seedVariantFixture('shop-nn')
     const code = await pgErrorCode(
       db.execute(sql`
         INSERT INTO shop_stock
@@ -197,25 +200,26 @@ describe("shop_stock — variant_id swap", () => {
   })
 })
 
-describe("store_stock — variant_id swap", () => {
-  it("schema column shape: variant_id exists, product_color_id and size are gone", async () => {
+describe('store_stock — variant_id swap', () => {
+  it('schema column shape: variant_id exists, product_color_id and size are gone', async () => {
     const rows = await db.execute<{ column_name: string }>(sql`
       SELECT column_name
       FROM information_schema.columns
       WHERE table_name = 'store_stock'
     `)
     const cols = new Set(
-      (Array.isArray(rows) ? rows : (rows as { rows?: { column_name: string }[] }).rows ?? []).map(
-        (r) => r.column_name,
-      ),
+      (Array.isArray(rows)
+        ? rows
+        : ((rows as { rows?: { column_name: string }[] }).rows ?? [])
+      ).map((r) => r.column_name),
     )
-    expect(cols.has("variant_id")).toBe(true)
-    expect(cols.has("product_color_id")).toBe(false)
-    expect(cols.has("size")).toBe(false)
+    expect(cols.has('variant_id')).toBe(true)
+    expect(cols.has('product_color_id')).toBe(false)
+    expect(cols.has('size')).toBe(false)
   })
 
-  it("inserts a store_stock row with variant_id and reads it back via the variant relation", async () => {
-    const fx = await seedVariantFixture("store-insert")
+  it('inserts a store_stock row with variant_id and reads it back via the variant relation', async () => {
+    const fx = await seedVariantFixture('store-insert')
 
     const [stock] = await db
       .insert(storeStock)
@@ -223,8 +227,8 @@ describe("store_stock — variant_id swap", () => {
         storeId: fx.storeId,
         variantId: fx.variantId,
         quantityOnHand: 12,
-        costPerUnitUgx: "500.00",
-        minimumSellPriceUgx: "900.00",
+        costPerUnitUgx: '500.00',
+        minimumSellPriceUgx: '900.00',
       })
       .returning()
     expect(stock.variantId).toBe(fx.variantId)
@@ -235,32 +239,32 @@ describe("store_stock — variant_id swap", () => {
     })
     expect(fetched?.variant.id).toBe(fx.variantId)
     expect(fetched?.variant.color.id).toBe(fx.colorId)
-    expect(fetched?.variant.size).toBe("S")
+    expect(fetched?.variant.size).toBe('S')
   })
 
-  it("unique(store_id, variant_id) rejects a duplicate insert", async () => {
-    const fx = await seedVariantFixture("store-uq")
+  it('unique(store_id, variant_id) rejects a duplicate insert', async () => {
+    const fx = await seedVariantFixture('store-uq')
     await db.insert(storeStock).values({
       storeId: fx.storeId,
       variantId: fx.variantId,
       quantityOnHand: 1,
-      costPerUnitUgx: "1.00",
-      minimumSellPriceUgx: "1.00",
+      costPerUnitUgx: '1.00',
+      minimumSellPriceUgx: '1.00',
     })
     const code = await pgErrorCode(
       db.insert(storeStock).values({
         storeId: fx.storeId,
         variantId: fx.variantId,
         quantityOnHand: 2,
-        costPerUnitUgx: "1.00",
-        minimumSellPriceUgx: "1.00",
+        costPerUnitUgx: '1.00',
+        minimumSellPriceUgx: '1.00',
       }),
     )
     expect(code).toBe(PG_UNIQUE_VIOLATION)
   })
 
-  it("variant_id is NOT NULL", async () => {
-    const fx = await seedVariantFixture("store-nn")
+  it('variant_id is NOT NULL', async () => {
+    const fx = await seedVariantFixture('store-nn')
     const code = await pgErrorCode(
       db.execute(sql`
         INSERT INTO store_stock

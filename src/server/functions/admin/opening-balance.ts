@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
-import { storeStock, shopStock, shops } from "#/db/schema"
+import { storeStock, shopStock, shops, variants } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
@@ -57,12 +57,27 @@ export const addStoreOpeningBalance = createServerFn()
         const entryRowIds: string[] = []
 
         for (const cell of entry.cells) {
+          // Resolve (color, size) → variant for the new variant_id column.
+          // Variants are seeded from (item_colors × items.sizes); a missing
+          // row means the operator picked a (color, size) that isn't part
+          // of the catalog — abort loudly rather than create stock that
+          // floats outside the catalog.
+          const variantRow = await tx.query.variants.findFirst({
+            where: and(
+              eq(variants.colorId, cell.productColorId),
+              eq(variants.size, cell.size),
+            ),
+          })
+          if (!variantRow) {
+            throw new Error(
+              `Variant not found for color=${cell.productColorId} size=${cell.size}. Add the size to the item or run pnpm backfill:variants first.`,
+            )
+          }
           const [row] = await tx
             .insert(storeStock)
             .values({
               storeId: store.id,
-              productColorId: cell.productColorId,
-              size: cell.size,
+              variantId: variantRow.id,
               supplyRouteItemId: null,
               quantityOnHand: cell.quantity,
               costPerUnitUgx: cost.toFixed(2),
@@ -143,12 +158,22 @@ export const addShopOpeningBalance = createServerFn()
         const entryRowIds: string[] = []
 
         for (const cell of entry.cells) {
+          const variantRow = await tx.query.variants.findFirst({
+            where: and(
+              eq(variants.colorId, cell.productColorId),
+              eq(variants.size, cell.size),
+            ),
+          })
+          if (!variantRow) {
+            throw new Error(
+              `Variant not found for color=${cell.productColorId} size=${cell.size}. Add the size to the item or run pnpm backfill:variants first.`,
+            )
+          }
           const [row] = await tx
             .insert(shopStock)
             .values({
               shopId: shop.id,
-              productColorId: cell.productColorId,
-              size: cell.size,
+              variantId: variantRow.id,
               storeTransferItemId: null,
               quantityOnHand: cell.quantity,
               costPerUnitUgx: cost.toFixed(2),

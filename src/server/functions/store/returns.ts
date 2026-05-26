@@ -53,13 +53,13 @@ export const dispatchStoreReturn = createServerFn()
       for (const item of data.items) {
         const stock = await tx.query.shopStock.findFirst({
           where: eq(shopStock.id, item.shopStockId),
-          with: { productColor: { with: { product: true } } },
+          with: { variant: { with: { color: { with: { product: true } } } } },
         })
         if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
         const productLabel = formatProductLabel(
-          stock.productColor.product.articleNumber,
-          stock.productColor.colorName,
-          stock.size,
+          stock.variant.color.product.articleNumber,
+          stock.variant.color.colorName,
+          stock.variant.size,
         )
         if (stock.quantityOnHand < item.quantityDispatched) {
           throw new Error(
@@ -172,7 +172,7 @@ export const receiveStoreReturn = createServerFn()
           items: {
             with: {
               shopStock: {
-                with: { productColor: { with: { product: true } } },
+                with: { variant: { with: { color: { with: { product: true } } } } },
               },
             },
           },
@@ -209,9 +209,9 @@ export const receiveStoreReturn = createServerFn()
           throw new Error(`Return item not found: ${receipt.storeReturnItemId}`)
         }
         const productLabel = formatProductLabel(
-          item.shopStock.productColor.product.articleNumber,
-          item.shopStock.productColor.colorName,
-          item.shopStock.size,
+          item.shopStock.variant.color.product.articleNumber,
+          item.shopStock.variant.color.colorName,
+          item.shopStock.variant.size,
         )
         if (receipt.quantityReceived > item.quantityDispatched) {
           throw new Error(
@@ -237,8 +237,7 @@ export const receiveStoreReturn = createServerFn()
         const matching = await tx.query.storeStock.findFirst({
           where: and(
             eq(storeStock.storeId, storeReturn.storeId),
-            eq(storeStock.productColorId, item.shopStock.productColorId),
-            eq(storeStock.size, item.shopStock.size),
+            eq(storeStock.variantId, item.shopStock.variantId),
           ),
         })
         if (matching) {

@@ -16,6 +16,7 @@ import {
   shopSales,
   shopSaleItems,
   shiftClosures,
+  variants,
 } from "#/db/schema"
 import {
   computeShiftAggregates,
@@ -64,13 +65,19 @@ async function seed() {
       .values({ itemId: p.id, colorName: "Red", colorHex: "#dc2626" })
       .returning()
   )[0]
+  // Stock now references variant_id (issue #4). Seed the matching variant.
+  const v = (
+    await db
+      .insert(variants)
+      .values({ itemId: p.id, colorId: pc.id, size: "M" })
+      .returning()
+  )[0]
   stockId = (
     await db
       .insert(shopStock)
       .values({
         shopId,
-        productColorId: pc.id,
-        size: "M",
+        variantId: v.id,
         quantityOnHand: 100,
         costPerUnitUgx: "10000",
         minimumSellPriceUgx: "20000",
@@ -88,6 +95,8 @@ async function teardown() {
     where: eq(items.articleNumber, runId),
   })
   if (seededProduct) {
+    // variants reference itemColors on RESTRICT — clear them first.
+    await db.delete(variants).where(eq(variants.itemId, seededProduct.id))
     await db
       .delete(itemColors)
       .where(eq(itemColors.itemId, seededProduct.id))

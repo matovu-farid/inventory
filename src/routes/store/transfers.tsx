@@ -184,16 +184,20 @@ function CreateTransferForm({
   shops,
   onSuccess,
 }: {
+  // Stock now references variant_id (issue #4); the joined variant
+  // carries size + color (with parent item/product).
   stock: Array<{
     id: string
-    size: string
     quantityOnHand: number
     costPerUnitUgx: string
     minimumSellPriceUgx: string
-    productColor: {
-      colorName: string
-      colorHex: string
-      product: { name: string; articleNumber: string }
+    variant: {
+      size: string
+      color: {
+        colorName: string
+        colorHex: string
+        product: { name: string; articleNumber: string }
+      }
     }
   }>
   shops: Array<{ id: string; name: string }>
@@ -312,17 +316,17 @@ function CreateTransferForm({
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {s.productColor.product.name}
+                        {s.variant.color.product.name}
                       </p>
                       <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
                         <span
                           className="size-3 rounded-full border"
-                          style={{ backgroundColor: s.productColor.colorHex }}
+                          style={{ backgroundColor: s.variant.color.colorHex }}
                           aria-hidden
                         />
-                        {s.productColor.colorName} · {s.size}
+                        {s.variant.color.colorName} · {s.variant.size}
                         <span className="ml-1 font-mono">
-                          [{s.productColor.product.articleNumber}]
+                          [{s.variant.color.product.articleNumber}]
                         </span>
                       </p>
                       <p className="text-xs text-muted-foreground">

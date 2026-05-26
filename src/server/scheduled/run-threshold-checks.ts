@@ -102,21 +102,29 @@ async function processShopStock(
   maps: ReturnType<typeof buildOverrideMaps>,
   summary: CheckSummary,
 ) {
+  // Stock now keys on variant_id (issue #4). The notification tables
+  // still address inventory via (product_color_id, size) until issue
+  // #5 swaps them — so we read those values off the joined variant.
   const rows = await db.query.shopStock.findMany({
-    with: { productColor: { with: { product: true } }, shop: true },
+    with: {
+      variant: { with: { color: { with: { product: true } } } },
+      shop: true,
+    },
   })
   for (const row of rows) {
     try {
+      const productColorId = row.variant.colorId
+      const size = row.variant.size
       const rule = resolveShopRule(
         row.shopId,
-        { productColorId: row.productColorId, size: row.size },
+        { productColorId, size },
         maps,
         defaults,
       )
       const baseline = await computeShopBaseline(db, {
         shopId: row.shopId,
-        productColorId: row.productColorId,
-        size: row.size,
+        productColorId,
+        size,
       })
       const result = isBelowThreshold(
         row.quantityOnHand,
@@ -131,16 +139,16 @@ async function processShopStock(
       }
       await reconcileShopAlert(db, now, {
         shopId: row.shopId,
-        productColorId: row.productColorId,
-        size: row.size,
+        productColorId,
+        size,
         below: result.below,
         rule,
         baseline: baseline.baseline ?? 0,
         quantityOnHand: row.quantityOnHand,
         productLabel: formatProductLabel(
-          row.productColor.product.articleNumber,
-          row.productColor.colorName,
-          row.size,
+          row.variant.color.product.articleNumber,
+          row.variant.color.colorName,
+          size,
         ),
         shopName: row.shop.name,
         summary,
@@ -162,19 +170,21 @@ async function processStoreStock(
   summary: CheckSummary,
 ) {
   const rows = await db.query.storeStock.findMany({
-    with: { productColor: { with: { product: true } } },
+    with: { variant: { with: { color: { with: { product: true } } } } },
   })
   for (const row of rows) {
     try {
+      const productColorId = row.variant.colorId
+      const size = row.variant.size
       const rule = resolveStoreRule(
-        { productColorId: row.productColorId, size: row.size },
+        { productColorId, size },
         maps,
         defaults,
       )
       const baseline = await computeStoreBaseline(db, {
         storeId: row.storeId,
-        productColorId: row.productColorId,
-        size: row.size,
+        productColorId,
+        size,
       })
       const result = isBelowThreshold(
         row.quantityOnHand,
@@ -188,14 +198,14 @@ async function processStoreStock(
         summary.skippedNoBaseline++
       }
       const productLabel = formatProductLabel(
-        row.productColor.product.articleNumber,
-        row.productColor.colorName,
-        row.size,
+        row.variant.color.product.articleNumber,
+        row.variant.color.colorName,
+        size,
       )
       await reconcileStoreAlert(db, now, {
         storeId: row.storeId,
-        productColorId: row.productColorId,
-        size: row.size,
+        productColorId,
+        size,
         below: result.below,
         rule,
         baseline: baseline.baseline ?? 0,
