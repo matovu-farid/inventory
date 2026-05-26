@@ -297,7 +297,9 @@ function ShopPage() {
                       data={{
                         articleNumber: a.product.articleNumber,
                         name: a.product.name,
-                        sizes: a.product.sizes,
+                        // Per-variant counts via variant_id joins (#4);
+                        // ItemCard derives the size grid from these.
+                        variants: a.variants,
                         colors: a.colors,
                         totalQuantity: a.total,
                         locationCounts: [

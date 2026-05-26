@@ -157,6 +157,10 @@ async function seed() {
     }
     const uncategorized: { id: string } = uncategorizedRow
 
+    // `sizes` is no longer a column on items (issue #7 drops items.sizes
+    // — the variants table is the source of truth). The seed still
+    // accepts it so the stock-seed block below can keep using the same
+    // declarative list of sizes when materialising variants.
     async function upsertProduct(args: {
       articleNumber: string
       name: string
@@ -168,7 +172,11 @@ async function seed() {
       if (existing) return existing
       const [created] = await db
         .insert(items)
-        .values({ ...args, itemCategoryId: uncategorized.id })
+        .values({
+          articleNumber: args.articleNumber,
+          name: args.name,
+          itemCategoryId: uncategorized.id,
+        })
         .returning()
       return created
     }
@@ -352,10 +360,12 @@ async function seed() {
       })),
     ]
 
-    // Seed needs a variant_id per stock row (issue #4). The variants table
-    // is backfilled from (item_colors × items.sizes) by
-    // `pnpm backfill:variants`; for the seed we (idempotently) ensure the
-    // exact (color, size) pairs we're about to seed exist as variants.
+    // Seed needs a variant_id per stock row (issue #4). The variants
+    // table used to be backfilled from (item_colors × items.sizes), but
+    // issue #7 dropped items.sizes — the variants table is now the
+    // source of truth for an item's sizes. For the seed we
+    // (idempotently) ensure the exact (color, size) pairs we're about
+    // to seed exist as variants.
     for (const s of stockSeeds) {
       const itemRow = (
         await db

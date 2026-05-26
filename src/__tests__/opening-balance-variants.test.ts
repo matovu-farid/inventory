@@ -94,7 +94,6 @@ describe("addStoreOpeningBalance — variants", () => {
       .values({
         articleNumber: `OB-${Date.now()}`,
         name: "Test",
-        sizes: ["S", "M"],
         itemCategoryId: uncat.id,
       })
       .returning()

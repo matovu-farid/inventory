@@ -172,7 +172,6 @@ beforeAll(async () => {
     .values({
       articleNumber: `SV-${Date.now()}`,
       name: 'Server Variant Item',
-      sizes: ['M', 'L'],
       itemCategoryId: uncat.id,
     })
     .returning()
@@ -370,7 +369,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
         supplierId: supplierId(),
         itemId: itemId(),
         colorId: colorId(),
-        size: 'L', // declared in items.sizes — but no matching variant row yet
+        size: 'L', // declared on the supply route line — variant row materialised on receipt
         quantity: 3,
         unitPriceForeign: '10',
         totalAmountForeign: '30',

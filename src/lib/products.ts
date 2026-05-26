@@ -22,39 +22,62 @@ export function productImageUrl(s3Key: string | null | undefined): string | null
 }
 
 /**
- * Stock row consumed by the POS/aggregation UI. Stock tables now reference
- * inventory via `variant_id` (issue #4) — each row carries the joined
- * variant, which in turn exposes the color (with its parent item/product)
+ * Stock row consumed by the POS/aggregation UI. Stock tables now
+ * reference inventory via `variant_id` (issue #4) — each row carries the
+ * joined variant, which in turn exposes the color (with its parent item)
  * and the size string the row corresponds to.
+ *
+ * `items.sizes` is gone since #7; the per-item set of sizes is implicit
+ * in the union of variant rows for that item, derived via
+ * `deriveSizes(item.variants)` on the UI side.
  */
 interface StockRow {
   quantityOnHand: number
   variant: {
+    id: string
     size: string
     color: {
       id: string
       colorName: string
       colorHex: string
       imageS3Key: string | null
-      product: { id: string; articleNumber: string; name: string; sizes: string[] }
+      product: { id: string; articleNumber: string; name: string }
     }
   }
 }
 
 export interface AggregatedProduct {
-  product: { id: string; articleNumber: string; name: string; sizes: string[] }
-  colors: Array<{ id: string; colorName: string; colorHex: string; imageS3Key: string | null }>
+  product: { id: string; articleNumber: string; name: string }
+  colors: Array<{
+    id: string
+    colorName: string
+    colorHex: string
+    imageS3Key: string | null
+  }>
+  /**
+   * Every variant that has at least one stock row in the input set.
+   * Used by `ItemCard` (and the POS picker) to derive the size grid
+   * shown beneath the color chips.
+   */
+  variants: Array<{ id: string; colorId: string; size: string }>
   total: number
 }
 
-export function aggregateStockByArticle(rows: ReadonlyArray<StockRow>): AggregatedProduct[] {
+export function aggregateStockByArticle(
+  rows: ReadonlyArray<StockRow>,
+): AggregatedProduct[] {
   const byArticle = new Map<string, AggregatedProduct>()
   for (const row of rows) {
     const color = row.variant.color
     const key = color.product.articleNumber
     let entry = byArticle.get(key)
     if (!entry) {
-      entry = { product: color.product, colors: [], total: 0 }
+      entry = {
+        product: color.product,
+        colors: [],
+        variants: [],
+        total: 0,
+      }
       byArticle.set(key, entry)
     }
     if (!entry.colors.some((c) => c.id === color.id)) {
@@ -65,9 +88,16 @@ export function aggregateStockByArticle(rows: ReadonlyArray<StockRow>): Aggregat
         imageS3Key: color.imageS3Key,
       })
     }
+    if (!entry.variants.some((v) => v.id === row.variant.id)) {
+      entry.variants.push({
+        id: row.variant.id,
+        colorId: color.id,
+        size: row.variant.size,
+      })
+    }
     entry.total += row.quantityOnHand
   }
   return [...byArticle.values()].sort((a, b) =>
-    a.product.articleNumber.localeCompare(b.product.articleNumber)
+    a.product.articleNumber.localeCompare(b.product.articleNumber),
   )
 }

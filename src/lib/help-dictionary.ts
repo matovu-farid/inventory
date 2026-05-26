@@ -325,9 +325,15 @@ export const helpDict = {
       'Hex code that drives the on-screen swatch (e.g. #7b1f2b). Matched to the nearest palette tile.',
     example: '#7b1f2b',
   },
+  /**
+   * Legacy alias kept so old InfoTip call-sites still resolve. After
+   * issue #7 sizes are no longer a single item-level field — they live
+   * on the variants table. The text below points the user at the
+   * variant subsection on the item detail page.
+   */
   'product.sizes': {
     description:
-      'Sizes this product comes in (e.g. S, M, L). Each variant grid row is one color × one size.',
+      'Available sizes for this item. Sizes live on individual variants now (one variant per color × size). Manage them from the Variants section on the item detail page.',
     example: 'S, M, L',
   },
   'product.image': {

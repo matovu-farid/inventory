@@ -2,9 +2,10 @@ import { createServerFn } from '@tanstack/react-start'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
-import { itemColors } from '#/db/schema'
+import { itemColors, variants } from '#/db/schema'
 import { requireSession } from '#/server/middleware/auth'
 import { requireRole } from '#/server/middleware/rbac'
+import { materializeVariantsFromColorsSizes } from './variants-materialize'
 
 const hexRule = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 
@@ -14,6 +15,13 @@ export const addProductColor = createServerFn()
       productId: z.uuid(),
       colorName: z.string().min(1).max(40),
       colorHex: hexRule,
+      /**
+       * Sizes to materialize as variants alongside the new color. If
+       * omitted, the server derives the size set from the item's
+       * existing variants — useful when the user adds a new color to
+       * an item whose other colors already declare a size lineup.
+       */
+      sizes: z.array(z.string().min(1).max(16)).optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -43,6 +51,27 @@ export const addProductColor = createServerFn()
         colorHex: data.colorHex,
       })
       .returning()
+
+    // Resolve sizes to materialize. Explicit input wins; otherwise we
+    // pick up whatever the item's other colors already declare so the
+    // new color stays consistent with the rest of the catalog.
+    let sizes = data.sizes
+    if (!sizes || sizes.length === 0) {
+      const existingVariants = await db
+        .select({ size: variants.size })
+        .from(variants)
+        .where(eq(variants.itemId, data.productId))
+      const seen = new Set<string>()
+      for (const v of existingVariants) seen.add(v.size)
+      sizes = [...seen]
+    }
+    if (sizes.length > 0) {
+      await materializeVariantsFromColorsSizes({
+        itemId: data.productId,
+        colorIds: [row.id],
+        sizes,
+      })
+    }
     return row
   })
 

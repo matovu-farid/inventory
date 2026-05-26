@@ -26,6 +26,7 @@ import {
   addShopOpeningBalance,
 } from "#/server/functions/admin/opening-balance"
 import { roundUgxBankers50 } from "#/lib/format"
+import { deriveSizes } from "#/lib/variants"
 import {
   ProductPicker
   
@@ -323,7 +324,7 @@ export function OpeningBalanceForm({
                     </div>
                     <div className="-mx-3 overflow-x-auto px-3 md:mx-0 md:px-0">
                       <VariantGrid
-                        sizes={b.product.sizes}
+                        sizes={deriveSizes(b.product.variants ?? [])}
                         colors={b.product.colors}
                         quantities={b.quantities}
                         onChange={(next) =>

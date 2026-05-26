@@ -13,7 +13,6 @@ describe("items schema round-trip", () => {
     const [p] = await db.insert(items).values({
       articleNumber: `TEST-${Date.now()}`,
       name: "Test Crew",
-      sizes: ["S","M","L"],
       itemCategoryId: uncat.id,
     }).returning()
 
