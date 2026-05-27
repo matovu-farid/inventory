@@ -64,6 +64,7 @@ export default [
       'eslint.config.js',
       'prettier.config.js',
       'cypress/**',
+      '.worktrees/**',
       'src/routeTree.gen.ts',
     ],
   },
