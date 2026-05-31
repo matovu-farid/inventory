@@ -10,6 +10,8 @@ import { matchPaletteHex } from "#/lib/colors/match-palette"
 import { CLOTHING_PALETTE } from "#/lib/colors/palette"
 import { HexColorField } from "./hex-color-field"
 import { InfoTip } from "#/components/ui/info-tip"
+import { FieldLabel } from "#/components/ui/field-label"
+import { MoneyInput } from "#/components/ui/money-input"
 
 const SIZE_QUICK_PICKS = ["XS", "S", "M", "L", "XL", "XXL"]
 
@@ -34,6 +36,10 @@ export function ItemEditor({ categories, onCreated }: Props) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
+  const [minimumSellPriceUgx, setMinimumSellPriceUgx] = useState<string>("0")
+  const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
+    null,
+  )
   const [sizes, setSizes] = useState<string[]>([])
   const [sizeDraft, setSizeDraft] = useState("")
   const [colors, setColors] = useState<ColorDraft[]>([])
@@ -102,6 +108,8 @@ export function ItemEditor({ categories, onCreated }: Props) {
           category: category.trim(),
           sizes,
           colors,
+          minimumSellPriceUgx: minimumSellPriceUgx || "0",
+          lowStockThreshold,
         },
       })
       onCreated(created.id, created.articleNumber)
@@ -153,6 +161,35 @@ export function ItemEditor({ categories, onCreated }: Props) {
           placeholder="Pick or type a category"
           searchPlaceholder="Search categories…"
           emptyMessage="Type to create a new category."
+        />
+      </div>
+      <div className="space-y-2">
+        <FieldLabel help="item.minSellPrice">
+          Minimum sell price (UGX)
+        </FieldLabel>
+        <MoneyInput
+          value={minimumSellPriceUgx}
+          onChange={(v) => setMinimumSellPriceUgx(v)}
+          currency="UGX"
+          decimals={2}
+        />
+      </div>
+      <div className="space-y-2">
+        <FieldLabel help="item.lowStockThreshold">
+          Low-stock threshold
+        </FieldLabel>
+        <Input
+          type="number"
+          min={0}
+          step={1}
+          placeholder="No alert"
+          value={lowStockThreshold ?? ""}
+          onChange={(e) => {
+            const v = e.target.value
+            setLowStockThreshold(
+              v === "" ? null : Math.max(0, Math.floor(Number(v))),
+            )
+          }}
         />
       </div>
       <div className="space-y-2">

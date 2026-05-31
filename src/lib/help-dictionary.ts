@@ -95,6 +95,16 @@ export const helpDict = {
       "The lowest UGX price the shop is allowed to charge for this item. Applies to every variant and any unresolved (no-color/size) stock of this item. Cashiers selling below this price must record a reason.",
     example: '12,500 UGX',
   },
+  'item.lowStockThreshold': {
+    description:
+      'When total on-hand for this item at a location drops below this number, a low-stock alert fires. Leave blank to disable alerts for this item.',
+    example: '5 units',
+  },
+  'item.variantsOptional': {
+    description:
+      "Colors and sizes are refinements. You can add them now, while receiving, or after items land in stock. Stock without variants is called 'unresolved'.",
+    example: 'Add later from this page or while receiving.',
+  },
 
   // ─── Expense form (inside a Supply Route) ────────────────────────────
   'expense.category': {
@@ -237,6 +247,11 @@ export const helpDict = {
   'col.qtyOnHand': {
     description:
       'Number of units currently available to sell at this location. Updates as items are received, transferred, or sold.',
+  },
+  'col.unresolved': {
+    description:
+      "Stock that hasn't been labelled with a specific color and size yet. Use the Specify button to break it into proper variants any time.",
+    example: '4 unresolved units of V-Neck',
   },
   'col.expected': {
     description:

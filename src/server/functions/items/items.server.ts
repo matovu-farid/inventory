@@ -38,6 +38,14 @@ export const upsertInput = z.object({
   // the (colors × sizes) cross product into the variants table.
   sizes: z.array(z.string().min(1).max(16)).default([]),
   colors: z.array(colorInput).default([]),
+  /**
+   * Variant-flexibility Plan 1, Task 4: item-level floor price and
+   * low-stock threshold. Both optional on input; the create handler
+   * defaults them to "0" and null respectively (matching the column
+   * defaults / nullability in items schema).
+   */
+  minimumSellPriceUgx: z.string().optional(),
+  lowStockThreshold: z.number().int().min(0).nullable().optional(),
 })
 
 export const updateInput = upsertInput
@@ -109,6 +117,8 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
       name: data.name,
       description: data.description,
       category: data.category,
+      minimumSellPriceUgx: data.minimumSellPriceUgx ?? "0",
+      lowStockThreshold: data.lowStockThreshold ?? null,
     })
     .returning()
 
@@ -135,7 +145,15 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
 }
 
 export async function updateItemQuery(data: z.infer<typeof updateInput>) {
-  const { id, category, sizes: _sizes, colors: _colors, ...fields } = data
+  const {
+    id,
+    category,
+    sizes: _sizes,
+    colors: _colors,
+    minimumSellPriceUgx,
+    lowStockThreshold,
+    ...fields
+  } = data
   void _sizes
   void _colors
   const patch = {
@@ -143,6 +161,9 @@ export async function updateItemQuery(data: z.infer<typeof updateInput>) {
     name: fields.name,
     description: fields.description,
     ...(category === undefined ? {} : { category }),
+    // Treat undefined as "no change"; null clears the threshold.
+    ...(minimumSellPriceUgx === undefined ? {} : { minimumSellPriceUgx }),
+    ...("lowStockThreshold" in data ? { lowStockThreshold } : {}),
   }
   const [row] = await db.update(items).set(patch).where(eq(items.id, id)).returning()
   return row
