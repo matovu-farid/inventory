@@ -67,7 +67,11 @@ export const countVariantStockLocations = createServerFn()
       entry.qty += qty
       entry.locations += locations
     }
-    for (const r of storeCounts) addTo(r.variantId, r.qty, r.locations)
+    // Unresolved (variant_id NULL) store stock isn't keyed by variant, so
+    // it doesn't contribute to a per-variant rollup. Skip those rows.
+    for (const r of storeCounts) {
+      if (r.variantId) addTo(r.variantId, r.qty, r.locations)
+    }
     for (const r of shopCounts) addTo(r.variantId, r.qty, r.locations)
     return variantIds.map((id) => {
       const entry = totals.get(id) ?? { qty: 0, locations: 0 }

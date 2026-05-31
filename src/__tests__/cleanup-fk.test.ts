@@ -128,11 +128,11 @@ async function seedParentRow(client: pg.Client): Promise<string> {
   const storeId = store.rows[0].id
 
   const ss = await client.query<{ id: string }>(
-    `INSERT INTO store_stock (store_id, variant_id, quantity_on_hand,
-                              cost_per_unit_ugx, minimum_sell_price_ugx)
-     VALUES ($1, $2, 10, 1000, 1500)
+    `INSERT INTO store_stock (store_id, item_id, variant_id, quantity_on_hand,
+                              cost_per_unit_ugx)
+     VALUES ($1, $2, $3, 10, 1000)
      RETURNING id`,
-    [storeId, variantId],
+    [storeId, itemId, variantId],
   )
   return ss.rows[0].id
 }

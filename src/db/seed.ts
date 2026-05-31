@@ -372,7 +372,7 @@ async function seed() {
       const sellFloor = (Number(s.costUgx) * 1.8).toFixed(2)
       const variantRow = (
         await db
-          .select({ id: variants.id })
+          .select({ id: variants.id, itemId: variants.itemId })
           .from(variants)
           .where(
             sql`${variants.colorId} = ${s.itemColorId}::uuid AND ${variants.size} = ${s.size}`,
@@ -383,17 +383,30 @@ async function seed() {
           `Seed: variant missing for (${s.itemColorId}, ${s.size}) — run pnpm backfill:variants`,
         )
       }
+      // Variant-flexibility Plan 1 moved minimum_sell_price from
+      // store_stock to items (item-wide floor). Push the seed's
+      // sell-floor up to the item before inserting stock; the same item
+      // may be touched multiple times — fine, the value is the same.
+      await db
+        .update(items)
+        .set({ minimumSellPriceUgx: sellFloor })
+        .where(eq(items.id, variantRow.itemId))
       const result = await db
         .insert(storeStock)
         .values({
           storeId: store.id,
+          itemId: variantRow.itemId,
           variantId: variantRow.id,
           quantityOnHand: s.qty,
           costPerUnitUgx: s.costUgx,
-          minimumSellPriceUgx: sellFloor,
         })
         .onConflictDoNothing({
-          target: [storeStock.storeId, storeStock.variantId],
+          target: [
+            storeStock.storeId,
+            storeStock.itemId,
+            storeStock.variantId,
+            storeStock.supplyRouteLineId,
+          ],
         })
         .returning()
       stockInserted += result.length

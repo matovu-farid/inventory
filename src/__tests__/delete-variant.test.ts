@@ -122,10 +122,10 @@ beforeAll(async () => {
 
   await db.insert(storeStock).values({
     storeId: existingStore.id,
+    itemId: item.id,
     variantId: vStock.id,
     quantityOnHand: 5,
     costPerUnitUgx: '100',
-    minimumSellPriceUgx: '150',
   })
 })
 

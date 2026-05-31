@@ -134,7 +134,12 @@ describe("addStoreOpeningBalance — variants", () => {
       with: { variant: true },
     })
     expect(rows).toHaveLength(2)
-    expect(rows.map((r) => r.variant.size).sort()).toEqual(["M", "S"])
+    // Every row was opened with a variant, so the join must resolve.
+    const sizes = rows
+      .map((r) => r.variant?.size)
+      .filter((s): s is string => s !== undefined)
+      .sort()
+    expect(sizes).toEqual(["M", "S"])
 
     await db
       .delete(storeStock)

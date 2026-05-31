@@ -23,8 +23,11 @@ export interface ReceivableTransfer {
     id: string
     quantityDispatched: number
     storeStockItem: {
-      // Stock now references variant_id (issue #4); the joined variant
-      // carries size + color (with parent item/product).
+      item: { name: string; articleNumber: string }
+      // store_stock.variant_id is nullable since variant-flexibility Plan 1.
+      // createTransfer rejects unresolved lots, so dispatched items always
+      // have a variant in practice — but the type system can't see that
+      // invariant. The display falls back to the item label when null.
       variant: {
         size: string
         color: {
@@ -32,7 +35,7 @@ export interface ReceivableTransfer {
           colorHex: string
           item: { name: string; articleNumber: string }
         }
-      }
+      } | null
     }
   }>
 }
@@ -145,25 +148,32 @@ export function ReceiveTransferForm({
             columns={[
               {
                 header: "Item",
-                cell: (item) => (
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {item.storeStockItem.variant.color.item.name}
-                    </span>
-                    <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-                      <span
-                        className="size-3 rounded-full border"
-                        style={{
-                          backgroundColor:
-                            item.storeStockItem.variant.color.colorHex,
-                        }}
-                        aria-hidden
-                      />
-                      {item.storeStockItem.variant.color.colorName} ·{" "}
-                      {item.storeStockItem.variant.size}
-                    </span>
-                  </div>
-                ),
+                cell: (item) => {
+                  const v = item.storeStockItem.variant
+                  return (
+                    <div className="flex flex-col">
+                      <span className="font-medium">
+                        {v
+                          ? v.color.item.name
+                          : item.storeStockItem.item.name}
+                      </span>
+                      {v ? (
+                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+                          <span
+                            className="size-3 rounded-full border"
+                            style={{ backgroundColor: v.color.colorHex }}
+                            aria-hidden
+                          />
+                          {v.color.colorName} · {v.size}
+                        </span>
+                      ) : (
+                        <span className="text-xs italic text-muted-foreground">
+                          unresolved
+                        </span>
+                      )}
+                    </div>
+                  )
+                },
               },
               {
                 header: "Dispatched",
@@ -204,14 +214,14 @@ export function ReceiveTransferForm({
               {discrepantItems.map((item) => {
                 const received = receivedQtys[item.id] ?? item.quantityDispatched
                 const missing = item.quantityDispatched - received
+                const v = item.storeStockItem.variant
+                const label = v
+                  ? `${v.color.item.name} · ${v.color.colorName} · ${v.size}`
+                  : `${item.storeStockItem.item.name} (unresolved)`
                 return (
                   <div key={item.id} className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        {item.storeStockItem.variant.color.item.name} ·{" "}
-                        {item.storeStockItem.variant.color.colorName} ·{" "}
-                        {item.storeStockItem.variant.size}
-                      </span>
+                      <span className="text-sm font-medium">{label}</span>
                       <Badge variant="destructive">{missing} missing</Badge>
                     </div>
                     <Textarea

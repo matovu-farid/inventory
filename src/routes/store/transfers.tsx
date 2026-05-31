@@ -65,6 +65,34 @@ function TransfersPage() {
 
   const dispatchedTransfers = transfers.filter((t) => t.status === "dispatched")
 
+  // getStoreStock returns a per-item grouping; the transfer picker wants
+  // flat per-lot rows. Unresolved lots (variant_id NULL) can't be
+  // transferred — shop_stock still requires a variant_id — so we filter
+  // them out at this boundary.
+  const transferableStock = stock.flatMap((g) =>
+    g.rows
+      .filter((r): r is typeof r & { variant: NonNullable<typeof r.variant> } =>
+        r.variant !== null,
+      )
+      .map((r) => ({
+        id: r.id,
+        quantityOnHand: r.quantityOnHand,
+        costPerUnitUgx: r.costPerUnitUgx,
+        minimumSellPriceUgx: g.item.minimumSellPriceUgx,
+        variant: {
+          size: r.variant.size,
+          color: {
+            colorName: r.variant.color.colorName,
+            colorHex: r.variant.color.colorHex,
+            item: {
+              name: g.item.name,
+              articleNumber: g.item.articleNumber,
+            },
+          },
+        },
+      })),
+  )
+
   return (
     <div className="space-y-6">
       <div>
@@ -110,7 +138,7 @@ function TransfersPage() {
                 <DialogTitle>Create Transfer</DialogTitle>
               </DialogHeader>
               <CreateTransferForm
-                stock={stock}
+                stock={transferableStock}
                 shops={shops}
                 onSuccess={(shopId) => {
                   setCreateOpen(false)

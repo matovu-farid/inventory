@@ -67,14 +67,21 @@ export const startStockTake = createServerFn()
       if (data.locationType === "store") {
         const items = await tx.query.storeStock.findMany({
           where: eq(storeStock.storeId, data.locationId),
-          with: { variant: { with: { color: { with: { item: true } } } } },
+          with: {
+            item: true,
+            variant: { with: { color: { with: { item: true } } } },
+          },
         })
         for (const item of items) {
-          const itemLabel = formatItemLabel(
-            item.variant.color.item.articleNumber,
-            item.variant.color.colorName,
-            item.variant.size,
-          )
+          // Unresolved (variant_id NULL) store stock still gets counted —
+          // it just shows up as the bare item label without color/size.
+          const itemLabel = item.variant
+            ? formatItemLabel(
+                item.variant.color.item.articleNumber,
+                item.variant.color.colorName,
+                item.variant.size,
+              )
+            : `${item.item.articleNumber} — ${item.item.name} (unresolved)`
           await tx.insert(stockTakeLines).values({
             stockTakeId: st.id,
             storeStockId: item.id,

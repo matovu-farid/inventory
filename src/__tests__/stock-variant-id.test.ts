@@ -210,10 +210,10 @@ describe('store_stock — variant_id swap', () => {
       .insert(storeStock)
       .values({
         storeId: fx.storeId,
+        itemId: fx.itemId,
         variantId: fx.variantId,
         quantityOnHand: 12,
         costPerUnitUgx: '500.00',
-        minimumSellPriceUgx: '900.00',
       })
       .returning()
     expect(stock.variantId).toBe(fx.variantId)
@@ -222,41 +222,45 @@ describe('store_stock — variant_id swap', () => {
       where: eq(storeStock.id, stock.id),
       with: { variant: { with: { color: true } } },
     })
-    expect(fetched?.variant.id).toBe(fx.variantId)
-    expect(fetched?.variant.color.id).toBe(fx.colorId)
-    expect(fetched?.variant.size).toBe('S')
+    expect(fetched?.variant?.id).toBe(fx.variantId)
+    expect(fetched?.variant?.color.id).toBe(fx.colorId)
+    expect(fetched?.variant?.size).toBe('S')
   })
 
-  it('unique(store_id, variant_id) rejects a duplicate insert', async () => {
+  it('unique(store_id, item_id, variant_id, supply_route_line_id) rejects a duplicate insert', async () => {
     const fx = await seedVariantFixture('store-uq')
     await db.insert(storeStock).values({
       storeId: fx.storeId,
+      itemId: fx.itemId,
       variantId: fx.variantId,
       quantityOnHand: 1,
       costPerUnitUgx: '1.00',
-      minimumSellPriceUgx: '1.00',
     })
     const code = await pgErrorCode(
       db.insert(storeStock).values({
         storeId: fx.storeId,
+        itemId: fx.itemId,
         variantId: fx.variantId,
         quantityOnHand: 2,
         costPerUnitUgx: '1.00',
-        minimumSellPriceUgx: '1.00',
       }),
     )
     expect(code).toBe(PG_UNIQUE_VIOLATION)
   })
 
-  it('variant_id is NOT NULL', async () => {
-    const fx = await seedVariantFixture('store-nn')
-    const code = await pgErrorCode(
-      db.execute(sql`
-        INSERT INTO store_stock
-          (store_id, variant_id, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
-        VALUES (${fx.storeId}::uuid, NULL, 0, '1', '1')
-      `),
-    )
-    expect(code).toBe(PG_NOT_NULL_VIOLATION)
+  it('variant_id is NULLABLE — unresolved stock lands as variant_id NULL with item_id set', async () => {
+    const fx = await seedVariantFixture('store-nullable')
+    const [row] = await db
+      .insert(storeStock)
+      .values({
+        storeId: fx.storeId,
+        itemId: fx.itemId,
+        variantId: null,
+        quantityOnHand: 4,
+        costPerUnitUgx: '1.00',
+      })
+      .returning()
+    expect(row.variantId).toBeNull()
+    expect(row.itemId).toBe(fx.itemId)
   })
 })

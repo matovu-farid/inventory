@@ -189,10 +189,10 @@ describe('computeShopBaseline', () => {
       .insert(storeStock)
       .values({
         storeId: ctx.store.id,
+        itemId: ctx.item.id,
         variantId: ctx.variant.id,
         quantityOnHand: 1000,
         costPerUnitUgx: '1000',
-        minimumSellPriceUgx: '1500',
       })
       .returning()
 

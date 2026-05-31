@@ -35,7 +35,10 @@ export const listTransfers = createServerFn().handler(async () => {
       items: {
         with: {
           storeStockItem: {
-            with: { variant: { with: { color: { with: { item: true } } } } },
+            with: {
+              item: true,
+              variant: { with: { color: { with: { item: true } } } },
+            },
           },
         },
       },
@@ -99,9 +102,20 @@ export const createTransfer = createServerFn()
         // Validate stock
         const stock = await tx.query.storeStock.findFirst({
           where: eq(storeStock.id, item.storeStockId),
-          with: { variant: { with: { color: { with: { item: true } } } } },
+          with: {
+            item: true,
+            variant: { with: { color: { with: { item: true } } } },
+          },
         })
         if (!stock) throw new Error(`Store stock not found: ${item.storeStockId}`)
+        // Unresolved store stock cannot be transferred yet — shop_stock still
+        // requires a variant_id (Plan 2 of variant-flexibility widens it).
+        // Force the operator to Specify the lot before transferring.
+        if (!stock.variant) {
+          throw new Error(
+            `Stock for ${stock.item.articleNumber} is unresolved (no color/size yet). Specify the variant on the store stock page before transferring.`,
+          )
+        }
         const itemLabel = formatItemLabel(
           stock.variant.color.item.articleNumber,
           stock.variant.color.colorName,
@@ -111,7 +125,7 @@ export const createTransfer = createServerFn()
           throw new Error(`Insufficient stock for ${itemLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`)
         }
 
-        const unitPrice = new BigNumber(stock.minimumSellPriceUgx)
+        const unitPrice = new BigNumber(stock.item.minimumSellPriceUgx)
         const totalPrice = unitPrice.times(item.quantityDispatched)
         const itemCost = new BigNumber(stock.costPerUnitUgx).times(item.quantityDispatched)
 
@@ -248,7 +262,10 @@ export const confirmTransferReceipt = createServerFn()
           items: {
             with: {
               storeStockItem: {
-                with: { variant: { with: { color: { with: { item: true } } } } },
+                with: {
+                  item: true,
+                  variant: { with: { color: { with: { item: true } } } },
+                },
               },
             },
           },
@@ -271,10 +288,19 @@ export const confirmTransferReceipt = createServerFn()
           throw new Error("This transfer item has already been received. Use a return flow to adjust.")
         }
 
+        // createTransfer rejects unresolved lots, so every dispatched item
+        // has a variant. Guard explicitly to satisfy the type narrowing.
+        const { variant, variantId } = ti.storeStockItem
+        if (!variant || !variantId) {
+          throw new Error(
+            `Transfer item ${ti.id} references unresolved stock — this should be impossible. Refusing to receive.`,
+          )
+        }
+
         const itemLabel = formatItemLabel(
-          ti.storeStockItem.variant.color.item.articleNumber,
-          ti.storeStockItem.variant.color.colorName,
-          ti.storeStockItem.variant.size,
+          variant.color.item.articleNumber,
+          variant.color.colorName,
+          variant.size,
         )
 
         validateQuantityReceived(receiptItem.quantityReceived)
@@ -299,7 +325,7 @@ export const confirmTransferReceipt = createServerFn()
             .insert(shopStock)
             .values({
               shopId: transfer.shopId,
-              variantId: ti.storeStockItem.variantId,
+              variantId,
               storeTransferItemId: ti.id,
               quantityOnHand: receiptItem.quantityReceived,
               costPerUnitUgx: ti.unitPriceUgx,
