@@ -451,7 +451,15 @@ export const receiveGoods = createServerFn()
   })
 
 /**
- * Get current store stock with quantities and values.
+ * Get current store stock grouped by item. Each group carries the parent
+ * item (with its colors so the SpecifyStockDialog can offer them), the
+ * total quantity across all rows for that item, and the underlying stock
+ * rows so the UI can show a variant breakdown plus any unresolved lots.
+ *
+ * After the variant-flexibility change (#2026-05-31) `variant_id` is
+ * nullable: a row with `variant: null` is "unresolved" — received against
+ * an aggregate (item-only) supply line and not yet split into specific
+ * (color, size) lines via `specifyStock`.
  */
 export const getStoreStock = createServerFn().handler(async () => {
   const session = await requireSession()
@@ -460,9 +468,38 @@ export const getStoreStock = createServerFn().handler(async () => {
   const store = await db.query.stores.findFirst()
   if (!store) return []
 
-  return db.query.storeStock.findMany({
+  const rows = await db.query.storeStock.findMany({
     where: eq(storeStock.storeId, store.id),
-    with: { variant: { with: { color: { with: { item: true } } } } },
+    with: {
+      item: { with: { colors: true } },
+      variant: { with: { color: true } },
+      supplyRouteLine: true,
+    },
   })
+
+  type Row = (typeof rows)[number]
+  const byItem = new Map<
+    string,
+    {
+      item: Row["item"]
+      totalQty: number
+      rows: Row[]
+    }
+  >()
+  for (const r of rows) {
+    const key = r.itemId
+    const bucket = byItem.get(key) ?? {
+      item: r.item,
+      totalQty: 0,
+      rows: [] as Row[],
+    }
+    bucket.totalQty += r.quantityOnHand
+    bucket.rows.push(r)
+    byItem.set(key, bucket)
+  }
+
+  return Array.from(byItem.values()).sort((a, b) =>
+    a.item.articleNumber.localeCompare(b.item.articleNumber),
+  )
 })
 
