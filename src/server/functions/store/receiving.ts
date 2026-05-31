@@ -262,6 +262,13 @@ export const receiveGoods = createServerFn()
           .dp(2, BigNumber.ROUND_HALF_UP)
 
         if (item.quantityReceived > 0) {
+          // NOTE: this insert is still missing `itemId` and uses the old
+          // conflict target. The full rewrite (item_id NOT NULL, nullable
+          // variant, new conflict target on (store, item, variant, line))
+          // lands in Task 7 along with the unresolved-receive path. Plan 1
+          // Task 3 only removes the dropped `minimumSellPriceUgx` write
+          // that would have crashed at runtime — TypeScript still flags
+          // this block until Task 7 completes the migration.
           await tx
             .insert(storeStock)
             .values({
@@ -270,7 +277,6 @@ export const receiveGoods = createServerFn()
               supplyRouteLineId: sri.id,
               quantityOnHand: item.quantityReceived,
               costPerUnitUgx: costPerUnit.toFixed(2),
-              minimumSellPriceUgx: costPerUnit.toFixed(2), // default; admin sets real price later
             })
             .onConflictDoUpdate({
               target: [storeStock.storeId, storeStock.variantId],

@@ -90,6 +90,11 @@ export const helpDict = {
       'How many UGX equal 1 USD on the day you paid. Used to convert costs into UGX so you can price for the local market.',
     example: '3,750 UGX = 1 USD',
   },
+  'item.minSellPrice': {
+    description:
+      "The lowest UGX price the shop is allowed to charge for this item. Applies to every variant and any unresolved (no-color/size) stock of this item. Cashiers selling below this price must record a reason.",
+    example: '12,500 UGX',
+  },
 
   // ─── Expense form (inside a Supply Route) ────────────────────────────
   'expense.category': {

@@ -24,22 +24,22 @@ export const listItemStockPrices = createServerFn()
     })
     if (!item) return { item: null, store: [], shop: [] }
 
+    // Store stock is now anchored on item_id directly (Task 2) — query
+    // there straight away so unresolved (variant_id NULL) lots are
+    // included. Shop stock still keys on variant_id until Plan 2.
     const colors = await db.query.itemColors.findMany({
       where: eq(itemColors.itemId, data.itemId),
       columns: { id: true },
     })
     const colorIds = colors.map((c) => c.id)
-    if (colorIds.length === 0) return { item, store: [], shop: [] }
-
-    // Stock now references variant_id (issue #4). Resolve every variant
-    // that belongs to one of the product's colors and look stock up by
-    // variant_id.
-    const variantRows = await db.query.variants.findMany({
-      where: inArray(variants.colorId, colorIds),
-      columns: { id: true },
-    })
+    const variantRows =
+      colorIds.length === 0
+        ? []
+        : await db.query.variants.findMany({
+            where: inArray(variants.colorId, colorIds),
+            columns: { id: true },
+          })
     const variantIds = variantRows.map((v) => v.id)
-    if (variantIds.length === 0) return { item, store: [], shop: [] }
 
     const [store, shop] = await Promise.all([
       // Store rows no longer carry their own minimum sell price (it lives
@@ -47,7 +47,7 @@ export const listItemStockPrices = createServerFn()
       // The route consumer reads `item.minimumSellPriceUgx` for the store
       // floor and uses these rows only for qty/location display.
       db.query.storeStock.findMany({
-        where: inArray(storeStock.variantId, variantIds),
+        where: eq(storeStock.itemId, data.itemId),
         with: {
           store: { columns: { name: true } },
           variant: {
@@ -57,17 +57,19 @@ export const listItemStockPrices = createServerFn()
           },
         },
       }),
-      db.query.shopStock.findMany({
-        where: inArray(shopStock.variantId, variantIds),
-        with: {
-          shop: { columns: { name: true } },
-          variant: {
+      variantIds.length === 0
+        ? Promise.resolve([])
+        : db.query.shopStock.findMany({
+            where: inArray(shopStock.variantId, variantIds),
             with: {
-              color: { columns: { colorName: true, colorHex: true } },
+              shop: { columns: { name: true } },
+              variant: {
+                with: {
+                  color: { columns: { colorName: true, colorHex: true } },
+                },
+              },
             },
-          },
-        },
-      }),
+          }),
     ])
     return { item, store, shop }
   })
