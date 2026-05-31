@@ -1,10 +1,12 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Textarea } from "#/components/ui/textarea"
 import { Badge } from "#/components/ui/badge"
 import { X } from "lucide-react"
 import { createItem } from "#/server/functions/items/items"
+import { matchPaletteHex } from "#/lib/colors/match-palette"
+import { CLOTHING_PALETTE } from "#/lib/colors/palette"
 import { HexColorField } from "./hex-color-field"
 
 const SIZE_QUICK_PICKS = ["XS", "S", "M", "L", "XL", "XXL"]
@@ -33,7 +35,31 @@ export function ItemEditor({ onCreated }: Props) {
   const [colors, setColors] = useState<ColorDraft[]>([])
   const [colorNameDraft, setColorNameDraft] = useState("")
   const [colorHexDraft, setColorHexDraft] = useState("#000000")
+  const lastSuggestedName = useRef<string>("")
   const [submitting, setSubmitting] = useState(false)
+
+  function handleHexChange(hex: string) {
+    setColorHexDraft(hex)
+    const suggested = matchPaletteHex(hex).name
+    const current = colorNameDraft.trim()
+    if (current === "" || current === lastSuggestedName.current) {
+      setColorNameDraft(suggested)
+      lastSuggestedName.current = suggested
+    } else {
+      lastSuggestedName.current = suggested
+    }
+  }
+
+  function handleNameChange(name: string) {
+    setColorNameDraft(name)
+    const tile = CLOTHING_PALETTE.find(
+      (t) => t.name.toLowerCase() === name.trim().toLowerCase(),
+    )
+    if (tile) {
+      setColorHexDraft(tile.hex)
+      lastSuggestedName.current = tile.name
+    }
+  }
 
   function addSizes(raw: string) {
     const parts = raw
@@ -192,12 +218,18 @@ export function ItemEditor({ onCreated }: Props) {
           <Input
             className="h-10 text-sm"
             value={colorNameDraft}
-            onChange={(e) => setColorNameDraft(e.target.value)}
+            onChange={(e) => handleNameChange(e.target.value)}
             placeholder="Color name (e.g. Burgundy)"
+            list="clothing-palette-names"
           />
+          <datalist id="clothing-palette-names">
+            {CLOTHING_PALETTE.map((t) => (
+              <option key={t.name} value={t.name} />
+            ))}
+          </datalist>
           <HexColorField
             value={colorHexDraft}
-            onChange={setColorHexDraft}
+            onChange={handleHexChange}
             ariaLabel="Pick color"
           />
           <Button
