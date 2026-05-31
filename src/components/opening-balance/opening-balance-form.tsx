@@ -101,12 +101,18 @@ interface OpeningBalanceFormProps {
   shops?: OpeningBalanceShop[]
   /** Optional initial shop selection (used when arriving from Shop page with ?shopId=…). */
   initialShopId?: string
+  /**
+   * Existing item categories used to autocomplete the category field when
+   * the user creates a brand-new item from inside this form.
+   */
+  categories?: ReadonlyArray<string>
 }
 
 export function OpeningBalanceForm({
   scope,
   shops = [],
   initialShopId,
+  categories = [],
 }: OpeningBalanceFormProps) {
   const router = useRouter()
   const [blocks, setBlocks] = useState<DraftBlock[]>([newBlock()])
@@ -380,7 +386,7 @@ export function OpeningBalanceForm({
                       <DialogTitle>New item</DialogTitle>
                     </DialogHeader>
                     <ItemEditor
-                      categories={[]}
+                      categories={categories}
                       onCreated={(_id, articleNumber) => {
                         updateBlock(b.id, { itemEditorOpen: false })
                         void refreshBlockItem(b.id, articleNumber)

@@ -55,7 +55,7 @@ import type {ItemSummary} from "#/components/items/item-picker";
 import { ItemEditor } from "#/components/items/item-editor"
 import { ColorEditor } from "#/components/items/color-editor"
 import { VariantGrid } from "#/components/items/variant-grid"
-import { getItemByArticle } from "#/server/functions/items/items"
+import { getItemByArticle, listItemCategories } from "#/server/functions/items/items"
 import { deleteItemColor } from "#/server/functions/items/colors"
 import {
   addSupplyRouteExpense,
@@ -69,12 +69,13 @@ export const Route = createFileRoute("/supply/$routeId")({
   beforeLoad: ({ context }) =>
     requireUiPermission(context, "procurement.view"),
   loader: async ({ params }) => {
-    const [route, suppliers, prerequisites] = await Promise.all([
+    const [route, suppliers, prerequisites, categories] = await Promise.all([
       getSupplyRoute({ data: { id: params.routeId } }),
       listSuppliersForSelect(),
       getSupplyRouteDetailPrereqs(),
+      listItemCategories(),
     ])
-    return { route, suppliers, prerequisites }
+    return { route, suppliers, prerequisites, categories }
   },
   component: RouteDetailPage,
 })
@@ -111,7 +112,7 @@ function expenseAmountUgx(exp: {
 }
 
 function RouteDetailPage() {
-  const { route, suppliers, prerequisites } = Route.useLoaderData()
+  const { route, suppliers, prerequisites, categories } = Route.useLoaderData()
   const router = useRouter()
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
@@ -292,6 +293,7 @@ function RouteDetailPage() {
                   }
                   rateUgxPerUsd={route.rateUgxPerUsd}
                   rateRmbPerUsd={route.rateRmbPerUsd}
+                  categories={categories}
                   onSuccess={() => {
                     setItemDialogOpen(false)
                     void router.invalidate()
@@ -911,12 +913,14 @@ function AddItemForm({
   suppliers,
   rateUgxPerUsd,
   rateRmbPerUsd,
+  categories,
   onSuccess,
 }: {
   supplyRouteId: string
   suppliers: Array<{ id: string; name: string }>
   rateUgxPerUsd?: string | null
   rateRmbPerUsd?: string | null
+  categories: ReadonlyArray<string>
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
@@ -1266,7 +1270,7 @@ function AddItemForm({
             <DialogTitle>New item</DialogTitle>
           </DialogHeader>
           <ItemEditor
-            categories={[]}
+            categories={categories}
             onCreated={(_id, articleNumber) => {
               setProductEditorOpen(false)
               void refreshProduct(articleNumber)
