@@ -53,6 +53,7 @@ const RESOLVERS: Partial<Record<string, Resolver>> = {
   "storeReturn.receive": resolveByStoreReturnId,
   "stockTake.reconcile": resolveByStockTakeId,
   "stockTake.start": resolveByStockTakeId,
+  "stock.specify": resolveBySpecifyStock,
 }
 
 // Stock tables now address inventory via `variant_id` (issue #4), so we
@@ -104,6 +105,30 @@ async function resolveByStoreReturnId(tx: Tx, { entityId }: ResolverInput): Prom
     .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
     .where(eq(storeReturnLines.storeReturnId, entityId))
+  return rows.map((r) => r.articleNumber)
+}
+
+// `stock.specify` deletes the source store_stock row when fully resolved,
+// so `entityId` may not point at a live row. Prefer the itemId carried in
+// metadata, with a fallback to the storeStock → items join for the
+// partial-specify case where the source row is still around.
+async function resolveBySpecifyStock(
+  tx: Tx,
+  { entityId, metadata }: ResolverInput,
+): Promise<string[]> {
+  const meta = metadata as { itemId?: string } | null | undefined
+  if (meta?.itemId) {
+    const rows = await tx
+      .select({ articleNumber: items.articleNumber })
+      .from(items)
+      .where(eq(items.id, meta.itemId))
+    return rows.map((r) => r.articleNumber)
+  }
+  const rows = await tx
+    .select({ articleNumber: items.articleNumber })
+    .from(storeStock)
+    .innerJoin(items, eq(items.id, storeStock.itemId))
+    .where(eq(storeStock.id, entityId))
   return rows.map((r) => r.articleNumber)
 }
 
