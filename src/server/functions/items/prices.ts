@@ -2,7 +2,13 @@ import { createServerFn } from "@tanstack/react-start"
 import { eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "#/db"
-import { storeStock, shopStock, itemColors, variants } from "#/db/schema"
+import {
+  items,
+  storeStock,
+  shopStock,
+  itemColors,
+  variants,
+} from "#/db/schema"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
@@ -12,12 +18,18 @@ export const listItemStockPrices = createServerFn()
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
 
+    const item = await db.query.items.findFirst({
+      where: eq(items.id, data.itemId),
+      columns: { id: true, minimumSellPriceUgx: true },
+    })
+    if (!item) return { item: null, store: [], shop: [] }
+
     const colors = await db.query.itemColors.findMany({
       where: eq(itemColors.itemId, data.itemId),
       columns: { id: true },
     })
     const colorIds = colors.map((c) => c.id)
-    if (colorIds.length === 0) return { store: [], shop: [] }
+    if (colorIds.length === 0) return { item, store: [], shop: [] }
 
     // Stock now references variant_id (issue #4). Resolve every variant
     // that belongs to one of the product's colors and look stock up by
@@ -27,9 +39,13 @@ export const listItemStockPrices = createServerFn()
       columns: { id: true },
     })
     const variantIds = variantRows.map((v) => v.id)
-    if (variantIds.length === 0) return { store: [], shop: [] }
+    if (variantIds.length === 0) return { item, store: [], shop: [] }
 
     const [store, shop] = await Promise.all([
+      // Store rows no longer carry their own minimum sell price (it lives
+      // on `items.minimumSellPriceUgx` after variant-flexibility Task 2).
+      // The route consumer reads `item.minimumSellPriceUgx` for the store
+      // floor and uses these rows only for qty/location display.
       db.query.storeStock.findMany({
         where: inArray(storeStock.variantId, variantIds),
         with: {
@@ -53,42 +69,66 @@ export const listItemStockPrices = createServerFn()
         },
       }),
     ])
-    return { store, shop }
+    return { item, store, shop }
   })
 
-const setPriceInput = z.object({
-  stockType: z.enum(["store", "shop"]),
-  stockId: z.uuid(),
-  minimumSellPriceUgx: z
-    .string()
-    .refine((v) => /^\d+(\.\d{1,2})?$/.test(v) && Number(v) >= 0, {
-      message: "Enter a non-negative amount",
-    }),
+const priceAmount = z
+  .string()
+  .refine((v) => /^\d+(\.\d{1,2})?$/.test(v) && Number(v) >= 0, {
+    message: "Enter a non-negative amount",
+  })
+
+/**
+ * Item-level minimum sell price.
+ *
+ * Replaced the old per-`storeStock`-row `setMinimumSellPrice` after
+ * variant-flexibility Task 2 dropped `store_stock.minimum_sell_price_ugx`
+ * and moved the floor up to `items.minimum_sell_price_ugx` — the price
+ * is an item-wide rule now, not a per-lot setting.
+ */
+const setItemMinPriceInput = z.object({
+  itemId: z.uuid(),
+  minimumSellPriceUgx: priceAmount,
 })
 
-export const setStockMinimumPrice = createServerFn()
-  .inputValidator(setPriceInput)
+export const setItemMinimumSellPrice = createServerFn()
+  .inputValidator(setItemMinPriceInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin"])
 
-    if (data.stockType === "store") {
-      const updated = (
-        await db
-          .update(storeStock)
-          .set({ minimumSellPriceUgx: data.minimumSellPriceUgx })
-          .where(eq(storeStock.id, data.stockId))
-          .returning()
-      ).at(0)
-      if (!updated) throw new Error("Store stock row not found")
-      return updated
-    }
+    const updated = (
+      await db
+        .update(items)
+        .set({ minimumSellPriceUgx: data.minimumSellPriceUgx })
+        .where(eq(items.id, data.itemId))
+        .returning()
+    ).at(0)
+    if (!updated) throw new Error("Item not found")
+    return updated
+  })
+
+/**
+ * Shop stock retains per-row minimum sell pricing (each shop sets its own
+ * floor for its physical lot). Store stock is item-level — use
+ * `setItemMinimumSellPrice` for that.
+ */
+const setShopStockMinPriceInput = z.object({
+  shopStockId: z.uuid(),
+  minimumSellPriceUgx: priceAmount,
+})
+
+export const setShopStockMinimumPrice = createServerFn()
+  .inputValidator(setShopStockMinPriceInput)
+  .handler(async ({ data }) => {
+    const session = await requireSession()
+    requireRole(session, ["admin"])
 
     const updated = (
       await db
         .update(shopStock)
         .set({ minimumSellPriceUgx: data.minimumSellPriceUgx })
-        .where(eq(shopStock.id, data.stockId))
+        .where(eq(shopStock.id, data.shopStockId))
         .returning()
     ).at(0)
     if (!updated) throw new Error("Shop stock row not found")

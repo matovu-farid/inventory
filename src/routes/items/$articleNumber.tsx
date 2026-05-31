@@ -8,7 +8,8 @@ import {
 } from "#/server/functions/items/items"
 import {
   listItemStockPrices,
-  setStockMinimumPrice,
+  setItemMinimumSellPrice,
+  setShopStockMinimumPrice,
 } from "#/server/functions/items/prices"
 import { countVariantStockLocations } from "#/server/functions/items/variant-stock-counts"
 import {
@@ -212,18 +213,20 @@ function ProductDetailPage() {
 }
 
 type StockPrices = {
-  // Stock now references variant_id (issue #4); color + size live on the
-  // joined variant. The shape here mirrors the `listItemStockPrices`
-  // server-fn return type.
+  // Store min sell price moved to `items.minimumSellPriceUgx` in
+  // variant-flexibility Task 2 — it's item-wide, not per-row. Shop stock
+  // still has per-lot pricing. Stock rows joined to a variant may have a
+  // null variant after the same task made `store_stock.variant_id`
+  // nullable for unresolved lots.
+  item: { id: string; minimumSellPriceUgx: string } | null
   store: Array<{
     id: string
     quantityOnHand: number
-    minimumSellPriceUgx: string
     store: { name: string }
     variant: {
       size: string
       color: { colorName: string; colorHex: string }
-    }
+    } | null
   }>
   shop: Array<{
     id: string
@@ -238,14 +241,19 @@ type StockPrices = {
 }
 
 function PriceSummary({ prices }: { prices: StockPrices }) {
+  const itemFloor = prices.item?.minimumSellPriceUgx ?? "0"
   const rows = [
+    // Store rows now inherit their min sell price from the item itself —
+    // each row shows the item-wide floor in the "Min sell" column. Rows
+    // whose variant is unresolved (variant_id NULL after Task 2) show "—"
+    // for color/size; they're still counted in qty.
     ...prices.store.map((s) => ({
       key: `store-${s.id}`,
       location: `Store · ${s.store.name}`,
-      color: s.variant.color,
-      size: s.variant.size,
+      color: s.variant?.color ?? null,
+      size: s.variant?.size ?? null,
       qty: s.quantityOnHand,
-      price: s.minimumSellPriceUgx,
+      price: itemFloor,
     })),
     ...prices.shop.map((s) => ({
       key: `shop-${s.id}`,
@@ -279,14 +287,20 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
             <tr key={r.key} className="border-t">
               <td className="p-2">{r.location}</td>
               <td className="p-2">
-                <span className="inline-flex items-center gap-1.5">
-                  <span
-                    className="inline-block size-3 rounded-full border"
-                    style={{ backgroundColor: r.color.colorHex }}
-                    aria-hidden
-                  />
-                  {r.color.colorName} · {r.size}
-                </span>
+                {r.color && r.size ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="inline-block size-3 rounded-full border"
+                      style={{ backgroundColor: r.color.colorHex }}
+                      aria-hidden
+                    />
+                    {r.color.colorName} · {r.size}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    unresolved
+                  </span>
+                )}
               </td>
               <td className="p-2 text-right tabular-nums">{r.qty}</td>
               <td className="p-2 text-right font-mono">{r.price}</td>
@@ -305,9 +319,23 @@ function PriceEditor({
   prices: StockPrices
   onSaved: () => void
 }) {
-  type DraftRow = {
+  // After variant-flexibility Task 2 there are two kinds of editable rows:
+  //   - one item-level floor (writes `items.minimumSellPriceUgx` via
+  //     `setItemMinimumSellPrice`) — applies to every store lot.
+  //   - one per shop_stock row (writes `shop_stock.minimum_sell_price_ugx`
+  //     via `setShopStockMinimumPrice`) — still per-lot for shops.
+  type ItemDraft = {
+    key: "item"
+    kind: "item"
+    itemId: string
+    location: string
+    original: string
+    value: string
+    qty: number
+  }
+  type ShopDraft = {
     key: string
-    stockType: "store" | "shop"
+    kind: "shop"
     stockId: string
     location: string
     color: { colorName: string; colorHex: string }
@@ -316,30 +344,40 @@ function PriceEditor({
     original: string
     value: string
   }
-  const [rows, setRows] = useState<DraftRow[]>(() => [
-    ...prices.store.map((s) => ({
-      key: `store-${s.id}`,
-      stockType: "store" as const,
-      stockId: s.id,
-      location: `Store · ${s.store.name}`,
-      color: s.variant.color,
-      size: s.variant.size,
-      qty: s.quantityOnHand,
-      original: s.minimumSellPriceUgx,
-      value: s.minimumSellPriceUgx,
-    })),
-    ...prices.shop.map((s) => ({
-      key: `shop-${s.id}`,
-      stockType: "shop" as const,
-      stockId: s.id,
-      location: `Shop · ${s.shop.name}`,
-      color: s.variant.color,
-      size: s.variant.size,
-      qty: s.quantityOnHand,
-      original: s.minimumSellPriceUgx,
-      value: s.minimumSellPriceUgx,
-    })),
-  ])
+  type DraftRow = ItemDraft | ShopDraft
+
+  const storeQty = prices.store.reduce((sum, s) => sum + s.quantityOnHand, 0)
+  const itemFloor = prices.item?.minimumSellPriceUgx ?? "0"
+  const itemId = prices.item?.id
+
+  const [rows, setRows] = useState<DraftRow[]>(() => {
+    const draft: DraftRow[] = []
+    if (itemId) {
+      draft.push({
+        key: "item",
+        kind: "item",
+        itemId,
+        location: "Store · item-wide floor",
+        original: itemFloor,
+        value: itemFloor,
+        qty: storeQty,
+      })
+    }
+    for (const s of prices.shop) {
+      draft.push({
+        key: `shop-${s.id}`,
+        kind: "shop",
+        stockId: s.id,
+        location: `Shop · ${s.shop.name}`,
+        color: s.variant.color,
+        size: s.variant.size,
+        qty: s.quantityOnHand,
+        original: s.minimumSellPriceUgx,
+        value: s.minimumSellPriceUgx,
+      })
+    }
+    return draft
+  })
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -359,13 +397,15 @@ function PriceEditor({
     setError(null)
     try {
       for (const r of dirty) {
-        await setStockMinimumPrice({
-          data: {
-            stockType: r.stockType,
-            stockId: r.stockId,
-            minimumSellPriceUgx: r.value,
-          },
-        })
+        if (r.kind === "item") {
+          await setItemMinimumSellPrice({
+            data: { itemId: r.itemId, minimumSellPriceUgx: r.value },
+          })
+        } else {
+          await setShopStockMinimumPrice({
+            data: { shopStockId: r.stockId, minimumSellPriceUgx: r.value },
+          })
+        }
       }
       onSaved()
     } catch (err) {
@@ -392,14 +432,20 @@ function PriceEditor({
               <tr key={r.key} className="border-t align-top">
                 <td className="p-2">{r.location}</td>
                 <td className="p-2">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className="inline-block size-3 rounded-full border"
-                      style={{ backgroundColor: r.color.colorHex }}
-                      aria-hidden
-                    />
-                    {r.color.colorName} · {r.size}
-                  </span>
+                  {r.kind === "shop" ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className="inline-block size-3 rounded-full border"
+                        style={{ backgroundColor: r.color.colorHex }}
+                        aria-hidden
+                      />
+                      {r.color.colorName} · {r.size}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      all colors · all sizes
+                    </span>
+                  )}
                 </td>
                 <td className="p-2 text-right tabular-nums">{r.qty}</td>
                 <td className="p-2 w-44">

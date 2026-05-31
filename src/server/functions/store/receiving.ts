@@ -406,23 +406,3 @@ export const getStoreStock = createServerFn().handler(async () => {
   })
 })
 
-const setMinPriceInput = z.object({
-  storeStockId: z.uuid(),
-  minimumSellPriceUgx: z.string(),
-})
-
-export const setMinimumSellPrice = createServerFn()
-  .inputValidator(setMinPriceInput)
-  .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
-
-    const updated = (await db
-      .update(storeStock)
-      .set({ minimumSellPriceUgx: data.minimumSellPriceUgx })
-      .where(eq(storeStock.id, data.storeStockId))
-      .returning()).at(0)
-
-    if (!updated) throw new Error("Stock item not found")
-    return updated
-  })
