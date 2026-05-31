@@ -244,10 +244,9 @@ export function ItemEditor({ categories, onCreated }: Props) {
         <label className="text-sm font-medium">
           Initial colors (optional)
         </label>
-        <p className="text-xs text-muted-foreground">
-          Adding colors here materializes a variant for every (color × size)
-          combination on save. You can also add colors later from the item
-          detail page.
+        <p className="text-sm text-muted-foreground">
+          Optional. Add colors if you want to track stock by color. You can also
+          add them later from this page or while receiving. <InfoTip term="item.variantsOptional" />
         </p>
         <div className="flex flex-wrap gap-1">
           {colors.map((c) => (
