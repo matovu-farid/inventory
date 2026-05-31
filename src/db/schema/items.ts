@@ -1,22 +1,15 @@
 import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
-import { itemCategories } from "./item-categories"
 // `variants` is imported only as a relation target — the cyclical pairing
 // (variants → items → variants) is harmless because Drizzle's `relations()`
 // helper resolves lazily at first query.
 import { variants } from "./variants"
 
 /**
- * Catalog: items (renamed from `products` in issue #3) and item_colors
- * (renamed from `product_colors`). The TS symbols here are the source of
- * truth for the renamed tables — `drizzle-kit push` syncs the DB schema
- * to this file, and `drizzle/0011_items_rename_and_category.sql` is the
- * human-readable record of the rename DDL applied at the same time.
- *
- * Out of scope for this rename (deferred to #4 / #5): the DB column names
- * `product_id` / `product_color_id` on stock, sales, transfer, and
- * notification tables stay as-is — only the FK ref-target symbols on the
- * right-hand side of `references(() => items.id, ...)` change here.
+ * Catalog: items and item_colors. After the items-free-text-category change
+ * (drizzle/0018_items_category_text.sql) categories live as a plain text
+ * column here instead of an FK to a separate table — the combobox in
+ * item-editor.tsx autocompletes from existing values.
  */
 export const items = pgTable(
   "items",
@@ -25,20 +18,13 @@ export const items = pgTable(
     articleNumber: text("article_number").notNull().unique(),
     name: text("name").notNull(),
     description: text("description"),
-    // The `sizes text[]` column was dropped by issue #7
-    // (drizzle/0015_drop_items_sizes.sql). The set of sizes for an item
-    // is now implicit in the rows of the `variants` table — UI surfaces
-    // call deriveSizes(item.variants) to render the size grid.
     /**
-     * Catalog grouping for this item. NOT NULL — every item belongs to
-     * exactly one category. Existing rows are backfilled to the seeded
-     * "Uncategorized" category (see drizzle/0009_item_categories.sql).
-     * Restrict on delete so categories with items can't be silently
-     * orphaned.
+     * Free-text catalog grouping. NOT NULL — every item has a category.
+     * The set of categories on the system is implicit in the distinct
+     * values of this column; the UI combobox sources its options from
+     * `listItemCategories()`.
      */
-    itemCategoryId: uuid("item_category_id")
-      .notNull()
-      .references(() => itemCategories.id, { onDelete: "restrict" }),
+    category: text("category").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -49,7 +35,7 @@ export const items = pgTable(
   },
   (table) => [
     index("idx_items_article").on(table.articleNumber),
-    index("idx_items_category").on(table.itemCategoryId),
+    index("idx_items_category").on(table.category),
   ],
 )
 
@@ -77,17 +63,10 @@ export const itemColors = pgTable(
   ],
 )
 
-export const itemRelations = relations(items, ({ one, many }) => ({
+export const itemRelations = relations(items, ({ many }) => ({
   colors: many(itemColors),
-  category: one(itemCategories, {
-    fields: [items.itemCategoryId],
-    references: [itemCategories.id],
-  }),
   // `variants` (one row per item × color × size) was added in #2 and is
-  // now the unit of stock since #4 / #5 / #6. Exposing it as a relation
-  // lets item-detail queries hydrate the full catalog row in one round
-  // trip — UI flows that pick a (color, size) cell use it to resolve
-  // back to `variantId`.
+  // now the unit of stock since #4 / #5 / #6.
   variants: many(variants),
 }))
 
