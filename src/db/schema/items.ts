@@ -8,10 +8,11 @@ import {
   integer,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
-// `variants` is imported only as a relation target — the cyclical pairing
-// (variants → items → variants) is harmless because Drizzle's `relations()`
-// helper resolves lazily at first query.
+// `variants` and `storeStock` are imported only as relation targets — the
+// cyclical pairings (variants ↔ items, storeStock ↔ items) are harmless
+// because Drizzle's `relations()` helper resolves lazily at first query.
 import { variants } from "./variants"
+import { storeStock } from "./store"
 
 /**
  * Catalog: items and item_colors. After the items-free-text-category change
@@ -83,6 +84,9 @@ export const itemRelations = relations(items, ({ many }) => ({
   // `variants` (one row per item × color × size) was added in #2 and is
   // now the unit of stock since #4 / #5 / #6.
   variants: many(variants),
+  // Store stock rows that point at this item — includes both variant-
+  // keyed lots and unresolved (variant_id NULL) lots.
+  storeStockRows: many(storeStock),
 }))
 
 export const itemColorRelations = relations(itemColors, ({ one }) => ({

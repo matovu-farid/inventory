@@ -57,16 +57,18 @@ export const storeReceivings = pgTable(
 )
 
 /**
- * Store stock — one row per (store, variant). Inventory now addresses a
- * single `variant_id` instead of the composite (product_color_id, size)
- * key it carried pre-#4. See
- * `docs/superpowers/specs/2026-05-24-category-item-variant-design.md`
- * §3 "Altered tables" and §4 step 5; the migration that performed the
- * column swap + backfill lives at `drizzle/0012_stock_variant_id.sql`.
+ * Store stock — one row per (store, item, variant_or_null, supply_route_line).
+ * The variant-flexibility change (see
+ * `docs/superpowers/specs/2026-05-31-variant-flexibility-design.md`) makes
+ * `item_id` the primary stock anchor and `variant_id` an optional refinement:
+ * a NULL `variant_id` means the lot hasn't been split into a specific
+ * (color, size) yet ("unresolved" stock). The new
+ * `uq_ss_store_item_variant_line` constraint uses `NULLS NOT DISTINCT` so
+ * at most one unresolved row exists per (store, item, supply line).
  *
- * Related downstream tables (`store_transfer_lines`, `stock_take_lines`)
- * reference `store_stock.id` and pick up the variant change transitively
- * — no direct change to their schemas in this issue.
+ * Cost per unit stays per row (lot-specific). Minimum sell price moved up
+ * to `items.minimum_sell_price_ugx` — it's an item-wide floor now, not a
+ * per-lot setting.
  */
 export const storeStock = pgTable(
   "store_stock",
