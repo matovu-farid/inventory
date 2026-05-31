@@ -2,7 +2,11 @@ import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import { Plus } from "lucide-react"
 import { requireUiPermission, useCan } from "#/lib/permissions"
-import { listItems, searchItems } from "#/server/functions/items/items"
+import {
+  listItemCategories,
+  listItems,
+  searchItems,
+} from "#/server/functions/items/items"
 import { ItemCard } from "#/components/items/item-card"
 import { ItemEditor } from "#/components/items/item-editor"
 import { Input } from "#/components/ui/input"
@@ -16,12 +20,18 @@ import {
 
 export const Route = createFileRoute("/items/")({
   beforeLoad: ({ context }) => requireUiPermission(context, "items.view"),
-  loader: async () => ({ products: await listItems() }),
+  loader: async () => {
+    const [products, categories] = await Promise.all([
+      listItems(),
+      listItemCategories(),
+    ])
+    return { products, categories }
+  },
   component: ProductsPage,
 })
 
 function ProductsPage() {
-  const { products: initial } = Route.useLoaderData()
+  const { products: initial, categories } = Route.useLoaderData()
   const router = useRouter()
   const canManage = useCan("items.manage")
   const [query, setQuery] = useState("")
@@ -96,6 +106,7 @@ function ProductsPage() {
             <DialogTitle>New item</DialogTitle>
           </DialogHeader>
           <ItemEditor
+            categories={categories}
             onCreated={() => {
               setEditorOpen(false)
               void refreshList()

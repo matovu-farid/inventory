@@ -1266,6 +1266,7 @@ function AddItemForm({
             <DialogTitle>New item</DialogTitle>
           </DialogHeader>
           <ItemEditor
+            categories={[]}
             onCreated={(_id, articleNumber) => {
               setProductEditorOpen(false)
               void refreshProduct(articleNumber)

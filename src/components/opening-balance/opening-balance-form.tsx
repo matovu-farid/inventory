@@ -380,6 +380,7 @@ export function OpeningBalanceForm({
                       <DialogTitle>New item</DialogTitle>
                     </DialogHeader>
                     <ItemEditor
+                      categories={[]}
                       onCreated={(_id, articleNumber) => {
                         updateBlock(b.id, { itemEditorOpen: false })
                         void refreshBlockItem(b.id, articleNumber)

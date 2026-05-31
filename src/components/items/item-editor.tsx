@@ -3,6 +3,7 @@ import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Textarea } from "#/components/ui/textarea"
 import { Badge } from "#/components/ui/badge"
+import { CreatableCombobox } from "#/components/ui/creatable-combobox"
 import { X } from "lucide-react"
 import { createItem } from "#/server/functions/items/items"
 import { matchPaletteHex } from "#/lib/colors/match-palette"
@@ -12,6 +13,7 @@ import { HexColorField } from "./hex-color-field"
 const SIZE_QUICK_PICKS = ["XS", "S", "M", "L", "XL", "XXL"]
 
 interface Props {
+  categories: ReadonlyArray<string>
   onCreated: (itemId: string, articleNumber: string) => void
 }
 
@@ -26,10 +28,11 @@ interface ColorDraft {
  * the server can materialize the (color × size) cross-product into
  * the variants table when saving.
  */
-export function ItemEditor({ onCreated }: Props) {
+export function ItemEditor({ categories, onCreated }: Props) {
   const [articleNumber, setArticleNumber] = useState("")
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [category, setCategory] = useState("")
   const [sizes, setSizes] = useState<string[]>([])
   const [sizeDraft, setSizeDraft] = useState("")
   const [colors, setColors] = useState<ColorDraft[]>([])
@@ -37,6 +40,7 @@ export function ItemEditor({ onCreated }: Props) {
   const [colorHexDraft, setColorHexDraft] = useState("#000000")
   const lastSuggestedName = useRef<string>("")
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function handleHexChange(hex: string) {
     setColorHexDraft(hex)
@@ -87,18 +91,21 @@ export function ItemEditor({ onCreated }: Props) {
 
   async function save() {
     setSubmitting(true)
+    setError(null)
     try {
       const created = await createItem({
         data: {
           articleNumber,
           name,
-          category: "Uncategorized",
           description: description || undefined,
+          category: category.trim(),
           sizes,
           colors,
         },
       })
       onCreated(created.id, created.articleNumber)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create item.")
     } finally {
       setSubmitting(false)
     }
@@ -131,6 +138,17 @@ export function ItemEditor({ onCreated }: Props) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-sm font-medium">Category</label>
+        <CreatableCombobox
+          options={categories}
+          value={category}
+          onChange={setCategory}
+          placeholder="Pick or type a category"
+          searchPlaceholder="Search categories…"
+          emptyMessage="Type to create a new category."
         />
       </div>
       <div className="space-y-2">
@@ -244,11 +262,16 @@ export function ItemEditor({ onCreated }: Props) {
           </Button>
         </div>
       </div>
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
       <div className="flex justify-end">
         <Button
           onClick={() => void save()}
           disabled={
-            !articleNumber || !name || sizes.length === 0 || submitting
+            !articleNumber || !name || !category.trim() || sizes.length === 0 || submitting
           }
         >
           {submitting ? "Saving…" : "Create item"}
