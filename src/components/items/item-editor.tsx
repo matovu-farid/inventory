@@ -172,6 +172,7 @@ export function ItemEditor({ categories, onCreated }: Props) {
           onChange={(v) => setMinimumSellPriceUgx(v)}
           currency="UGX"
           decimals={2}
+          roundTo={50}
         />
       </div>
       <div className="space-y-2">

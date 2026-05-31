@@ -162,8 +162,11 @@ export async function updateItemQuery(data: z.infer<typeof updateInput>) {
     description: fields.description,
     ...(category === undefined ? {} : { category }),
     // Treat undefined as "no change"; null clears the threshold.
+    // Using `=== undefined` (not `"key" in data`) so a caller that
+    // explicitly passes the key with `undefined` is still a no-op,
+    // matching the symmetric treatment of minimumSellPriceUgx.
     ...(minimumSellPriceUgx === undefined ? {} : { minimumSellPriceUgx }),
-    ...("lowStockThreshold" in data ? { lowStockThreshold } : {}),
+    ...(lowStockThreshold === undefined ? {} : { lowStockThreshold }),
   }
   const [row] = await db.update(items).set(patch).where(eq(items.id, id)).returning()
   return row
