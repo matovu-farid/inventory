@@ -300,16 +300,6 @@ export const helpDict = {
   },
 
   // ─── Item / Variant catalog ──────────────────────────────────────────
-  /**
-   * New entry added by issue #3: tip text for the per-item "category"
-   * picker on the item-edit form. Distinct from `category.name`, which
-   * covers the item-categories admin page from issue #1.
-   */
-  'item.category': {
-    description:
-      'Pick which catalog grouping this item belongs to (e.g. "Shoes", "Bags"). Every item must belong to exactly one category — new items default to "Uncategorized" until you change them.',
-    example: 'Shoes',
-  },
   'item.colorName': {
     description:
       'Friendly name of the color (e.g. Burgundy, Navy). Auto-suggested from the uploaded image; you can override from the palette, the eyedropper, or type your own.',
@@ -434,13 +424,6 @@ export const helpDict = {
     description:
       "The threshold that triggers a low-stock alert for this variant. Shown as '≤ X%' or '≤ X units'.",
     example: '≤ 10%',
-  },
-
-  // ─── Item categories (catalog) ──────────────────────────────────────────
-  'category.name': {
-    description:
-      'Name of the item category — a grouping you use to organise products in the catalog. Each name must be unique.',
-    example: 'Shoes, Bags, Accessories',
   },
 
   // ─── Item create / edit form ─────────────────────────────────────────

@@ -17,6 +17,11 @@ import {
   PopoverTrigger,
 } from "#/components/ui/popover"
 
+// Unique-by-construction value for the synthetic "Create…" row. Uses a
+// null byte so it can never collide with a user-typed option (every
+// upstream validator strips control characters).
+const CREATE_SENTINEL = "\x00__create__"
+
 interface CreatableComboboxProps {
   options: ReadonlyArray<string>
   value: string
@@ -104,7 +109,7 @@ function CreatableCombobox({
           // even when query doesn't match any option — cmdk would otherwise
           // hide everything and show CommandEmpty instead.
           filter={(itemValue, search) => {
-            if (itemValue === "__create__") return 1
+            if (itemValue === CREATE_SENTINEL) return 1
             return itemValue.toLowerCase().includes(search.toLowerCase())
               ? 1
               : 0
@@ -120,8 +125,8 @@ function CreatableCombobox({
             <CommandGroup>
               {showCreate && (
                 <CommandItem
-                  key="__create__"
-                  value="__create__"
+                  key={CREATE_SENTINEL}
+                  value={CREATE_SENTINEL}
                   onSelect={() => select(trimmed)}
                 >
                   <PlusIcon className="mr-2 size-4" />
