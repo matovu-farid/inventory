@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Fragment, useState } from "react"
+import { Plus, Pencil, Trash2, ChevronRight } from "lucide-react"
 import { requireUiPermission, useCan } from "#/lib/permissions"
 import {
   getItemByArticle,
@@ -520,6 +520,7 @@ function VariantsSection({
   const [newSize, setNewSize] = useState("")
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const stockByVariant = new Map(
     stockCounts.map((c) => [c.variantId, c]),
@@ -530,6 +531,42 @@ function VariantsSection({
     const bc = colors.find((c) => c.id === b.colorId)?.colorName ?? ""
     return ac === bc ? a.size.localeCompare(b.size) : ac.localeCompare(bc)
   })
+
+  const groups: Array<{
+    color: (typeof colors)[number] | undefined
+    colorId: string
+    variants: typeof sorted
+    totalQty: number
+    maxLocations: number
+  }> = []
+  for (const v of sorted) {
+    let group = groups.find((g) => g.colorId === v.colorId)
+    if (!group) {
+      group = {
+        color: colors.find((c) => c.id === v.colorId),
+        colorId: v.colorId,
+        variants: [],
+        totalQty: 0,
+        maxLocations: 0,
+      }
+      groups.push(group)
+    }
+    group.variants.push(v)
+    const stock = stockByVariant.get(v.id)
+    if (stock) {
+      group.totalQty += stock.qty
+      group.maxLocations = Math.max(group.maxLocations, stock.locations)
+    }
+  }
+
+  function toggleGroup(colorId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(colorId)) next.delete(colorId)
+      else next.add(colorId)
+      return next
+    })
+  }
 
   async function addVariant() {
     if (!newColorId || !newSize.trim()) return
@@ -586,51 +623,120 @@ function VariantsSection({
               </tr>
             </thead>
             <tbody>
-              {sorted.map((v) => {
-                const color = colors.find((c) => c.id === v.colorId)
-                const stock = stockByVariant.get(v.id)
+              {groups.map((g) => {
+                const isOpen = expanded.has(g.colorId)
+                const colCount = canManage ? 4 : 3
                 return (
-                  <tr key={v.id} className="border-t" data-cy="variant-row">
-                    <td className="p-2">
-                      <span className="inline-flex items-center gap-1.5">
-                        <span
-                          className="inline-block size-3 rounded-full border"
-                          style={{ backgroundColor: color?.colorHex ?? "#888" }}
-                          aria-hidden
-                        />
-                        {color?.colorName ?? "—"}
-                      </span>
-                    </td>
-                    <td className="p-2 font-medium">{v.size}</td>
-                    <td className="p-2">
-                      {stock && stock.qty > 0 ? (
-                        <Badge variant="secondary">
-                          {stock.qty} in stock at {stock.locations}{" "}
-                          location{stock.locations === 1 ? "" : "s"}
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          no stock
-                        </span>
-                      )}
-                    </td>
-                    {canManage && (
-                      <td className="p-2 text-right">
-                        <Button
+                  <Fragment key={g.colorId}>
+                    <tr
+                      className="border-t bg-muted/20 hover:bg-muted/40 cursor-pointer"
+                      data-cy="variant-group"
+                      data-color-id={g.colorId}
+                      data-expanded={isOpen ? "true" : "false"}
+                    >
+                      <td colSpan={colCount} className="p-0">
+                        <button
                           type="button"
-                          size="icon"
-                          variant="ghost"
-                          aria-label={`Remove variant ${color?.colorName ?? ""} ${v.size}`}
-                          disabled={pending}
-                          onClick={() => {
-                            void removeVariant(v.id)
+                          onClick={() => toggleGroup(g.colorId)}
+                          aria-expanded={isOpen}
+                          aria-label={`${isOpen ? "Collapse" : "Expand"} ${g.color?.colorName ?? "color"} variants`}
+                          className="grid w-full items-center gap-2 p-2 text-left"
+                          style={{
+                            gridTemplateColumns: canManage
+                              ? "1fr 1fr 1fr 2.5rem"
+                              : "1fr 1fr 1fr",
                           }}
                         >
-                          <Trash2 className="size-4" />
-                        </Button>
+                          <span className="inline-flex items-center gap-1.5">
+                            <ChevronRight
+                              className={`size-4 shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`}
+                              aria-hidden
+                            />
+                            <span
+                              className="inline-block size-3 rounded-full border"
+                              style={{
+                                backgroundColor: g.color?.colorHex ?? "#888",
+                              }}
+                              aria-hidden
+                            />
+                            <span className="font-medium">
+                              {g.color?.colorName ?? "—"}
+                            </span>
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {g.variants.length} size
+                            {g.variants.length === 1 ? "" : "s"}
+                          </span>
+                          <span>
+                            {g.totalQty > 0 ? (
+                              <Badge variant="secondary">
+                                {g.totalQty} in stock at {g.maxLocations}{" "}
+                                location{g.maxLocations === 1 ? "" : "s"}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                no stock
+                              </span>
+                            )}
+                          </span>
+                          {canManage && <span aria-hidden />}
+                        </button>
                       </td>
-                    )}
-                  </tr>
+                    </tr>
+                    {g.variants.map((v) => {
+                      const stock = stockByVariant.get(v.id)
+                      return (
+                        <tr
+                          key={v.id}
+                          className="border-t"
+                          data-cy="variant-row"
+                          hidden={!isOpen}
+                        >
+                          <td className="p-2 pl-8">
+                            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                              <span
+                                className="inline-block size-3 rounded-full border"
+                                style={{
+                                  backgroundColor: g.color?.colorHex ?? "#888",
+                                }}
+                                aria-hidden
+                              />
+                              {g.color?.colorName ?? "—"}
+                            </span>
+                          </td>
+                          <td className="p-2 font-medium">{v.size}</td>
+                          <td className="p-2">
+                            {stock && stock.qty > 0 ? (
+                              <Badge variant="secondary">
+                                {stock.qty} in stock at {stock.locations}{" "}
+                                location{stock.locations === 1 ? "" : "s"}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                no stock
+                              </span>
+                            )}
+                          </td>
+                          {canManage && (
+                            <td className="p-2 text-right">
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                aria-label={`Remove variant ${g.color?.colorName ?? ""} ${v.size}`}
+                                disabled={pending}
+                                onClick={() => {
+                                  void removeVariant(v.id)
+                                }}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </td>
+                          )}
+                        </tr>
+                      )
+                    })}
+                  </Fragment>
                 )
               })}
             </tbody>
