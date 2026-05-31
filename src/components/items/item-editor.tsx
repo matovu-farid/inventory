@@ -9,6 +9,7 @@ import { createItem } from "#/server/functions/items/items"
 import { matchPaletteHex } from "#/lib/colors/match-palette"
 import { CLOTHING_PALETTE } from "#/lib/colors/palette"
 import { HexColorField } from "./hex-color-field"
+import { InfoTip } from "#/components/ui/info-tip"
 
 const SIZE_QUICK_PICKS = ["XS", "S", "M", "L", "XL", "XXL"]
 
@@ -141,7 +142,10 @@ export function ItemEditor({ categories, onCreated }: Props) {
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium">Category</label>
+        <label className="flex items-center gap-1.5 text-sm font-medium">
+          Category
+          <InfoTip term="itemForm.category" ariaLabel="What is Category?" />
+        </label>
         <CreatableCombobox
           options={categories}
           value={category}

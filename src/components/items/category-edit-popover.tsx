@@ -9,6 +9,7 @@ import {
   PopoverTrigger,
 } from "#/components/ui/popover"
 import { updateItem } from "#/server/functions/items/items"
+import { InfoTip } from "#/components/ui/info-tip"
 
 interface Props {
   itemId: string
@@ -92,7 +93,10 @@ export function CategoryEditPopover({
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-72 space-y-2">
-            <p className="text-sm font-medium">Category</p>
+            <p className="flex items-center gap-1.5 text-sm font-medium">
+              Category
+              <InfoTip term="itemForm.category" ariaLabel="What is Category?" />
+            </p>
             <CreatableCombobox
               options={categories}
               value={draft}

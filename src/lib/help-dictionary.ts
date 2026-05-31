@@ -442,6 +442,12 @@ export const helpDict = {
       'Name of the item category — a grouping you use to organise products in the catalog. Each name must be unique.',
     example: 'Shoes, Bags, Accessories',
   },
+
+  // ─── Item create / edit form ─────────────────────────────────────────
+  'itemForm.category': {
+    description:
+      'Free-text grouping for catalog reporting (e.g. Shoes, Bags, Tops). Pick from existing categories or type a new one — the list grows as items use new values.',
+  },
 } as const satisfies Record<string, HelpEntry>
 
 export type HelpKey = keyof typeof helpDict
