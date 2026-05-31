@@ -61,9 +61,8 @@ describe('Item variants — list and detail page', () => {
     // Seed an item with two colors and three sizes worth of variants.
     cy.task(
       'dbQuery',
-      `INSERT INTO items (article_number, name, item_category_id)
-       SELECT '${articleNumber}', 'E2E variants tester',
-              (SELECT id FROM item_categories WHERE name = 'Uncategorized')`,
+      `INSERT INTO items (article_number, name, category)
+       VALUES ('${articleNumber}', 'E2E variants tester', 'Test')`,
     )
     cy.task(
       'dbQuery',

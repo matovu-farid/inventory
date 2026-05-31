@@ -38,17 +38,17 @@ describe('Low-stock restock flow', () => {
       `UPDATE "user" SET role = 'admin', email_verified = TRUE WHERE email = '${TEST_EMAIL}'`,
     )
 
-    // Seed item + color (catalog tables renamed in #3; item_category_id is
-    // NOT NULL so we point new rows at the seeded "Uncategorized" bucket).
+    // Seed item + color (items.category is free-text since the
+    // items-free-text-category change).
     cy.task(
       'dbQuery',
       `
-      INSERT INTO items (id, article_number, name, item_category_id)
+      INSERT INTO items (id, article_number, name, category)
       VALUES (
         gen_random_uuid(),
         '${ART}',
         'Restock Test Product',
-        (SELECT id FROM item_categories WHERE name = 'Uncategorized')
+        'Test'
       )
       RETURNING id;
     `,

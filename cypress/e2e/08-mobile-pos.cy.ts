@@ -34,7 +34,7 @@ describe.skip("Mobile POS happy path", () => {
     // Insert shop/product data that doesn't depend on the sales user
     cy.task("dbQuery", `INSERT INTO suppliers (name, type, country) VALUES ('S', 'international', 'CN') ON CONFLICT DO NOTHING`)
     cy.task("dbQuery", `INSERT INTO shops (name, location) VALUES ('POS Shop', 'Kampala') ON CONFLICT DO NOTHING`)
-    cy.task("dbQuery", `INSERT INTO items (article_number, name, sizes, item_category_id) VALUES ('TR-POS', 'POS Crew Tee', ARRAY['S','M','L'], (SELECT id FROM item_categories WHERE name = 'Uncategorized')) ON CONFLICT DO NOTHING`)
+    cy.task("dbQuery", `INSERT INTO items (article_number, name, category) VALUES ('TR-POS', 'POS Crew Tee', 'Test') ON CONFLICT DO NOTHING`)
     cy.task(
       "dbQuery",
       `INSERT INTO item_colors (item_id, color_name, color_hex)

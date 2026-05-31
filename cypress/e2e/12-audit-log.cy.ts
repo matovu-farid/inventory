@@ -51,7 +51,7 @@ describe("Backdated receipt audit log", () => {
 
     cy.task(
       "dbQuery",
-      `INSERT INTO items (id, article_number, name, item_category_id) VALUES (gen_random_uuid(), '${ART}', 'Audit Test Product', (SELECT id FROM item_categories WHERE name = 'Uncategorized')) RETURNING id;`,
+      `INSERT INTO items (id, article_number, name, category) VALUES (gen_random_uuid(), '${ART}', 'Audit Test Product', 'Test') RETURNING id;`,
     ).as("productId")
 
     cy.then(function () {

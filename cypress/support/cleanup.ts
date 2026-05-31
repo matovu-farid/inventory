@@ -63,8 +63,7 @@ export async function cleanupAllTestData(
        "user",
        variants,
        item_colors,
-       items,
-       item_categories
+       items
      RESTART IDENTITY CASCADE`,
   )
 }
