@@ -1,4 +1,12 @@
-import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core"
+import {
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  index,
+  numeric,
+  integer,
+} from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 // `variants` is imported only as a relation target — the cyclical pairing
 // (variants → items → variants) is harmless because Drizzle's `relations()`
@@ -25,6 +33,13 @@ export const items = pgTable(
      * `listItemCategories()`.
      */
     category: text("category").notNull(),
+    minimumSellPriceUgx: numeric("minimum_sell_price_ugx", {
+      precision: 15,
+      scale: 2,
+    })
+      .notNull()
+      .default("0"),
+    lowStockThreshold: integer("low_stock_threshold"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
