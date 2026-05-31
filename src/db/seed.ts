@@ -5,7 +5,6 @@ import * as schema from "./schema"
 import {
   items,
   itemColors,
-  itemCategories,
   suppliers,
   stores,
   shops,
@@ -75,16 +74,6 @@ async function seed() {
     }
     console.log(`  ${DEFAULT_CATEGORIES.length} transaction categories.`)
 
-    // ─── 1b. Item categories (catalog) ─────────────────────────────────
-    // Idempotent default bucket so admins always have a category to
-    // assign new products to. Issue #1 — the FK from items lands later.
-    console.log("Seeding item categories...")
-    await client.query(
-      `INSERT INTO item_categories (name) VALUES ('Uncategorized')
-       ON CONFLICT (name) DO NOTHING`,
-    )
-    console.log("  1 item category (Uncategorized).")
-
     // ─── 2. Suppliers, stores, shops (idempotent on natural keys) ──────
     console.log("Seeding suppliers, stores, and shops...")
     const insertedSuppliers = await db
@@ -147,16 +136,6 @@ async function seed() {
     // ─── 3. Products + colors ──────────────────────────────────────────
     console.log("Seeding products and color variants...")
 
-    // items.item_category_id is NOT NULL — point newly-seeded items at
-    // the seeded "Uncategorized" bucket created above.
-    const uncategorizedRow = await db.query.itemCategories.findFirst({
-      where: eq(itemCategories.name, "Uncategorized"),
-    })
-    if (!uncategorizedRow) {
-      throw new Error('Missing seed "Uncategorized" item category')
-    }
-    const uncategorized: { id: string } = uncategorizedRow
-
     // `sizes` is no longer a column on items (issue #7 drops items.sizes
     // — the variants table is the source of truth). The seed still
     // accepts it so the stock-seed block below can keep using the same
@@ -175,7 +154,7 @@ async function seed() {
         .values({
           articleNumber: args.articleNumber,
           name: args.name,
-          itemCategoryId: uncategorized.id,
+          category: "Uncategorized",
         })
         .returning()
       return created
