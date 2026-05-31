@@ -37,14 +37,15 @@ const TEST_PREFIX = "test-auth-emails-"
  * table is empty. `pnpm test` loads .env.test which points at a separate
  * inventory_test database, so this never touches dev data.
  *
- * Belt-and-suspenders: refuse to start if DATABASE_URL doesn't end in _test.
+ * Belt-and-suspenders: refuse to start unless DATABASE_URL points at a
+ * database whose name contains "test" (e.g. inventory_test, inventory_testing).
  */
 if (
   !process.env.DATABASE_URL ||
-  !/_test(\b|$|\?)/i.test(process.env.DATABASE_URL)
+  !/test/i.test(process.env.DATABASE_URL)
 ) {
   throw new Error(
-    "auth-emails.test.ts refuses to run: DATABASE_URL must point at a *_test " +
+    "auth-emails.test.ts refuses to run: DATABASE_URL must point at a test " +
       "database. Run via `pnpm test` (which loads .env.test).",
   )
 }

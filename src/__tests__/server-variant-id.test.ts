@@ -283,9 +283,9 @@ describe('supply_route_lines renamed catalog columns (#6)', () => {
 
     expect(row.itemId).toBe(itemId())
     expect(row.colorId).toBe(colorId())
-    // The old keys should not exist on the row type.
-    expect((row as Record<string, unknown>).itemId).toBeUndefined()
-    expect((row as Record<string, unknown>).itemColorId).toBeUndefined()
+    // The old product_* keys should not exist on the row type.
+    expect((row as Record<string, unknown>).productId).toBeUndefined()
+    expect((row as Record<string, unknown>).productColorId).toBeUndefined()
   })
 })
 

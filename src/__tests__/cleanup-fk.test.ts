@@ -39,9 +39,9 @@ import { cleanupAllTestData } from "../../cypress/support/cleanup"
  */
 
 const DATABASE_URL = process.env.DATABASE_URL
-if (!DATABASE_URL || !/_test(\b|$|\?)/i.test(DATABASE_URL)) {
+if (!DATABASE_URL || !/test/i.test(DATABASE_URL)) {
   throw new Error(
-    "cleanup-fk.test.ts refuses to run: DATABASE_URL must point at a *_test " +
+    "cleanup-fk.test.ts refuses to run: DATABASE_URL must point at a test " +
       "database. Run via `pnpm test` (which loads .env.test).",
   )
 }
