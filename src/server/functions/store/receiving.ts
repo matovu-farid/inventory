@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
@@ -170,61 +170,90 @@ export const receiveGoods = createServerFn()
       }> = []
       const auditLines: Array<{
         supplyRouteLineId: string
-        variantId: string
-        colorName: string
-        size: string
+        itemId: string
+        variantId: string | null
+        colorName: string | null
+        size: string | null
         quantityReceived: number
       }> = []
 
       for (const item of data.items) {
-        // Get the supply route item with product chain for log strings
+        // Get the supply route item with product chain for log strings.
+        // We pull both the direct `item` relation (so unresolved/aggregate
+        // lines without an itemColor still resolve a label and itemId) and
+        // the `itemColor` (with its parent item) for the fully-resolved
+        // variant path.
         const sri = await tx.query.supplyRouteLines.findFirst({
           where: eq(supplyRouteLines.id, item.supplyRouteLineId),
-          with: { itemColor: { with: { item: true } } },
+          with: {
+            item: true,
+            itemColor: { with: { item: true } },
+          },
         })
         if (!sri) throw new Error(`Supply route item not found: ${item.supplyRouteLineId}`)
 
-        // Receiving requires a fully-resolved variant. Aggregate/color-only
-        // procurement rows (Task 1) must be split into color+size variants
-        // by an admin before they can land in store stock.
+        // Receiving now accepts unresolved supply lines: aggregate
+        // (itemId only) and color-only rows land in store_stock with a
+        // NULL variant_id. They get resolved into per-variant lots later
+        // via the "Specify" action. Spec:
+        // docs/superpowers/specs/2026-05-31-variant-flexibility-design.md.
         const itemColor = sri.itemColor
-        const sriSize = sri.size
-        const sriColorId = sri.colorId
-        if (!itemColor || !sriSize || !sriColorId) {
+        // A line is "resolved" when it carries both a color and a size.
+        // Bind to locals so the closure below holds a narrowed type
+        // instead of relying on a flag + non-null assertions.
+        const resolved =
+          itemColor && sri.colorId && sri.size
+            ? {
+                itemColor,
+                colorId: sri.colorId,
+                size: sri.size,
+              }
+            : null
+
+        // Resolve item_id for the stock row — works whether or not the
+        // line carries a fully-resolved variant. Prefer the direct
+        // `item` FK on the supply line (newly required for #6); fall back
+        // to the item reachable through itemColor for older rows.
+        const itemId = sri.itemId ?? sri.itemColor?.itemId
+        if (!itemId) {
           throw new Error(
-            `Item ${sri.id} is missing color or size — split it into full variants before receiving`,
+            `Supply line ${sri.id} has no item — cannot receive`,
           )
         }
 
-        // Resolve the variant the stock row should target. If the catalog
-        // declared this (color, size) pair the variant was seeded by
-        // `pnpm backfill:variants`; otherwise materialise it on the fly so
-        // the supply line can still land in stock without an admin detour.
-        // Spec: docs/superpowers/specs/2026-05-24-category-item-variant-design.md
-        // §3 "Special case — supply_route_lines".
-        let variantRow = await tx.query.variants.findFirst({
-          where: and(
-            eq(variants.colorId, sriColorId),
-            eq(variants.size, sriSize),
-          ),
-        })
-        if (!variantRow) {
-          const [created] = await tx
-            .insert(variants)
-            .values({
-              itemId: itemColor.itemId,
-              colorId: sriColorId,
-              size: sriSize,
-            })
-            .returning()
-          variantRow = created
+        // Resolve / materialise the variant only for fully-resolved
+        // lines. Aggregate/color-only lines persist with variantId NULL
+        // and are split later by `specifyStock`.
+        let variantRow: { id: string } | null = null
+        if (resolved) {
+          const found = await tx.query.variants.findFirst({
+            where: and(
+              eq(variants.colorId, resolved.colorId),
+              eq(variants.size, resolved.size),
+            ),
+          })
+          if (found) {
+            variantRow = found
+          } else {
+            const [created] = await tx
+              .insert(variants)
+              .values({
+                itemId,
+                colorId: resolved.colorId,
+                size: resolved.size,
+              })
+              .returning()
+            variantRow = created
+          }
         }
 
-        const itemLabel = formatItemLabel(
-          itemColor.item.articleNumber,
-          itemColor.colorName,
-          sriSize,
-        )
+        const itemLabel = resolved
+          ? formatItemLabel(
+              resolved.itemColor.item.articleNumber,
+              resolved.itemColor.colorName,
+              resolved.size,
+            )
+          : `${sri.item?.articleNumber ?? "?"} (unresolved)`
 
         // One receipt per item — refuse if already received
         const prior = await tx.query.storeReceivings.findFirst({
@@ -262,28 +291,40 @@ export const receiveGoods = createServerFn()
           .dp(2, BigNumber.ROUND_HALF_UP)
 
         if (item.quantityReceived > 0) {
-          // NOTE: this insert is still missing `itemId` and uses the old
-          // conflict target. The full rewrite (item_id NOT NULL, nullable
-          // variant, new conflict target on (store, item, variant, line))
-          // lands in Task 7 along with the unresolved-receive path. Plan 1
-          // Task 3 only removes the dropped `minimumSellPriceUgx` write
-          // that would have crashed at runtime — TypeScript still flags
-          // this block until Task 7 completes the migration.
-          await tx
-            .insert(storeStock)
-            .values({
+          // The new key is (store, item, variant_or_null, supply_line).
+          // `onConflictDoUpdate` doesn't compose with NULL columns
+          // cleanly, so we do an explicit find-then-insert-or-update.
+          // Storage matches the uq_ss_store_item_variant_line constraint
+          // (NULLS NOT DISTINCT) — at most one unresolved row per
+          // (store, item, supply_line).
+          const existing = await tx.query.storeStock.findFirst({
+            where: and(
+              eq(storeStock.storeId, store.id),
+              eq(storeStock.itemId, itemId),
+              variantRow
+                ? eq(storeStock.variantId, variantRow.id)
+                : isNull(storeStock.variantId),
+              eq(storeStock.supplyRouteLineId, sri.id),
+            ),
+          })
+
+          if (existing) {
+            await tx
+              .update(storeStock)
+              .set({
+                quantityOnHand: sql`${storeStock.quantityOnHand} + ${item.quantityReceived}`,
+              })
+              .where(eq(storeStock.id, existing.id))
+          } else {
+            await tx.insert(storeStock).values({
               storeId: store.id,
-              variantId: variantRow.id,
+              itemId,
+              variantId: variantRow?.id ?? null,
               supplyRouteLineId: sri.id,
               quantityOnHand: item.quantityReceived,
               costPerUnitUgx: costPerUnit.toFixed(2),
             })
-            .onConflictDoUpdate({
-              target: [storeStock.storeId, storeStock.variantId],
-              set: {
-                quantityOnHand: sql`${storeStock.quantityOnHand} + ${item.quantityReceived}`,
-              },
-            })
+          }
         }
 
         // 3. Post ledger entry for received goods
@@ -332,9 +373,10 @@ export const receiveGoods = createServerFn()
         })
         auditLines.push({
           supplyRouteLineId: sri.id,
-          variantId: variantRow.id,
-          colorName: itemColor.colorName,
-          size: sriSize,
+          itemId,
+          variantId: variantRow?.id ?? null,
+          colorName: itemColor?.colorName ?? null,
+          size: sri.size ?? null,
           quantityReceived: item.quantityReceived,
         })
       }

@@ -417,7 +417,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
     expect(stock[0].quantityOnHand).toBe(3)
   })
 
-  it('rejects aggregate/color-only supply lines — admin must split first', async () => {
+  it('accepts aggregate/color-only supply lines and lands them as variant_id NULL stock (variant-flexibility Task 7)', async () => {
     const [route] = await db
       .insert(supplyRoutes)
       .values({
@@ -440,16 +440,24 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
       })
       .returning()
 
-    await expect(
-      callServerFn(() =>
-        receiveGoods({
-          data: {
-            supplyRouteId: route.id,
-            items: [{ supplyRouteLineId: sri.id, quantityReceived: 5 }],
-          },
-        }),
-      ),
-    ).rejects.toThrow(/split/)
+    await callServerFn(() =>
+      receiveGoods({
+        data: {
+          supplyRouteId: route.id,
+          items: [{ supplyRouteLineId: sri.id, quantityReceived: 5 }],
+        },
+      }),
+    )
+
+    // The unresolved line should have landed as a store_stock row with
+    // variantId NULL but itemId populated.
+    const stockRow = await db.query.storeStock.findFirst({
+      where: eq(storeStock.supplyRouteLineId, sri.id),
+    })
+    expect(stockRow).toBeDefined()
+    expect(stockRow?.variantId).toBeNull()
+    expect(stockRow?.itemId).toBe(itemId())
+    expect(stockRow?.quantityOnHand).toBe(5)
   })
 
   it('records (colorName, size) in the audit metadata.lines array', async () => {
