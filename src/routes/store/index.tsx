@@ -177,7 +177,16 @@ function ItemStockRow({
     <Fragment>
       <TableRow
         onClick={() => setOpen((o) => !o)}
-        className="cursor-pointer"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            setOpen((o) => !o)
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        className="cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <TableCell>
           {open ? (
