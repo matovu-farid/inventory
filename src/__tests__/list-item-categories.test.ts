@@ -18,6 +18,7 @@ import {
   createItemQuery,
   listItemCategoriesQuery,
 } from '#/server/functions/items/items.server'
+import { listItemCategories } from '#/server/functions/items/items'
 
 const SUFFIX = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const createdItemIds: string[] = []
@@ -53,5 +54,12 @@ describe('listItemCategories', () => {
     const cats = await listItemCategoriesQuery()
     const ours = cats.filter((c) => c.startsWith(`lic-${SUFFIX}-`))
     expect(ours).toEqual([`lic-${SUFFIX}-Bags`, `lic-${SUFFIX}-Shoes`])
+  })
+
+  // Smoke-check that the createServerFn wrapper consumers actually import is
+  // wired up. Return-value behavior is covered by the pure-helper test above
+  // and by the Cypress e2e for the items page.
+  it('exports listItemCategories as a callable server function', () => {
+    expect(typeof listItemCategories).toBe('function')
   })
 })

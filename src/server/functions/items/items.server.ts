@@ -18,7 +18,7 @@ import { db } from "#/db"
 import { items, itemColors, variants } from "#/db/schema"
 import { materializeVariantsFromColorsSizes } from "./variants-materialize"
 
-export const colorInput = z.object({
+const colorInput = z.object({
   colorName: z.string().min(1).max(40),
   colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
 })
@@ -60,8 +60,8 @@ const ITEM_DETAIL_WITH = {
 // ─── Pure query helpers ──────────────────────────────────────────────────────
 // Exported separately from the createServerFn wrappers so that vitest can
 // exercise the data semantics directly. TanStack's server-fn wrapper
-// swallows return values when called outside SSR (see
-// admin/item-categories.server.ts:57–60 for the same pattern).
+// swallows return values when called outside SSR — same pattern used by
+// admin/item-categories.server.ts.
 
 export async function listItemsQuery() {
   return db.query.items.findMany({
