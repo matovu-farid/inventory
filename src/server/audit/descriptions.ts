@@ -16,6 +16,7 @@ export const AUDIT_ACTION_LABELS = {
   "openingBalance.shop": "Set shop opening balance",
   "import.excel.route": "Imported supply route from Excel",
   "import.excel.skip_sheet": "Skipped Excel sheet during import",
+  "stock.specify": "Specified stock variants",
 } as const
 
 export type AuditActionCode = keyof typeof AUDIT_ACTION_LABELS
@@ -36,6 +37,11 @@ export interface AuditDescriptionContext {
   filename?: string
   sheetName?: string
   reason?: string
+  articleNumber?: string
+  itemName?: string
+  specifiedTotal?: number
+  remainingUnresolved?: number
+  variantCount?: number
 }
 
 function formatDay(d: Date): string {
@@ -103,6 +109,15 @@ export function renderAuditDescription(
       return `${actor} imported supply route from '${ctx.filename ?? "(file)"}'${ctx.sheetName ? ` (sheet: ${ctx.sheetName})` : ""}.`
     case "import.excel.skip_sheet":
       return `${actor} skipped Excel sheet '${ctx.sheetName ?? "(sheet)"}' during import${ctx.reason ? `: ${ctx.reason}` : ""}.`
+    case "stock.specify": {
+      const variantCount = ctx.variantCount ?? 0
+      const specifiedTotal = ctx.specifiedTotal ?? 0
+      const remainingUnresolved = ctx.remainingUnresolved ?? 0
+      const variantWord = variantCount === 1 ? "variant" : "variants"
+      const tail =
+        remainingUnresolved > 0 ? `, ${remainingUnresolved} left unresolved` : ""
+      return `${actor} specified ${specifiedTotal}× ${ctx.articleNumber ?? "(unknown)"} ${ctx.itemName ?? ""} into ${variantCount} ${variantWord}${tail}.`
+    }
     default:
       return `${actor} performed action: ${action}.`
   }
