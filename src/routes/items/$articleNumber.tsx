@@ -2,7 +2,10 @@ import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import { requireUiPermission, useCan } from "#/lib/permissions"
-import { getItemByArticle } from "#/server/functions/items/items"
+import {
+  getItemByArticle,
+  listItemCategories,
+} from "#/server/functions/items/items"
 import {
   listItemStockPrices,
   setStockMinimumPrice,
@@ -13,6 +16,7 @@ import {
   deleteVariant,
 } from "#/server/functions/items/variants"
 import { ColorEditor } from "#/components/items/color-editor"
+import { CategoryEditPopover } from "#/components/items/category-edit-popover"
 import { PhotoHandoffQR } from "#/components/items/photo-handoff-qr"
 import { AuditActivityPanel } from "#/components/audit/audit-activity-panel"
 import { itemImageUrl } from "#/lib/items"
@@ -36,17 +40,18 @@ export const Route = createFileRoute("/items/$articleNumber")({
       data: { articleNumber: params.articleNumber },
     })
     if (!product) throw new Error(`Product not found: ${params.articleNumber}`)
-    const [prices, variantStockCounts] = await Promise.all([
+    const [prices, variantStockCounts, categories] = await Promise.all([
       listItemStockPrices({ data: { itemId: product.id } }),
       countVariantStockLocations({ data: { itemId: product.id } }),
+      listItemCategories(),
     ])
-    return { product, prices, variantStockCounts }
+    return { product, prices, variantStockCounts, categories }
   },
   component: ProductDetailPage,
 })
 
 function ProductDetailPage() {
-  const { product, prices, variantStockCounts } = Route.useLoaderData()
+  const { product, prices, variantStockCounts, categories } = Route.useLoaderData()
   const router = useRouter()
   const canManage = useCan("items.manage")
   const canSeeActivity = useCan("audit.viewArticleActivity")
@@ -65,7 +70,18 @@ function ProductDetailPage() {
         <p className="font-mono text-sm text-muted-foreground">
           {product.articleNumber}
         </p>
-        <h1 className="text-2xl font-bold">{product.name}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold">{product.name}</h1>
+          <CategoryEditPopover
+            itemId={product.id}
+            articleNumber={product.articleNumber}
+            name={product.name}
+            current={product.category}
+            categories={categories}
+            canEdit={canManage}
+            onSaved={() => void router.invalidate()}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
