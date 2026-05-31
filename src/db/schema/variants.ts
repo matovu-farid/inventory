@@ -11,10 +11,9 @@ import { relations, sql } from 'drizzle-orm'
 import { items, itemColors } from './items'
 
 /**
- * Variants — one row per (item, color, size) combination. This is the
- * first stage of the 3-layer catalog (item_categories → items → variants);
- * the FK columns now point at the renamed `items` / `item_colors` tables
- * (rename landed in issue #3).
+ * Variants — one row per (item, color, size) combination. Forms the
+ * leaf of the catalog (items → variants); the FK columns point at the
+ * renamed `items` / `item_colors` tables (rename landed in issue #3).
  *
  * Stock, sales, transfers, and notification tables still address inventory
  * via `(product_color_id, size)` — that column-name swap to `variant_id`

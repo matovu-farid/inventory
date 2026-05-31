@@ -17,5 +17,5 @@ ALTER TABLE "items" DROP CONSTRAINT IF EXISTS "items_item_category_id_item_categ
 DROP INDEX IF EXISTS "idx_items_category";
 ALTER TABLE "items" DROP COLUMN IF EXISTS "item_category_id";
 ALTER TABLE "items" ADD COLUMN "category" text NOT NULL;
-CREATE INDEX "idx_items_category" ON "items" ("category");
+CREATE INDEX IF NOT EXISTS "idx_items_category" ON "items" ("category");
 DROP TABLE IF EXISTS "item_categories";
