@@ -33,7 +33,6 @@ export type Permission =
   | "notifications.manage"
   | "audit.view"
   | "audit.viewArticleActivity"
-  | "itemCategories.manage"
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   admin: [
@@ -56,7 +55,6 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "notifications.manage",
     "audit.view",
     "audit.viewArticleActivity",
-    "itemCategories.manage",
   ],
   supervisor: [
     "warehouse.transfers",
@@ -125,7 +123,6 @@ export const PERMISSION_SERVER_GATES: Record<Permission, readonly string[]> = {
   ],
   "audit.view": ["src/server/functions/audit/list.ts"],
   "audit.viewArticleActivity": ["src/server/functions/audit/list-by-article.ts"],
-  "itemCategories.manage": ["src/server/functions/admin/item-categories.ts"],
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
