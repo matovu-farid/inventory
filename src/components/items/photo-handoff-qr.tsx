@@ -8,13 +8,13 @@ import { shrinkImage } from "#/lib/images/shrink-image"
 import {
   createPhotoUploadToken,
   getPhotoUploadStatus,
-} from "#/server/functions/products/photo-handoff"
-import { getProductImageUploadUrl } from "#/server/functions/products/uploads"
-import { setProductColorImage } from "#/server/functions/products/colors"
-import { productImageUrl } from "#/lib/products"
+} from "#/server/functions/items/photo-handoff"
+import { getItemImageUploadUrl } from "#/server/functions/items/uploads"
+import { setItemColorImage } from "#/server/functions/items/colors"
+import { itemImageUrl } from "#/lib/items"
 
 interface Props {
-  productColorId: string
+  itemColorId: string
   onUploaded: (imageUrl: string) => void
 }
 
@@ -44,7 +44,7 @@ export const PhotoHandoffQR = PhotoCapture
 type UploadState = "idle" | "shrinking" | "uploading" | "error"
 
 interface UploadButtonProps {
-  productColorId: string
+  itemColorId: string
   onUploaded: (imageUrl: string) => void
   capture?: "environment"
   idleLabel: string
@@ -52,7 +52,7 @@ interface UploadButtonProps {
 }
 
 function UploadButton({
-  productColorId,
+  itemColorId,
   onUploaded,
   capture,
   idleLabel,
@@ -69,8 +69,8 @@ function UploadButton({
       const blob = await shrinkImage(file)
 
       setState("uploading")
-      const { uploadUrl, s3Key } = await getProductImageUploadUrl({
-        data: { productColorId, contentType: "image/jpeg" },
+      const { uploadUrl, s3Key } = await getItemImageUploadUrl({
+        data: { itemColorId, contentType: "image/jpeg" },
       })
       const res = await fetch(uploadUrl, {
         method: "PUT",
@@ -78,9 +78,9 @@ function UploadButton({
         body: blob,
       })
       if (!res.ok) throw new Error(`Upload failed (${res.status})`)
-      await setProductColorImage({ data: { id: productColorId, imageS3Key: s3Key } })
+      await setItemColorImage({ data: { id: itemColorId, imageS3Key: s3Key } })
 
-      const url = productImageUrl(s3Key)
+      const url = itemImageUrl(s3Key)
       if (url) onUploaded(url)
       setState("idle")
     } catch (e) {
@@ -131,17 +131,17 @@ function UploadButton({
 // Mobile — direct camera capture + upload-from-library
 // ---------------------------------------------------------------------------
 
-function MobileCapture({ productColorId, onUploaded }: Props) {
+function MobileCapture({ itemColorId, onUploaded }: Props) {
   return (
     <div className="flex flex-wrap gap-2">
       <UploadButton
-        productColorId={productColorId}
+        itemColorId={itemColorId}
         onUploaded={onUploaded}
         capture="environment"
         idleLabel="Take photo"
       />
       <UploadButton
-        productColorId={productColorId}
+        itemColorId={itemColorId}
         onUploaded={onUploaded}
         idleLabel="Upload"
       />
@@ -153,7 +153,7 @@ function MobileCapture({ productColorId, onUploaded }: Props) {
 // Desktop — QR handoff to phone, poll for upload completion
 // ---------------------------------------------------------------------------
 
-function DesktopHandoff({ productColorId, onUploaded }: Props) {
+function DesktopHandoff({ itemColorId, onUploaded }: Props) {
   const [dataUrl, setDataUrl] = React.useState<string | null>(null)
   const [token, setToken] = React.useState<string | null>(null)
   const [expiresAt, setExpiresAt] = React.useState<Date | null>(null)
@@ -163,7 +163,7 @@ function DesktopHandoff({ productColorId, onUploaded }: Props) {
   async function generate() {
     setGenerating(true)
     try {
-      const result = await createPhotoUploadToken({ data: { productColorId } })
+      const result = await createPhotoUploadToken({ data: { itemColorId } })
       const png = await QRCode.toDataURL(result.url, { width: 256, margin: 1 })
       setDataUrl(png)
       setToken(result.token)
@@ -217,7 +217,7 @@ function DesktopHandoff({ productColorId, onUploaded }: Props) {
           {generating ? "Generating…" : "Take with phone (QR)"}
         </Button>
         <UploadButton
-          productColorId={productColorId}
+          itemColorId={itemColorId}
           onUploaded={onUploaded}
           idleLabel="Upload"
         />
@@ -250,7 +250,7 @@ function DesktopHandoff({ productColorId, onUploaded }: Props) {
           {generating ? "Generating…" : "Regenerate"}
         </Button>
         <UploadButton
-          productColorId={productColorId}
+          itemColorId={itemColorId}
           onUploaded={onUploaded}
           idleLabel="Upload"
           size="sm"

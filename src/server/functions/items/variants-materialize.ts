@@ -6,7 +6,7 @@ import { variants } from '#/db/schema'
  * table for a given item. Idempotent on the `uq_variant_item_color_size`
  * unique constraint — re-running with the same input is a no-op.
  *
- * Used by `createProduct` / `updateProduct` (issue #7) so the legacy
+ * Used by `createItem` / `updateProduct` (issue #7) so the legacy
  * `items.sizes text[]` column can be dropped: the set of variant rows is
  * the source of truth for an item's available sizes.
  */

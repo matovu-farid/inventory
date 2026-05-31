@@ -2,14 +2,14 @@ import BigNumber from "bignumber.js"
 
 export interface OpeningBalanceCell {
   // Variant the cell creates stock for. Replaces the legacy
-  // (productColorId, size) shape in #6 — opening balance now points at a
+  // (itemColorId, size) shape in #6 — opening balance now points at a
   // pre-materialised variant rather than reaching for one by (color, size).
   variantId: string
   quantity: number
 }
 
-export interface OpeningBalanceProductEntry {
-  // Renamed from `productId` for #6 — matches the catalog vocabulary the
+export interface OpeningBalanceItemEntry {
+  // Renamed from `itemId` for #6 — matches the catalog vocabulary the
   // rest of the schema settled on after #3 (products → items).
   itemId: string
   unitCostUgx: string
@@ -27,7 +27,7 @@ export function validateOpeningBalanceCell(cell: OpeningBalanceCell, unitCostUgx
   }
 }
 
-export function computeOpeningBalanceTotal(entries: OpeningBalanceProductEntry[]): BigNumber {
+export function computeOpeningBalanceTotal(entries: OpeningBalanceItemEntry[]): BigNumber {
   return entries.reduce((sum, entry) => {
     const cost = new BigNumber(entry.unitCostUgx)
     const cellTotal = entry.cells.reduce((s, c) => s + c.quantity, 0)

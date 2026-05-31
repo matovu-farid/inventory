@@ -1,7 +1,7 @@
 import { formatUgx, formatUgxTotal } from "#/lib/format"
 
 interface SaleItemForReceipt {
-  productName: string
+  itemName: string
   quantity: number
   unitPriceUgx: string
   totalPriceUgx: string
@@ -31,7 +31,7 @@ export function renderSaleReceipt(sale: SaleForReceipt): string {
     .map(
       (item) => `
         <tr>
-          <td>${escapeHtml(item.productName)}</td>
+          <td>${escapeHtml(item.itemName)}</td>
           <td class="num">${item.quantity}</td>
           <td class="num">${formatUgx(item.unitPriceUgx)}</td>
           <td class="num">${formatUgx(item.totalPriceUgx)}</td>

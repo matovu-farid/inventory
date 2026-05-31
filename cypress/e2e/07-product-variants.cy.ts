@@ -75,9 +75,9 @@ describe.skip("Product variants happy path", () => {
     cy.contains("button", /select product/i).click()
     cy.contains("Create new").click()
 
-    // Fill ProductEditor
+    // Fill ItemEditor
     cy.contains("label", "Article number").parent().find("input").type(`E2E-${Date.now()}`)
-    cy.contains("label", "Product name").parent().find("input").type("E2E Crew Tee")
+    cy.contains("label", "Item name").parent().find("input").type("E2E Crew Tee")
     cy.contains("button", /create product/i).click()
 
     // Add a Red color via the palette (no image — keeps test deterministic)

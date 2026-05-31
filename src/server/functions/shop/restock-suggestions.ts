@@ -12,7 +12,7 @@ import {
 } from '#/db/schema'
 import { requireSession } from '#/server/middleware/auth'
 import { requireRole } from '#/server/middleware/rbac'
-import { formatProductLabel } from '#/lib/products'
+import { formatItemLabel } from '#/lib/items'
 
 const input = z.object({ shopId: z.uuid() })
 
@@ -68,6 +68,6 @@ export const listShopRestockSuggestions = createServerFn()
       suggestedQuantity: Math.max(0, r.baseline - r.quantityOnHand),
       storeStockId: r.storeStockId,
       storeQuantity: r.storeQuantity ?? 0,
-      productLabel: formatProductLabel(r.articleNumber, r.colorName, r.size),
+      itemLabel: formatItemLabel(r.articleNumber, r.colorName, r.size),
     }))
   })

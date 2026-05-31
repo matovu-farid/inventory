@@ -232,7 +232,7 @@ describe.skip("Full Inventory Workflow", () => {
     cy.get("button").contains("New Sale").click()
     cy.get('[role="dialog"]', { timeout: 5000 }).should("be.visible")
 
-    // Select product
+    // Select item
     cy.get('[role="dialog"]').find('button[role="combobox"]').first().click()
     cy.get('[role="option"]').first().click()
 

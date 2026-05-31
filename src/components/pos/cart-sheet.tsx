@@ -38,7 +38,7 @@ export function CartSheet({ open, onOpenChange, onCheckout }: Props) {
                 aria-hidden
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{i.productLabel}</p>
+                <p className="truncate text-sm font-medium">{i.itemLabel}</p>
                 <p className="font-mono text-xs text-muted-foreground">
                   {i.qty} × {formatUgxTotal(i.unitPriceUgx)}
                 </p>
@@ -70,7 +70,7 @@ export function CartSheet({ open, onOpenChange, onCheckout }: Props) {
                   variant="ghost"
                   className="size-9 text-muted-foreground hover:text-destructive"
                   onClick={() => remove(i.shopStockId)}
-                  aria-label={`Remove ${i.productLabel}`}
+                  aria-label={`Remove ${i.itemLabel}`}
                 >
                   <Trash2 className="size-3.5" />
                 </Button>

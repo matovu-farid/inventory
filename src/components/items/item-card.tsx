@@ -1,17 +1,9 @@
 import { Link } from "@tanstack/react-router"
-import { productImageUrl } from "#/lib/products"
+import { itemImageUrl } from "#/lib/items"
 import { deriveSizes } from "#/lib/variants"
 import type { VariantLike } from "#/lib/variants"
 import { cn } from "#/lib/utils"
 
-/**
- * Card surface for an item in list views (catalog, store stock, shop
- * stock). Renamed from "Product" to "Item" semantically — the export
- * name `ProductCard` is preserved for now so call-sites don't have to
- * churn in lockstep, but the data shape is the post-#7 one: sizes are
- * derived from the variants array, not read from a separate `sizes`
- * prop.
- */
 interface ItemCardData {
   articleNumber: string
   name: string
@@ -26,7 +18,7 @@ interface ItemCardData {
   locationCounts?: Array<{ label: string; qty: number }>
 }
 
-export function ProductCard({
+export function ItemCard({
   data,
   className,
 }: {
@@ -47,7 +39,7 @@ export function ProductCard({
       <div className="size-24 shrink-0 rounded-md border bg-muted overflow-hidden flex items-center justify-center">
         {primaryImage ? (
           <img
-            src={productImageUrl(primaryImage)}
+            src={itemImageUrl(primaryImage)}
             alt=""
             className="size-full object-cover"
           />

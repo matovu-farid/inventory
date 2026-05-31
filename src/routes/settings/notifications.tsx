@@ -19,7 +19,7 @@ import { runThresholdChecksNow } from '#/server/functions/notifications/notifica
 import { ThresholdField } from '#/components/notifications/threshold-form'
 import type { ThresholdValue } from '#/components/notifications/threshold-form'
 import { OverrideTable } from '#/components/notifications/override-table'
-import { listVariantsForOverrides } from '#/server/functions/products/colors'
+import { listVariantsForOverrides } from '#/server/functions/items/colors'
 import { listShopsForReports } from '#/server/functions/shop/list-shops'
 
 export const Route = createFileRoute('/settings/notifications')({

@@ -12,7 +12,7 @@ import BigNumber from "bignumber.js"
  * Aggregate and color-only rows must later be "split" into full
  * (color + size) variants before goods can be received against them.
  *
- * The input field names keep their existing "productColorId" / "productId"
+ * The input field names keep their existing "itemColorId" / "itemId"
  * spellings because the route + form components have not migrated to the
  * "item" vocabulary yet (UI rename is queued behind #7). On the way out,
  * `materializeVariantRows` maps them to the `colorId` / `itemId` columns
@@ -20,7 +20,7 @@ import BigNumber from "bignumber.js"
  * renamed `supply_route_items` → `supply_route_lines` in Phase 2 / #8).
  */
 export const cellSchema = z.object({
-  productColorId: z.uuid().optional(),
+  itemColorId: z.uuid().optional(),
   size: z.string().min(1).optional(),
   quantity: z.number().int().positive(),
 })
@@ -28,7 +28,7 @@ export const cellSchema = z.object({
 export const variantInput = z.object({
   supplyRouteId: z.uuid(),
   supplierId: z.uuid(),
-  productId: z.uuid(),
+  itemId: z.uuid(),
   unitPriceForeign: z.string(),
   foreignCurrency: z.string().default("RMB"),
   exchangeRateForeignToUsd: z.string().optional(),
@@ -93,8 +93,8 @@ export function materializeVariantRows(
     return {
       supplyRouteId: input.supplyRouteId,
       supplierId: input.supplierId,
-      itemId: input.productId,
-      colorId: cell.productColorId ?? null,
+      itemId: input.itemId,
+      colorId: cell.itemColorId ?? null,
       size: cell.size ?? null,
       quantity: cell.quantity,
       unitPriceForeign: input.unitPriceForeign,
@@ -120,7 +120,7 @@ export function materializeVariantRows(
 export interface SplitSourceRow {
   supplyRouteId: string
   supplierId: string
-  productId: string | null
+  itemId: string | null
   quantity: number
   unitPriceForeign: string
   foreignCurrency: string
@@ -129,14 +129,14 @@ export interface SplitSourceRow {
 }
 
 export interface SplitCell {
-  productColorId: string
+  itemColorId: string
   size?: string
   quantity: number
 }
 
 export function materializeSplitRows(
   source: SplitSourceRow,
-  productIdFallback: string,
+  itemIdFallback: string,
   cells: SplitCell[],
 ): MaterializedRow[] {
   const totalNew = cells.reduce((sum, c) => sum + c.quantity, 0)
@@ -148,13 +148,13 @@ export function materializeSplitRows(
   return materializeVariantRows({
     supplyRouteId: source.supplyRouteId,
     supplierId: source.supplierId,
-    productId: source.productId ?? productIdFallback,
+    itemId: source.itemId ?? itemIdFallback,
     unitPriceForeign: source.unitPriceForeign,
     foreignCurrency: source.foreignCurrency,
     exchangeRateForeignToUsd: source.exchangeRateForeignToUsd ?? undefined,
     exchangeRateUsdToUgx: source.exchangeRateUsdToUgx ?? undefined,
     cells: cells.map((c) => ({
-      productColorId: c.productColorId,
+      itemColorId: c.itemColorId,
       size: c.size,
       quantity: c.quantity,
     })),

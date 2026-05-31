@@ -15,7 +15,7 @@ import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
-import { formatProductLabel } from "#/lib/products"
+import { formatItemLabel } from "#/lib/items"
 import { buildStoreReturnReceiveEntries } from "./return-entries"
 import { renderAuditDescription } from "#/server/audit/descriptions"
 import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
@@ -53,20 +53,20 @@ export const dispatchStoreReturn = createServerFn()
       for (const item of data.items) {
         const stock = await tx.query.shopStock.findFirst({
           where: eq(shopStock.id, item.shopStockId),
-          with: { variant: { with: { color: { with: { product: true } } } } },
+          with: { variant: { with: { color: { with: { item: true } } } } },
         })
         if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
-        const productLabel = formatProductLabel(
-          stock.variant.color.product.articleNumber,
+        const itemLabel = formatItemLabel(
+          stock.variant.color.item.articleNumber,
           stock.variant.color.colorName,
           stock.variant.size,
         )
         if (stock.quantityOnHand < item.quantityDispatched) {
           throw new Error(
-            `Insufficient stock for ${productLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`,
+            `Insufficient stock for ${itemLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`,
           )
         }
-        itemDetails.push({ stock, productLabel, ...item })
+        itemDetails.push({ stock, itemLabel, ...item })
       }
 
       const docNumber = await nextDocumentNumber(tx, "STR-RET")
@@ -172,7 +172,7 @@ export const receiveStoreReturn = createServerFn()
           items: {
             with: {
               shopStock: {
-                with: { variant: { with: { color: { with: { product: true } } } } },
+                with: { variant: { with: { color: { with: { item: true } } } } },
               },
             },
           },
@@ -208,14 +208,14 @@ export const receiveStoreReturn = createServerFn()
         if (!item) {
           throw new Error(`Return item not found: ${receipt.storeReturnItemId}`)
         }
-        const productLabel = formatProductLabel(
-          item.shopStock.variant.color.product.articleNumber,
+        const itemLabel = formatItemLabel(
+          item.shopStock.variant.color.item.articleNumber,
           item.shopStock.variant.color.colorName,
           item.shopStock.variant.size,
         )
         if (receipt.quantityReceived > item.quantityDispatched) {
           throw new Error(
-            `Received ${receipt.quantityReceived} > dispatched ${item.quantityDispatched} for ${productLabel}`,
+            `Received ${receipt.quantityReceived} > dispatched ${item.quantityDispatched} for ${itemLabel}`,
           )
         }
         await tx

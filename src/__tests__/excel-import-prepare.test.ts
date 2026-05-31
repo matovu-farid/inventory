@@ -22,7 +22,7 @@ import type { ParsedRouteItem } from "#/lib/excel/parser"
  */
 
 const baseItem: ParsedRouteItem = {
-  productName: "Red T-Shirt",
+  itemName: "Red T-Shirt",
   articleNumber: "RT-100",
   quantity: 10,
   unitPriceForeign: "50",
@@ -97,9 +97,9 @@ describe.skip("prepareImportItem — row construction", () => {
     expect(row.totalCostUgx).toBe("0")
   })
 
-  it("preserves productName and articleNumber from the parsed item", () => {
+  it("preserves itemName and articleNumber from the parsed item", () => {
     const row = prepareImportItem(baseItem, "supplier-abc", "route-1") as unknown as Record<string, unknown>
-    expect(row.productName).toBe("Red T-Shirt")
+    expect(row.itemName).toBe("Red T-Shirt")
     expect(row.articleNumber).toBe("RT-100")
   })
 })

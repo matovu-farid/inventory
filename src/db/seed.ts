@@ -198,18 +198,18 @@ async function seed() {
     })
 
     async function upsertColor(args: {
-      productId: string
+      itemId: string
       colorName: string
       colorHex: string
     }) {
       const existing = await db.query.itemColors.findFirst({
-        where: sql`${itemColors.itemId} = ${args.productId} AND ${itemColors.colorName} = ${args.colorName}`,
+        where: sql`${itemColors.itemId} = ${args.itemId} AND ${itemColors.colorName} = ${args.colorName}`,
       })
       if (existing) return existing
       const [created] = await db
         .insert(itemColors)
         .values({
-          itemId: args.productId,
+          itemId: args.itemId,
           colorName: args.colorName,
           colorHex: args.colorHex,
           imageS3Key: null,
@@ -219,27 +219,27 @@ async function seed() {
     }
 
     const tshirtBlack = await upsertColor({
-      productId: tshirt.id,
+      itemId: tshirt.id,
       colorName: "Black",
       colorHex: "#0a0a0a",
     })
     const tshirtBurgundy = await upsertColor({
-      productId: tshirt.id,
+      itemId: tshirt.id,
       colorName: "Burgundy",
       colorHex: "#7b1f2b",
     })
     const jacketNavy = await upsertColor({
-      productId: jacket.id,
+      itemId: jacket.id,
       colorName: "Navy",
       colorHex: "#0b1f44",
     })
     const jacketOlive = await upsertColor({
-      productId: jacket.id,
+      itemId: jacket.id,
       colorName: "Olive",
       colorHex: "#6a6a2a",
     })
     const trouserKhaki = await upsertColor({
-      productId: trouser.id,
+      itemId: trouser.id,
       colorName: "Khaki",
       colorHex: "#b5a26b",
     })
@@ -280,7 +280,7 @@ async function seed() {
 
       // One row per (color, size).
       type RouteItemSeed = {
-        productColorId: string
+        itemColorId: string
         size: string
         quantity: number
         unitPriceForeign: string
@@ -288,17 +288,17 @@ async function seed() {
       const routeItemSeeds: RouteItemSeed[] = [
         // T-shirts: 85 RMB
         ...["S", "M", "L"].flatMap((size): RouteItemSeed[] => [
-          { productColorId: tshirtBlack.id, size, quantity: 20, unitPriceForeign: "85.00" },
-          { productColorId: tshirtBurgundy.id, size, quantity: 15, unitPriceForeign: "85.00" },
+          { itemColorId: tshirtBlack.id, size, quantity: 20, unitPriceForeign: "85.00" },
+          { itemColorId: tshirtBurgundy.id, size, quantity: 15, unitPriceForeign: "85.00" },
         ]),
         // Jackets: 320 RMB
         ...["M", "L", "XL"].flatMap((size): RouteItemSeed[] => [
-          { productColorId: jacketNavy.id, size, quantity: 10, unitPriceForeign: "320.00" },
-          { productColorId: jacketOlive.id, size, quantity: 8, unitPriceForeign: "320.00" },
+          { itemColorId: jacketNavy.id, size, quantity: 10, unitPriceForeign: "320.00" },
+          { itemColorId: jacketOlive.id, size, quantity: 8, unitPriceForeign: "320.00" },
         ]),
         // Trousers: 140 RMB
         ...["30", "32", "34"].map((size): RouteItemSeed => ({
-          productColorId: trouserKhaki.id,
+          itemColorId: trouserKhaki.id,
           size,
           quantity: 12,
           unitPriceForeign: "140.00",
@@ -315,7 +315,7 @@ async function seed() {
         return {
           supplyRouteId: route.id,
           supplierId: existingSupplier.id,
-          colorId: s.productColorId,
+          colorId: s.itemColorId,
           size: s.size,
           quantity: s.quantity,
           unitPriceForeign: s.unitPriceForeign,
@@ -336,24 +336,24 @@ async function seed() {
     // ─── 5. Store opening stock (one row per variant) ──────────────────
     console.log("Seeding store stock...")
     const stockSeeds: Array<{
-      productColorId: string
+      itemColorId: string
       size: string
       qty: number
       costUgx: string
     }> = [
       // T-shirts ~ 44k UGX cost, sell floor 80k
       ...["S", "M", "L"].flatMap((size) => [
-        { productColorId: tshirtBlack.id, size, qty: 20, costUgx: "44000.00" },
-        { productColorId: tshirtBurgundy.id, size, qty: 15, costUgx: "44000.00" },
+        { itemColorId: tshirtBlack.id, size, qty: 20, costUgx: "44000.00" },
+        { itemColorId: tshirtBurgundy.id, size, qty: 15, costUgx: "44000.00" },
       ]),
       // Jackets ~ 165k UGX cost
       ...["M", "L", "XL"].flatMap((size) => [
-        { productColorId: jacketNavy.id, size, qty: 10, costUgx: "165500.00" },
-        { productColorId: jacketOlive.id, size, qty: 8, costUgx: "165500.00" },
+        { itemColorId: jacketNavy.id, size, qty: 10, costUgx: "165500.00" },
+        { itemColorId: jacketOlive.id, size, qty: 8, costUgx: "165500.00" },
       ]),
       // Trousers ~ 72k UGX cost
       ...["30", "32", "34"].map((size) => ({
-        productColorId: trouserKhaki.id,
+        itemColorId: trouserKhaki.id,
         size,
         qty: 12,
         costUgx: "72400.00",
@@ -371,18 +371,18 @@ async function seed() {
         await db
           .select({ itemId: itemColors.itemId })
           .from(itemColors)
-          .where(eq(itemColors.id, s.productColorId))
+          .where(eq(itemColors.id, s.itemColorId))
       ).at(0)
       if (!itemRow) {
         throw new Error(
-          `Seed: item_colors row not found for ${s.productColorId}`,
+          `Seed: item_colors row not found for ${s.itemColorId}`,
         )
       }
       await db
         .insert(variants)
         .values({
           itemId: itemRow.itemId,
-          colorId: s.productColorId,
+          colorId: s.itemColorId,
           size: s.size,
         })
         .onConflictDoNothing()
@@ -396,12 +396,12 @@ async function seed() {
           .select({ id: variants.id })
           .from(variants)
           .where(
-            sql`${variants.colorId} = ${s.productColorId}::uuid AND ${variants.size} = ${s.size}`,
+            sql`${variants.colorId} = ${s.itemColorId}::uuid AND ${variants.size} = ${s.size}`,
           )
       ).at(0)
       if (!variantRow) {
         throw new Error(
-          `Seed: variant missing for (${s.productColorId}, ${s.size}) — run pnpm backfill:variants`,
+          `Seed: variant missing for (${s.itemColorId}, ${s.size}) — run pnpm backfill:variants`,
         )
       }
       const result = await db

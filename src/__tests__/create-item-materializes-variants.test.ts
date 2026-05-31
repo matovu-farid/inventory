@@ -1,7 +1,7 @@
 /**
  * Issue #7 — create-item flow materializes variants.
  *
- * The createProduct server fn used to write `items.sizes`. After #7 it
+ * The createItem server fn used to write `items.sizes`. After #7 it
  * MUST instead materialize the (colors × sizes) cross product into the
  * variants table whenever the caller supplies colors + sizes — sizes
  * are no longer a direct item field; they live on variants.
@@ -16,8 +16,8 @@ import { runWithStartContext } from '@tanstack/start-storage-context'
 
 import { db } from '#/db'
 import { items, itemColors, itemCategories, variants } from '#/db/schema'
-import { createProduct } from '#/server/functions/products/products'
-import { addProductColor } from '#/server/functions/products/colors'
+import { createItem } from '#/server/functions/items/items'
+import { addItemColor } from '#/server/functions/items/colors'
 
 const TEST_USER_ID = '00000000-0000-0000-0000-0000000000c7'
 vi.mock('#/server/middleware/auth', () => ({
@@ -66,14 +66,14 @@ afterAll(async () => {
   }
 })
 
-describe('createProduct — materializes variants when colors + sizes given', () => {
-  it('createProduct materializes variants when colors + sizes both arrive together', async () => {
+describe('createItem — materializes variants when colors + sizes given', () => {
+  it('createItem materializes variants when colors + sizes both arrive together', async () => {
     const articleNumber = `cm-${SUFFIX}-a`
 
     // The form collects colors + sizes in one shot before submit and
     // passes them together; the server fn writes the cross-product.
     await callServerFn(() =>
-      createProduct({
+      createItem({
         data: {
           articleNumber,
           name: 'Materialize tester',
@@ -107,11 +107,11 @@ describe('createProduct — materializes variants when colors + sizes given', ()
     expect(variantRows).toHaveLength(6)
   })
 
-  it('addProductColor with explicit sizes materializes variants for the new color', async () => {
+  it('addItemColor with explicit sizes materializes variants for the new color', async () => {
     const articleNumber = `cm-${SUFFIX}-b`
 
     await callServerFn(() =>
-      createProduct({
+      createItem({
         data: {
           articleNumber,
           name: 'Materialize tester B',
@@ -129,9 +129,9 @@ describe('createProduct — materializes variants when colors + sizes given', ()
     createdItemIds.push(created.id)
 
     await callServerFn(() =>
-      addProductColor({
+      addItemColor({
         data: {
-          productId: created.id,
+          itemId: created.id,
           colorName: 'Olive',
           colorHex: '#556b2f',
           sizes: ['M', 'L'],

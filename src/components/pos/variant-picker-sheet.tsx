@@ -14,22 +14,22 @@ import { Input } from "#/components/ui/input"
 import { MoneyInput } from "#/components/ui/money-input"
 import { InfoTip } from "#/components/ui/info-tip"
 import { useCart } from "#/components/pos/cart-context"
-import { productImageUrl } from "#/lib/products"
+import { itemImageUrl } from "#/lib/items"
 import { formatUgx, formatUgxTotal } from "#/lib/format"
 import { cn } from "#/lib/utils"
-import type { AggregatedProduct } from "#/lib/products"
+import type { AggregatedItem } from "#/lib/items"
 import { deriveSizes } from "#/lib/variants"
 
 type StockRow = {
   id: string
-  productColorId: string
+  itemColorId: string
   size: string
   quantityOnHand: number
   minimumSellPriceUgx: string
 }
 
 type Props = {
-  product: AggregatedProduct | null
+  item: AggregatedItem | null
   stock: StockRow[]
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -37,7 +37,7 @@ type Props = {
 
 type Step = 1 | 2 | 3
 
-export function VariantPickerSheet({ product, stock, open, onOpenChange }: Props) {
+export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
   const { add } = useCart()
   const [step, setStep] = React.useState<Step>(1)
   const [colorId, setColorId] = React.useState<string | null>(null)
@@ -55,14 +55,14 @@ export function VariantPickerSheet({ product, stock, open, onOpenChange }: Props
     setQty(1)
     setPrice("")
     setReason("")
-  }, [open, product?.product.articleNumber])
+  }, [open, item?.item.articleNumber])
 
   // currentRow is derived below, but we need the id for the effect dep.
   // Compute it eagerly so we can reference it before the early return.
   const variantRow = React.useCallback(
     (cid: string | null, sz: string | null) =>
       cid && sz
-        ? stock.find((s) => s.productColorId === cid && s.size === sz) ?? null
+        ? stock.find((s) => s.itemColorId === cid && s.size === sz) ?? null
         : null,
     [stock],
   )
@@ -73,14 +73,14 @@ export function VariantPickerSheet({ product, stock, open, onOpenChange }: Props
     if (price === "") setPrice(currentRow.minimumSellPriceUgx)
   }, [currentRow, price])
 
-  const availableColors = product?.colors ?? []
+  const availableColors = item?.colors ?? []
   // Sizes used to come from `items.sizes`; after #7 they're derived
-  // from the materialised variants attached to the AggregatedProduct
-  // entry. Falls back to an empty list when the product has no stock.
-  const availableSizes = deriveSizes(product?.variants ?? [])
-  const stockForColor = (cid: string) => stock.filter((s) => s.productColorId === cid && s.quantityOnHand > 0)
+  // from the materialised variants attached to the AggregatedItem
+  // entry. Falls back to an empty list when the item has no stock.
+  const availableSizes = deriveSizes(item?.variants ?? [])
+  const stockForColor = (cid: string) => stock.filter((s) => s.itemColorId === cid && s.quantityOnHand > 0)
   const sizeAvailableForColor = (cid: string, sz: string) => {
-    const r = stock.find((s) => s.productColorId === cid && s.size === sz)
+    const r = stock.find((s) => s.itemColorId === cid && s.size === sz)
     return r ? r.quantityOnHand > 0 : false
   }
 
@@ -99,14 +99,14 @@ export function VariantPickerSheet({ product, stock, open, onOpenChange }: Props
   }
 
   function addItem() {
-    if (!currentRow || !colorId || !size || !product) return
-    const color = product.colors.find((c) => c.id === colorId)
+    if (!currentRow || !colorId || !size || !item) return
+    const color = item.colors.find((c) => c.id === colorId)
     if (!color) return
-    const label = `${product.product.articleNumber} · ${product.product.name} — ${color.colorName} / ${size}`
+    const label = `${item.item.articleNumber} · ${item.item.name} — ${color.colorName} / ${size}`
     add({
       shopStockId: currentRow.id,
-      productLabel: label,
-      imageUrl: color.imageS3Key ? productImageUrl(color.imageS3Key) : null,
+      itemLabel: label,
+      imageUrl: color.imageS3Key ? itemImageUrl(color.imageS3Key) : null,
       colorHex: color.colorHex,
       qty,
       unitPriceUgx: price,
@@ -127,7 +127,7 @@ export function VariantPickerSheet({ product, stock, open, onOpenChange }: Props
       <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>
-            {product ? `${product.product.name} · ${product.product.articleNumber}` : ""}
+            {item ? `${item.item.name} · ${item.item.articleNumber}` : ""}
           </SheetTitle>
           <p className="text-xs text-muted-foreground">Step {step} of 3</p>
         </SheetHeader>

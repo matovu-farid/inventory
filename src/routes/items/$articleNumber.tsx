@@ -2,20 +2,20 @@ import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import { requireUiPermission, useCan } from "#/lib/permissions"
-import { getProductByArticle } from "#/server/functions/products/products"
+import { getItemByArticle } from "#/server/functions/items/items"
 import {
-  listProductStockPrices,
+  listItemStockPrices,
   setStockMinimumPrice,
-} from "#/server/functions/products/prices"
-import { countVariantStockLocations } from "#/server/functions/products/variant-stock-counts"
+} from "#/server/functions/items/prices"
+import { countVariantStockLocations } from "#/server/functions/items/variant-stock-counts"
 import {
   createVariant,
   deleteVariant,
-} from "#/server/functions/products/variants"
-import { ColorEditor } from "#/components/products/color-editor"
-import { PhotoHandoffQR } from "#/components/products/photo-handoff-qr"
+} from "#/server/functions/items/variants"
+import { ColorEditor } from "#/components/items/color-editor"
+import { PhotoHandoffQR } from "#/components/items/photo-handoff-qr"
 import { AuditActivityPanel } from "#/components/audit/audit-activity-panel"
-import { productImageUrl } from "#/lib/products"
+import { itemImageUrl } from "#/lib/items"
 import { deriveSizes } from "#/lib/variants"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
@@ -30,16 +30,14 @@ import {
 } from "#/components/ui/dialog"
 
 export const Route = createFileRoute("/items/$articleNumber")({
-  // Permission alias: `items.view` is the new key; `products.view` is
-  // accepted as a 90-day synonym (see src/lib/permissions.ts).
   beforeLoad: ({ context }) => requireUiPermission(context, "items.view"),
   loader: async ({ params }) => {
-    const product = await getProductByArticle({
+    const product = await getItemByArticle({
       data: { articleNumber: params.articleNumber },
     })
     if (!product) throw new Error(`Product not found: ${params.articleNumber}`)
     const [prices, variantStockCounts] = await Promise.all([
-      listProductStockPrices({ data: { productId: product.id } }),
+      listItemStockPrices({ data: { itemId: product.id } }),
       countVariantStockLocations({ data: { itemId: product.id } }),
     ])
     return { product, prices, variantStockCounts }
@@ -50,7 +48,7 @@ export const Route = createFileRoute("/items/$articleNumber")({
 function ProductDetailPage() {
   const { product, prices, variantStockCounts } = Route.useLoaderData()
   const router = useRouter()
-  const canManage = useCan("products.manage")
+  const canManage = useCan("items.manage")
   const canSeeActivity = useCan("audit.viewArticleActivity")
   const [colorDialogOpen, setColorDialogOpen] = useState(false)
   const [priceDialogOpen, setPriceDialogOpen] = useState(false)
@@ -75,7 +73,7 @@ function ProductDetailPage() {
           <div className="aspect-square rounded border bg-muted flex items-center justify-center overflow-hidden">
             {active.imageS3Key ? (
               <img
-                src={productImageUrl(active.imageS3Key)}
+                src={itemImageUrl(active.imageS3Key)}
                 alt=""
                 className="size-full object-cover"
               />
@@ -112,7 +110,7 @@ function ProductDetailPage() {
           {canManage && (
             <div className="pt-3 border-t mt-3">
               <PhotoHandoffQR
-                productColorId={active.id}
+                itemColorId={active.id}
                 onUploaded={() => { void router.invalidate() }}
               />
             </div>
@@ -168,7 +166,7 @@ function ProductDetailPage() {
             <DialogTitle>Add color</DialogTitle>
           </DialogHeader>
           <ColorEditor
-            productId={product.id}
+            itemId={product.id}
             onCreated={() => {
               setColorDialogOpen(false)
               void router.invalidate()
@@ -199,7 +197,7 @@ function ProductDetailPage() {
 
 type StockPrices = {
   // Stock now references variant_id (issue #4); color + size live on the
-  // joined variant. The shape here mirrors the `listProductStockPrices`
+  // joined variant. The shape here mirrors the `listItemStockPrices`
   // server-fn return type.
   store: Array<{
     id: string

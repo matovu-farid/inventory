@@ -8,7 +8,7 @@ import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
-import { formatProductLabel } from "#/lib/products"
+import { formatItemLabel } from "#/lib/items"
 import { renderAuditDescription } from "#/server/audit/descriptions"
 import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
 import { getActorName } from "#/server/audit/actor"
@@ -67,18 +67,18 @@ export const startStockTake = createServerFn()
       if (data.locationType === "store") {
         const items = await tx.query.storeStock.findMany({
           where: eq(storeStock.storeId, data.locationId),
-          with: { variant: { with: { color: { with: { product: true } } } } },
+          with: { variant: { with: { color: { with: { item: true } } } } },
         })
         for (const item of items) {
-          const productLabel = formatProductLabel(
-            item.variant.color.product.articleNumber,
+          const itemLabel = formatItemLabel(
+            item.variant.color.item.articleNumber,
             item.variant.color.colorName,
             item.variant.size,
           )
           await tx.insert(stockTakeLines).values({
             stockTakeId: st.id,
             storeStockId: item.id,
-            productName: productLabel,
+            itemName: itemLabel,
             systemQuantity: item.quantityOnHand,
             physicalQuantity: item.quantityOnHand, // default to matching
             discrepancy: 0,
@@ -88,18 +88,18 @@ export const startStockTake = createServerFn()
       } else {
         const items = await tx.query.shopStock.findMany({
           where: eq(shopStock.shopId, data.locationId),
-          with: { variant: { with: { color: { with: { product: true } } } } },
+          with: { variant: { with: { color: { with: { item: true } } } } },
         })
         for (const item of items) {
-          const productLabel = formatProductLabel(
-            item.variant.color.product.articleNumber,
+          const itemLabel = formatItemLabel(
+            item.variant.color.item.articleNumber,
             item.variant.color.colorName,
             item.variant.size,
           )
           await tx.insert(stockTakeLines).values({
             stockTakeId: st.id,
             shopStockId: item.id,
-            productName: productLabel,
+            itemName: itemLabel,
             systemQuantity: item.quantityOnHand,
             physicalQuantity: item.quantityOnHand,
             discrepancy: 0,
@@ -231,7 +231,7 @@ export const reconcileStockTake = createServerFn()
                 locationType: "store",
                 locationId: st.locationId,
                 recordedBy: userId,
-                description: `Shrinkage: ${lossQty}x ${item.productName}`,
+                description: `Shrinkage: ${lossQty}x ${item.itemName}`,
               })
             }
           }
@@ -258,7 +258,7 @@ export const reconcileStockTake = createServerFn()
                 locationType: "shop",
                 locationId: st.locationId,
                 recordedBy: userId,
-                description: `Shrinkage: ${lossQty}x ${item.productName}`,
+                description: `Shrinkage: ${lossQty}x ${item.itemName}`,
               })
             }
           }

@@ -21,7 +21,6 @@ import { Route as StoreIndexRouteImport } from './routes/store/index'
 import { Route as ShopIndexRouteImport } from './routes/shop/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReportsIndexRouteImport } from './routes/reports/index'
-import { Route as ProductsIndexRouteImport } from './routes/products/index'
 import { Route as ItemsIndexRouteImport } from './routes/items/index'
 import { Route as CustomersIndexRouteImport } from './routes/customers/index'
 import { Route as UploadPhotoTokenRouteImport } from './routes/upload-photo.$token'
@@ -40,7 +39,6 @@ import { Route as SettingsAuditLogRouteImport } from './routes/settings/audit-lo
 import { Route as ReportsZRouteImport } from './routes/reports/z'
 import { Route as ReportsXRouteImport } from './routes/reports/x'
 import { Route as ReportsLedgerRouteImport } from './routes/reports/ledger'
-import { Route as ProductsArticleNumberRouteImport } from './routes/products/$articleNumber'
 import { Route as ItemsArticleNumberRouteImport } from './routes/items/$articleNumber'
 import { Route as ShopShopIdRestockRouteImport } from './routes/shop/$shopId/restock'
 import { Route as ReportsZIdRouteImport } from './routes/reports/z.$id'
@@ -105,11 +103,6 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
 const ReportsIndexRoute = ReportsIndexRouteImport.update({
   id: '/reports/',
   path: '/reports/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProductsIndexRoute = ProductsIndexRouteImport.update({
-  id: '/products/',
-  path: '/products/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ItemsIndexRoute = ItemsIndexRouteImport.update({
@@ -203,11 +196,6 @@ const ReportsLedgerRoute = ReportsLedgerRouteImport.update({
   path: '/reports/ledger',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProductsArticleNumberRoute = ProductsArticleNumberRouteImport.update({
-  id: '/products/$articleNumber',
-  path: '/products/$articleNumber',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ItemsArticleNumberRoute = ItemsArticleNumberRouteImport.update({
   id: '/items/$articleNumber',
   path: '/items/$articleNumber',
@@ -244,7 +232,6 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/items/$articleNumber': typeof ItemsArticleNumberRoute
-  '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
@@ -263,7 +250,6 @@ export interface FileRoutesByFullPath {
   '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers/': typeof CustomersIndexRoute
   '/items/': typeof ItemsIndexRoute
-  '/products/': typeof ProductsIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/shop/': typeof ShopIndexRoute
@@ -283,7 +269,6 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/items/$articleNumber': typeof ItemsArticleNumberRoute
-  '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
@@ -302,7 +287,6 @@ export interface FileRoutesByTo {
   '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers': typeof CustomersIndexRoute
   '/items': typeof ItemsIndexRoute
-  '/products': typeof ProductsIndexRoute
   '/reports': typeof ReportsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/shop': typeof ShopIndexRoute
@@ -323,7 +307,6 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/items/$articleNumber': typeof ItemsArticleNumberRoute
-  '/products/$articleNumber': typeof ProductsArticleNumberRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
@@ -342,7 +325,6 @@ export interface FileRoutesById {
   '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers/': typeof CustomersIndexRoute
   '/items/': typeof ItemsIndexRoute
-  '/products/': typeof ProductsIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/shop/': typeof ShopIndexRoute
@@ -364,7 +346,6 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email-sent'
     | '/items/$articleNumber'
-    | '/products/$articleNumber'
     | '/reports/ledger'
     | '/reports/x'
     | '/reports/z'
@@ -383,7 +364,6 @@ export interface FileRouteTypes {
     | '/upload-photo/$token'
     | '/customers/'
     | '/items/'
-    | '/products/'
     | '/reports/'
     | '/settings/'
     | '/shop/'
@@ -403,7 +383,6 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email-sent'
     | '/items/$articleNumber'
-    | '/products/$articleNumber'
     | '/reports/ledger'
     | '/reports/x'
     | '/reports/z'
@@ -422,7 +401,6 @@ export interface FileRouteTypes {
     | '/upload-photo/$token'
     | '/customers'
     | '/items'
-    | '/products'
     | '/reports'
     | '/settings'
     | '/shop'
@@ -442,7 +420,6 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email-sent'
     | '/items/$articleNumber'
-    | '/products/$articleNumber'
     | '/reports/ledger'
     | '/reports/x'
     | '/reports/z'
@@ -461,7 +438,6 @@ export interface FileRouteTypes {
     | '/upload-photo/$token'
     | '/customers/'
     | '/items/'
-    | '/products/'
     | '/reports/'
     | '/settings/'
     | '/shop/'
@@ -482,7 +458,6 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailSentRoute: typeof VerifyEmailSentRoute
   ItemsArticleNumberRoute: typeof ItemsArticleNumberRoute
-  ProductsArticleNumberRoute: typeof ProductsArticleNumberRoute
   ReportsLedgerRoute: typeof ReportsLedgerRoute
   ReportsXRoute: typeof ReportsXRoute
   ReportsZRoute: typeof ReportsZRouteWithChildren
@@ -501,7 +476,6 @@ export interface RootRouteChildren {
   UploadPhotoTokenRoute: typeof UploadPhotoTokenRoute
   CustomersIndexRoute: typeof CustomersIndexRoute
   ItemsIndexRoute: typeof ItemsIndexRoute
-  ProductsIndexRoute: typeof ProductsIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   ShopIndexRoute: typeof ShopIndexRoute
@@ -596,13 +570,6 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports/'
       preLoaderRoute: typeof ReportsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/products/': {
-      id: '/products/'
-      path: '/products'
-      fullPath: '/products/'
-      preLoaderRoute: typeof ProductsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/items/': {
@@ -731,13 +698,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsLedgerRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/products/$articleNumber': {
-      id: '/products/$articleNumber'
-      path: '/products/$articleNumber'
-      fullPath: '/products/$articleNumber'
-      preLoaderRoute: typeof ProductsArticleNumberRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/items/$articleNumber': {
       id: '/items/$articleNumber'
       path: '/items/$articleNumber'
@@ -797,7 +757,6 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailSentRoute: VerifyEmailSentRoute,
   ItemsArticleNumberRoute: ItemsArticleNumberRoute,
-  ProductsArticleNumberRoute: ProductsArticleNumberRoute,
   ReportsLedgerRoute: ReportsLedgerRoute,
   ReportsXRoute: ReportsXRoute,
   ReportsZRoute: ReportsZRouteWithChildren,
@@ -816,7 +775,6 @@ const rootRouteChildren: RootRouteChildren = {
   UploadPhotoTokenRoute: UploadPhotoTokenRoute,
   CustomersIndexRoute: CustomersIndexRoute,
   ItemsIndexRoute: ItemsIndexRoute,
-  ProductsIndexRoute: ProductsIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   ShopIndexRoute: ShopIndexRoute,

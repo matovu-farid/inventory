@@ -6,7 +6,7 @@ export interface ValidateBelowMinimumSaleInput {
   minimumSellPriceUgx: string
   userRole: string
   reason: string
-  productName: string
+  itemName: string
 }
 
 export interface ValidateBelowMinimumSaleResult {
@@ -35,14 +35,14 @@ export function validateBelowMinimumSale(
 
   if (input.userRole === "sales") {
     throw new Error(
-      `Sale price ${formatUgx(unitPrice)} is below minimum ${formatUgx(minPrice)} for ${input.productName}. Requires supervisor approval.`,
+      `Sale price ${formatUgx(unitPrice)} is below minimum ${formatUgx(minPrice)} for ${input.itemName}. Requires supervisor approval.`,
     )
   }
 
   const trimmed = input.reason.trim()
   if (trimmed.length === 0) {
     throw new Error(
-      `Reason required for below-minimum sale of ${input.productName} (price ${formatUgx(unitPrice)} < minimum ${formatUgx(minPrice)}).`,
+      `Reason required for below-minimum sale of ${input.itemName} (price ${formatUgx(unitPrice)} < minimum ${formatUgx(minPrice)}).`,
     )
   }
 

@@ -52,7 +52,7 @@ function SalesPage() {
             color: {
               colorName: string
               colorHex: string
-              product: {
+              item: {
                 articleNumber: string
                 name: string
               }
@@ -149,8 +149,8 @@ function SalesPage() {
                       const v = i.shopStockItem.variant
                       return (
                         <div key={idx} className="flex items-center gap-2 text-sm">
-                          <span className="font-mono">{i.quantity}x {v.color.product.articleNumber}</span>
-                          <span className="text-muted-foreground">{v.color.product.name}</span>
+                          <span className="font-mono">{i.quantity}x {v.color.item.articleNumber}</span>
+                          <span className="text-muted-foreground">{v.color.item.name}</span>
                           <span
                             className="inline-block h-3 w-3 rounded-full border"
                             style={{ backgroundColor: v.color.colorHex }}

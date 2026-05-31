@@ -13,7 +13,7 @@ import {
   depositCategoryFor,
   depositLocationFor,
 } from "#/lib/payment-method"
-import { formatProductLabel } from "#/lib/products"
+import { formatItemLabel } from "#/lib/items"
 import { validateBelowMinimumSale } from "./sale-validate"
 import { renderAuditDescription } from "#/server/audit/descriptions"
 import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
@@ -27,7 +27,7 @@ export const getShopStock = createServerFn()
 
     return db.query.shopStock.findMany({
       where: eq(shopStock.shopId, data.shopId),
-      with: { variant: { with: { color: { with: { product: true } } } } },
+      with: { variant: { with: { color: { with: { item: true } } } } },
     })
   })
 
@@ -76,7 +76,7 @@ export const listShopSales = createServerFn()
         items: {
           with: {
             shopStockItem: {
-              with: { variant: { with: { color: { with: { product: true } } } } },
+              with: { variant: { with: { color: { with: { item: true } } } } },
             },
           },
         },
@@ -162,17 +162,17 @@ export const recordSale = createServerFn()
       for (const item of data.items) {
         const stock = await tx.query.shopStock.findFirst({
           where: eq(shopStock.id, item.shopStockId),
-          with: { variant: { with: { color: { with: { product: true } } } } },
+          with: { variant: { with: { color: { with: { item: true } } } } },
         })
         if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
-        const productLabel = formatProductLabel(
-          stock.variant.color.product.articleNumber,
+        const itemLabel = formatItemLabel(
+          stock.variant.color.item.articleNumber,
           stock.variant.color.colorName,
           stock.variant.size,
         )
         if (stock.quantityOnHand < item.quantity) {
           throw new Error(
-            `Insufficient stock for ${productLabel}: have ${stock.quantityOnHand}, need ${item.quantity}`,
+            `Insufficient stock for ${itemLabel}: have ${stock.quantityOnHand}, need ${item.quantity}`,
           )
         }
 
@@ -182,7 +182,7 @@ export const recordSale = createServerFn()
             minimumSellPriceUgx: stock.minimumSellPriceUgx,
             userRole,
             reason: item.belowMinimumReason ?? "",
-            productName: productLabel,
+            itemName: itemLabel,
           })
         if (isBelowMinimum) hasBelowMinimum = true
 

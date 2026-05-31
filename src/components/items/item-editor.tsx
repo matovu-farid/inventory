@@ -4,12 +4,13 @@ import { Input } from "#/components/ui/input"
 import { Textarea } from "#/components/ui/textarea"
 import { Badge } from "#/components/ui/badge"
 import { X } from "lucide-react"
-import { createProduct } from "#/server/functions/products/products"
+import { createItem } from "#/server/functions/items/items"
+import { HexColorField } from "./hex-color-field"
 
-const DEFAULT_SIZE_SUGGESTIONS = ["XS", "S", "M", "L", "XL", "XXL"]
+const SIZE_QUICK_PICKS = ["XS", "S", "M", "L", "XL", "XXL"]
 
 interface Props {
-  onCreated: (productId: string, articleNumber: string) => void
+  onCreated: (itemId: string, articleNumber: string) => void
 }
 
 interface ColorDraft {
@@ -23,21 +24,30 @@ interface ColorDraft {
  * the server can materialize the (color × size) cross-product into
  * the variants table when saving.
  */
-export function ProductEditor({ onCreated }: Props) {
+export function ItemEditor({ onCreated }: Props) {
   const [articleNumber, setArticleNumber] = useState("")
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [sizes, setSizes] = useState<string[]>(["S", "M", "L"])
+  const [sizes, setSizes] = useState<string[]>([])
   const [sizeDraft, setSizeDraft] = useState("")
   const [colors, setColors] = useState<ColorDraft[]>([])
   const [colorNameDraft, setColorNameDraft] = useState("")
   const [colorHexDraft, setColorHexDraft] = useState("#000000")
   const [submitting, setSubmitting] = useState(false)
 
-  function addSize(value: string) {
-    const v = value.trim()
-    if (!v || sizes.includes(v)) return
-    setSizes([...sizes, v])
+  function addSizes(raw: string) {
+    const parts = raw
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean)
+    if (parts.length === 0) return
+    setSizes((prev) => {
+      const next = [...prev]
+      for (const p of parts) {
+        if (!next.includes(p)) next.push(p)
+      }
+      return next
+    })
     setSizeDraft("")
   }
 
@@ -52,7 +62,7 @@ export function ProductEditor({ onCreated }: Props) {
   async function save() {
     setSubmitting(true)
     try {
-      const created = await createProduct({
+      const created = await createItem({
         data: {
           articleNumber,
           name,
@@ -79,7 +89,7 @@ export function ProductEditor({ onCreated }: Props) {
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium">Product name</label>
+        <label className="text-sm font-medium">Item name</label>
         <Input
           className="h-11 text-base"
           value={name}
@@ -98,46 +108,49 @@ export function ProductEditor({ onCreated }: Props) {
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Sizes</label>
-        <div className="flex flex-wrap gap-1">
-          {sizes.map((s) => (
-            <Badge key={s} variant="secondary" className="gap-1">
-              {s}
-              <button
-                type="button"
-                onClick={() => setSizes(sizes.filter((x) => x !== s))}
-                aria-label={`remove ${s}`}
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <Input
-            className="h-11 text-base"
-            value={sizeDraft}
-            onChange={(e) => setSizeDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                addSize(sizeDraft)
-              }
-            }}
-            placeholder="Add size and press Enter"
-          />
-          {DEFAULT_SIZE_SUGGESTIONS.filter((s) => !sizes.includes(s))
-            .slice(0, 4)
-            .map((s) => (
-              <Button
-                key={s}
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => addSize(s)}
-              >
+        <Input
+          className="h-11 text-base"
+          value={sizeDraft}
+          onChange={(e) => setSizeDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              addSizes(sizeDraft)
+            }
+          }}
+          onBlur={() => {
+            if (sizeDraft.trim()) addSizes(sizeDraft)
+          }}
+          placeholder="Type sizes separated by commas, then Enter"
+        />
+        {sizes.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {sizes.map((s) => (
+              <Badge key={s} variant="secondary" className="gap-1">
                 {s}
-              </Button>
+                <button
+                  type="button"
+                  onClick={() => setSizes(sizes.filter((x) => x !== s))}
+                  aria-label={`remove ${s}`}
+                >
+                  <X className="size-3" />
+                </button>
+              </Badge>
             ))}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1">
+          {SIZE_QUICK_PICKS.filter((s) => !sizes.includes(s)).map((s) => (
+            <Button
+              key={s}
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => addSizes(s)}
+            >
+              {s}
+            </Button>
+          ))}
         </div>
       </div>
       <div className="space-y-2">
@@ -182,12 +195,10 @@ export function ProductEditor({ onCreated }: Props) {
             onChange={(e) => setColorNameDraft(e.target.value)}
             placeholder="Color name (e.g. Burgundy)"
           />
-          <input
-            type="color"
+          <HexColorField
             value={colorHexDraft}
-            onChange={(e) => setColorHexDraft(e.target.value)}
-            className="h-10 w-12 rounded border bg-background"
-            aria-label="Color picker"
+            onChange={setColorHexDraft}
+            ariaLabel="Pick color"
           />
           <Button
             type="button"
@@ -207,7 +218,7 @@ export function ProductEditor({ onCreated }: Props) {
             !articleNumber || !name || sizes.length === 0 || submitting
           }
         >
-          {submitting ? "Saving…" : "Create product"}
+          {submitting ? "Saving…" : "Create item"}
         </Button>
       </div>
     </div>

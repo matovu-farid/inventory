@@ -9,10 +9,10 @@ import { materializeVariantsFromColorsSizes } from './variants-materialize'
 
 const hexRule = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 
-export const addProductColor = createServerFn()
+export const addItemColor = createServerFn()
   .inputValidator(
     z.object({
-      productId: z.uuid(),
+      itemId: z.uuid(),
       colorName: z.string().min(1).max(40),
       colorHex: hexRule,
       /**
@@ -31,22 +31,22 @@ export const addProductColor = createServerFn()
     // idx_ic_unique is a non-unique index, so we guard here.
     const existing = await db.query.itemColors.findFirst({
       where: and(
-        eq(itemColors.itemId, data.productId),
+        eq(itemColors.itemId, data.itemId),
         eq(itemColors.colorName, data.colorName),
       ),
     })
     if (existing)
       throw new Error(
-        `Color "${data.colorName}" already exists for this product`,
+        `Color "${data.colorName}" already exists for this item`,
       )
     const [row] = await db
       .insert(itemColors)
       .values({
         // The renamed `itemColors` table uses `itemId` for its TS property
         // (column `item_id`). The public input on this server function still
-        // accepts `productId` so its callers don't have to change in lockstep
+        // accepts `itemId` so its callers don't have to change in lockstep
         // — the rename of consumer call-sites is out of scope for #3.
-        itemId: data.productId,
+        itemId: data.itemId,
         colorName: data.colorName,
         colorHex: data.colorHex,
       })
@@ -60,14 +60,14 @@ export const addProductColor = createServerFn()
       const existingVariants = await db
         .select({ size: variants.size })
         .from(variants)
-        .where(eq(variants.itemId, data.productId))
+        .where(eq(variants.itemId, data.itemId))
       const seen = new Set<string>()
       for (const v of existingVariants) seen.add(v.size)
       sizes = [...seen]
     }
     if (sizes.length > 0) {
       await materializeVariantsFromColorsSizes({
-        itemId: data.productId,
+        itemId: data.itemId,
         colorIds: [row.id],
         sizes,
       })
@@ -75,7 +75,7 @@ export const addProductColor = createServerFn()
     return row
   })
 
-export const updateProductColor = createServerFn()
+export const updateItemColor = createServerFn()
   .inputValidator(
     z.object({
       id: z.uuid(),
@@ -95,7 +95,7 @@ export const updateProductColor = createServerFn()
     return row
   })
 
-export const setProductColorImage = createServerFn()
+export const setItemColorImage = createServerFn()
   .inputValidator(z.object({ id: z.uuid(), imageS3Key: z.string().min(1) }))
   .handler(async ({ data }) => {
     const session = await requireSession()
@@ -108,7 +108,7 @@ export const setProductColorImage = createServerFn()
     return row
   })
 
-export const deleteProductColor = createServerFn()
+export const deleteItemColor = createServerFn()
   .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
@@ -121,14 +121,14 @@ export const deleteProductColor = createServerFn()
  * number then color name.  Used by the notification-override UI to populate
  * the variant picker.
  */
-export const listProductColorsForOverrides = createServerFn().handler(
+export const listItemColorsForOverrides = createServerFn().handler(
   async () => {
     const session = await requireSession()
     requireRole(session, ['admin', 'supervisor'])
     return db.query.itemColors.findMany({
       // Relation key kept as `product` to avoid forcing every UI consumer
       // to rename `pc.product` → `pc.item` in lockstep with this DB rename.
-      with: { product: true },
+      with: { item: true },
       orderBy: (ic, { asc }) => [asc(ic.itemId), asc(ic.colorName)],
     })
   },

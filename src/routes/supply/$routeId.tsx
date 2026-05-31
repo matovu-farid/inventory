@@ -48,15 +48,15 @@ import {
   splitSupplyRouteItem,
 } from "#/server/functions/supply/items"
 import {
-  ProductPicker
+  ItemPicker
   
-} from "#/components/products/product-picker"
-import type {ProductSummary} from "#/components/products/product-picker";
-import { ProductEditor } from "#/components/products/product-editor"
-import { ColorEditor } from "#/components/products/color-editor"
-import { VariantGrid } from "#/components/products/variant-grid"
-import { getProductByArticle } from "#/server/functions/products/products"
-import { deleteProductColor } from "#/server/functions/products/colors"
+} from "#/components/items/item-picker"
+import type {ItemSummary} from "#/components/items/item-picker";
+import { ItemEditor } from "#/components/items/item-editor"
+import { ColorEditor } from "#/components/items/color-editor"
+import { VariantGrid } from "#/components/items/variant-grid"
+import { getItemByArticle } from "#/server/functions/items/items"
+import { deleteItemColor } from "#/server/functions/items/colors"
 import {
   addSupplyRouteExpense,
   deleteSupplyRouteExpense,
@@ -127,16 +127,16 @@ function RouteDetailPage() {
       string,
       { name: string; articleNumber: string; items: RouteItem[] }
     >()
-    for (const item of route.items) {
-      const product = item.productColor?.product ?? item.product
-      if (!product) continue
-      const key = product.articleNumber
+    for (const line of route.items) {
+      const catalog = line.itemColor?.item ?? line.item
+      if (!catalog) continue
+      const key = catalog.articleNumber
       let group = groups.get(key)
       if (!group) {
-        group = { name: product.name, articleNumber: key, items: [] }
+        group = { name: catalog.name, articleNumber: key, items: [] }
         groups.set(key, group)
       }
-      group.items.push(item)
+      group.items.push(line)
     }
     return Array.from(groups.values()).sort((a, b) =>
       a.name.localeCompare(b.name),
@@ -411,17 +411,17 @@ function RouteDetailPage() {
                               </TableCell>
                               <TableCell className="hidden md:table-cell" />
                               <TableCell>
-                                {item.productColor ? (
+                                {item.itemColor ? (
                                   <span className="inline-flex items-center gap-1.5 text-muted-foreground">
                                     <span
                                       className="inline-block size-3 rounded-full border"
                                       style={{
                                         backgroundColor:
-                                          item.productColor.colorHex,
+                                          item.itemColor.colorHex,
                                       }}
                                       aria-hidden
                                     />
-                                    {item.productColor.colorName}
+                                    {item.itemColor.colorName}
                                     {item.size ? ` · ${item.size}` : ""}
                                   </span>
                                 ) : (
@@ -466,7 +466,7 @@ function RouteDetailPage() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center justify-end gap-1">
-                                  {(!item.productColor || !item.size) && (
+                                  {(!item.itemColor || !item.size) && (
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -635,11 +635,11 @@ interface SplittableItem {
   id: string
   quantity: number
   product?: { articleNumber: string; name: string } | null
-  productColor?: {
+  itemColor?: {
     id: string
     colorName: string
     colorHex: string
-    product: { articleNumber: string; name: string }
+    item: { articleNumber: string; name: string }
   } | null
   size: string | null
 }
@@ -652,11 +652,11 @@ function SplitItemForm({
   onSuccess: () => void
 }) {
   const articleNumber =
-    item.productColor?.product.articleNumber ?? item.product?.articleNumber
-  const [product, setProduct] = useState<ProductSummary | undefined>()
+    item.itemColor?.item.articleNumber ?? item.product?.articleNumber
+  const [product, setProduct] = useState<ItemSummary | undefined>()
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState<"colors" | "variants">(
-    item.productColor ? "variants" : "variants",
+    item.itemColor ? "variants" : "variants",
   )
   const [colorQtys, setColorQtys] = useState<Record<string, number>>({})
   const [cellQtys, setCellQtys] = useState<Record<string, number>>({})
@@ -671,7 +671,7 @@ function SplitItemForm({
       return
     }
     void (async () => {
-      const p = await getProductByArticle({ data: { articleNumber } })
+      const p = await getItemByArticle({ data: { articleNumber } })
       if (p) setProduct(p)
       setLoading(false)
     })()
@@ -689,23 +689,23 @@ function SplitItemForm({
   }
 
   // For color-only items, the color is already fixed.
-  const lockedColor = item.productColor ?? null
+  const lockedColor = item.itemColor ?? null
   const colorsToUse = lockedColor ? [lockedColor] : product.colors
 
   const allCells: Array<{
-    productColorId: string
+    itemColorId: string
     size?: string
     quantity: number
   }> =
     mode === "colors"
       ? Object.entries(colorQtys)
           .filter(([, q]) => q > 0)
-          .map(([colorId, q]) => ({ productColorId: colorId, quantity: q }))
+          .map(([colorId, q]) => ({ itemColorId: colorId, quantity: q }))
       : Object.entries(cellQtys)
           .filter(([, q]) => q > 0)
           .map(([key, q]) => {
-            const [productColorId, size] = key.split("|")
-            return { productColorId, size, quantity: q }
+            const [itemColorId, size] = key.split("|")
+            return { itemColorId, size, quantity: q }
           })
 
   const total = allCells.reduce((s, c) => s + c.quantity, 0)
@@ -923,7 +923,7 @@ function AddItemForm({
   const [supplierId, setSupplierId] = useState(
     suppliers.length === 1 ? suppliers[0].id : "",
   )
-  const [product, setProduct] = useState<ProductSummary | undefined>()
+  const [product, setProduct] = useState<ItemSummary | undefined>()
   const [productEditorOpen, setProductEditorOpen] = useState(false)
   const [colorEditorOpen, setColorEditorOpen] = useState(false)
   // Procurement detail level. Aggregate = total qty only; colors = qty per
@@ -949,28 +949,28 @@ function AddItemForm({
   }
 
   async function refreshProduct(articleNumber: string) {
-    const p = await getProductByArticle({ data: { articleNumber } })
+    const p = await getItemByArticle({ data: { articleNumber } })
     if (p) setProduct(p)
   }
 
-  async function handleRemoveColor(productColorId: string) {
+  async function handleRemoveColor(itemColorId: string) {
     if (!product) return
     const colorName =
-      product.colors.find((c) => c.id === productColorId)?.colorName ?? "this color"
+      product.colors.find((c) => c.id === itemColorId)?.colorName ?? "this color"
     if (!confirm(`Remove "${colorName}" from this product?`)) return
     try {
-      await deleteProductColor({ data: { id: productColorId } })
+      await deleteItemColor({ data: { id: itemColorId } })
       setQuantities((prev) => {
         const next = { ...prev }
         for (const k of Object.keys(next)) {
-          if (k.startsWith(`${productColorId}|`)) delete next[k]
+          if (k.startsWith(`${itemColorId}|`)) delete next[k]
         }
         return next
       })
       setColorQtys((prev) => {
-        if (!(productColorId in prev)) return prev
+        if (!(itemColorId in prev)) return prev
         const next = { ...prev }
-        delete next[productColorId]
+        delete next[itemColorId]
         return next
       })
       await refreshProduct(product.articleNumber)
@@ -993,7 +993,7 @@ function AddItemForm({
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const cells: Array<{
-      productColorId?: string
+      itemColorId?: string
       size?: string
       quantity: number
     }> =
@@ -1004,15 +1004,15 @@ function AddItemForm({
         : detailMode === "colors"
           ? Object.entries(colorQtys)
               .filter(([, q]) => q > 0)
-              .map(([productColorId, q]) => ({
-                productColorId,
+              .map(([itemColorId, q]) => ({
+                itemColorId,
                 quantity: q,
               }))
           : Object.entries(quantities)
               .filter(([, q]) => q > 0)
               .map(([key, q]) => {
-                const [productColorId, size] = key.split("|")
-                return { productColorId, size, quantity: q }
+                const [itemColorId, size] = key.split("|")
+                return { itemColorId, size, quantity: q }
               })
 
     const errs: Record<string, string> = {}
@@ -1035,7 +1035,7 @@ function AddItemForm({
         data: {
           supplyRouteId,
           supplierId,
-          productId: product.id,
+          itemId: product.id,
           unitPriceForeign: unitPrice,
           foreignCurrency: currency,
           exchangeRateForeignToUsd:
@@ -1088,8 +1088,8 @@ function AddItemForm({
       </div>
 
       <div className="space-y-2">
-        <FieldLabel help="item.productName">Product *</FieldLabel>
-        <ProductPicker
+        <FieldLabel help="item.name">Item *</FieldLabel>
+        <ItemPicker
           value={product?.id}
           onChange={(_, p) => {
             setProduct(p)
@@ -1263,9 +1263,9 @@ function AddItemForm({
       <Dialog open={productEditorOpen} onOpenChange={setProductEditorOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New product</DialogTitle>
+            <DialogTitle>New item</DialogTitle>
           </DialogHeader>
-          <ProductEditor
+          <ItemEditor
             onCreated={(_id, articleNumber) => {
               setProductEditorOpen(false)
               void refreshProduct(articleNumber)
@@ -1281,7 +1281,7 @@ function AddItemForm({
           </DialogHeader>
           {product && (
             <ColorEditor
-              productId={product.id}
+              itemId={product.id}
               onCreated={() => {
                 setColorEditorOpen(false)
                 void refreshProduct(product.articleNumber)

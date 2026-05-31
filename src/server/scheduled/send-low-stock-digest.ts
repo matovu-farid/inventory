@@ -2,7 +2,7 @@ import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import type { db as defaultDb } from '#/db'
 import { lowStockAlerts, shops, stores, user } from '#/db/schema'
 import { sendLowStockDigest } from '#/lib/email'
-import { formatProductLabel } from '#/lib/products'
+import { formatItemLabel } from '#/lib/items'
 import { severityForAlert, severityRank } from '#/lib/notifications/severity'
 import { env } from '#/env'
 import type { LowStockDigestData } from '#/lib/emails'
@@ -72,7 +72,7 @@ export async function sendDailyLowStockDigestInternal(
       return {
         scope: a.scope,
         locationName: locationName.get(a.locationId) ?? '(unknown)',
-        productLabel: formatProductLabel(
+        itemLabel: formatItemLabel(
           a.variant.item.articleNumber,
           a.variant.color.colorName,
           a.variant.size,

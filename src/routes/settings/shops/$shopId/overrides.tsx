@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '#/components/ui/card'
 import { listOverrides } from '#/server/functions/notifications/thresholds'
-import { listVariantsForOverrides } from '#/server/functions/products/colors'
+import { listVariantsForOverrides } from '#/server/functions/items/colors'
 import { getShop } from '#/server/functions/shop/list-shops'
 import { OverrideTable } from '#/components/notifications/override-table'
 

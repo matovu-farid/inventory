@@ -26,7 +26,7 @@ export const getSaleReceiptHtml = createServerFn()
         items: {
           with: {
             shopStockItem: {
-              with: { variant: { with: { color: { with: { product: true } } } } },
+              with: { variant: { with: { color: { with: { item: true } } } } },
             },
           },
         },
@@ -54,9 +54,9 @@ export const getSaleReceiptHtml = createServerFn()
       clerkName: sale.soldByUser.name,
       items: sale.items.map((i) => {
         const v = i.shopStockItem.variant
-        const productName = `${v.color.product.articleNumber} ${v.color.product.name} · ${v.color.colorName} / ${v.size}`
+        const itemName = `${v.color.item.articleNumber} ${v.color.item.name} · ${v.color.colorName} / ${v.size}`
         return {
-          productName,
+          itemName,
           quantity: i.quantity,
           unitPriceUgx: i.unitPriceUgx,
           totalPriceUgx: i.totalPriceUgx,

@@ -12,7 +12,7 @@ export function generateToken(): string {
 export async function validateToken(token: string) {
   const row = await db.query.pictureUploadTokens.findFirst({
     where: eq(pictureUploadTokens.token, token),
-    with: { productColor: { with: { product: true } } },
+    with: { itemColor: { with: { item: true } } },
   })
   if (!row) throw new Error("Token not found")
   if (row.consumedAt) throw new Error("Token already used")
@@ -38,6 +38,6 @@ export async function markConsumed(token: string, s3Key: string) {
     await tx
       .update(itemColors)
       .set({ imageS3Key: s3Key })
-      .where(eq(itemColors.id, updated[0].productColorId))
+      .where(eq(itemColors.id, updated[0].itemColorId))
   })
 }

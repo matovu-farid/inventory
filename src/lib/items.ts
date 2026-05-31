@@ -1,4 +1,3 @@
-// src/lib/products.ts
 const REGION = "eu-west-1"
 const BUCKET = "fidexa-inventory-images"
 
@@ -6,7 +5,7 @@ const BUCKET = "fidexa-inventory-images"
  * Canonical "ARTICLE COLOR/SIZE" label for a stocked SKU. Used in error
  * messages, audit logs, and notifications so the format stays consistent.
  */
-export function formatProductLabel(
+export function formatItemLabel(
   articleNumber: string,
   colorName: string,
   size: string,
@@ -14,9 +13,9 @@ export function formatProductLabel(
   return `${articleNumber} ${colorName}/${size}`
 }
 
-export function productImageUrl(s3Key: string): string
-export function productImageUrl(s3Key: string | null | undefined): string | null
-export function productImageUrl(s3Key: string | null | undefined): string | null {
+export function itemImageUrl(s3Key: string): string
+export function itemImageUrl(s3Key: string | null | undefined): string | null
+export function itemImageUrl(s3Key: string | null | undefined): string | null {
   if (!s3Key) return null
   return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${s3Key}`
 }
@@ -41,13 +40,13 @@ interface StockRow {
       colorName: string
       colorHex: string
       imageS3Key: string | null
-      product: { id: string; articleNumber: string; name: string }
+      item: { id: string; articleNumber: string; name: string }
     }
   }
 }
 
-export interface AggregatedProduct {
-  product: { id: string; articleNumber: string; name: string }
+export interface AggregatedItem {
+  item: { id: string; articleNumber: string; name: string }
   colors: Array<{
     id: string
     colorName: string
@@ -65,15 +64,15 @@ export interface AggregatedProduct {
 
 export function aggregateStockByArticle(
   rows: ReadonlyArray<StockRow>,
-): AggregatedProduct[] {
-  const byArticle = new Map<string, AggregatedProduct>()
+): AggregatedItem[] {
+  const byArticle = new Map<string, AggregatedItem>()
   for (const row of rows) {
     const color = row.variant.color
-    const key = color.product.articleNumber
+    const key = color.item.articleNumber
     let entry = byArticle.get(key)
     if (!entry) {
       entry = {
-        product: color.product,
+        item: color.item,
         colors: [],
         variants: [],
         total: 0,
@@ -98,6 +97,6 @@ export function aggregateStockByArticle(
     entry.total += row.quantityOnHand
   }
   return [...byArticle.values()].sort((a, b) =>
-    a.product.articleNumber.localeCompare(b.product.articleNumber),
+    a.item.articleNumber.localeCompare(b.item.articleNumber),
   )
 }

@@ -129,7 +129,7 @@ describe.skip("Mobile POS happy path", () => {
     cy.get('input[aria-label="Search products"]').clear()
 
     // Click and verify the onClick handler ran (it sets document.title)
-    cy.get('[data-testid="product-card"]').first().click({ force: true })
+    cy.get('[data-testid="item-card"]').first().click({ force: true })
     cy.title({ timeout: 5000 }).should("match", /^clicked-TR-POS$/)
 
     // Variant picker sheet opens

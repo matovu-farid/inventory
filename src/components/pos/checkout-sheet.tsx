@@ -147,7 +147,7 @@ export function CheckoutSheet({ shopId, open, onOpenChange, onSaleComplete }: Pr
             {state.items.map((i) => (
               <div key={i.shopStockId} className="flex justify-between border-b py-2 text-sm">
                 <span className="truncate pr-3">
-                  {i.qty}× {i.productLabel}
+                  {i.qty}× {i.itemLabel}
                 </span>
                 <span className="font-mono">{formatUgxTotal(Number(i.unitPriceUgx) * i.qty)}</span>
               </div>

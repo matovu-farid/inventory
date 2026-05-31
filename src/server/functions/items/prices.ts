@@ -6,14 +6,14 @@ import { storeStock, shopStock, itemColors, variants } from "#/db/schema"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
 
-export const listProductStockPrices = createServerFn()
-  .inputValidator(z.object({ productId: z.uuid() }))
+export const listItemStockPrices = createServerFn()
+  .inputValidator(z.object({ itemId: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
 
     const colors = await db.query.itemColors.findMany({
-      where: eq(itemColors.itemId, data.productId),
+      where: eq(itemColors.itemId, data.itemId),
       columns: { id: true },
     })
     const colorIds = colors.map((c) => c.id)

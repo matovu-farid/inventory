@@ -30,7 +30,7 @@ export interface ReceivableTransfer {
         color: {
           colorName: string
           colorHex: string
-          product: { name: string; articleNumber: string }
+          item: { name: string; articleNumber: string }
         }
       }
     }
@@ -144,11 +144,11 @@ export function ReceiveTransferForm({
             getRowKey={(item) => item.id}
             columns={[
               {
-                header: "Product",
+                header: "Item",
                 cell: (item) => (
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      {item.storeStockItem.variant.color.product.name}
+                      {item.storeStockItem.variant.color.item.name}
                     </span>
                     <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
                       <span
@@ -208,7 +208,7 @@ export function ReceiveTransferForm({
                   <div key={item.id} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">
-                        {item.storeStockItem.variant.color.product.name} ·{" "}
+                        {item.storeStockItem.variant.color.item.name} ·{" "}
                         {item.storeStockItem.variant.color.colorName} ·{" "}
                         {item.storeStockItem.variant.size}
                       </span>

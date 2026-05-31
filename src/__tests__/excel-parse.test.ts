@@ -37,7 +37,7 @@ describe("parseExcelRouteSheet", () => {
     const result = parseExcelRouteSheet("46th Route", rows)
     expect(result.items).toHaveLength(2)
     expect(result.items[0]).toMatchObject({
-      productName: "Trousers",
+      itemName: "Trousers",
       articleNumber: "TR-001",
       quantity: 100,
       unitPriceForeign: "50",

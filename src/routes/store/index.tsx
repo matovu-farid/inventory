@@ -6,8 +6,8 @@ import { Button } from "#/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
 import { InfoTip } from "#/components/ui/info-tip"
 import { Plus } from "lucide-react"
-import { ProductCard } from "#/components/products/product-card"
-import { aggregateStockByArticle } from "#/lib/products"
+import { ItemCard } from "#/components/items/item-card"
+import { aggregateStockByArticle } from "#/lib/items"
 import { getStoreStock } from "#/server/functions/store/receiving"
 import { ensureStore } from "#/server/functions/admin/locations"
 import { getSession } from "#/server/middleware/auth"
@@ -105,11 +105,11 @@ function StoreStockPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {aggregated.map((a) => (
-                <ProductCard
-                  key={a.product.articleNumber}
+                <ItemCard
+                  key={a.item.articleNumber}
                   data={{
-                    articleNumber: a.product.articleNumber,
-                    name: a.product.name,
+                    articleNumber: a.item.articleNumber,
+                    name: a.item.name,
                     // Per-variant counts via variant_id joins (#4) —
                     // the ItemCard derives the size grid from these.
                     variants: a.variants,

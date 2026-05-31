@@ -44,8 +44,8 @@ import {
   PackageCheck,
   Trash2,
 } from "lucide-react"
-import { ProductCard } from "#/components/products/product-card"
-import { aggregateStockByArticle } from "#/lib/products"
+import { ItemCard } from "#/components/items/item-card"
+import { aggregateStockByArticle } from "#/lib/items"
 import { AddShopDialog } from "#/components/shops/add-shop-dialog"
 import { ReceiveTransferForm } from "#/components/transfers/receive-transfer-form"
 import { listShops } from "#/server/functions/admin/locations"
@@ -292,11 +292,11 @@ function ShopPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   {aggregated.map((a) => (
-                    <ProductCard
-                      key={a.product.articleNumber}
+                    <ItemCard
+                      key={a.item.articleNumber}
                       data={{
-                        articleNumber: a.product.articleNumber,
-                        name: a.product.name,
+                        articleNumber: a.item.articleNumber,
+                        name: a.item.name,
                         // Per-variant counts via variant_id joins (#4);
                         // ItemCard derives the size grid from these.
                         variants: a.variants,
@@ -322,10 +322,10 @@ function ShopPage() {
 /* New Sale Form                                                       */
 /* ------------------------------------------------------------------ */
 
-function productLabel(s: ShopStockItem): string {
+function itemLabel(s: ShopStockItem): string {
   // Stock now references variant_id (issue #4); the joined variant
   // carries color + size — the picker still groups rows as (color × size).
-  return `${s.variant.color.product.name} — ${s.variant.color.colorName} / ${s.variant.size}`
+  return `${s.variant.color.item.name} — ${s.variant.color.colorName} / ${s.variant.size}`
 }
 
 function NewSaleForm({
@@ -455,14 +455,14 @@ function NewSaleForm({
         <Command className="rounded-md border" shouldFilter={true}>
           <CommandInput
             className="h-12 text-base"
-            placeholder="Search by product or article #..."
+            placeholder="Search by item or article #..."
           />
           <CommandList className="max-h-[50vh]">
-            <CommandEmpty>No matching products.</CommandEmpty>
+            <CommandEmpty>No matching items.</CommandEmpty>
             {stock.map((s) => {
               const isSelected = selectedIds.has(s.id)
-              const label = productLabel(s)
-              const article = s.variant.color.product.articleNumber
+              const label = itemLabel(s)
+              const article = s.variant.color.item.articleNumber
               return (
                 <CommandItem
                   key={s.id}
@@ -552,14 +552,14 @@ function NewSaleForm({
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="truncate text-sm font-medium">
-                    {productLabel(s)}
+                    {itemLabel(s)}
                   </p>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="size-10 shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={() => removeFromCart(item.stockId)}
-                    aria-label={`Remove ${productLabel(s)}`}
+                    aria-label={`Remove ${itemLabel(s)}`}
                   >
                     <Trash2 className="size-4" strokeWidth={1.75} />
                   </Button>

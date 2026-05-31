@@ -1,36 +1,57 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import { listProducts, searchProducts } from "#/server/functions/products/products"
-import { ProductCard } from "#/components/products/product-card"
+import { Plus } from "lucide-react"
+import { requireUiPermission, useCan } from "#/lib/permissions"
+import { listItems, searchItems } from "#/server/functions/items/items"
+import { ItemCard } from "#/components/items/item-card"
+import { ItemEditor } from "#/components/items/item-editor"
 import { Input } from "#/components/ui/input"
+import { Button } from "#/components/ui/button"
+import {
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+} from "#/components/ui/responsive-dialog"
 
 export const Route = createFileRoute("/items/")({
-  // Either the new key (`items.view`) or its 90-day alias (`products.view`)
-  // grants access — the permission helper normalizes both. See
-  // src/lib/permissions.ts and the alias-policy notes in #3.
   beforeLoad: ({ context }) => requireUiPermission(context, "items.view"),
-  loader: async () => ({ products: await listProducts() }),
+  loader: async () => ({ products: await listItems() }),
   component: ProductsPage,
 })
 
 function ProductsPage() {
   const { products: initial } = Route.useLoaderData()
+  const router = useRouter()
+  const canManage = useCan("items.manage")
   const [query, setQuery] = useState("")
   const [results, setResults] = useState(initial)
+  const [editorOpen, setEditorOpen] = useState(false)
 
   async function handleSearch(value: string) {
     setQuery(value)
-    setResults(await searchProducts({ data: { query: value } }))
+    setResults(await searchItems({ data: { query: value } }))
+  }
+
+  async function refreshList() {
+    setResults(await searchItems({ data: { query } }))
+    void router.invalidate()
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-bold">Products</h1>
-        <p className="text-sm text-muted-foreground">
-          {results.length} product{results.length === 1 ? "" : "s"}
-        </p>
+        <h1 className="text-2xl font-bold">Items</h1>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            {results.length} item{results.length === 1 ? "" : "s"}
+          </p>
+          {canManage && (
+            <Button size="sm" onClick={() => setEditorOpen(true)}>
+              <Plus className="mr-1 size-4" /> Create item
+            </Button>
+          )}
+        </div>
       </div>
       <Input
         placeholder="Search by article or name…"
@@ -41,13 +62,15 @@ function ProductsPage() {
       {results.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {query
-            ? "No matching products."
-            : "No products yet. Add one when recording a supply route or opening balance."}
+            ? "No matching items."
+            : canManage
+              ? "No items yet. Create one above, or add one when recording a supply route."
+              : "No items yet. Ask an admin to create one, or add one when recording a supply route."}
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {results.map((p) => (
-            <ProductCard
+            <ItemCard
               key={p.articleNumber}
               data={{
                 articleNumber: p.articleNumber,
@@ -66,6 +89,20 @@ function ProductsPage() {
           ))}
         </div>
       )}
+
+      <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New item</DialogTitle>
+          </DialogHeader>
+          <ItemEditor
+            onCreated={() => {
+              setEditorOpen(false)
+              void refreshList()
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

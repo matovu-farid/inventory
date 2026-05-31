@@ -28,21 +28,21 @@ import {
 import { roundUgxBankers50 } from "#/lib/format"
 import { deriveSizes } from "#/lib/variants"
 import {
-  ProductPicker
+  ItemPicker
   
-} from "#/components/products/product-picker"
-import type {ProductSummary} from "#/components/products/product-picker";
-import { ProductEditor } from "#/components/products/product-editor"
-import { ColorEditor } from "#/components/products/color-editor"
-import { VariantGrid } from "#/components/products/variant-grid"
-import { getProductByArticle } from "#/server/functions/products/products"
+} from "#/components/items/item-picker"
+import type {ItemSummary} from "#/components/items/item-picker";
+import { ItemEditor } from "#/components/items/item-editor"
+import { ColorEditor } from "#/components/items/color-editor"
+import { VariantGrid } from "#/components/items/variant-grid"
+import { getItemByArticle } from "#/server/functions/items/items"
 
 interface DraftBlock {
   id: string
-  product?: ProductSummary
+  item?: ItemSummary
   unitCostUgx: string
-  quantities: Record<string, number> // keyed by `${productColorId}|${size}`
-  productEditorOpen: boolean
+  quantities: Record<string, number> // keyed by `${itemColorId}|${size}`
+  itemEditorOpen: boolean
   colorEditorOpen: boolean
 }
 
@@ -55,10 +55,10 @@ interface SubmitSummary {
 function newBlock(): DraftBlock {
   return {
     id: crypto.randomUUID(),
-    product: undefined,
+    item: undefined,
     unitCostUgx: "",
     quantities: {},
-    productEditorOpen: false,
+    itemEditorOpen: false,
     colorEditorOpen: false,
   }
 }
@@ -67,10 +67,10 @@ function blockUnitTotal(b: DraftBlock): number {
   return Object.values(b.quantities).reduce((s, q) => s + q, 0)
 }
 
-type ValidBlock = DraftBlock & { product: ProductSummary }
+type ValidBlock = DraftBlock & { item: ItemSummary }
 
 function blockIsValid(b: DraftBlock): b is ValidBlock {
-  if (!b.product) return false
+  if (!b.item) return false
   const cost = new BigNumber(b.unitCostUgx || "0")
   if (!cost.isFinite() || cost.lte(0)) return false
   return blockUnitTotal(b) > 0
@@ -143,10 +143,10 @@ export function OpeningBalanceForm({
     setBlocks((bs) => [...bs, newBlock()])
   }
 
-  async function refreshBlockProduct(id: string, articleNumber: string) {
-    const p = await getProductByArticle({ data: { articleNumber } })
+  async function refreshBlockItem(id: string, articleNumber: string) {
+    const p = await getItemByArticle({ data: { articleNumber } })
     if (p) {
-      updateBlock(id, { product: p })
+      updateBlock(id, { item: p })
     }
   }
 
@@ -155,11 +155,11 @@ export function OpeningBalanceForm({
     setError(null)
     try {
       const items = blocks.filter(blockIsValid).map((b) => {
-        // VariantGrid keys cells by `${productColorId}|${size}`. Opening
+        // VariantGrid keys cells by `${itemColorId}|${size}`. Opening
         // balance writes to variant-keyed stock now (#6), so translate
         // each (color, size) pair to its variantId via the hydrated
         // variants list before the server call.
-        const variantsForBlock = b.product.variants ?? []
+        const variantsForBlock = b.item.variants ?? []
         const variantByPair = new Map(
           variantsForBlock.map((v) => [`${v.colorId}|${v.size}`, v.id]),
         )
@@ -175,7 +175,7 @@ export function OpeningBalanceForm({
             return { variantId, quantity: q }
           })
         return {
-          itemId: b.product.id,
+          itemId: b.item.id,
           unitCostUgx: new BigNumber(b.unitCostUgx).toFixed(2),
           cells,
         }
@@ -271,10 +271,10 @@ export function OpeningBalanceForm({
               >
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold">
-                    Product {idx + 1}
-                    {b.product ? (
+                    Item {idx + 1}
+                    {b.item ? (
                       <span className="ml-2 font-normal text-muted-foreground">
-                        — {b.product.articleNumber} · {b.product.name}
+                        — {b.item.articleNumber} · {b.item.name}
                       </span>
                     ) : null}
                   </h3>
@@ -284,32 +284,32 @@ export function OpeningBalanceForm({
                     className="h-7 w-7 text-destructive"
                     onClick={() => removeBlock(b.id)}
                     disabled={blocks.length === 1}
-                    aria-label="Remove product block"
+                    aria-label="Remove item block"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
 
                 <div className="space-y-2">
-                  <FieldLabel help="openingBalance.productName">
-                    Product *
+                  <FieldLabel help="openingBalance.itemName">
+                    Item *
                   </FieldLabel>
-                  <ProductPicker
-                    value={b.product?.id}
+                  <ItemPicker
+                    value={b.item?.id}
                     onChange={(_, p) =>
-                      updateBlock(b.id, { product: p, quantities: {} })
+                      updateBlock(b.id, { item: p, quantities: {} })
                     }
                     onCreateNew={() =>
-                      updateBlock(b.id, { productEditorOpen: true })
+                      updateBlock(b.id, { itemEditorOpen: true })
                     }
                   />
                 </div>
 
-                {b.product && (
+                {b.item && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">
-                        {b.product.articleNumber} — {b.product.name}
+                        {b.item.articleNumber} — {b.item.name}
                       </span>
                       <Button
                         type="button"
@@ -324,8 +324,8 @@ export function OpeningBalanceForm({
                     </div>
                     <div className="-mx-3 overflow-x-auto px-3 md:mx-0 md:px-0">
                       <VariantGrid
-                        sizes={deriveSizes(b.product.variants ?? [])}
-                        colors={b.product.colors}
+                        sizes={deriveSizes(b.item.variants ?? [])}
+                        colors={b.item.colors}
                         quantities={b.quantities}
                         onChange={(next) =>
                           updateBlock(b.id, { quantities: next })
@@ -370,19 +370,19 @@ export function OpeningBalanceForm({
 
                 {/* Per-block dialogs */}
                 <Dialog
-                  open={b.productEditorOpen}
+                  open={b.itemEditorOpen}
                   onOpenChange={(open) =>
-                    updateBlock(b.id, { productEditorOpen: open })
+                    updateBlock(b.id, { itemEditorOpen: open })
                   }
                 >
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>New product</DialogTitle>
+                      <DialogTitle>New item</DialogTitle>
                     </DialogHeader>
-                    <ProductEditor
+                    <ItemEditor
                       onCreated={(_id, articleNumber) => {
-                        updateBlock(b.id, { productEditorOpen: false })
-                        void refreshBlockProduct(b.id, articleNumber)
+                        updateBlock(b.id, { itemEditorOpen: false })
+                        void refreshBlockItem(b.id, articleNumber)
                       }}
                     />
                   </DialogContent>
@@ -398,15 +398,15 @@ export function OpeningBalanceForm({
                     <DialogHeader>
                       <DialogTitle>Add color</DialogTitle>
                     </DialogHeader>
-                    {b.product && (
+                    {b.item && (
                       <ColorEditor
-                        productId={b.product.id}
+                        itemId={b.item.id}
                         onCreated={() => {
                           updateBlock(b.id, { colorEditorOpen: false })
-                          if (b.product) {
-                            void refreshBlockProduct(
+                          if (b.item) {
+                            void refreshBlockItem(
                               b.id,
-                              b.product.articleNumber,
+                              b.item.articleNumber,
                             )
                           }
                         }}
@@ -422,10 +422,10 @@ export function OpeningBalanceForm({
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={addBlock}>
             <Plus className="mr-1 h-4 w-4" />
-            Add Product
+            Add Item
           </Button>
           <div className="text-sm text-muted-foreground">
-            {validCount} of {blocks.length} product
+            {validCount} of {blocks.length} item
             {blocks.length === 1 ? "" : "s"} valid · {totalUnits} units · Total:{" "}
             <span className="font-mono font-semibold text-foreground">
               {roundUgxBankers50(total).toFormat(0)}
@@ -450,7 +450,7 @@ export function OpeningBalanceForm({
               <DialogTitle>Confirm opening balance</DialogTitle>
               <DialogDescription>
                 This will add{" "}
-                <span className="font-semibold">{validCount}</span> product
+                <span className="font-semibold">{validCount}</span> item
                 {validCount === 1 ? "" : "s"} totaling{" "}
                 <span className="font-mono font-semibold">{totalUnits}</span>{" "}
                 units (worth{" "}

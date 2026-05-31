@@ -81,13 +81,13 @@ export function OverrideTable({
             <TableHead>
               <span className="flex items-center gap-1">
                 Item
-                <InfoTip term="notifications.overrides.product" />
+                <InfoTip term="notifications.overrides.item" />
               </span>
             </TableHead>
             <TableHead>
               <span className="flex items-center gap-1">
                 Color
-                <InfoTip term="notifications.overrides.product" />
+                <InfoTip term="notifications.overrides.item" />
               </span>
             </TableHead>
             <TableHead>

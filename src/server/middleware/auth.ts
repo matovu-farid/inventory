@@ -3,6 +3,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server"
 import { auth } from "#/lib/auth"
 import type { AppSession } from "#/lib/auth"
 import { getClientIp, recordAdminLoginIp } from "#/lib/ip-allowlist"
+import { enforceIpAllowlist } from "./ip-allowlist"
 
 export const getSession = createServerFn().handler(
   async (): Promise<AppSession | null> => {
@@ -19,17 +20,18 @@ export const requireSession = createServerFn().handler(
       throw new Error("Unauthorized")
     }
 
+    const ip = session.session.ipAddress ?? getClientIp(headers)
+
     // Lazily record admin IPs on every authenticated request so that the
     // allowlist stays up-to-date without requiring a dedicated auth hook.
-    if (session.user.role === "admin") {
-      // Prefer the IP stored on the session row (populated by Better Auth),
-      // falling back to request headers.
-      const ip = session.session.ipAddress ?? getClientIp(headers)
-      if (ip) {
-        // Fire-and-forget — never block the request path.
-        void recordAdminLoginIp(session.user.id, ip)
-      }
+    if (session.user.role === "admin" && ip) {
+      // Fire-and-forget — never block the request path.
+      void recordAdminLoginIp(session.user.id, ip)
     }
+
+    // Enforce IP allowlist for non-admin roles when the feature is enabled.
+    // Admins always pass; supervisor/sales are checked. No-op when toggle is off.
+    await enforceIpAllowlist(session, ip, "requireSession")
 
     return session
   },

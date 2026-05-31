@@ -75,7 +75,7 @@ const SUFFIX = `bd-${Date.now()}`
 let supplierId: string
 let routeId: string
 let itemId: string
-let productId: string
+let lineId: string
 let colorId: string
 
 beforeAll(async () => {
@@ -125,11 +125,11 @@ beforeAll(async () => {
       itemCategoryId: uncat.id,
     })
     .returning()
-  productId = p.id
+  itemId = p.id
 
   const [c] = await db
     .insert(itemColors)
-    .values({ itemId: productId, colorName: "Blue", colorHex: "#1a3fcf" })
+    .values({ itemId: itemId, colorName: "Blue", colorHex: "#1a3fcf" })
     .returning()
   colorId = c.id
 
@@ -137,7 +137,7 @@ beforeAll(async () => {
   // Seed the matching variant row for (color, size).
   await db
     .insert(variants)
-    .values({ itemId: productId, colorId: colorId, size: "M" })
+    .values({ itemId: itemId, colorId: colorId, size: "M" })
     .onConflictDoNothing()
 
   const [route] = await db
@@ -155,7 +155,7 @@ beforeAll(async () => {
     .values({
       supplyRouteId: routeId,
       supplierId,
-      itemId: productId,
+      itemId: itemId,
       colorId,
       size: "M",
       quantity: 10,
@@ -165,12 +165,12 @@ beforeAll(async () => {
       totalCostUgx: "100000.00",
     })
     .returning()
-  itemId = sri.id
+  lineId = sri.id
 })
 
 afterAll(async () => {
   // Tear down anything we might have created. Order matters for FKs.
-  await db.delete(storeReceivings).where(eq(storeReceivings.supplyRouteLineId, itemId))
+  await db.delete(storeReceivings).where(eq(storeReceivings.supplyRouteLineId, lineId))
   // Stock now references variant_id; we delete by the variant we seeded
   // (one variant per (color, size)).
   const seededVariants = await db
@@ -182,11 +182,11 @@ afterAll(async () => {
   }
   await db.delete(transactions).where(eq(transactions.recordedBy, TEST_USER_ID))
   await db.delete(auditLogs).where(eq(auditLogs.actorUserId, TEST_USER_ID))
-  await db.delete(supplyRouteLines).where(eq(supplyRouteLines.id, itemId))
+  await db.delete(supplyRouteLines).where(eq(supplyRouteLines.id, lineId))
   await db.delete(supplyRoutes).where(eq(supplyRoutes.id, routeId))
   await db.delete(variants).where(eq(variants.colorId, colorId))
   await db.delete(itemColors).where(eq(itemColors.id, colorId))
-  await db.delete(items).where(eq(items.id, productId))
+  await db.delete(items).where(eq(items.id, itemId))
   await db.delete(suppliers).where(eq(suppliers.id, supplierId))
   await db.delete(user).where(eq(user.id, TEST_USER_ID))
 })
@@ -202,7 +202,7 @@ describe("receiveGoods — backdating", () => {
               supplyRouteId: routeId,
               items: [
                 {
-                  supplyRouteLineId: itemId,
+                  supplyRouteLineId: lineId,
                   quantityReceived: 10,
                 },
               ],
@@ -213,7 +213,7 @@ describe("receiveGoods — backdating", () => {
       ).rejects.toThrow(/admin/i)
 
       const receivings = await db.query.storeReceivings.findMany({
-        where: eq(storeReceivings.supplyRouteLineId, itemId),
+        where: eq(storeReceivings.supplyRouteLineId, lineId),
       })
       expect(receivings).toHaveLength(0)
 
@@ -234,7 +234,7 @@ describe("receiveGoods — backdating", () => {
             supplyRouteId: routeId,
             items: [
               {
-                supplyRouteLineId: itemId,
+                supplyRouteLineId: lineId,
                 quantityReceived: 10,
               },
             ],
@@ -245,7 +245,7 @@ describe("receiveGoods — backdating", () => {
     ).rejects.toThrow(/before goods left/i)
 
     const receivings = await db.query.storeReceivings.findMany({
-      where: eq(storeReceivings.supplyRouteLineId, itemId),
+      where: eq(storeReceivings.supplyRouteLineId, lineId),
     })
     expect(receivings).toHaveLength(0)
 
@@ -263,7 +263,7 @@ describe("receiveGoods — backdating", () => {
           supplyRouteId: routeId,
           items: [
             {
-              supplyRouteLineId: itemId,
+              supplyRouteLineId: lineId,
               quantityReceived: 10,
             },
           ],
@@ -273,7 +273,7 @@ describe("receiveGoods — backdating", () => {
     )
 
     const receiving = await db.query.storeReceivings.findFirst({
-      where: eq(storeReceivings.supplyRouteLineId, itemId),
+      where: eq(storeReceivings.supplyRouteLineId, lineId),
     })
     expect(receiving).toBeDefined()
     assertDefined(receiving, "expected storeReceivings row")

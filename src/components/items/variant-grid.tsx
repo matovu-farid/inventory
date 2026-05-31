@@ -11,14 +11,14 @@ interface Props {
   colors: Color[]
   quantities: Record<string, number>
   onChange: (next: Record<string, number>) => void
-  onRemoveColor?: (productColorId: string) => void
+  onRemoveColor?: (itemColorId: string) => void
 }
 
 export function VariantGrid({ sizes, colors, quantities, onChange, onRemoveColor }: Props) {
-  function setCell(productColorId: string, size: string, value: string) {
+  function setCell(itemColorId: string, size: string, value: string) {
     const n = Math.max(0, Math.floor(Number(value) || 0))
-    const next = { ...quantities, [`${productColorId}|${size}`]: n }
-    if (n === 0) delete next[`${productColorId}|${size}`]
+    const next = { ...quantities, [`${itemColorId}|${size}`]: n }
+    if (n === 0) delete next[`${itemColorId}|${size}`]
     onChange(next)
   }
   const total = useMemo(() => Object.values(quantities).reduce((s, x) => s + x, 0), [quantities])
@@ -27,7 +27,7 @@ export function VariantGrid({ sizes, colors, quantities, onChange, onRemoveColor
     return <p className="text-sm text-muted-foreground">Add at least one color to enter quantities.</p>
   }
   if (sizes.length === 0) {
-    return <p className="text-sm text-muted-foreground">This product has no sizes defined.</p>
+    return <p className="text-sm text-muted-foreground">This item has no sizes defined.</p>
   }
 
   return (

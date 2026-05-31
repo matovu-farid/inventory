@@ -17,13 +17,13 @@ const baseSale = {
   clerkName: null,
   items: [
     {
-      productName: "TR-001 Crew Tee · Red / M",
+      itemName: "TR-001 Crew Tee · Red / M",
       quantity: 2,
       unitPriceUgx: "45000",
       totalPriceUgx: "90000",
     },
     {
-      productName: "JK-100 Bomber · Black / L",
+      itemName: "JK-100 Bomber · Black / L",
       quantity: 1,
       unitPriceUgx: "45000",
       totalPriceUgx: "45000",
@@ -61,7 +61,7 @@ describe("renderSaleReceipt", () => {
       shopName: '<script>alert("xss")</script>',
       items: [
         {
-          productName: "<img onerror=alert(1)>",
+          itemName: "<img onerror=alert(1)>",
           quantity: 1,
           unitPriceUgx: "1000",
           totalPriceUgx: "1000",

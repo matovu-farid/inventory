@@ -196,7 +196,7 @@ function CreateTransferForm({
       color: {
         colorName: string
         colorHex: string
-        product: { name: string; articleNumber: string }
+        item: { name: string; articleNumber: string }
       }
     }
   }>
@@ -316,7 +316,7 @@ function CreateTransferForm({
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {s.variant.color.product.name}
+                        {s.variant.color.item.name}
                       </p>
                       <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
                         <span
@@ -326,7 +326,7 @@ function CreateTransferForm({
                         />
                         {s.variant.color.colorName} · {s.variant.size}
                         <span className="ml-1 font-mono">
-                          [{s.variant.color.product.articleNumber}]
+                          [{s.variant.color.item.articleNumber}]
                         </span>
                       </p>
                       <p className="text-xs text-muted-foreground">

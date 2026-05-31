@@ -9,7 +9,7 @@ import {
 } from '#/db/schema'
 import { requireSession } from '#/server/middleware/auth'
 import { requireRole } from '#/server/middleware/rbac'
-import { formatProductLabel } from '#/lib/products'
+import { formatItemLabel } from '#/lib/items'
 
 /**
  * Lists open restock requisitions. Each requisition is keyed by `variant_id`
@@ -37,7 +37,7 @@ export const listOpenRequisitions = createServerFn().handler(async () => {
     storeName: r.store.name,
     variantId: r.variantId,
     size: r.variant.size,
-    productLabel: formatProductLabel(
+    itemLabel: formatItemLabel(
       r.variant.item.articleNumber,
       r.variant.color.colorName,
       r.variant.size,

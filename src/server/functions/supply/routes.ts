@@ -20,7 +20,7 @@ export const listSupplyRoutes = createServerFn().handler(async () => {
       suppliers: {
         with: { supplier: true },
       },
-      items: { with: { productColor: { with: { product: true } } } },
+      items: { with: { itemColor: { with: { item: true } } } },
       expenses: true,
     },
   })
@@ -43,8 +43,8 @@ export const getSupplyRoute = createServerFn()
         items: {
           with: {
             supplier: true,
-            product: true,
-            productColor: { with: { product: true } },
+            item: true,
+            itemColor: { with: { item: true } },
           },
           orderBy: (i, { asc }) => [asc(i.createdAt)],
         },

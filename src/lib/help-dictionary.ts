@@ -46,13 +46,13 @@ export const helpDict = {
   },
 
   // ─── Item form (inside a Supply Route) ───────────────────────────────
-  'item.productName': {
-    description: 'What you call this product when talking with customers.',
+  'item.name': {
+    description: 'What you call this item when talking with customers.',
     example: "Men's Leather Loafers",
   },
   'item.articleNumber': {
     description:
-      "The supplier's catalog/SKU code for this product. Optional, but useful for re-ordering the exact same item later.",
+      "The supplier's catalog/SKU code for this item. Optional, but useful for re-ordering the exact same item later.",
     example: 'SH-2045-BLK',
   },
   'item.supplierId': {
@@ -299,12 +299,7 @@ export const helpDict = {
       'Goods have arrived and been received into the warehouse. The route is closed for further edits.',
   },
 
-  // ─── Product / Variant catalog ───────────────────────────────────────
-  'product.articleNumber': {
-    description:
-      'Unique code for the item (e.g. TR-001). The same article in different colors is one item with multiple color variants.',
-    example: 'TR-001',
-  },
+  // ─── Item / Variant catalog ──────────────────────────────────────────
   /**
    * New entry added by issue #3: tip text for the per-item "category"
    * picker on the item-edit form. Distinct from `category.name`, which
@@ -315,28 +310,22 @@ export const helpDict = {
       'Pick which catalog grouping this item belongs to (e.g. "Shoes", "Bags"). Every item must belong to exactly one category — new items default to "Uncategorized" until you change them.',
     example: 'Shoes',
   },
-  'product.colorName': {
+  'item.colorName': {
     description:
       'Friendly name of the color (e.g. Burgundy, Navy). Auto-suggested from the uploaded image; you can override from the palette, the eyedropper, or type your own.',
     example: 'Burgundy',
   },
-  'product.colorHex': {
+  'item.colorHex': {
     description:
       'Hex code that drives the on-screen swatch (e.g. #7b1f2b). Matched to the nearest palette tile.',
     example: '#7b1f2b',
   },
-  /**
-   * Legacy alias kept so old InfoTip call-sites still resolve. After
-   * issue #7 sizes are no longer a single item-level field — they live
-   * on the variants table. The text below points the user at the
-   * variant subsection on the item detail page.
-   */
-  'product.sizes': {
+  'item.sizes': {
     description:
       'Available sizes for this item. Sizes live on individual variants now (one variant per color × size). Manage them from the Variants section on the item detail page.',
     example: 'S, M, L',
   },
-  'product.image': {
+  'item.image': {
     description:
       'One image per color. Click the image after upload to eyedrop a different pixel as the color sample.',
   },
@@ -355,18 +344,18 @@ export const helpDict = {
   },
 
   // ─── Opening Balance form ────────────────────────────────────────────
-  'openingBalance.productName': {
+  'openingBalance.itemName': {
     description:
-      "Pick the product whose stock you're seeding. Use the dropdown or create a new product on the fly.",
+      "Pick the item whose stock you're seeding. Use the dropdown or create a new item on the fly.",
   },
   'openingBalance.articleNumber': {
     description:
-      'Legacy: use `product.articleNumber` (the item article-number tip) going forward. Kept as a stale alias so older references still resolve.',
+      'Legacy: use `item.articleNumber` going forward. Kept as a stale alias so older references still resolve.',
     example: 'TR-001',
   },
   'openingBalance.quantity': {
     description:
-      'How many units of this product you currently have on hand at this location, before the system goes live.',
+      'How many units of this item you currently have on hand at this location, before the system goes live.',
     example: '120',
   },
   'openingBalance.costPerUnit': {
@@ -431,9 +420,9 @@ export const helpDict = {
       'Whether this override applies to warehouse stock (Store) or shop floor stock (Shop).',
     example: 'Store',
   },
-  'notifications.overrides.product': {
+  'notifications.overrides.item': {
     description:
-      'The specific product color variant this override covers. Identified by article number and color name.',
+      'The specific item color variant this override covers. Identified by article number and color name.',
     example: 'SH-2045 · Black',
   },
   'notifications.overrides.size': {

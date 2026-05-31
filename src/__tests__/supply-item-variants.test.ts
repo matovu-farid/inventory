@@ -6,14 +6,14 @@ describe("materializeVariantRows", () => {
     const rows = materializeVariantRows({
       supplyRouteId: "r1",
       supplierId: "s1",
-      productId: "p1",
+      itemId: "p1",
       unitPriceForeign: "10",
       foreignCurrency: "RMB",
       exchangeRateForeignToUsd: "7.2",
       exchangeRateUsdToUgx: "3700",
       cells: [
-        { productColorId: "c-red", size: "S", quantity: 3 },
-        { productColorId: "c-blue", size: "L", quantity: 2 },
+        { itemColorId: "c-red", size: "S", quantity: 3 },
+        { itemColorId: "c-blue", size: "L", quantity: 2 },
       ],
     })
     expect(rows).toHaveLength(2)
@@ -28,12 +28,12 @@ describe("materializeVariantRows", () => {
     const rows = materializeVariantRows({
       supplyRouteId: "r1",
       supplierId: "s1",
-      productId: "p1",
+      itemId: "p1",
       unitPriceForeign: "45",
       foreignCurrency: "RMB",
       exchangeRateForeignToUsd: "7.2",
       exchangeRateUsdToUgx: "3700",
-      cells: [{ productColorId: "c1", size: "M", quantity: 20 }],
+      cells: [{ itemColorId: "c1", size: "M", quantity: 20 }],
     })
     expect(rows[0].totalAmountForeign).toBe("900.00")
     expect(rows[0].totalAmountUsd).toBe("125.00")
@@ -44,10 +44,10 @@ describe("materializeVariantRows", () => {
     const rows = materializeVariantRows({
       supplyRouteId: "r1",
       supplierId: "s1",
-      productId: "p1",
+      itemId: "p1",
       unitPriceForeign: "15000",
       foreignCurrency: "UGX",
-      cells: [{ productColorId: "c1", size: "S", quantity: 10 }],
+      cells: [{ itemColorId: "c1", size: "S", quantity: 10 }],
     })
     expect(rows[0].totalCostUgx).toBe("150000.00")
     expect(rows[0].totalAmountUsd).toBeNull()
@@ -57,7 +57,7 @@ describe("materializeVariantRows", () => {
     const rows = materializeVariantRows({
       supplyRouteId: "r1",
       supplierId: "s1",
-      productId: "p1",
+      itemId: "p1",
       unitPriceForeign: "10",
       foreignCurrency: "UGX",
       cells: [{ quantity: 12 }],
@@ -74,12 +74,12 @@ describe("materializeVariantRows", () => {
     const rows = materializeVariantRows({
       supplyRouteId: "r1",
       supplierId: "s1",
-      productId: "p1",
+      itemId: "p1",
       unitPriceForeign: "10",
       foreignCurrency: "UGX",
       cells: [
-        { productColorId: "c-red", quantity: 5 },
-        { productColorId: "c-blue", quantity: 3 },
+        { itemColorId: "c-red", quantity: 5 },
+        { itemColorId: "c-blue", quantity: 3 },
       ],
     })
     expect(rows).toHaveLength(2)

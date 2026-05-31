@@ -14,7 +14,7 @@ import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
-import { formatProductLabel } from "#/lib/products"
+import { formatItemLabel } from "#/lib/items"
 import { renderAuditDescription } from "#/server/audit/descriptions"
 import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
 import { getActorName } from "#/server/audit/actor"
@@ -35,7 +35,7 @@ export const listTransfers = createServerFn().handler(async () => {
       items: {
         with: {
           storeStockItem: {
-            with: { variant: { with: { color: { with: { product: true } } } } },
+            with: { variant: { with: { color: { with: { item: true } } } } },
           },
         },
       },
@@ -99,16 +99,16 @@ export const createTransfer = createServerFn()
         // Validate stock
         const stock = await tx.query.storeStock.findFirst({
           where: eq(storeStock.id, item.storeStockId),
-          with: { variant: { with: { color: { with: { product: true } } } } },
+          with: { variant: { with: { color: { with: { item: true } } } } },
         })
         if (!stock) throw new Error(`Store stock not found: ${item.storeStockId}`)
-        const productLabel = formatProductLabel(
-          stock.variant.color.product.articleNumber,
+        const itemLabel = formatItemLabel(
+          stock.variant.color.item.articleNumber,
           stock.variant.color.colorName,
           stock.variant.size,
         )
         if (stock.quantityOnHand < item.quantityDispatched) {
-          throw new Error(`Insufficient stock for ${productLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`)
+          throw new Error(`Insufficient stock for ${itemLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`)
         }
 
         const unitPrice = new BigNumber(stock.minimumSellPriceUgx)
@@ -124,7 +124,7 @@ export const createTransfer = createServerFn()
         const shopMinSell = new BigNumber(shopMinSellRaw)
         if (!shopMinSell.isFinite() || shopMinSell.lte(0)) {
           throw new Error(
-            `Invalid shop minimum sell price for ${productLabel}`,
+            `Invalid shop minimum sell price for ${itemLabel}`,
           )
         }
 
@@ -248,7 +248,7 @@ export const confirmTransferReceipt = createServerFn()
           items: {
             with: {
               storeStockItem: {
-                with: { variant: { with: { color: { with: { product: true } } } } },
+                with: { variant: { with: { color: { with: { item: true } } } } },
               },
             },
           },
@@ -271,8 +271,8 @@ export const confirmTransferReceipt = createServerFn()
           throw new Error("This transfer item has already been received. Use a return flow to adjust.")
         }
 
-        const productLabel = formatProductLabel(
-          ti.storeStockItem.variant.color.product.articleNumber,
+        const itemLabel = formatItemLabel(
+          ti.storeStockItem.variant.color.item.articleNumber,
           ti.storeStockItem.variant.color.colorName,
           ti.storeStockItem.variant.size,
         )
@@ -329,7 +329,7 @@ export const confirmTransferReceipt = createServerFn()
             locationType: "shop",
             locationId: transfer.shopId,
             recordedBy: userId,
-            description: `Distribution loss: ${loss}× ${productLabel}`,
+            description: `Distribution loss: ${loss}× ${itemLabel}`,
           })
         }
       }

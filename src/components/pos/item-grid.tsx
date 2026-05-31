@@ -1,30 +1,30 @@
 import * as React from "react"
 import { ShoppingBag } from "lucide-react"
-import { productImageUrl } from "#/lib/products"
-import type { AggregatedProduct } from "#/lib/products"
+import { itemImageUrl } from "#/lib/items"
+import type { AggregatedItem } from "#/lib/items"
 
 type Props = {
-  products: AggregatedProduct[]
+  items: AggregatedItem[]
   query: string
-  onPick: (p: AggregatedProduct) => void
+  onPick: (p: AggregatedItem) => void
 }
 
-export function ProductGrid({ products, query, onPick }: Props) {
+export function ItemGrid({ items, query, onPick }: Props) {
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return products
-    return products.filter((p) => {
-      const a = p.product.articleNumber.toLowerCase()
-      const n = p.product.name.toLowerCase()
+    if (!q) return items
+    return items.filter((p) => {
+      const a = p.item.articleNumber.toLowerCase()
+      const n = p.item.name.toLowerCase()
       return a.includes(q) || n.includes(q)
     })
-  }, [products, query])
+  }, [items, query])
 
   if (filtered.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
         <ShoppingBag className="size-8" strokeWidth={1.5} />
-        <p className="text-sm">{query ? "No products match." : "No stock in this shop."}</p>
+        <p className="text-sm">{query ? "No items match." : "No stock in this shop."}</p>
       </div>
     )
   }
@@ -32,15 +32,15 @@ export function ProductGrid({ products, query, onPick }: Props) {
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {filtered.map((p) => {
-        const colorsArr: AggregatedProduct["colors"] = p.colors
+        const colorsArr: AggregatedItem["colors"] = p.colors
         const firstColor = colorsArr.length > 0 ? colorsArr[0] : undefined
         const imgKey = firstColor?.imageS3Key ?? null
-        const imgUrl = imgKey ? productImageUrl(imgKey) : null
+        const imgUrl = imgKey ? itemImageUrl(imgKey) : null
         return (
-          <li key={p.product.articleNumber}>
+          <li key={p.item.articleNumber}>
             <button
               type="button"
-              data-testid="product-card"
+              data-testid="item-card"
               onClick={() => onPick(p)}
               className="group block w-full overflow-hidden rounded-xl border bg-card text-left transition active:scale-[0.98]"
             >
@@ -48,7 +48,7 @@ export function ProductGrid({ products, query, onPick }: Props) {
                 {imgUrl ? (
                   <img
                     src={imgUrl}
-                    alt={p.product.name}
+                    alt={p.item.name}
                     className="size-full object-cover"
                     loading="lazy"
                   />
@@ -65,8 +65,8 @@ export function ProductGrid({ products, query, onPick }: Props) {
                 </div>
               </div>
               <div className="space-y-1 px-3 py-2">
-                <p className="truncate text-sm font-semibold">{p.product.name}</p>
-                <p className="text-xs text-muted-foreground">{p.product.articleNumber}</p>
+                <p className="truncate text-sm font-semibold">{p.item.name}</p>
+                <p className="text-xs text-muted-foreground">{p.item.articleNumber}</p>
                 <div className="flex gap-1">
                   {p.colors.slice(0, 6).map((c) => (
                     <span

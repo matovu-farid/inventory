@@ -16,7 +16,7 @@ export interface SuggestionRow {
   storeStockId: string | null
   variantId: string
   size: string
-  productLabel: string
+  itemLabel: string
   quantityOnHand: number
   baseline: number
   suggestedQuantity: number
@@ -26,7 +26,7 @@ export interface SuggestionRow {
 export interface SuggestionSelection {
   storeStockId: string
   quantity: number
-  productLabel: string
+  itemLabel: string
 }
 
 export function RestockSuggestionsTable({
@@ -65,7 +65,7 @@ export function RestockSuggestionsTable({
           {
             storeStockId,
             quantity: pick.quantity,
-            productLabel: r.productLabel,
+            itemLabel: r.itemLabel,
           },
         ]
       })
@@ -81,7 +81,7 @@ export function RestockSuggestionsTable({
         <TableHeader>
           <TableRow>
             <TableHead className="w-12"></TableHead>
-            <TableHead>Product</TableHead>
+            <TableHead>Item</TableHead>
             <TableHead>In shop</TableHead>
             <TableHead>Typical</TableHead>
             <TableHead>Suggested</TableHead>
@@ -108,7 +108,7 @@ export function RestockSuggestionsTable({
                     }
                   />
                 </TableCell>
-                <TableCell className="font-medium">{r.productLabel}</TableCell>
+                <TableCell className="font-medium">{r.itemLabel}</TableCell>
                 <TableCell>{r.quantityOnHand}</TableCell>
                 <TableCell>{r.baseline}</TableCell>
                 <TableCell>{r.suggestedQuantity}</TableCell>

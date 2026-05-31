@@ -8,7 +8,7 @@ export const pictureUploadTokens = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     token: text("token").notNull().unique(),
-    productColorId: uuid("product_color_id")
+    itemColorId: uuid("item_color_id")
       .notNull()
       .references(() => itemColors.id, { onDelete: "cascade" }),
     createdBy: text("created_by")
@@ -23,7 +23,7 @@ export const pictureUploadTokens = pgTable(
   },
   (t) => [
     index("picture_upload_tokens_color_consumed_idx").on(
-      t.productColorId,
+      t.itemColorId,
       t.consumedAt,
     ),
   ],
@@ -32,8 +32,8 @@ export const pictureUploadTokens = pgTable(
 export const pictureUploadTokensRelations = relations(
   pictureUploadTokens,
   ({ one }) => ({
-    productColor: one(itemColors, {
-      fields: [pictureUploadTokens.productColorId],
+    itemColor: one(itemColors, {
+      fields: [pictureUploadTokens.itemColorId],
       references: [itemColors.id],
     }),
   }),

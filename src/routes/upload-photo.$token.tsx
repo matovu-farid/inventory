@@ -3,7 +3,7 @@ import * as React from "react"
 import {
   redeemPhotoUploadToken,
   confirmPhotoUpload,
-} from "#/server/functions/products/photo-handoff"
+} from "#/server/functions/items/photo-handoff"
 import { shrinkImage } from "#/lib/images/shrink-image"
 import { Button } from "#/components/ui/button"
 

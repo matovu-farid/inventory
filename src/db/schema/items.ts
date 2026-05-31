@@ -92,11 +92,7 @@ export const itemRelations = relations(items, ({ one, many }) => ({
 }))
 
 export const itemColorRelations = relations(itemColors, ({ one }) => ({
-  // The relation key stays `product` for one more release so the UI / API
-  // shape consumers (route loaders, react components) don't have to churn
-  // in lockstep with this DB rename. The rename to `item` is tracked
-  // separately and lands once consumers migrate.
-  product: one(items, {
+  item: one(items, {
     fields: [itemColors.itemId],
     references: [items.id],
   }),

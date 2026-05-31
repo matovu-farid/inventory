@@ -25,15 +25,8 @@ export type Permission =
   | "customers.view"
   | "reports.view"
   | "users.manage"
-  // Catalog rename (#3): `items.*` are the new canonical keys for the
-  // renamed `items` / `item_colors` tables. The legacy `products.*` keys
-  // remain in the union for 90 days (through 2026-08-24) so existing role
-  // configurations and UI call sites keep resolving. `can()` normalises
-  // either form via PERMISSION_ALIASES before the role-table lookup.
   | "items.view"
   | "items.manage"
-  | "products.view"
-  | "products.manage"
   | "pos.view"
   | "security.manage"
   | "shift.reports.view"
@@ -41,23 +34,6 @@ export type Permission =
   | "audit.view"
   | "audit.viewArticleActivity"
   | "itemCategories.manage"
-
-/**
- * Permission aliases (#3). Maps legacy keys → canonical new keys. `can()`
- * applies this mapping to the requested permission before consulting the
- * role table. `ROLE_PERMISSIONS` and `PERMISSION_SERVER_GATES` carry the
- * canonical (right-hand-side) keys; aliases live here only so saved role
- * configurations and in-flight UI strings keep resolving during the 90-day
- * transition.
- */
-const PERMISSION_ALIASES: Partial<Record<Permission, Permission>> = {
-  "products.view": "items.view",
-  "products.manage": "items.manage",
-}
-
-function normalisePermission(perm: Permission): Permission {
-  return PERMISSION_ALIASES[perm] ?? perm
-}
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   admin: [
@@ -131,25 +107,14 @@ export const PERMISSION_SERVER_GATES: Record<Permission, readonly string[]> = {
   ],
   "users.manage": ["src/server/functions/admin/users.ts"],
   "security.manage": ["src/server/functions/admin/ip-allowlist.ts"],
-  // Canonical keys (post-rename) and their 90-day aliases share the same
-  // gate-file list — `permissions.test.ts` walks every key in this map.
   "items.view": [
-    "src/server/functions/products/products.ts",
-    "src/server/functions/products/colors.ts",
+    "src/server/functions/items/items.ts",
+    "src/server/functions/items/colors.ts",
   ],
   "items.manage": [
-    "src/server/functions/products/products.ts",
-    "src/server/functions/products/colors.ts",
-    "src/server/functions/products/uploads.ts",
-  ],
-  "products.view": [
-    "src/server/functions/products/products.ts",
-    "src/server/functions/products/colors.ts",
-  ],
-  "products.manage": [
-    "src/server/functions/products/products.ts",
-    "src/server/functions/products/colors.ts",
-    "src/server/functions/products/uploads.ts",
+    "src/server/functions/items/items.ts",
+    "src/server/functions/items/colors.ts",
+    "src/server/functions/items/uploads.ts",
   ],
   "pos.view": ["src/server/functions/shop/sales.ts"],
   "shift.reports.view": ["src/server/functions/accounting/shift-reports.ts"],
@@ -178,10 +143,7 @@ export function can(
 ): boolean {
   const r = toRole(role)
   if (!r) return false
-  // Normalise legacy aliases (e.g. `products.view`) to the canonical
-  // post-rename key (e.g. `items.view`) before the role-table lookup so
-  // call sites can request either form during the 90-day window.
-  return ROLE_PERMISSIONS[r].includes(normalisePermission(perm))
+  return ROLE_PERMISSIONS[r].includes(perm)
 }
 
 export function canAny(

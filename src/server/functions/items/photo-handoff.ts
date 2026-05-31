@@ -15,7 +15,7 @@ import {
 } from "./photo-handoff-internals"
 
 export const createPhotoUploadToken = createServerFn()
-  .inputValidator(z.object({ productColorId: z.uuid() }))
+  .inputValidator(z.object({ itemColorId: z.uuid() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor"])
@@ -24,7 +24,7 @@ export const createPhotoUploadToken = createServerFn()
     const expiresAt = new Date(Date.now() + TOKEN_TTL_MS)
     await db.insert(pictureUploadTokens).values({
       token,
-      productColorId: data.productColorId,
+      itemColorId: data.itemColorId,
       createdBy: userId,
       expiresAt,
     })
@@ -59,7 +59,7 @@ export const redeemPhotoUploadToken = createServerFn()
   )
   .handler(async ({ data }) => {
     const row = await validateToken(data.token)
-    const key = `products/${row.productColor.product.id}/${row.productColor.id}.jpg`
+    const key = `items/${row.itemColor.item.id}/${row.itemColor.id}.jpg`
     const uploadUrl = await presignPutUrl({ key, contentType: data.contentType })
     return { uploadUrl, s3Key: key }
   })
@@ -68,7 +68,7 @@ export const confirmPhotoUpload = createServerFn()
   .inputValidator(z.object({ token: z.string().min(1) }))
   .handler(async ({ data }) => {
     const row = await validateToken(data.token)
-    const key = `products/${row.productColor.product.id}/${row.productColor.id}.jpg`
+    const key = `items/${row.itemColor.item.id}/${row.itemColor.id}.jpg`
     await markConsumed(data.token, key)
     return { imageUrl: publicUrlFor(key) }
   })

@@ -194,17 +194,11 @@ export const supplyRouteLineRelations = relations(supplyRouteLines, ({ one }) =>
     fields: [supplyRouteLines.supplierId],
     references: [suppliers.id],
   }),
-  // Relation names kept as `product` / `productColor` (rather than
-  // `item` / `color`) for now to avoid churning every `with: {
-  // product, productColor }` callsite. The TABLE rename to
-  // `supply_route_lines` (Phase 2 / #8) renames the table, FK
-  // column, and Drizzle symbols — the relation names within the
-  // line table stay as they are.
-  product: one(items, {
+  item: one(items, {
     fields: [supplyRouteLines.itemId],
     references: [items.id],
   }),
-  productColor: one(itemColors, {
+  itemColor: one(itemColors, {
     fields: [supplyRouteLines.colorId],
     references: [itemColors.id],
   }),

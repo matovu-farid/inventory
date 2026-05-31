@@ -3,11 +3,11 @@ import * as React from "react"
 import { requireUiPermission } from "#/lib/permissions"
 import { getShopStock } from "#/server/functions/shop/sales"
 import { getSession } from "#/server/middleware/auth"
-import { aggregateStockByArticle } from "#/lib/products"
+import { aggregateStockByArticle } from "#/lib/items"
 import { CartProvider } from "#/components/pos/cart-context"
 import { PosLayout } from "#/components/pos/pos-layout"
 import { PosHeader } from "#/components/pos/pos-header"
-import { ProductGrid } from "#/components/pos/product-grid"
+import { ItemGrid } from "#/components/pos/item-grid"
 import { CartBar } from "#/components/pos/cart-bar"
 import { CartSheet } from "#/components/pos/cart-sheet"
 import { CheckoutSheet } from "#/components/pos/checkout-sheet"
@@ -15,7 +15,7 @@ import { VariantPickerSheet } from "#/components/pos/variant-picker-sheet"
 import { QueuedSalesSheet } from "#/components/pos/queued-sales-sheet"
 import { useSyncEngine } from "#/lib/offline/sync"
 import { useOnline } from "#/lib/offline/use-online"
-import type { AggregatedProduct } from "#/lib/products"
+import type { AggregatedItem } from "#/lib/items"
 
 export const Route = createFileRoute("/pos")({
   beforeLoad: ({ context }) => requireUiPermission(context, "pos.view"),
@@ -52,7 +52,7 @@ function PosInner() {
   const { shopId, userName, userEmail, stock } = Route.useLoaderData()
   const router = useRouter()
   const [query, setQuery] = React.useState("")
-  const [picked, setPicked] = React.useState<AggregatedProduct | null>(null)
+  const [picked, setPicked] = React.useState<AggregatedItem | null>(null)
   const [pickerOpen, setPickerOpen] = React.useState(false)
   const [cartOpen, setCartOpen] = React.useState(false)
   const [checkoutOpen, setCheckoutOpen] = React.useState(false)
@@ -70,7 +70,7 @@ function PosInner() {
         // Stock now keys on variant_id (issue #4). The variant picker UI
         // still groups rows by (color × size); expose the variant's
         // colorId + size so its existing data shape stays intact.
-        productColorId: s.variant.color.id,
+        itemColorId: s.variant.color.id,
         size: s.variant.size,
         quantityOnHand: s.quantityOnHand,
         minimumSellPriceUgx: s.minimumSellPriceUgx,
@@ -78,7 +78,7 @@ function PosInner() {
     [stock],
   )
 
-  function handlePick(p: AggregatedProduct) {
+  function handlePick(p: AggregatedItem) {
     setPicked(p)
     setPickerOpen(true)
   }
@@ -107,10 +107,10 @@ function PosInner() {
       }
       footer={<CartBar onOpenCart={() => setCartOpen(true)} />}
     >
-      <ProductGrid products={aggregated} query={query} onPick={handlePick} />
+      <ItemGrid items={aggregated} query={query} onPick={handlePick} />
 
       <VariantPickerSheet
-        product={picked}
+        item={picked}
         stock={stockRows}
         open={pickerOpen}
         onOpenChange={setPickerOpen}

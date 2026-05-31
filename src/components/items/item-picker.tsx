@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react"
-import { searchProducts } from "#/server/functions/products/products"
+import { searchItems } from "#/server/functions/items/items"
 import { Combobox  } from "#/components/ui/combobox"
 import type {ComboboxOption} from "#/components/ui/combobox";
 
-export interface ProductSummary {
+export interface ItemSummary {
   id: string
   articleNumber: string
   name: string
@@ -23,15 +23,15 @@ export interface ProductSummary {
 
 interface Props {
   value?: string
-  onChange: (productId: string, product: ProductSummary | undefined) => void
+  onChange: (itemId: string, item: ItemSummary | undefined) => void
   onCreateNew?: () => void
 }
 
-export function ProductPicker({ value, onChange, onCreateNew }: Props) {
-  const [results, setResults] = useState<ProductSummary[]>([])
+export function ItemPicker({ value, onChange, onCreateNew }: Props) {
+  const [results, setResults] = useState<ItemSummary[]>([])
 
   useEffect(() => {
-    void searchProducts({ data: { query: "" } }).then((rs) => setResults(rs as ProductSummary[]))
+    void searchItems({ data: { query: "" } }).then((rs) => setResults(rs as ItemSummary[]))
   }, [])
 
   const options: ComboboxOption[] = results.map((p) => ({
@@ -44,11 +44,11 @@ export function ProductPicker({ value, onChange, onCreateNew }: Props) {
         options={options}
         value={value}
         onChange={(id) => onChange(id, results.find((r) => r.id === id))}
-        placeholder="Select product…"
+        placeholder="Select item…"
         searchPlaceholder="Type article number…"
         emptyMessage={
           <div className="p-2 text-sm">
-            No matching product.{" "}
+            No matching item.{" "}
             {onCreateNew && (
               <button type="button" onClick={onCreateNew} className="font-medium underline">
                 Create new

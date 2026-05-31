@@ -67,10 +67,10 @@ function ReceivingPage() {
       quantity: number
       totalCostUgx: string
       supplier: { name: string }
-      productColor: {
+      itemColor: {
         colorName: string
         colorHex: string
-        product: { name: string; articleNumber: string }
+        item: { name: string; articleNumber: string }
       }
     }>
   >([])
@@ -98,7 +98,7 @@ function ReceivingPage() {
     // Aggregate/color-only rows must be split into full variants by an admin
     // before they can be received. Skip them here and surface a count.
     const receivable = unreceived.flatMap((i) =>
-      i.productColor && i.size
+      i.itemColor && i.size
         ? [
             {
               id: i.id,
@@ -106,7 +106,7 @@ function ReceivingPage() {
               quantity: i.quantity,
               totalCostUgx: i.totalCostUgx,
               supplier: i.supplier,
-              productColor: i.productColor,
+              itemColor: i.itemColor,
             },
           ]
         : [],
@@ -254,20 +254,20 @@ function ReceivingPage() {
                       <TableCell className="font-medium">
                         <div className="flex flex-col gap-0.5">
                           <span>
-                            {item.productColor.product.articleNumber}{" "}
+                            {item.itemColor.item.articleNumber}{" "}
                             <span className="text-muted-foreground">
-                              {item.productColor.product.name}
+                              {item.itemColor.item.name}
                             </span>
                           </span>
                           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                             <span
                               className="size-3 rounded-full border"
                               style={{
-                                backgroundColor: item.productColor.colorHex,
+                                backgroundColor: item.itemColor.colorHex,
                               }}
                               aria-hidden
                             />
-                            {item.productColor.colorName} · {item.size}
+                            {item.itemColor.colorName} · {item.size}
                           </span>
                         </div>
                       </TableCell>
@@ -324,20 +324,20 @@ function ReceivingPage() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-medium">
-                          {item.productColor.product.articleNumber}{" "}
+                          {item.itemColor.item.articleNumber}{" "}
                           <span className="text-muted-foreground">
-                            {item.productColor.product.name}
+                            {item.itemColor.item.name}
                           </span>
                         </span>
                         <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                           <span
                             className="size-3 rounded-full border"
                             style={{
-                              backgroundColor: item.productColor.colorHex,
+                              backgroundColor: item.itemColor.colorHex,
                             }}
                             aria-hidden
                           />
-                          {item.productColor.colorName} · {item.size}
+                          {item.itemColor.colorName} · {item.size}
                         </span>
                       </div>
                       <Badge variant="destructive">{missing} missing</Badge>

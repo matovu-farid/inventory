@@ -4,6 +4,7 @@ import type {PaletteColor} from "#/lib/colors/palette";
 import { matchPaletteHex } from "#/lib/colors/match-palette"
 import { Input } from "#/components/ui/input"
 import { cn } from "#/lib/utils"
+import { HexColorField } from "./hex-color-field"
 
 interface Props {
   colorName: string
@@ -51,12 +52,10 @@ export function ColorPicker({ colorName, colorHex, onChange, sampledHex }: Props
           value={colorName}
           onChange={(e) => onChange({ colorName: e.target.value, colorHex })}
         />
-        <input
-          type="color"
-          aria-label="Custom color"
+        <HexColorField
           value={colorHex || "#000000"}
-          onChange={(e) => { setCustomMode(true); pickCustomHex(e.target.value) }}
-          className="h-9 w-12 cursor-pointer rounded border"
+          onChange={(hex) => { setCustomMode(true); pickCustomHex(hex) }}
+          ariaLabel="Custom color"
         />
       </div>
       {sampledHex && (

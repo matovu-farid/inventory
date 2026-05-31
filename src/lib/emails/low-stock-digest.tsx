@@ -24,7 +24,7 @@ export interface LowStockDigestData {
   topItems: Array<{
     scope: "store" | "shop"
     locationName: string
-    productLabel: string
+    itemLabel: string
     quantityAtOpen: number
     baseline: number
     rule: { mode: "percent" | "units"; value: number }
@@ -229,7 +229,7 @@ function ItemRow({
           <tr>
             <td valign="top">
               <Text className="text-slate-900 text-[14px] font-semibold m-0">
-                {item.productLabel}
+                {item.itemLabel}
               </Text>
               <Text className="text-slate-600 text-[12px] m-0 mt-1">
                 {item.scope === "store" ? "Store" : "Shop"} ·{" "}

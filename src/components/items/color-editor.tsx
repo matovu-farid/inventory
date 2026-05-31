@@ -2,12 +2,12 @@ import { useState } from "react"
 import { Button } from "#/components/ui/button"
 import { ColorPicker } from "./color-picker"
 import { ImageUploader } from "./image-uploader"
-import { addProductColor, setProductColorImage } from "#/server/functions/products/colors"
-import { getProductImageUploadUrl } from "#/server/functions/products/uploads"
+import { addItemColor, setItemColorImage } from "#/server/functions/items/colors"
+import { getItemImageUploadUrl } from "#/server/functions/items/uploads"
 
-interface Props { productId: string; onCreated: (productColorId: string) => void }
+interface Props { itemId: string; onCreated: (itemColorId: string) => void }
 
-export function ColorEditor({ productId, onCreated }: Props) {
+export function ColorEditor({ itemId, onCreated }: Props) {
   const [colorName, setColorName] = useState("")
   const [colorHex, setColorHex] = useState("#000000")
   const [sampledHex, setSampledHex] = useState<string | null>(null)
@@ -17,14 +17,14 @@ export function ColorEditor({ productId, onCreated }: Props) {
   async function save() {
     setSubmitting(true)
     try {
-      const color = await addProductColor({ data: { productId, colorName, colorHex } })
+      const color = await addItemColor({ data: { itemId, colorName, colorHex } })
       if (pendingBlob) {
-        const { uploadUrl, s3Key } = await getProductImageUploadUrl({
-          data: { productColorId: color.id, contentType: "image/jpeg" },
+        const { uploadUrl, s3Key } = await getItemImageUploadUrl({
+          data: { itemColorId: color.id, contentType: "image/jpeg" },
         })
         const res = await fetch(uploadUrl, { method: "PUT", body: pendingBlob, headers: { "Content-Type": "image/jpeg" } })
         if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
-        await setProductColorImage({ data: { id: color.id, imageS3Key: s3Key } })
+        await setItemColorImage({ data: { id: color.id, imageS3Key: s3Key } })
       }
       onCreated(color.id)
     } finally { setSubmitting(false) }

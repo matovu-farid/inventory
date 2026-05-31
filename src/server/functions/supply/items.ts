@@ -30,7 +30,7 @@ export const deleteSupplyRouteItem = createServerFn()
     await db.delete(supplyRouteLines).where(eq(supplyRouteLines.id, data.id))
   })
 
-export const getProductNameSuggestions = createServerFn()
+export const getItemNameSuggestions = createServerFn()
   .inputValidator(z.object({ query: z.string().min(1) }))
   .handler(async ({ data }) => {
     const session = await requireSession()
@@ -50,7 +50,7 @@ const splitInput = z.object({
   cells: z
     .array(
       z.object({
-        productColorId: z.uuid(),
+        itemColorId: z.uuid(),
         size: z.string().min(1).optional(),
         quantity: z.number().int().positive(),
       }),
@@ -77,7 +77,7 @@ export const splitSupplyRouteItem = createServerFn()
       let itemIdFallback = original.itemId
       if (!itemIdFallback) {
         const firstColor = await tx.query.itemColors.findFirst({
-          where: eq(itemColors.id, data.cells[0].productColorId),
+          where: eq(itemColors.id, data.cells[0].itemColorId),
         })
         if (!firstColor) throw new Error("Color not found")
         itemIdFallback = firstColor.itemId
@@ -85,7 +85,7 @@ export const splitSupplyRouteItem = createServerFn()
 
       // Sanity check: all referenced colors belong to that item.
       const referencedColorIds = Array.from(
-        new Set(data.cells.map((c) => c.productColorId)),
+        new Set(data.cells.map((c) => c.itemColorId)),
       )
       const referencedColors = await tx.query.itemColors.findMany({
         where: (t, { inArray }) => inArray(t.id, referencedColorIds),
@@ -103,7 +103,7 @@ export const splitSupplyRouteItem = createServerFn()
         {
           supplyRouteId: original.supplyRouteId,
           supplierId: original.supplierId,
-          productId: original.itemId,
+          itemId: original.itemId,
           quantity: original.quantity,
           unitPriceForeign: original.unitPriceForeign,
           foreignCurrency: original.foreignCurrency,

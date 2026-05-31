@@ -56,7 +56,7 @@ export const stockTakeLines = pgTable(
     shopStockId: uuid("shop_stock_id").references(() => shopStock.id, {
       onDelete: "restrict",
     }),
-    productName: text("product_name").notNull(),
+    itemName: text("product_name").notNull(),
     systemQuantity: integer("system_quantity").notNull(),
     physicalQuantity: integer("physical_quantity").notNull(),
     discrepancy: integer("discrepancy").notNull(),

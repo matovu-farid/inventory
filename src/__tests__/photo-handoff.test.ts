@@ -12,7 +12,7 @@ import {
   itemCategories,
   user as userTable,
 } from "#/db/schema"
-import * as _internal from "#/server/functions/products/photo-handoff-internals"
+import * as _internal from "#/server/functions/items/photo-handoff-internals"
 
 let runId: string
 let userId: string
@@ -51,7 +51,7 @@ async function seed() {
 }
 
 async function teardown() {
-  await db.delete(pictureUploadTokens).where(eq(pictureUploadTokens.productColorId, colorId))
+  await db.delete(pictureUploadTokens).where(eq(pictureUploadTokens.itemColorId, colorId))
   const p = await db.query.items.findFirst({
     where: eq(items.articleNumber, runId),
   })
@@ -70,7 +70,7 @@ describe("photo-handoff internals", () => {
     const token = `${runId}-old`
     await db.insert(pictureUploadTokens).values({
       token,
-      productColorId: colorId,
+      itemColorId: colorId,
       createdBy: userId,
       expiresAt: new Date(Date.now() - 60_000),
     })
@@ -81,7 +81,7 @@ describe("photo-handoff internals", () => {
     const token = `${runId}-used`
     await db.insert(pictureUploadTokens).values({
       token,
-      productColorId: colorId,
+      itemColorId: colorId,
       createdBy: userId,
       expiresAt: new Date(Date.now() + 60_000),
       consumedAt: new Date(),
@@ -99,11 +99,11 @@ describe("photo-handoff internals", () => {
     const token = `${runId}-good`
     await db.insert(pictureUploadTokens).values({
       token,
-      productColorId: colorId,
+      itemColorId: colorId,
       createdBy: userId,
       expiresAt: new Date(Date.now() + 60_000),
     })
-    const key = `products/test/${colorId}.jpg`
+    const key = `items/test/${colorId}.jpg`
     await _internal.markConsumed(token, key)
 
     const stored = await db.query.pictureUploadTokens.findFirst({
@@ -122,7 +122,7 @@ describe("photo-handoff internals", () => {
     const token = `${runId}-once`
     await db.insert(pictureUploadTokens).values({
       token,
-      productColorId: colorId,
+      itemColorId: colorId,
       createdBy: userId,
       expiresAt: new Date(Date.now() + 60_000),
       consumedAt: new Date(),

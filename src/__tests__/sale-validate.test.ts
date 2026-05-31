@@ -8,7 +8,7 @@ describe("validateBelowMinimumSale — at or above minimum", () => {
       minimumSellPriceUgx: "10000",
       userRole: "sales",
       reason: "",
-      productName: "shirt",
+      itemName: "shirt",
     })
     expect(r).toEqual({ isBelowMinimum: false, reason: null })
   })
@@ -19,7 +19,7 @@ describe("validateBelowMinimumSale — at or above minimum", () => {
       minimumSellPriceUgx: "10000",
       userRole: "sales",
       reason: "",
-      productName: "shirt",
+      itemName: "shirt",
     })
     expect(r).toEqual({ isBelowMinimum: false, reason: null })
   })
@@ -30,7 +30,7 @@ describe("validateBelowMinimumSale — at or above minimum", () => {
       minimumSellPriceUgx: "10000",
       userRole: "admin",
       reason: "",
-      productName: "shirt",
+      itemName: "shirt",
     })
     expect(r.isBelowMinimum).toBe(false)
   })
@@ -44,7 +44,7 @@ describe("validateBelowMinimumSale — below minimum (approval gate)", () => {
         minimumSellPriceUgx: "10000",
         userRole: "sales",
         reason: "customer haggled",
-        productName: "shirt",
+        itemName: "shirt",
       }),
     ).toThrow(/supervisor approval/i)
   })
@@ -56,7 +56,7 @@ describe("validateBelowMinimumSale — below minimum (approval gate)", () => {
         minimumSellPriceUgx: "10000",
         userRole: "sales",
         reason: "",
-        productName: "shirt",
+        itemName: "shirt",
       }),
     ).toThrow(/supervisor approval/i)
   })
@@ -70,7 +70,7 @@ describe("validateBelowMinimumSale — below minimum (reason required)", () => {
         minimumSellPriceUgx: "10000",
         userRole: "admin",
         reason: "",
-        productName: "shirt",
+        itemName: "shirt",
       }),
     ).toThrow(/reason required/i)
   })
@@ -82,7 +82,7 @@ describe("validateBelowMinimumSale — below minimum (reason required)", () => {
         minimumSellPriceUgx: "10000",
         userRole: "supervisor",
         reason: "   ",
-        productName: "shirt",
+        itemName: "shirt",
       }),
     ).toThrow(/reason required/i)
   })
@@ -93,7 +93,7 @@ describe("validateBelowMinimumSale — below minimum (reason required)", () => {
       minimumSellPriceUgx: "10000",
       userRole: "admin",
       reason: "  damaged  ",
-      productName: "shirt",
+      itemName: "shirt",
     })
     expect(r).toEqual({ isBelowMinimum: true, reason: "damaged" })
   })
@@ -104,7 +104,7 @@ describe("validateBelowMinimumSale — below minimum (reason required)", () => {
       minimumSellPriceUgx: "10000",
       userRole: "supervisor",
       reason: "clearance",
-      productName: "shirt",
+      itemName: "shirt",
     })
     expect(r.isBelowMinimum).toBe(true)
     expect(r.reason).toBe("clearance")

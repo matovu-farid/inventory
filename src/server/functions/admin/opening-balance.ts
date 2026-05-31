@@ -27,16 +27,16 @@ const cellSchema = z.object({
   quantity: z.number().int().positive(),
 })
 
-const productEntry = z.object({
+const itemEntry = z.object({
   itemId: z.uuid(),
   unitCostUgx: z.string().min(1),
   cells: z.array(cellSchema).min(1),
 })
 
-const storeOpeningInput = z.object({ items: z.array(productEntry).min(1) })
+const storeOpeningInput = z.object({ items: z.array(itemEntry).min(1) })
 const shopOpeningInput = z.object({
   shopId: z.uuid(),
-  items: z.array(productEntry).min(1),
+  items: z.array(itemEntry).min(1),
 })
 
 type CellInput = z.infer<typeof cellSchema>

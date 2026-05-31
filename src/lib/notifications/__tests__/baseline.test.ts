@@ -45,25 +45,25 @@ async function seed() {
     .select()
     .from(itemCategories)
     .where(eq(itemCategories.name, 'Uncategorized'))
-  const [product] = await db
+  const [catalogItem] = await db
     .insert(items)
     .values({
       articleNumber: ART,
-      name: 'Baseline Test Product',
+      name: 'Baseline Test Item',
       itemCategoryId: uncat.id,
     })
     .returning()
   const [pc] = await db
     .insert(itemColors)
     .values({
-      itemId: product.id,
+      itemId: catalogItem.id,
       colorName: 'Red',
       colorHex: '#FF0000',
     })
     .returning()
   const [variant] = await db
     .insert(variants)
-    .values({ itemId: product.id, colorId: pc.id, size: SIZE })
+    .values({ itemId: catalogItem.id, colorId: pc.id, size: SIZE })
     .returning()
   const [store] = await db
     .insert(stores)
@@ -73,7 +73,7 @@ async function seed() {
     .insert(shops)
     .values({ name: 'Test Shop' })
     .returning()
-  return { user: u, supplier, product, pc, variant, store, shop }
+  return { user: u, supplier, item: catalogItem, pc, variant, store, shop }
 }
 
 let ctx: Awaited<ReturnType<typeof seed>>
@@ -106,7 +106,7 @@ afterAll(async () => {
     )
   await db.delete(variants).where(eq(variants.id, ctx.variant.id))
   await db.delete(itemColors).where(eq(itemColors.id, ctx.pc.id))
-  await db.delete(items).where(eq(items.id, ctx.product.id))
+  await db.delete(items).where(eq(items.id, ctx.item.id))
   await db.delete(shops).where(eq(shops.id, ctx.shop.id))
   await db.delete(stores).where(eq(stores.id, ctx.store.id))
   await db.delete(suppliers).where(eq(suppliers.id, ctx.supplier.id))
@@ -124,7 +124,7 @@ describe('computeStoreBaseline', () => {
 
   it('averages quantityReceived across last 3 receivings, ignoring older ones', async () => {
     // Each receiving needs its own supplyRoute + supplyRouteItem because of the
-    // unique constraint uq_sri_variant on (supplyRouteId, supplierId, productColorId, size).
+    // unique constraint uq_sri_variant on (supplyRouteId, supplierId, itemColorId, size).
     const quantities = [100, 50, 80, 200]
     const routeNames = [
       'Test Route 1',
@@ -145,7 +145,7 @@ describe('computeStoreBaseline', () => {
         .values({
           supplyRouteId: route.id,
           supplierId: ctx.supplier.id,
-          itemId: ctx.product.id,
+          itemId: ctx.item.id,
           colorId: ctx.pc.id,
           size: SIZE,
           quantity: qty,

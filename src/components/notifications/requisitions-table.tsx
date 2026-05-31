@@ -32,7 +32,7 @@ import {
 export interface RequisitionRow {
   id: string
   storeName: string
-  productLabel: string
+  itemLabel: string
   suggestedQuantity: number
   baseline: number
   quantityAtOpen: number
@@ -68,7 +68,7 @@ export function RequisitionsTable({
           <TableRow>
             <TableHead className="w-12"></TableHead>
             <TableHead>Store</TableHead>
-            <TableHead>Product</TableHead>
+            <TableHead>Item</TableHead>
             <TableHead>On hand</TableHead>
             <TableHead>Typical</TableHead>
             <TableHead>Suggested</TableHead>
@@ -92,7 +92,7 @@ export function RequisitionsTable({
                 />
               </TableCell>
               <TableCell>{r.storeName}</TableCell>
-              <TableCell className="font-medium">{r.productLabel}</TableCell>
+              <TableCell className="font-medium">{r.itemLabel}</TableCell>
               <TableCell>{r.quantityAtOpen}</TableCell>
               <TableCell>{r.baseline}</TableCell>
               <TableCell>{r.suggestedQuantity}</TableCell>

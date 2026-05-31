@@ -11,7 +11,7 @@ export const sampleLowStockDigestData: LowStockDigestData = {
     {
       scope: "shop",
       locationName: "Kampala Central",
-      productLabel: "AX-101 Black/M",
+      itemLabel: "AX-101 Black/M",
       quantityAtOpen: 2,
       baseline: 80,
       rule: { mode: "percent", value: 15 },
@@ -20,7 +20,7 @@ export const sampleLowStockDigestData: LowStockDigestData = {
     {
       scope: "shop",
       locationName: "Entebbe Mall",
-      productLabel: "AX-101 Black/L",
+      itemLabel: "AX-101 Black/L",
       quantityAtOpen: 4,
       baseline: 60,
       rule: { mode: "percent", value: 15 },
@@ -29,7 +29,7 @@ export const sampleLowStockDigestData: LowStockDigestData = {
     {
       scope: "store",
       locationName: "Main Warehouse",
-      productLabel: "BX-203 Red/S",
+      itemLabel: "BX-203 Red/S",
       quantityAtOpen: 12,
       baseline: 110,
       rule: { mode: "percent", value: 30 },
@@ -38,7 +38,7 @@ export const sampleLowStockDigestData: LowStockDigestData = {
     {
       scope: "shop",
       locationName: "Jinja Road",
-      productLabel: "CX-440 Blue/XL",
+      itemLabel: "CX-440 Blue/XL",
       quantityAtOpen: 1,
       baseline: 5,
       rule: { mode: "units", value: 5 },

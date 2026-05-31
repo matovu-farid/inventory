@@ -9,7 +9,7 @@ type NewSupplyRouteItem = typeof supplyRouteLines.$inferInsert
  *
  * DISABLED: Excel import has not been ported to the variant schema yet
  * (plan §9 explicitly defers variant support for the importer). The
- * importer cannot know which `productColorId` to associate with a parsed
+ * importer cannot know which `itemColorId` to associate with a parsed
  * row, so this helper now throws to surface the gap loudly. Re-enable
  * once variant resolution (article-number + color-name lookup, or an
  * "uncategorized" sentinel) is designed.

@@ -55,7 +55,7 @@ function shopId(): string {
   assertDefined(FIXTURE.shop, 'FIXTURE.shop not seeded')
   return FIXTURE.shop
 }
-function productId(): string {
+function itemId(): string {
   assertDefined(FIXTURE.product, 'FIXTURE.product not seeded')
   return FIXTURE.product
 }
@@ -174,7 +174,7 @@ async function cleanup() {
   }
   await db.delete(variants).where(eq(variants.id, variantId()))
   await db.delete(itemColors).where(eq(itemColors.id, pcId()))
-  await db.delete(items).where(eq(items.id, productId()))
+  await db.delete(items).where(eq(items.id, itemId()))
   await db.delete(shops).where(eq(shops.id, shopId()))
   await db.delete(stores).where(eq(stores.id, storeId()))
   await db.delete(suppliers).where(eq(suppliers.id, supplierId()))

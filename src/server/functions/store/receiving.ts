@@ -14,7 +14,7 @@ import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
-import { formatProductLabel } from "#/lib/products"
+import { formatItemLabel } from "#/lib/items"
 import { renderAuditDescription } from "#/server/audit/descriptions"
 import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
 import { getActorName } from "#/server/audit/actor"
@@ -40,7 +40,7 @@ export const listReceivableRoutes = createServerFn().handler(async () => {
       items: {
         with: {
           supplier: true,
-          productColor: { with: { product: true } },
+          itemColor: { with: { item: true } },
         },
       },
       suppliers: { with: { supplier: true } },
@@ -81,7 +81,7 @@ export const getUnreceivedItems = createServerFn()
       where: eq(supplyRouteLines.supplyRouteId, data.supplyRouteId),
       with: {
         supplier: true,
-        productColor: { with: { product: true } },
+        itemColor: { with: { item: true } },
       },
     })
 
@@ -163,7 +163,7 @@ export const receiveGoods = createServerFn()
     return db.transaction(async (tx) => {
       const results: Array<{
         itemId: string
-        productLabel: string
+        itemLabel: string
         expected: number
         received: number
         transitLoss: number
@@ -180,17 +180,17 @@ export const receiveGoods = createServerFn()
         // Get the supply route item with product chain for log strings
         const sri = await tx.query.supplyRouteLines.findFirst({
           where: eq(supplyRouteLines.id, item.supplyRouteLineId),
-          with: { productColor: { with: { product: true } } },
+          with: { itemColor: { with: { item: true } } },
         })
         if (!sri) throw new Error(`Supply route item not found: ${item.supplyRouteLineId}`)
 
         // Receiving requires a fully-resolved variant. Aggregate/color-only
         // procurement rows (Task 1) must be split into color+size variants
         // by an admin before they can land in store stock.
-        const productColor = sri.productColor
+        const itemColor = sri.itemColor
         const sriSize = sri.size
         const sriColorId = sri.colorId
-        if (!productColor || !sriSize || !sriColorId) {
+        if (!itemColor || !sriSize || !sriColorId) {
           throw new Error(
             `Item ${sri.id} is missing color or size — split it into full variants before receiving`,
           )
@@ -212,7 +212,7 @@ export const receiveGoods = createServerFn()
           const [created] = await tx
             .insert(variants)
             .values({
-              itemId: productColor.itemId,
+              itemId: itemColor.itemId,
               colorId: sriColorId,
               size: sriSize,
             })
@@ -220,9 +220,9 @@ export const receiveGoods = createServerFn()
           variantRow = created
         }
 
-        const productLabel = formatProductLabel(
-          productColor.product.articleNumber,
-          productColor.colorName,
+        const itemLabel = formatItemLabel(
+          itemColor.item.articleNumber,
+          itemColor.colorName,
           sriSize,
         )
 
@@ -232,7 +232,7 @@ export const receiveGoods = createServerFn()
         })
         if (prior) {
           throw new Error(
-            `${productLabel} has already been received on this route`,
+            `${itemLabel} has already been received on this route`,
           )
         }
 
@@ -295,7 +295,7 @@ export const receiveGoods = createServerFn()
             depositLocation: "cash",
             recordedBy: session.user.id,
             transactionDate: receivedDate,
-            description: `Received ${item.quantityReceived}× ${productLabel} from route`,
+            description: `Received ${item.quantityReceived}× ${itemLabel} from route`,
           })
         }
 
@@ -313,13 +313,13 @@ export const receiveGoods = createServerFn()
             locationId: store.id,
             recordedBy: session.user.id,
             transactionDate: receivedDate,
-            description: `Transit loss: ${transitLoss}× ${productLabel}`,
+            description: `Transit loss: ${transitLoss}× ${itemLabel}`,
           })
         }
 
         results.push({
           itemId: sri.id,
-          productLabel,
+          itemLabel,
           expected: sri.quantity,
           received: item.quantityReceived,
           transitLoss,
@@ -327,7 +327,7 @@ export const receiveGoods = createServerFn()
         auditLines.push({
           supplyRouteLineId: sri.id,
           variantId: variantRow.id,
-          colorName: productColor.colorName,
+          colorName: itemColor.colorName,
           size: sriSize,
           quantityReceived: item.quantityReceived,
         })
@@ -402,7 +402,7 @@ export const getStoreStock = createServerFn().handler(async () => {
 
   return db.query.storeStock.findMany({
     where: eq(storeStock.storeId, store.id),
-    with: { variant: { with: { color: { with: { product: true } } } } },
+    with: { variant: { with: { color: { with: { item: true } } } } },
   })
 })
 

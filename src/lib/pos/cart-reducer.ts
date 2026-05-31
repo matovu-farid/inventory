@@ -2,7 +2,7 @@ import BigNumber from "bignumber.js"
 
 export type CartItem = {
   shopStockId: string
-  productLabel: string
+  itemLabel: string
   imageUrl: string | null
   colorHex: string
   qty: number

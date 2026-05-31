@@ -3,7 +3,7 @@ import { eq, inArray } from 'drizzle-orm'
 
 import { db } from '#/db'
 import { items, itemColors, itemCategories, variants } from '#/db/schema'
-import { materializeVariantsFromColorsSizes } from '#/server/functions/products/variants-materialize'
+import { materializeVariantsFromColorsSizes } from '#/server/functions/items/variants-materialize'
 
 /**
  * Issue #7 — when an item is created/edited with a (colors[], sizes[])

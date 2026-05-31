@@ -13,7 +13,7 @@
  *   1. supply_route_lines exposes `item_id` / `color_id` (and the old
  *      column names are gone from the running schema).
  *   2. addStoreOpeningBalance / addShopOpeningBalance accept a
- *      `variantId` directly — the legacy (productColorId, size) shape
+ *      `variantId` directly — the legacy (itemColorId, size) shape
  *      is removed.
  *   3. receiveGoods auto-creates a variant when the supply line resolves
  *      to a (color, size) pair that the catalog hasn't materialised yet.
@@ -266,7 +266,7 @@ beforeEach(clearTestRows)
 describe('supply_route_lines renamed catalog columns (#6)', () => {
   it('exposes item_id and color_id (not the old product_* names)', async () => {
     // Insert via the renamed Drizzle keys — fails to compile if the schema
-    // still names the columns `productId` / `productColorId`.
+    // still names the columns `itemId` / `itemColorId`.
     const [route] = await db
       .insert(supplyRoutes)
       .values({ name: 'SV-Route-rename', status: 'planning' })
@@ -290,8 +290,8 @@ describe('supply_route_lines renamed catalog columns (#6)', () => {
     expect(row.itemId).toBe(itemId())
     expect(row.colorId).toBe(colorId())
     // The old keys should not exist on the row type.
-    expect((row as Record<string, unknown>).productId).toBeUndefined()
-    expect((row as Record<string, unknown>).productColorId).toBeUndefined()
+    expect((row as Record<string, unknown>).itemId).toBeUndefined()
+    expect((row as Record<string, unknown>).itemColorId).toBeUndefined()
   })
 })
 

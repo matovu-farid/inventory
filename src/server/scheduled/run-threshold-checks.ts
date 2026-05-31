@@ -22,7 +22,7 @@ import {
   computeStoreBaseline,
 } from '#/lib/notifications/baseline'
 import { isBelowThreshold } from '#/lib/notifications/check'
-import { formatProductLabel } from '#/lib/products'
+import { formatItemLabel } from '#/lib/items'
 import { emitToRoles } from '#/lib/notifications/emit'
 import type { Defaults, OverrideRow, Rule } from '#/lib/notifications/types'
 import type { Role } from '#/lib/roles'
@@ -156,7 +156,7 @@ async function processShopStock(
         rule,
         baseline: baseline.baseline ?? 0,
         quantityOnHand: row.quantityOnHand,
-        productLabel: formatProductLabel(
+        itemLabel: formatItemLabel(
           row.articleNumber,
           row.colorName,
           row.size,
@@ -216,7 +216,7 @@ async function processStoreStock(
       ) {
         summary.skippedNoBaseline++
       }
-      const productLabel = formatProductLabel(
+      const itemLabel = formatItemLabel(
         row.articleNumber,
         row.colorName,
         row.size,
@@ -228,7 +228,7 @@ async function processStoreStock(
         rule,
         baseline: baseline.baseline ?? 0,
         quantityOnHand: row.quantityOnHand,
-        productLabel,
+        itemLabel,
         summary,
       })
     } catch (error) {
@@ -247,7 +247,7 @@ interface ShopReconcileArgs {
   rule: Rule
   baseline: number
   quantityOnHand: number
-  productLabel: string
+  itemLabel: string
   shopName: string
   summary: CheckSummary
 }
@@ -312,8 +312,8 @@ async function openShopAlert(
     inserted = true
     const notification = await emitToRoles(tx, {
       kind: 'low_stock_open',
-      title: `Low stock: ${args.productLabel}`,
-      body: `${args.shopName} has ${args.quantityOnHand} of ${args.productLabel} left.`,
+      title: `Low stock: ${args.itemLabel}`,
+      body: `${args.shopName} has ${args.quantityOnHand} of ${args.itemLabel} left.`,
       entityType: 'low_stock_alert',
       entityId: alert.id,
       roles: NOTIFY_ROLES,
@@ -335,7 +335,7 @@ interface StoreReconcileArgs {
   rule: Rule
   baseline: number
   quantityOnHand: number
-  productLabel: string
+  itemLabel: string
   summary: CheckSummary
 }
 
@@ -441,8 +441,8 @@ async function openStoreAlertAndRequisition(
 
     const notification = await emitToRoles(tx, {
       kind: 'low_stock_open',
-      title: `Low store stock: ${args.productLabel}`,
-      body: `Only ${args.quantityOnHand} of ${args.productLabel} left in the store. Suggested restock: ${suggestedQuantity}.`,
+      title: `Low store stock: ${args.itemLabel}`,
+      body: `Only ${args.quantityOnHand} of ${args.itemLabel} left in the store. Suggested restock: ${suggestedQuantity}.`,
       entityType: 'low_stock_alert',
       entityId: alert.id,
       roles: NOTIFY_ROLES,

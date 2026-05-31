@@ -53,7 +53,7 @@ const ITEM_DETAIL_WITH = {
   },
 } as const
 
-export const listProducts = createServerFn().handler(async () => {
+export const listItems = createServerFn().handler(async () => {
   const session = await requireSession()
   requireRole(session, ["admin", "supervisor", "sales"])
   return db.query.items.findMany({
@@ -62,7 +62,7 @@ export const listProducts = createServerFn().handler(async () => {
   })
 })
 
-export const getProductByArticle = createServerFn()
+export const getItemByArticle = createServerFn()
   .inputValidator(z.object({ articleNumber: z.string().min(1) }))
   .handler(async ({ data }) => {
     const session = await requireSession()
@@ -73,7 +73,7 @@ export const getProductByArticle = createServerFn()
     })
   })
 
-export const searchProducts = createServerFn()
+export const searchItems = createServerFn()
   .inputValidator(z.object({ query: z.string() }))
   .handler(async ({ data }) => {
     const session = await requireSession()
@@ -89,7 +89,7 @@ export const searchProducts = createServerFn()
     })
   })
 
-export const createProduct = createServerFn()
+export const createItem = createServerFn()
   .inputValidator(upsertInput)
   .handler(async ({ data }) => {
     const session = await requireSession()
@@ -133,7 +133,7 @@ export const createProduct = createServerFn()
     return row
   })
 
-export const updateProduct = createServerFn()
+export const updateItem = createServerFn()
   .inputValidator(
     upsertInput
       .extend({ id: z.uuid() })

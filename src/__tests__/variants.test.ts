@@ -3,7 +3,7 @@ import { eq, inArray, and, sql } from 'drizzle-orm'
 
 import { db } from '#/db'
 import { items, itemColors, itemCategories, variants } from '#/db/schema'
-import { materializeVariantsFromColorsSizes } from '#/server/functions/products/variants-materialize'
+import { materializeVariantsFromColorsSizes } from '#/server/functions/items/variants-materialize'
 
 // Drizzle's node-postgres adapter wraps DB errors as `Error("Failed query: …")`
 // and stashes the underlying pg error on `.cause` (which carries the SQLSTATE

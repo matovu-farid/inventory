@@ -14,7 +14,7 @@ import {
 import {
   createVariant,
   deleteVariant,
-} from '#/server/functions/products/variants'
+} from '#/server/functions/items/variants'
 import { assertDefined } from './test-helpers'
 
 /**

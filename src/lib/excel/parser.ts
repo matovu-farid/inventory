@@ -14,7 +14,7 @@ export interface RawRow {
 }
 
 export interface ParsedRouteItem {
-  productName: string
+  itemName: string
   articleNumber: string | null
   quantity: number
   unitPriceForeign: string
@@ -42,18 +42,18 @@ export function parseExcelRouteSheet(name: string, rows: RawRow[]): ParsedRoute 
   for (const row of rows) {
     if (isBlank(row)) continue
 
-    const productName = row.DETAILS?.trim()
+    const itemName = row.DETAILS?.trim()
     const qty = row.QTY === undefined ? null : Number(row.QTY)
     const rate = row["RATE(rmb)"] === undefined ? null : Number(row["RATE(rmb)"])
 
-    if (!productName || qty === null || rate === null || isNaN(qty) || isNaN(rate)) {
+    if (!itemName || qty === null || rate === null || isNaN(qty) || isNaN(rate)) {
       throw new Error(
         `parseExcelRouteSheet: row in "${name}" is missing required fields (DETAILS, QTY, RATE(rmb))`,
       )
     }
 
     items.push({
-      productName,
+      itemName,
       articleNumber: row["ART NO"] ? String(row["ART NO"]) : null,
       quantity: qty,
       unitPriceForeign: String(rate),
