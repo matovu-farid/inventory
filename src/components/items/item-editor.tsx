@@ -194,7 +194,11 @@ export function ItemEditor({ categories, onCreated }: Props) {
         />
       </div>
       <div className="space-y-2">
-        <label className="text-sm font-medium">Sizes</label>
+        <label className="text-sm font-medium">Sizes (optional)</label>
+        <p className="text-sm text-muted-foreground">
+          Optional. Add sizes if you want to track stock by size. You can
+          also add them later from the item detail page or while receiving.
+        </p>
         <Input
           className="h-11 text-base"
           value={sizeDraft}
@@ -312,7 +316,7 @@ export function ItemEditor({ categories, onCreated }: Props) {
         <Button
           onClick={() => void save()}
           disabled={
-            !articleNumber || !name || !category.trim() || sizes.length === 0 || submitting
+            !articleNumber || !name || !category.trim() || submitting
           }
         >
           {submitting ? "Saving…" : "Create item"}

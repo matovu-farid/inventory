@@ -128,14 +128,24 @@ function StoreStockPage() {
                       <InfoTip term="col.articleNumber" />
                     </span>
                   </TableHead>
-                  <TableHead>Category</TableHead>
+                  <TableHead>
+                    <span className="inline-flex items-center gap-1.5">
+                      Category
+                      <InfoTip term="itemForm.category" />
+                    </span>
+                  </TableHead>
                   <TableHead className="text-right">
                     <span className="inline-flex items-center gap-1.5">
                       Qty
                       <InfoTip term="col.qtyOnHand" />
                     </span>
                   </TableHead>
-                  <TableHead className="text-right">Min Sell Price</TableHead>
+                  <TableHead className="text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      Min Sell Price
+                      <InfoTip term="item.minSellPrice" />
+                    </span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
