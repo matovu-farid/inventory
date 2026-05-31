@@ -60,8 +60,8 @@ const ITEM_DETAIL_WITH = {
 // ─── Pure query helpers ──────────────────────────────────────────────────────
 // Exported separately from the createServerFn wrappers so that vitest can
 // exercise the data semantics directly. TanStack's server-fn wrapper
-// swallows return values when called outside SSR — same pattern used by
-// admin/item-categories.server.ts.
+// swallows return values when called outside SSR, so tests assert against
+// the pure helpers; route + Cypress coverage exercises the wrapper layer.
 
 export async function listItemsQuery() {
   return db.query.items.findMany({
