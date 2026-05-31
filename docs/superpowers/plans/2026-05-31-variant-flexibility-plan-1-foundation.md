@@ -213,9 +213,12 @@ export const storeStock = pgTable(
     index("idx_ss_variant").on(table.variantId),
     // Replaces the old uq_ss_variant. Postgres 15+ NULLS NOT DISTINCT
     // means at most one (store, item, NULL variant, line) row.
-    unique("uq_ss_store_item_variant_line", {
-      nulls: "not distinct",
-    }).on(table.storeId, table.itemId, table.variantId, table.supplyRouteLineId),
+    // NOTE: Drizzle 0.45's unique() does NOT accept an options object —
+    // use the chained .nullsNotDistinct() method, otherwise the SQL
+    // silently omits NULLS NOT DISTINCT.
+    unique("uq_ss_store_item_variant_line")
+      .on(table.storeId, table.itemId, table.variantId, table.supplyRouteLineId)
+      .nullsNotDistinct(),
   ],
 )
 ```
