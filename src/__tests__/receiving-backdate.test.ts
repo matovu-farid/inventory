@@ -6,7 +6,6 @@ import { db } from "#/db"
 import {
   items,
   itemColors,
-  itemCategories,
   stores,
   storeReceivings,
   storeStock,
@@ -113,16 +112,12 @@ beforeAll(async () => {
     .returning()
   supplierId = sup.id
 
-  const [uncat] = await db
-    .select()
-    .from(itemCategories)
-    .where(eq(itemCategories.name, "Uncategorized"))
   const [p] = await db
     .insert(items)
     .values({
       articleNumber: `BACKDATE-A-${SUFFIX}`,
       name: "Backdate Test Article",
-      itemCategoryId: uncat.id,
+      category: "Test",
     })
     .returning()
   itemId = p.id

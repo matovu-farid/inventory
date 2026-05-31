@@ -97,20 +97,12 @@ async function waitForBlocked(
 }
 
 async function seedParentRow(client: pg.Client): Promise<string> {
-  // Walk the FK chain: item_category → item → item_color → variant → store_stock.
+  // Walk the FK chain: item → item_color → variant → store_stock.
   // All target rows must be committed before the concurrent insert begins.
-  const cat = await client.query<{ id: string }>(
-    `INSERT INTO item_categories (name) VALUES ('cleanup-fk-test')
-     ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-     RETURNING id`,
-  )
-  const catId = cat.rows[0].id
-
   const item = await client.query<{ id: string }>(
-    `INSERT INTO items (article_number, name, item_category_id)
-     VALUES ('CFK-' || extract(epoch from now())::text, 'Cleanup FK Test', $1)
+    `INSERT INTO items (article_number, name, category)
+     VALUES ('CFK-' || extract(epoch from now())::text, 'Cleanup FK Test', 'Test')
      RETURNING id`,
-    [catId],
   )
   const itemId = item.rows[0].id
 
@@ -155,7 +147,7 @@ async function fullCleanup(client: pg.Client): Promise<void> {
        shift_closures, notification_thresholds, low_stock_alerts,
        restock_requisitions, notifications, audit_logs, idempotency_keys,
        document_numbers, session, account, verification, "user",
-       variants, item_colors, items, item_categories
+       variants, item_colors, items
      RESTART IDENTITY CASCADE`,
   )
 }
@@ -248,6 +240,9 @@ describe("cleanupAllTestData — race safety vs concurrent FK referrer", () => {
           [aPid],
         )
         const bRow = blockedInfo.rows.at(0)
+        if (!bRow) {
+          throw new Error(`pg_stat_activity returned no row for pid ${aPid}`)
+        }
         const bQuery = bRow.query?.slice(0, 200) ?? "n/a"
         const bWait = bRow.wait_event ?? "n/a"
         console.log(

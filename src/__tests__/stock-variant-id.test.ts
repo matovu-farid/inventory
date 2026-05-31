@@ -5,7 +5,6 @@ import { db } from '#/db'
 import {
   items,
   itemColors,
-  itemCategories,
   variants,
   shops,
   stores,
@@ -60,18 +59,6 @@ afterAll(async () => {
   }
 })
 
-async function uncategorizedId(): Promise<string> {
-  const rows = await db
-    .select()
-    .from(itemCategories)
-    .where(eq(itemCategories.name, 'Uncategorized'))
-  const row = rows.at(0)
-  if (!row) {
-    throw new Error('Missing "Uncategorized" seed row in test DB')
-  }
-  return row.id
-}
-
 interface VariantFixture {
   itemId: string
   colorId: string
@@ -81,13 +68,12 @@ interface VariantFixture {
 }
 
 async function seedVariantFixture(label: string): Promise<VariantFixture> {
-  const uncat = await uncategorizedId()
   const [item] = await db
     .insert(items)
     .values({
       articleNumber: `${ART}-${label}`,
       name: `stock-variant-${label}`,
-      itemCategoryId: uncat,
+      category: 'Test',
     })
     .returning()
   createdItemIds.push(item.id)

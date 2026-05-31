@@ -3,7 +3,6 @@ import { db } from "#/db"
 import {
   items,
   itemColors,
-  itemCategories,
   suppliers,
   supplyRoutes,
   supplyRouteLines,
@@ -29,17 +28,13 @@ beforeAll(async () => {
     updatedAt: new Date(),
   }).onConflictDoNothing()
 
-  const [uncat] = await db
-    .select()
-    .from(itemCategories)
-    .where(eq(itemCategories.name, "Uncategorized"))
   const [pa] = await db
     .insert(items)
-    .values({ articleNumber: ART_A, name: "A", itemCategoryId: uncat.id })
+    .values({ articleNumber: ART_A, name: "A", category: "Test" })
     .returning()
   const [pb] = await db
     .insert(items)
-    .values({ articleNumber: ART_B, name: "B", itemCategoryId: uncat.id })
+    .values({ articleNumber: ART_B, name: "B", category: "Test" })
     .returning()
   ids.productA = pa.id
   ids.productB = pb.id

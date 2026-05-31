@@ -45,7 +45,7 @@ describe('listItemCategories', () => {
       })
     }
     const created = await db.query.items.findMany({
-      where: (it, { like }) => like(it.articleNumber, `lic-${SUFFIX}-%`),
+      where: (row, { like }) => like(row.articleNumber, `lic-${SUFFIX}-%`),
     })
     for (const c of created) createdItemIds.push(c.id)
   })

@@ -11,7 +11,6 @@ import {
   user as userTable,
   items,
   itemColors,
-  itemCategories,
   shopStock,
   shopSales,
   shopSaleLines,
@@ -44,17 +43,13 @@ async function seed() {
     emailVerified: true,
     role: "sales",
   })
-  const [uncat] = await db
-    .select()
-    .from(itemCategories)
-    .where(eq(itemCategories.name, "Uncategorized"))
   const p = (
     await db
       .insert(items)
       .values({
         articleNumber: runId,
         name: `Tee ${runId}`,
-        itemCategoryId: uncat.id,
+        category: "Test",
       })
       .returning()
   )[0]

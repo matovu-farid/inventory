@@ -5,7 +5,6 @@ import { db } from "#/db"
 import {
   items,
   itemColors,
-  itemCategories,
   stores,
   storeStock,
   transactions,
@@ -85,16 +84,12 @@ afterAll(async () => {
 
 describe("addStoreOpeningBalance — variants", () => {
   it("creates one store_stock row per variant cell", async () => {
-    const [uncat] = await db
-      .select()
-      .from(itemCategories)
-      .where(eq(itemCategories.name, "Uncategorized"))
     const [p] = await db
       .insert(items)
       .values({
         articleNumber: `OB-${Date.now()}`,
         name: "Test",
-        itemCategoryId: uncat.id,
+        category: "Test",
       })
       .returning()
     const [c] = await db

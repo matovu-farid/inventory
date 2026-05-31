@@ -4,7 +4,6 @@ import { db } from '#/db'
 import {
   items,
   itemColors,
-  itemCategories,
   variants,
   stores,
   storeStock,
@@ -78,16 +77,12 @@ async function seed() {
     .values({ name: 'S1-lowstock', type: 'local' })
     .returning()
   FIXTURE.supplier = s.id
-  const [uncat] = await db
-    .select()
-    .from(itemCategories)
-    .where(eq(itemCategories.name, 'Uncategorized'))
   const [p] = await db
     .insert(items)
     .values({
       articleNumber: 'ART-LS',
       name: 'LS Product',
-      itemCategoryId: uncat.id,
+      category: 'Test',
     })
     .returning()
   FIXTURE.product = p.id

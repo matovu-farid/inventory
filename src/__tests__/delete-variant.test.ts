@@ -6,7 +6,6 @@ import { db } from '#/db'
 import {
   items,
   itemColors,
-  itemCategories,
   variants,
   storeStock,
   stores,
@@ -85,23 +84,13 @@ function variantWithoutStockId(): string {
   return FIXTURE.variantWithoutStockId
 }
 
-async function uncategorizedId(): Promise<string> {
-  const row = await db.query.itemCategories.findFirst({
-    where: eq(itemCategories.name, 'Uncategorized'),
-  })
-  if (!row) throw new Error('Missing Uncategorized seed row')
-  return row.id
-}
-
 beforeAll(async () => {
-  const uncat = await uncategorizedId()
-
   const [item] = await db
     .insert(items)
     .values({
       articleNumber: `dv-${SUFFIX}`,
       name: 'delete-variant tester',
-      itemCategoryId: uncat,
+      category: 'Test',
     })
     .returning()
   FIXTURE.itemId = item.id

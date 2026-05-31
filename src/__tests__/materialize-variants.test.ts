@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll } from 'vitest'
 import { eq, inArray } from 'drizzle-orm'
 
 import { db } from '#/db'
-import { items, itemColors, itemCategories, variants } from '#/db/schema'
+import { items, itemColors, variants } from '#/db/schema'
 import { materializeVariantsFromColorsSizes } from '#/server/functions/items/variants-materialize'
 
 /**
@@ -21,14 +21,6 @@ const SUFFIX = `${Date.now()}`
 const ART = `mat-${SUFFIX}`
 const createdItemIds: string[] = []
 
-async function uncategorizedId(): Promise<string> {
-  const row = await db.query.itemCategories.findFirst({
-    where: eq(itemCategories.name, 'Uncategorized'),
-  })
-  if (!row) throw new Error('Missing Uncategorized seed row')
-  return row.id
-}
-
 afterAll(async () => {
   if (createdItemIds.length > 0) {
     // FK cascade on items → item_colors and items → variants handles
@@ -39,13 +31,12 @@ afterAll(async () => {
 
 describe('materializeVariantsFromColorsSizes', () => {
   it('inserts the cross-product of (colorIds × sizes) as variant rows', async () => {
-    const uncat = await uncategorizedId()
     const [item] = await db
       .insert(items)
       .values({
         articleNumber: `${ART}-a`,
         name: 'materialize tester A',
-        itemCategoryId: uncat,
+        category: 'Test',
       })
       .returning()
     createdItemIds.push(item.id)
@@ -81,13 +72,12 @@ describe('materializeVariantsFromColorsSizes', () => {
   })
 
   it('is idempotent — re-running with the same input is a no-op', async () => {
-    const uncat = await uncategorizedId()
     const [item] = await db
       .insert(items)
       .values({
         articleNumber: `${ART}-b`,
         name: 'materialize tester B',
-        itemCategoryId: uncat,
+        category: 'Test',
       })
       .returning()
     createdItemIds.push(item.id)
@@ -120,13 +110,12 @@ describe('materializeVariantsFromColorsSizes', () => {
   })
 
   it('only inserts the missing pairs when re-run with new colors', async () => {
-    const uncat = await uncategorizedId()
     const [item] = await db
       .insert(items)
       .values({
         articleNumber: `${ART}-c`,
         name: 'materialize tester C',
-        itemCategoryId: uncat,
+        category: 'Test',
       })
       .returning()
     createdItemIds.push(item.id)
@@ -165,13 +154,12 @@ describe('materializeVariantsFromColorsSizes', () => {
   })
 
   it('returns 0 inserted when colorIds or sizes is empty', async () => {
-    const uncat = await uncategorizedId()
     const [item] = await db
       .insert(items)
       .values({
         articleNumber: `${ART}-d`,
         name: 'materialize tester D',
-        itemCategoryId: uncat,
+        category: 'Test',
       })
       .returning()
     createdItemIds.push(item.id)

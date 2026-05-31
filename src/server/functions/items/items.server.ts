@@ -66,7 +66,7 @@ const ITEM_DETAIL_WITH = {
 export async function listItemsQuery() {
   return db.query.items.findMany({
     with: ITEM_DETAIL_WITH,
-    orderBy: (p, { asc }) => [asc(p.articleNumber)],
+    orderBy: (p) => [asc(p.articleNumber)],
   })
 }
 

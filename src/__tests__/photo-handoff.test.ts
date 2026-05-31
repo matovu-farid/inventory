@@ -9,7 +9,6 @@ import {
   pictureUploadTokens,
   items,
   itemColors,
-  itemCategories,
   user as userTable,
 } from "#/db/schema"
 import * as _internal from "#/server/functions/items/photo-handoff-internals"
@@ -28,17 +27,13 @@ async function seed() {
     emailVerified: true,
     role: "admin",
   })
-  const [uncat] = await db
-    .select()
-    .from(itemCategories)
-    .where(eq(itemCategories.name, "Uncategorized"))
   const p = (
     await db
       .insert(items)
       .values({
         articleNumber: runId,
         name: `T ${runId}`,
-        itemCategoryId: uncat.id,
+        category: "Test",
       })
       .returning()
   )[0]

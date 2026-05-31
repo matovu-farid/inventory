@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll } from 'vitest'
 import { eq, inArray, and, sql } from 'drizzle-orm'
 
 import { db } from '#/db'
-import { items, itemColors, itemCategories, variants } from '#/db/schema'
+import { items, itemColors, variants } from '#/db/schema'
 import { materializeVariantsFromColorsSizes } from '#/server/functions/items/variants-materialize'
 
 // Drizzle's node-postgres adapter wraps DB errors as `Error("Failed query: …")`
@@ -45,27 +45,14 @@ afterAll(async () => {
   }
 })
 
-async function uncategorizedId(): Promise<string> {
-  const rows = await db
-    .select()
-    .from(itemCategories)
-    .where(eq(itemCategories.name, 'Uncategorized'))
-  const row = rows.at(0)
-  if (!row) {
-    throw new Error('Missing "Uncategorized" seed row in test DB')
-  }
-  return row.id
-}
-
 describe('variants — materialize from (colors × sizes) cross product', () => {
   it('A: cross-product row count equals colors × sizes', async () => {
-    const uncat = await uncategorizedId()
     const [prod] = await db
       .insert(items)
       .values({
         articleNumber: ART_A,
         name: `var-test-a-${SUFFIX}`,
-        itemCategoryId: uncat,
+        category: 'Test',
       })
       .returning()
     createdProductIds.push(prod.id)
@@ -94,13 +81,12 @@ describe('variants — materialize from (colors × sizes) cross product', () => 
   })
 
   it('B: a product with empty sizes produces zero variants', async () => {
-    const uncat = await uncategorizedId()
     const [prod] = await db
       .insert(items)
       .values({
         articleNumber: ART_B,
         name: `var-test-b-${SUFFIX}`,
-        itemCategoryId: uncat,
+        category: 'Test',
       })
       .returning()
     createdProductIds.push(prod.id)

@@ -1,19 +1,14 @@
 import { describe, it, expect } from "vitest"
 import { db } from "#/db"
-import { items, itemColors, itemCategories } from "#/db/schema"
+import { items, itemColors } from "#/db/schema"
 import { eq } from "drizzle-orm"
 
 describe("items schema round-trip", () => {
   it("inserts an item, its color, and reads back via relation", async () => {
-    const [uncat] = await db
-      .select()
-      .from(itemCategories)
-      .where(eq(itemCategories.name, "Uncategorized"))
-
     const [p] = await db.insert(items).values({
       articleNumber: `TEST-${Date.now()}`,
       name: "Test Crew",
-      itemCategoryId: uncat.id,
+      category: "Test",
     }).returning()
 
     await db.insert(itemColors).values({

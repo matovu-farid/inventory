@@ -41,7 +41,6 @@ import { runWithStartContext } from '@tanstack/start-storage-context'
 import { db } from '#/db'
 import {
   auditLogs,
-  itemCategories,
   itemColors,
   items,
   shopStock,
@@ -152,11 +151,6 @@ beforeAll(async () => {
     })
     .onConflictDoNothing()
 
-  const [uncat] = await db
-    .select()
-    .from(itemCategories)
-    .where(eq(itemCategories.name, 'Uncategorized'))
-
   // Unique suffix per run guards against leftover rows from a previous
   // crash and against parallel test files (vitest runs files in parallel
   // by default).
@@ -172,7 +166,7 @@ beforeAll(async () => {
     .values({
       articleNumber: `SV-${Date.now()}`,
       name: 'Server Variant Item',
-      itemCategoryId: uncat.id,
+      category: 'Test',
     })
     .returning()
   FIXTURE.itemId = p.id

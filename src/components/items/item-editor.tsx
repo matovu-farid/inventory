@@ -50,10 +50,10 @@ export function ItemEditor({ onCreated }: Props) {
     }
   }
 
-  function handleNameChange(name: string) {
-    setColorNameDraft(name)
+  function handleNameChange(value: string) {
+    setColorNameDraft(value)
     const tile = CLOTHING_PALETTE.find(
-      (t) => t.name.toLowerCase() === name.trim().toLowerCase(),
+      (t) => t.name.toLowerCase() === value.trim().toLowerCase(),
     )
     if (tile) {
       setColorHexDraft(tile.hex)
@@ -92,6 +92,7 @@ export function ItemEditor({ onCreated }: Props) {
         data: {
           articleNumber,
           name,
+          category: "Uncategorized",
           description: description || undefined,
           sizes,
           colors,

@@ -7,7 +7,6 @@ import {
 import {
   items,
   itemColors,
-  itemCategories,
   variants,
   stores,
   storeStock,
@@ -41,16 +40,12 @@ async function seed() {
     .insert(suppliers)
     .values({ name: 'Test Supplier', type: 'local' })
     .returning()
-  const [uncat] = await db
-    .select()
-    .from(itemCategories)
-    .where(eq(itemCategories.name, 'Uncategorized'))
   const [catalogItem] = await db
     .insert(items)
     .values({
       articleNumber: ART,
       name: 'Baseline Test Item',
-      itemCategoryId: uncat.id,
+      category: 'Test',
     })
     .returning()
   const [pc] = await db
