@@ -40,6 +40,10 @@ export const listReceivableRoutes = createServerFn().handler(async () => {
       items: {
         with: {
           supplier: true,
+          // `item` carries the article number on aggregate lines that
+          // have no itemColor yet. `itemColor.item` is the path for
+          // fully-resolved lines.
+          item: true,
           itemColor: { with: { item: true } },
         },
       },
@@ -81,6 +85,10 @@ export const getUnreceivedItems = createServerFn()
       where: eq(supplyRouteLines.supplyRouteId, data.supplyRouteId),
       with: {
         supplier: true,
+        // Include the direct `item` relation so aggregate lines
+        // (variant_id NULL) still render an article number on the
+        // receiving page UI introduced in Task 9.
+        item: true,
         itemColor: { with: { item: true } },
       },
     })
@@ -223,37 +231,41 @@ export const receiveGoods = createServerFn()
 
         // Resolve / materialise the variant only for fully-resolved
         // lines. Aggregate/color-only lines persist with variantId NULL
-        // and are split later by `specifyStock`.
+        // and are split later by `specifyStock`. Use an upsert keyed on
+        // the existing uq_variant_item_color_size constraint so two
+        // concurrent receives of the same (item, color, size) pair on
+        // different supply lines can't race each other into a unique
+        // violation.
         let variantRow: { id: string } | null = null
         if (resolved) {
-          const found = await tx.query.variants.findFirst({
-            where: and(
-              eq(variants.colorId, resolved.colorId),
-              eq(variants.size, resolved.size),
-            ),
-          })
-          if (found) {
-            variantRow = found
-          } else {
-            const [created] = await tx
-              .insert(variants)
-              .values({
-                itemId,
-                colorId: resolved.colorId,
-                size: resolved.size,
-              })
-              .returning()
-            variantRow = created
-          }
+          const [upserted] = await tx
+            .insert(variants)
+            .values({
+              itemId,
+              colorId: resolved.colorId,
+              size: resolved.size,
+            })
+            .onConflictDoUpdate({
+              target: [variants.itemId, variants.colorId, variants.size],
+              set: { updatedAt: new Date() },
+            })
+            .returning()
+          variantRow = upserted
         }
 
+        // Resolve a display article number that works whether the line
+        // arrived via the direct item FK or via itemColor only.
+        const articleNumber =
+          sri.item?.articleNumber ??
+          sri.itemColor?.item.articleNumber ??
+          "?"
         const itemLabel = resolved
           ? formatItemLabel(
               resolved.itemColor.item.articleNumber,
               resolved.itemColor.colorName,
               resolved.size,
             )
-          : `${sri.item?.articleNumber ?? "?"} (unresolved)`
+          : `${articleNumber} (unresolved)`
 
         // One receipt per item — refuse if already received
         const prior = await tx.query.storeReceivings.findFirst({

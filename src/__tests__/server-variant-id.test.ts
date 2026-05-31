@@ -17,8 +17,9 @@
  *      is removed.
  *   3. receiveGoods auto-creates a variant when the supply line resolves
  *      to a (color, size) pair that the catalog hasn't materialised yet.
- *      Aggregate / color-only lines still throw — operators must split
- *      them before receiving.
+ *      After variant-flexibility Task 7, aggregate / color-only lines no
+ *      longer throw — they land as `variant_id NULL` store_stock rows
+ *      and can be specified into per-variant lots later.
  *   4. recordAuditLog metadata for receiveGoods includes a `lines` array
  *      with the variant's (colorName, size) pair so historic audit
  *      payloads stay self-describing after the variant_id swap.
