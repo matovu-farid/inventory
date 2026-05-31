@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { user } from "./auth"
+import { items } from "./items"
 import { supplyRouteLines } from "./supply-routes"
 import { variants } from "./variants"
 
@@ -74,9 +75,12 @@ export const storeStock = pgTable(
     storeId: uuid("store_id")
       .notNull()
       .references(() => stores.id, { onDelete: "restrict" }),
-    variantId: uuid("variant_id")
+    itemId: uuid("item_id")
       .notNull()
-      .references(() => variants.id, { onDelete: "restrict" }),
+      .references(() => items.id, { onDelete: "restrict" }),
+    variantId: uuid("variant_id").references(() => variants.id, {
+      onDelete: "restrict",
+    }),
     // Renamed from `supply_route_item_id` in Phase 2 (#8) when the source
     // table was renamed `supply_route_items` → `supply_route_lines`.
     supplyRouteLineId: uuid("supply_route_line_id").references(
@@ -85,7 +89,6 @@ export const storeStock = pgTable(
     ),
     quantityOnHand: integer("quantity_on_hand").notNull().default(0),
     costPerUnitUgx: numeric("cost_per_unit_ugx", { precision: 15, scale: 2 }).notNull(),
-    minimumSellPriceUgx: numeric("minimum_sell_price_ugx", { precision: 15, scale: 2 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -94,9 +97,14 @@ export const storeStock = pgTable(
   },
   (table) => [
     index("idx_ss_store").on(table.storeId),
+    index("idx_ss_item").on(table.itemId),
     index("idx_ss_line").on(table.supplyRouteLineId),
     index("idx_ss_variant").on(table.variantId),
-    unique("uq_ss_variant").on(table.storeId, table.variantId),
+    // Replaces the old uq_ss_variant. Postgres 15+ NULLS NOT DISTINCT
+    // means at most one (store, item, NULL variant, line) row.
+    unique("uq_ss_store_item_variant_line")
+      .on(table.storeId, table.itemId, table.variantId, table.supplyRouteLineId)
+      .nullsNotDistinct(),
   ],
 )
 
@@ -125,6 +133,10 @@ export const storeStockRelations = relations(storeStock, ({ one }) => ({
   store: one(stores, {
     fields: [storeStock.storeId],
     references: [stores.id],
+  }),
+  item: one(items, {
+    fields: [storeStock.itemId],
+    references: [items.id],
   }),
   supplyRouteLine: one(supplyRouteLines, {
     fields: [storeStock.supplyRouteLineId],

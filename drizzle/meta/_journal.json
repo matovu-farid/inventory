@@ -15,6 +15,13 @@
       "when": 1780240832144,
       "tag": "0001_natural_venom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780242440111,
+      "tag": "0002_tired_toxin",
+      "breakpoints": true
     }
   ]
 }
