@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { requireUiPermission } from "#/lib/permissions"
 import { useEffect, useState, useCallback } from "react"
+import { Split } from "lucide-react"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { Label } from "#/components/ui/label"
@@ -8,6 +9,7 @@ import { FieldLabel } from "#/components/ui/field-label"
 import { Badge } from "#/components/ui/badge"
 import { InfoTip } from "#/components/ui/info-tip"
 import { Textarea } from "#/components/ui/textarea"
+import { SplitItemForm } from "#/components/supply/split-item-form"
 import {
   Dialog,
   DialogContent,
@@ -63,17 +65,20 @@ function ReceivingPage() {
   const [items, setItems] = useState<
     Array<{
       id: string
-      size: string
+      size: string | null
       quantity: number
       totalCostUgx: string
       supplier: { name: string }
       itemColor: {
+        id: string
         colorName: string
         colorHex: string
         item: { name: string; articleNumber: string }
-      }
+      } | null
+      item: { name: string; articleNumber: string } | null
     }>
   >([])
+  const [splittingItemId, setSplittingItemId] = useState<string | null>(null)
   const [receivedQtys, setReceivedQtys] = useState<Record<string, number>>({})
   const [discrepancyNotes, setDiscrepancyNotes] = useState<
     Record<string, string>
@@ -95,23 +100,18 @@ function ReceivingPage() {
     const unreceived = await getUnreceivedItems({
       data: { supplyRouteId: routeId },
     })
-    // Aggregate/color-only rows must be split into full variants by an admin
-    // before they can be received. Skip them here and surface a count.
-    const receivable = unreceived.flatMap((i) =>
-      i.itemColor && i.size
-        ? [
-            {
-              id: i.id,
-              size: i.size,
-              quantity: i.quantity,
-              totalCostUgx: i.totalCostUgx,
-              supplier: i.supplier,
-              itemColor: i.itemColor,
-            },
-          ]
-        : [],
+    const receivable = unreceived.map((i) => ({
+      id: i.id,
+      size: i.size,
+      quantity: i.quantity,
+      totalCostUgx: i.totalCostUgx,
+      supplier: i.supplier,
+      itemColor: i.itemColor ?? null,
+      item: i.item ?? i.itemColor?.item ?? null,
+    }))
+    setUnresolvedCount(
+      receivable.filter((r) => !r.itemColor || !r.size).length,
     )
-    setUnresolvedCount(unreceived.length - receivable.length)
     setItems(receivable)
     const qtys: Record<string, number> = {}
     for (const i of receivable) {
@@ -130,6 +130,8 @@ function ReceivingPage() {
   const discrepantItems = items.filter(
     (i) => (receivedQtys[i.id] ?? i.quantity) < i.quantity,
   )
+
+  const splittingItem = items.find((i) => i.id === splittingItemId) ?? null
 
   async function submitReceipt() {
     setPending(true)
@@ -202,12 +204,11 @@ function ReceivingPage() {
         </div>
 
         {unresolvedCount > 0 && (
-          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-            {unresolvedCount} item{unresolvedCount === 1 ? "" : "s"} on this
-            route still need a color and size assigned before they can be
-            received. Open the supply route and use "Split into variants" on
-            each unresolved item.
-          </div>
+          <p className="text-sm text-muted-foreground">
+            {unresolvedCount} item{unresolvedCount === 1 ? "" : "s"} on this route
+            {" "}have no color or size yet. You can receive as-is (they'll land as
+            {" "}<em>unresolved</em> stock) or use Split to assign variants now.
+          </p>
         )}
 
         {items.length > 0 && (
@@ -246,6 +247,7 @@ function ReceivingPage() {
                         Received <InfoTip term="col.received" />
                       </span>
                     </TableHead>
+                    <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -254,20 +256,28 @@ function ReceivingPage() {
                       <TableCell className="font-medium">
                         <div className="flex flex-col gap-0.5">
                           <span>
-                            {item.itemColor.item.articleNumber}{" "}
+                            {(item.itemColor?.item.articleNumber ??
+                              item.item?.articleNumber) || "—"}{" "}
                             <span className="text-muted-foreground">
-                              {item.itemColor.item.name}
+                              {item.itemColor?.item.name ?? item.item?.name ?? ""}
                             </span>
                           </span>
                           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                            <span
-                              className="size-3 rounded-full border"
-                              style={{
-                                backgroundColor: item.itemColor.colorHex,
-                              }}
-                              aria-hidden
-                            />
-                            {item.itemColor.colorName} · {item.size}
+                            {item.itemColor ? (
+                              <>
+                                <span
+                                  className="size-3 rounded-full border"
+                                  style={{
+                                    backgroundColor: item.itemColor.colorHex,
+                                  }}
+                                  aria-hidden
+                                />
+                                {item.itemColor.colorName}
+                                {item.size ? ` · ${item.size}` : " · —"}
+                              </>
+                            ) : (
+                              <em>Unresolved</em>
+                            )}
                           </span>
                         </div>
                       </TableCell>
@@ -289,6 +299,19 @@ function ReceivingPage() {
                             }))
                           }
                         />
+                      </TableCell>
+                      <TableCell>
+                        {(!item.itemColor || !item.size) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7"
+                            onClick={() => setSplittingItemId(item.id)}
+                          >
+                            <Split className="mr-1 h-3.5 w-3.5" />
+                            Split
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -324,20 +347,28 @@ function ReceivingPage() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-medium">
-                          {item.itemColor.item.articleNumber}{" "}
+                          {(item.itemColor?.item.articleNumber ??
+                            item.item?.articleNumber) || "—"}{" "}
                           <span className="text-muted-foreground">
-                            {item.itemColor.item.name}
+                            {item.itemColor?.item.name ?? item.item?.name ?? ""}
                           </span>
                         </span>
                         <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <span
-                            className="size-3 rounded-full border"
-                            style={{
-                              backgroundColor: item.itemColor.colorHex,
-                            }}
-                            aria-hidden
-                          />
-                          {item.itemColor.colorName} · {item.size}
+                          {item.itemColor ? (
+                            <>
+                              <span
+                                className="size-3 rounded-full border"
+                                style={{
+                                  backgroundColor: item.itemColor.colorHex,
+                                }}
+                                aria-hidden
+                              />
+                              {item.itemColor.colorName}
+                              {item.size ? ` · ${item.size}` : " · —"}
+                            </>
+                          ) : (
+                            <em>Unresolved</em>
+                          )}
                         </span>
                       </div>
                       <Badge variant="destructive">{missing} missing</Badge>
@@ -375,6 +406,39 @@ function ReceivingPage() {
                 {pending ? "Receiving..." : "Confirm Receipt"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={splittingItem !== null}
+          onOpenChange={(open) => !open && setSplittingItemId(null)}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Split into variants</DialogTitle>
+            </DialogHeader>
+            {splittingItem && (
+              <SplitItemForm
+                item={{
+                  id: splittingItem.id,
+                  quantity: splittingItem.quantity,
+                  itemColor: splittingItem.itemColor
+                    ? {
+                        id: splittingItem.itemColor.id,
+                        colorName: splittingItem.itemColor.colorName,
+                        colorHex: splittingItem.itemColor.colorHex,
+                        item: splittingItem.itemColor.item,
+                      }
+                    : null,
+                  product: splittingItem.item,
+                  size: splittingItem.size,
+                }}
+                onSuccess={() => {
+                  setSplittingItemId(null)
+                  if (selectedRouteId) void loadItems(selectedRouteId)
+                }}
+              />
+            )}
           </DialogContent>
         </Dialog>
       </PagePrerequisites>
