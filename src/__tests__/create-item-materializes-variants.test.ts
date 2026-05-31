@@ -10,12 +10,12 @@
  * server-fn machinery under runWithStartContext, then reads the DB to
  * verify the side effects).
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
+import { describe, it, expect, afterAll, vi } from 'vitest'
 import { eq, inArray } from 'drizzle-orm'
 import { runWithStartContext } from '@tanstack/start-storage-context'
 
 import { db } from '#/db'
-import { items, itemColors, itemCategories, variants } from '#/db/schema'
+import { items, itemColors, variants } from '#/db/schema'
 import { createItem } from '#/server/functions/items/items'
 import { addItemColor } from '#/server/functions/items/colors'
 
@@ -46,19 +46,6 @@ function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
 const SUFFIX = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const createdItemIds: string[] = []
 
-async function uncategorizedId(): Promise<string> {
-  const row = await db.query.itemCategories.findFirst({
-    where: eq(itemCategories.name, 'Uncategorized'),
-  })
-  if (!row) throw new Error('Missing Uncategorized seed row')
-  return row.id
-}
-
-beforeAll(async () => {
-  // Touch uncategorized to ensure seed row exists.
-  await uncategorizedId()
-})
-
 afterAll(async () => {
   if (createdItemIds.length > 0) {
     await db.delete(variants).where(inArray(variants.itemId, createdItemIds))
@@ -77,6 +64,7 @@ describe('createItem — materializes variants when colors + sizes given', () =>
         data: {
           articleNumber,
           name: 'Materialize tester',
+          category: 'Test',
           sizes: ['S', 'M', 'L'],
           colors: [
             { colorName: 'Indigo', colorHex: '#2a3a8b' },
@@ -115,6 +103,7 @@ describe('createItem — materializes variants when colors + sizes given', () =>
         data: {
           articleNumber,
           name: 'Materialize tester B',
+          category: 'Test',
           sizes: [],
           colors: [],
         },
