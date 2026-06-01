@@ -48,6 +48,7 @@ import { ItemCard } from "#/components/items/item-card"
 import { aggregateStockByArticle } from "#/lib/items"
 import { AddShopDialog } from "#/components/shops/add-shop-dialog"
 import { ReceiveTransferForm } from "#/components/transfers/receive-transfer-form"
+import { SpecifyStockDialog } from "#/components/stock/specify-stock-dialog"
 import { listShops } from "#/server/functions/admin/locations"
 import { getShopStock, recordSale } from "#/server/functions/shop/sales"
 import { listTransfers } from "#/server/functions/store/transfers"
@@ -114,14 +115,21 @@ function ShopPage() {
     (t) => t.status === "dispatched" && t.shopId === shopId,
   )
   const [stock, setStock] = useState<ShopStockItem[]>([])
+  const [unresolved, setUnresolved] = useState<RawShopStockItem[]>([])
+  const [specifying, setSpecifying] = useState<RawShopStockItem | null>(null)
   const [saleOpen, setSaleOpen] = useState(false)
   const [prerequisites, setPrerequisites] = useState<PrerequisiteResult>(SATISFIED)
 
   const loadStock = useCallback(async (id: string) => {
     setShopId(id)
-    if (!id) { setStock([]); return }
+    if (!id) {
+      setStock([])
+      setUnresolved([])
+      return
+    }
     const s = await getShopStock({ data: { shopId: id } })
     setStock(projectResolvedShopStock(s))
+    setUnresolved(s.filter((r) => !r.variant))
   }, [])
 
   const shopsLength = shops.length
@@ -300,6 +308,47 @@ function ShopPage() {
               </div>
             )}
 
+            {role === "admin" && unresolved.length > 0 && (
+              <div className="rounded-md border border-amber-300/60 bg-amber-50/80 p-4 text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-100">
+                <p className="text-sm font-medium leading-tight">
+                  {unresolved.length} unresolved lot
+                  {unresolved.length === 1 ? "" : "s"} need
+                  {unresolved.length === 1 ? "s" : ""} variants assigned
+                </p>
+                <p className="text-[13px] opacity-90">
+                  These rows arrived without color/size details. Specify them
+                  before the cashier can sell from these lots.
+                </p>
+                <ul className="mt-3 space-y-2">
+                  {unresolved.map((r) => (
+                    <li
+                      key={r.id}
+                      className="flex items-center justify-between gap-3 rounded border border-amber-300/60 bg-background/50 px-3 py-2"
+                    >
+                      <div className="min-w-0 text-sm">
+                        <span className="font-medium">
+                          {r.item.articleNumber}
+                        </span>{" "}
+                        <span className="text-muted-foreground">
+                          {r.item.name}
+                        </span>{" "}
+                        <span className="ml-1 font-mono text-xs">
+                          · {r.quantityOnHand} units
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSpecifying(r)}
+                      >
+                        Specify
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {aggregated.length === 0 ? (
               <p className="text-muted-foreground py-8 text-center">
                 No stock at this shop. Transfer goods from the store.
@@ -337,6 +386,26 @@ function ShopPage() {
           </>
         )}
       </PagePrerequisites>
+
+      {specifying && (
+        <SpecifyStockDialog
+          open={true}
+          onOpenChange={(next) => {
+            if (!next) setSpecifying(null)
+          }}
+          target="shop"
+          stockId={specifying.id}
+          itemId={specifying.item.id}
+          articleNumber={specifying.item.articleNumber}
+          itemName={specifying.item.name}
+          available={specifying.quantityOnHand}
+          itemColors={specifying.item.colors}
+          onSuccess={() => {
+            setSpecifying(null)
+            void loadStock(shopId)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -14,6 +14,7 @@ import { CreatableCombobox } from "#/components/ui/creatable-combobox"
 import { HexColorField } from "#/components/items/hex-color-field"
 import { addItemColor } from "#/server/functions/items/colors"
 import { specifyStock } from "#/server/functions/store/specify"
+import { specifyShopStock } from "#/server/functions/shop/specify"
 
 interface ItemColor {
   id: string
@@ -45,7 +46,8 @@ const DEFAULT_NEW_COLOR_HEX = "#888888"
 export function SpecifyStockDialog({
   open,
   onOpenChange,
-  storeStockId,
+  target,
+  stockId,
   itemId,
   articleNumber,
   itemName,
@@ -56,7 +58,13 @@ export function SpecifyStockDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  storeStockId: string
+  /**
+   * Which stock domain we're specifying against. Drives whether we call
+   * {@link specifyStock} (warehouse) or {@link specifyShopStock} (shop).
+   */
+  target: "store" | "shop"
+  /** Source store_stock.id or shop_stock.id depending on `target`. */
+  stockId: string
   itemId: string
   articleNumber: string
   itemName: string
@@ -176,12 +184,21 @@ export function SpecifyStockDialog({
         })
       }
 
-      await specifyStock({
-        data: {
-          storeStockId,
-          lines: resolved,
-        },
-      })
+      if (target === "shop") {
+        await specifyShopStock({
+          data: {
+            shopStockId: stockId,
+            lines: resolved,
+          },
+        })
+      } else {
+        await specifyStock({
+          data: {
+            storeStockId: stockId,
+            lines: resolved,
+          },
+        })
+      }
       onSuccess()
       onOpenChange(false)
       resetForm()

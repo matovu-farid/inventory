@@ -272,7 +272,8 @@ function ItemStockRow({
           onOpenChange={(next) => {
             if (!next) setSpecifying(null)
           }}
-          storeStockId={specifyingRow.id}
+          target="store"
+          stockId={specifyingRow.id}
           itemId={group.item.id}
           articleNumber={group.item.articleNumber}
           itemName={group.item.name}

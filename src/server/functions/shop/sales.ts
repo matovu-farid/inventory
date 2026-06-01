@@ -30,8 +30,9 @@ export const getShopStock = createServerFn()
       with: {
         // item-level join so callers can read the item-wide minimum sell
         // price (the per-row column was dropped in the shop_stock schema
-        // flip — variant-flexibility Plan 2 Task 1).
-        item: true,
+        // flip — variant-flexibility Plan 2 Task 1). `colors` is read by
+        // SpecifyStockDialog on unresolved rows (Plan 2a Task 12).
+        item: { with: { colors: true } },
         variant: { with: { color: { with: { item: true } } } },
       },
     })
