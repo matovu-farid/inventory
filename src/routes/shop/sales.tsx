@@ -45,8 +45,12 @@ function SalesPage() {
         unitPriceUgx: string
         isBelowMinimum: boolean
         shopStockItem: {
-          // Stock now references a single variant_id (issue #4); the
-          // joined variant carries size + color (with parent item/product).
+          // Stock references a single variant_id; the joined variant
+          // carries size + color (with parent item/product). After the
+          // variant-flexibility Plan 2 Task 1 schema flip the join can be
+          // null for unresolved lots — Plan 2b will rewrite the sales
+          // table to handle item-level sale lines. Until then we render
+          // a placeholder for unresolved rows.
           variant: {
             size: string
             color: {
@@ -57,7 +61,7 @@ function SalesPage() {
                 name: string
               }
             }
-          }
+          } | null
         }
       }>
       soldByUser: { id: string; name: string } | null
@@ -147,6 +151,20 @@ function SalesPage() {
                   <div className="flex flex-col gap-1">
                     {s.items.map((i, idx) => {
                       const v = i.shopStockItem.variant
+                      if (!v) {
+                        // Plan 2a: an unresolved shop_stock row sneaked
+                        // into a sale. Sales don't actually allow this
+                        // today (recordSale rejects it), so this is just
+                        // a visual fallback for legacy/edge data.
+                        return (
+                          <div key={idx} className="flex items-center gap-2 text-sm">
+                            <span className="font-mono">{i.quantity}x</span>
+                            <span className="text-muted-foreground text-xs">
+                              unresolved item
+                            </span>
+                          </div>
+                        )
+                      }
                       return (
                         <div key={idx} className="flex items-center gap-2 text-sm">
                           <span className="font-mono">{i.quantity}x {v.color.item.articleNumber}</span>

@@ -53,7 +53,30 @@ import { getShopStock, recordSale } from "#/server/functions/shop/sales"
 import { listTransfers } from "#/server/functions/store/transfers"
 import { getSession } from "#/server/middleware/auth"
 
-type ShopStockItem = Awaited<ReturnType<typeof getShopStock>>[number]
+// Plan 2a: getShopStock can return rows with a null variant_id (unresolved
+// lots). The shop list + new-sale UI still assume per-variant rows, so the
+// page filters unresolved rows before rendering and projects the
+// item-level minimum sell price (which used to live on shop_stock) onto
+// each row to keep the existing UI shape. Plan 2b will rewrite this for
+// item-level sales.
+type RawShopStockItem = Awaited<ReturnType<typeof getShopStock>>[number]
+type ShopStockItem = Omit<RawShopStockItem, "variant"> & {
+  variant: NonNullable<RawShopStockItem["variant"]>
+  minimumSellPriceUgx: string
+}
+
+function projectResolvedShopStock(rows: RawShopStockItem[]): ShopStockItem[] {
+  const out: ShopStockItem[] = []
+  for (const r of rows) {
+    if (!r.variant) continue
+    out.push({
+      ...r,
+      variant: r.variant,
+      minimumSellPriceUgx: r.item.minimumSellPriceUgx,
+    })
+  }
+  return out
+}
 
 const searchSchema = z.object({
   shopId: z.uuid().optional(),
@@ -98,7 +121,7 @@ function ShopPage() {
     setShopId(id)
     if (!id) { setStock([]); return }
     const s = await getShopStock({ data: { shopId: id } })
-    setStock(s)
+    setStock(projectResolvedShopStock(s))
   }, [])
 
   const shopsLength = shops.length

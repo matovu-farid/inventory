@@ -54,6 +54,15 @@ export const getSaleReceiptHtml = createServerFn()
       clerkName: sale.soldByUser.name,
       items: sale.items.map((i) => {
         const v = i.shopStockItem.variant
+        // Plan 2a: shop_stock.variant_id is now nullable for unresolved
+        // lots. Sales today still go through variant-keyed flows, so a
+        // historical sale line will always carry a variant. Plan 2b will
+        // rewrite sales to support item-level lines; until then assert.
+        if (!v) {
+          throw new Error(
+            "Plan 2a: receipt for sale line without a resolved variant — Plan 2b will handle item-level sales",
+          )
+        }
         const itemName = `${v.color.item.articleNumber} ${v.color.item.name} · ${v.color.colorName} / ${v.size}`
         return {
           itemName,

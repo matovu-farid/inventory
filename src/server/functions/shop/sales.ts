@@ -27,7 +27,13 @@ export const getShopStock = createServerFn()
 
     return db.query.shopStock.findMany({
       where: eq(shopStock.shopId, data.shopId),
-      with: { variant: { with: { color: { with: { item: true } } } } },
+      with: {
+        // item-level join so callers can read the item-wide minimum sell
+        // price (the per-row column was dropped in the shop_stock schema
+        // flip — variant-flexibility Plan 2 Task 1).
+        item: true,
+        variant: { with: { color: { with: { item: true } } } },
+      },
     })
   })
 
@@ -162,9 +168,23 @@ export const recordSale = createServerFn()
       for (const item of data.items) {
         const stock = await tx.query.shopStock.findFirst({
           where: eq(shopStock.id, item.shopStockId),
-          with: { variant: { with: { color: { with: { item: true } } } } },
+          with: {
+            item: true,
+            variant: { with: { color: { with: { item: true } } } },
+          },
         })
         if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
+        // Plan 2a: shop_stock.variant_id is now nullable. POS sales still
+        // assume a resolved variant. Plan 2b will rewrite recordSale to
+        // accept item-level lines; until then assert.
+        if (!stock.variant) {
+          throw new Error(
+            "Plan 2a: shop sale on an unresolved shop stock row — specify the variant first (Plan 2b)",
+          )
+        }
+        // minimum sell price now lives at the item level after the schema
+        // flip; read it through the joined item.
+        const minimumSellPriceUgx = stock.item.minimumSellPriceUgx
         const itemLabel = formatItemLabel(
           stock.variant.color.item.articleNumber,
           stock.variant.color.colorName,
@@ -179,7 +199,7 @@ export const recordSale = createServerFn()
         const { isBelowMinimum, reason: belowMinimumReason } =
           validateBelowMinimumSale({
             unitPriceUgx: item.unitPriceUgx,
-            minimumSellPriceUgx: stock.minimumSellPriceUgx,
+            minimumSellPriceUgx,
             userRole,
             reason: item.belowMinimumReason ?? "",
             itemName: itemLabel,
@@ -196,7 +216,7 @@ export const recordSale = createServerFn()
         itemDetails.push({
           stockId: stock.id,
           costPerUnitUgx: stock.costPerUnitUgx,
-          minimumSellPriceUgx: stock.minimumSellPriceUgx,
+          minimumSellPriceUgx,
           quantity: item.quantity,
           unitPrice,
           totalPrice: tp,

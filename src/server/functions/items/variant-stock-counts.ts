@@ -72,7 +72,12 @@ export const countVariantStockLocations = createServerFn()
     for (const r of storeCounts) {
       if (r.variantId) addTo(r.variantId, r.qty, r.locations)
     }
-    for (const r of shopCounts) addTo(r.variantId, r.qty, r.locations)
+    // Unresolved (variant_id NULL) shop stock — possible after the
+    // variant-flexibility Plan 2 Task 1 schema flip — likewise can't be
+    // attributed to a specific variant rollup. Skip those rows.
+    for (const r of shopCounts) {
+      if (r.variantId) addTo(r.variantId, r.qty, r.locations)
+    }
     return variantIds.map((id) => {
       const entry = totals.get(id) ?? { qty: 0, locations: 0 }
       return {

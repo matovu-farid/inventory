@@ -95,9 +95,20 @@ export const startStockTake = createServerFn()
       } else {
         const items = await tx.query.shopStock.findMany({
           where: eq(shopStock.shopId, data.locationId),
-          with: { variant: { with: { color: { with: { item: true } } } } },
+          with: {
+            item: true,
+            variant: { with: { color: { with: { item: true } } } },
+          },
         })
         for (const item of items) {
+          // Plan 2a: shop_stock.variant_id is now nullable. Stock-take
+          // listing still expects per-variant labels; Plan 2b/Task 14 will
+          // adapt the writer to emit item-level lines for unresolved rows.
+          if (!item.variant) {
+            throw new Error(
+              "Plan 2a: shop stock-take encountered an unresolved row — specify the variant first (Plan 2b)",
+            )
+          }
           const itemLabel = formatItemLabel(
             item.variant.color.item.articleNumber,
             item.variant.color.colorName,

@@ -62,10 +62,18 @@ function PosInner() {
   const { queued, failed, refresh } = useSyncEngine()
 
 
-  const aggregated = React.useMemo(() => aggregateStockByArticle(stock), [stock])
+  // Filter out unresolved (variant_id NULL) shop_stock rows for the
+  // POS surface — Plan 2a permits unresolved lots in shop_stock, but
+  // sales still require a resolved variant. Plan 2b will revisit this
+  // and let the POS sell unresolved lots after a Specify step.
+  const resolved = React.useMemo(
+    () => stock.filter((s): s is typeof s & { variant: NonNullable<typeof s.variant> } => s.variant !== null),
+    [stock],
+  )
+  const aggregated = React.useMemo(() => aggregateStockByArticle(resolved), [resolved])
   const stockRows = React.useMemo(
     () =>
-      stock.map((s) => ({
+      resolved.map((s) => ({
         id: s.id,
         // Stock now keys on variant_id (issue #4). The variant picker UI
         // still groups rows by (color × size); expose the variant's
@@ -73,9 +81,10 @@ function PosInner() {
         itemColorId: s.variant.color.id,
         size: s.variant.size,
         quantityOnHand: s.quantityOnHand,
-        minimumSellPriceUgx: s.minimumSellPriceUgx,
+        // Min sell price moved from shop_stock to items in the schema flip.
+        minimumSellPriceUgx: s.item.minimumSellPriceUgx,
       })),
-    [stock],
+    [resolved],
   )
 
   function handlePick(p: AggregatedItem) {

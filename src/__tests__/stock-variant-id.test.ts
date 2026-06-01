@@ -24,7 +24,6 @@ import {
  */
 
 const PG_UNIQUE_VIOLATION = '23505'
-const PG_NOT_NULL_VIOLATION = '23502'
 
 async function pgErrorCode(p: Promise<unknown>): Promise<string | undefined> {
   try {
@@ -134,10 +133,13 @@ describe('shop_stock — variant_id swap', () => {
       .insert(shopStock)
       .values({
         shopId: fx.shopId,
+        // shop_stock now carries item_id alongside variant_id (the latter
+        // became nullable in Plan 2a Task 1). Tests still exercise the
+        // resolved path; Plan 2b will add unresolved-row coverage.
+        itemId: fx.itemId,
         variantId: fx.variantId,
         quantityOnHand: 7,
         costPerUnitUgx: '1000.00',
-        minimumSellPriceUgx: '1500.00',
       })
       .returning()
     expect(stock.variantId).toBe(fx.variantId)
@@ -146,42 +148,49 @@ describe('shop_stock — variant_id swap', () => {
       where: eq(shopStock.id, stock.id),
       with: { variant: { with: { color: true } } },
     })
-    expect(fetched?.variant.id).toBe(fx.variantId)
-    expect(fetched?.variant.color.id).toBe(fx.colorId)
-    expect(fetched?.variant.size).toBe('S')
+    // variant is non-null in this seeded row.
+    expect(fetched?.variant?.id).toBe(fx.variantId)
+    expect(fetched?.variant?.color.id).toBe(fx.colorId)
+    expect(fetched?.variant?.size).toBe('S')
   })
 
   it('unique(shop_id, variant_id) rejects a duplicate insert', async () => {
     const fx = await seedVariantFixture('shop-uq')
     await db.insert(shopStock).values({
       shopId: fx.shopId,
+      itemId: fx.itemId,
       variantId: fx.variantId,
       quantityOnHand: 1,
       costPerUnitUgx: '1.00',
-      minimumSellPriceUgx: '1.00',
     })
     const code = await pgErrorCode(
       db.insert(shopStock).values({
         shopId: fx.shopId,
+        itemId: fx.itemId,
         variantId: fx.variantId,
         quantityOnHand: 2,
         costPerUnitUgx: '1.00',
-        minimumSellPriceUgx: '1.00',
       }),
     )
     expect(code).toBe(PG_UNIQUE_VIOLATION)
   })
 
-  it('variant_id is NOT NULL', async () => {
+  it('variant_id is nullable (Plan 2a Task 1 schema flip)', async () => {
     const fx = await seedVariantFixture('shop-nn')
-    const code = await pgErrorCode(
-      db.execute(sql`
-        INSERT INTO shop_stock
-          (shop_id, variant_id, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
-        VALUES (${fx.shopId}::uuid, NULL, 0, '1', '1')
-      `),
-    )
-    expect(code).toBe(PG_NOT_NULL_VIOLATION)
+    // After Plan 2a Task 1 shop_stock.variant_id is nullable and
+    // minimum_sell_price_ugx was dropped — variant_id NULL is now legal
+    // (it represents an unresolved lot waiting on a Specify step).
+    const [row] = await db
+      .insert(shopStock)
+      .values({
+        shopId: fx.shopId,
+        itemId: fx.itemId,
+        variantId: null,
+        quantityOnHand: 0,
+        costPerUnitUgx: '1',
+      })
+      .returning()
+    expect(row.variantId).toBeNull()
   })
 })
 

@@ -206,10 +206,10 @@ async function insertStoreStock(qoh: number) {
 async function insertShopStock(qoh: number) {
   await db.insert(shopStock).values({
     shopId: shopId(),
+    itemId: itemId(),
     variantId: variantId(),
     quantityOnHand: qoh,
     costPerUnitUgx: '1500',
-    minimumSellPriceUgx: '2000',
   })
 }
 

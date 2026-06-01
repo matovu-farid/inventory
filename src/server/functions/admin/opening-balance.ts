@@ -244,11 +244,12 @@ export const addShopOpeningBalance = createServerFn()
             .insert(shopStock)
             .values({
               shopId: shop.id,
+              itemId: entry.itemId,
               variantId: cell.variantId,
+              supplyRouteLineId: null,
               storeTransferItemId: null,
               quantityOnHand: cell.quantity,
               costPerUnitUgx: cost.toFixed(2),
-              minimumSellPriceUgx: cost.toFixed(2),
             })
             .returning()
           entryRowIds.push(row.id)

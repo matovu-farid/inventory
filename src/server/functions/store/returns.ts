@@ -56,6 +56,14 @@ export const dispatchStoreReturn = createServerFn()
           with: { variant: { with: { color: { with: { item: true } } } } },
         })
         if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
+        // Plan 2a: shop_stock.variant_id is now nullable. Returns still
+        // assume variant-keyed rows; Plan 2b will rewrite this for
+        // item-level returns.
+        if (!stock.variant) {
+          throw new Error(
+            "Plan 2a: shop return on an unresolved shop stock row — specify the variant first (Plan 2b)",
+          )
+        }
         const itemLabel = formatItemLabel(
           stock.variant.color.item.articleNumber,
           stock.variant.color.colorName,
@@ -207,6 +215,14 @@ export const receiveStoreReturn = createServerFn()
         )
         if (!item) {
           throw new Error(`Return item not found: ${receipt.storeReturnItemId}`)
+        }
+        // Plan 2a: shop_stock.variant_id is now nullable. Returns
+        // bookkeeping still expects a resolved variant. Plan 2b will
+        // rewrite this for item-level returns.
+        if (!item.shopStock.variant || !item.shopStock.variantId) {
+          throw new Error(
+            "Plan 2a: store return receipt on an unresolved shop stock row — specify the variant first (Plan 2b)",
+          )
         }
         const itemLabel = formatItemLabel(
           item.shopStock.variant.color.item.articleNumber,

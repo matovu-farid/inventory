@@ -71,10 +71,12 @@ async function seed() {
       .insert(shopStock)
       .values({
         shopId,
+        // shop_stock denorms item_id alongside variant_id after Plan 2a
+        // Task 1; minimum_sell_price_ugx moved up to items.
+        itemId: p.id,
         variantId: v.id,
         quantityOnHand: 100,
         costPerUnitUgx: "10000",
-        minimumSellPriceUgx: "20000",
       })
       .returning()
   )[0].id

@@ -233,10 +233,14 @@ type StockPrices = {
     quantityOnHand: number
     minimumSellPriceUgx: string
     shop: { name: string }
+    // After shop_stock.variant_id was made nullable in variant-flexibility
+    // Plan 2 Task 1, shop rows may also be unresolved. Plan 2b will adapt
+    // the editor UI; for now we render "—" for color/size like the store
+    // side already does.
     variant: {
       size: string
       color: { colorName: string; colorHex: string }
-    }
+    } | null
   }>
 }
 
@@ -258,8 +262,8 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
     ...prices.shop.map((s) => ({
       key: `shop-${s.id}`,
       location: `Shop · ${s.shop.name}`,
-      color: s.variant.color,
-      size: s.variant.size,
+      color: s.variant?.color ?? null,
+      size: s.variant?.size ?? null,
       qty: s.quantityOnHand,
       price: s.minimumSellPriceUgx,
     })),
@@ -362,6 +366,11 @@ function PriceEditor({
       })
     }
     for (const s of prices.shop) {
+      // Shop rows can now be unresolved (variant null) after the shop_stock
+      // schema flip. Plan 2b will replace this with an item-level shop
+      // editor; until then skip unresolved rows from the per-lot editor
+      // because there's nothing variant-specific to label them with.
+      if (!s.variant) continue
       draft.push({
         key: `shop-${s.id}`,
         kind: "shop",

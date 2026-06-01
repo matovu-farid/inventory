@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
-import { eq, sql } from "drizzle-orm"
+import { and, eq, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
@@ -318,27 +318,44 @@ export const confirmTransferReceipt = createServerFn()
           })
           .where(eq(storeTransferLines.id, ti.id))
 
-        // Upsert shop stock — merge into existing (shopId, variantId) row.
-        // The unique constraint forces aggregation across multiple transfers.
+        // Upsert shop stock — Plan 2a Task 8 will replace this with a
+        // per-allocation upsert. Until then preserve the existing
+        // behaviour with the new (shop, item, variant, supply_line) key.
+        // The schema flip dropped `shopStock.minimumSellPriceUgx`; the
+        // floor now lives at the item level. The conflict target uses
+        // the new uq_shst_shop_item_variant_line key — but onConflict
+        // doesn't compose with nullable columns, so we do an explicit
+        // find-then-insert-or-update keyed on (shopId, itemId, variantId)
+        // with supplyRouteLineId left NULL on this path (transfers don't
+        // carry a per-lot supply line yet — Task 7/8 introduces it).
         if (receiptItem.quantityReceived > 0) {
-          await tx
-            .insert(shopStock)
-            .values({
+          const itemId = ti.storeStockItem.itemId
+          const existing = await tx.query.shopStock.findFirst({
+            where: and(
+              eq(shopStock.shopId, transfer.shopId),
+              eq(shopStock.itemId, itemId),
+              eq(shopStock.variantId, variantId),
+              isNull(shopStock.supplyRouteLineId),
+            ),
+          })
+          if (existing) {
+            await tx
+              .update(shopStock)
+              .set({
+                quantityOnHand: sql`${shopStock.quantityOnHand} + ${receiptItem.quantityReceived}`,
+              })
+              .where(eq(shopStock.id, existing.id))
+          } else {
+            await tx.insert(shopStock).values({
               shopId: transfer.shopId,
+              itemId,
               variantId,
+              supplyRouteLineId: null,
               storeTransferItemId: ti.id,
               quantityOnHand: receiptItem.quantityReceived,
               costPerUnitUgx: ti.unitPriceUgx,
-              // Honor the shop min sell price set at dispatch.
-              // Legacy rows (pre-feature) fall back to the transfer price.
-              minimumSellPriceUgx: ti.minimumSellPriceUgx ?? ti.unitPriceUgx,
             })
-            .onConflictDoUpdate({
-              target: [shopStock.shopId, shopStock.variantId],
-              set: {
-                quantityOnHand: sql`${shopStock.quantityOnHand} + ${receiptItem.quantityReceived}`,
-              },
-            })
+          }
         }
 
         // Distribution loss: items dispatched but never arrived at the shop.
