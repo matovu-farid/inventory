@@ -17,6 +17,8 @@ import { shopSales } from "./sales"
 import { storeTransfers } from "./transfers"
 import { customers } from "./customers"
 import { supplyRouteLines } from "./supply-routes"
+import { items } from "./items"
+import { variants } from "./variants"
 
 export const refundMethodEnum = pgEnum("refund_method", [
   "cash",
@@ -80,9 +82,17 @@ export const shopReturnLines = pgTable(
     shopReturnId: uuid("shop_return_id")
       .notNull()
       .references(() => shopReturns.id, { onDelete: "cascade" }),
-    shopStockId: uuid("shop_stock_id")
+    // Plan 2b: item identity is denormalized on the line, variant is
+    // optional, and the lot breakdown lives in shop_return_line_allocations.
+    itemId: uuid("item_id")
       .notNull()
-      .references(() => shopStock.id, { onDelete: "restrict" }),
+      .references(() => items.id, { onDelete: "restrict" }),
+    variantId: uuid("variant_id").references(() => variants.id, {
+      onDelete: "restrict",
+    }),
+    shopStockId: uuid("shop_stock_id").references(() => shopStock.id, {
+      onDelete: "restrict",
+    }),
     quantity: integer("quantity").notNull(),
     unitRefundPriceUgx: numeric("unit_refund_price_ugx", {
       precision: 15,
@@ -96,7 +106,10 @@ export const shopReturnLines = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   // Disambiguated from supply_route_lines (`idx_srl_*`) by using `shrl`.
-  (table) => [index("idx_shrl_return").on(table.shopReturnId)],
+  (table) => [
+    index("idx_shrl_return").on(table.shopReturnId),
+    index("idx_shrl_item").on(table.itemId),
+  ],
 )
 
 // ============== Shop → Store returns ==============
@@ -186,6 +199,18 @@ export const shopReturnLineRelations = relations(shopReturnLines, ({ one, many }
   shopReturn: one(shopReturns, {
     fields: [shopReturnLines.shopReturnId],
     references: [shopReturns.id],
+  }),
+  item: one(items, {
+    fields: [shopReturnLines.itemId],
+    references: [items.id],
+  }),
+  variant: one(variants, {
+    fields: [shopReturnLines.variantId],
+    references: [variants.id],
+  }),
+  shopStockItem: one(shopStock, {
+    fields: [shopReturnLines.shopStockId],
+    references: [shopStock.id],
   }),
   allocations: many(shopReturnLineAllocations),
 }))

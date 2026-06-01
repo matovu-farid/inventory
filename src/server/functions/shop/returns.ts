@@ -72,6 +72,8 @@ export const recordCustomerReturn = createServerFn()
 
       const itemDetails: Array<{
         stockId: string
+        itemId: string
+        variantId: string | null
         quantity: number
         unitRefund: BigNumber
         totalRefund: BigNumber
@@ -93,6 +95,8 @@ export const recordCustomerReturn = createServerFn()
 
         itemDetails.push({
           stockId: stock.id,
+          itemId: stock.itemId,
+          variantId: stock.variantId,
           quantity: item.quantity,
           unitRefund,
           totalRefund: totalRefundForItem,
@@ -124,6 +128,8 @@ export const recordCustomerReturn = createServerFn()
       for (const detail of itemDetails) {
         await tx.insert(shopReturnLines).values({
           shopReturnId: shopReturn.id,
+          itemId: detail.itemId,
+          variantId: detail.variantId,
           shopStockId: detail.stockId,
           quantity: detail.quantity,
           unitRefundPriceUgx: detail.unitRefund.toFixed(2),
