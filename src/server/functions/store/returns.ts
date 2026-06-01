@@ -4,8 +4,10 @@ import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
 import {
+  items,
   storeReturns,
   storeReturnLines,
+  storeReturnLineAllocations,
   shopStock,
   storeStock,
   shops,
@@ -15,14 +17,16 @@ import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { recordAuditLog } from "#/server/middleware/audit-store"
 import { requireSession } from "#/server/middleware/auth"
 import { requireRole } from "#/server/middleware/rbac"
-import { formatItemLabel } from "#/lib/items"
+import { formatItemLabel, formatItemLabelUnresolved } from "#/lib/items"
+import { pickShopStockFifo } from "#/server/functions/shop/fifo"
 import { buildStoreReturnReceiveEntries } from "./return-entries"
 import { renderAuditDescription } from "#/server/audit/descriptions"
 import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
 import { getActorName } from "#/server/audit/actor"
 
 const returnItemInput = z.object({
-  shopStockId: z.uuid(),
+  itemId: z.uuid(),
+  variantId: z.uuid().optional(),
   quantityDispatched: z.number().int().positive(),
   unitTransferPriceUgx: z.string(),
 })
@@ -37,9 +41,10 @@ const dispatchStoreReturnInput = z.object({
 })
 
 /**
- * Shop dispatches goods back to the store. Decrements shop stock immediately;
- * journal entries are deferred to the receipt step (since goods are
- * "in transit" until the store confirms).
+ * Shop dispatches goods back to the store (Plan 2b — item-level).
+ * Decrements shop_stock immediately via FIFO allocations; journal
+ * entries are deferred to receiveStoreReturn since goods are "in
+ * transit" until the store confirms.
  */
 export const dispatchStoreReturn = createServerFn()
   .inputValidator(dispatchStoreReturnInput)
@@ -49,32 +54,56 @@ export const dispatchStoreReturn = createServerFn()
     const userId = session.user.id
 
     return db.transaction(async (tx) => {
-      const itemDetails = []
-      for (const item of data.items) {
-        const stock = await tx.query.shopStock.findFirst({
-          where: eq(shopStock.id, item.shopStockId),
-          with: { variant: { with: { color: { with: { item: true } } } } },
+      const planned: Array<{
+        itemId: string
+        variantId: string | null
+        quantityDispatched: number
+        unitTransferPrice: BigNumber
+        unitCost: BigNumber
+        allocations: Array<{
+          shopStockId: string
+          quantity: number
+          costPerUnitUgx: string
+          supplyRouteLineId: string | null
+        }>
+      }> = []
+
+      for (const input of data.items) {
+        const item = await tx.query.items.findFirst({
+          where: eq(items.id, input.itemId),
+          columns: { id: true, articleNumber: true, name: true },
         })
-        if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
-        // Plan 2a: shop_stock.variant_id is now nullable. Returns still
-        // assume variant-keyed rows; Plan 2b will rewrite this for
-        // item-level returns.
-        if (!stock.variant) {
+        if (!item) throw new Error(`Item not found: ${input.itemId}`)
+
+        const plan = await pickShopStockFifo(tx, {
+          shopId: data.shopId,
+          itemId: input.itemId,
+          variantId: input.variantId,
+          quantity: input.quantityDispatched,
+        })
+        if (plan.shortfall > 0) {
+          const label = input.variantId
+            ? formatItemLabel(item.articleNumber, item.name, "")
+            : formatItemLabelUnresolved(item.articleNumber, item.name)
           throw new Error(
-            "Plan 2a: shop return on an unresolved shop stock row — specify the variant first (Plan 2b)",
+            `Insufficient stock for ${label}: short by ${plan.shortfall}`,
           )
         }
-        const itemLabel = formatItemLabel(
-          stock.variant.color.item.articleNumber,
-          stock.variant.color.colorName,
-          stock.variant.size,
+
+        const lineCost = plan.allocations.reduce(
+          (s, a) => s.plus(new BigNumber(a.costPerUnitUgx).times(a.quantity)),
+          new BigNumber(0),
         )
-        if (stock.quantityOnHand < item.quantityDispatched) {
-          throw new Error(
-            `Insufficient stock for ${itemLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`,
-          )
-        }
-        itemDetails.push({ stock, itemLabel, ...item })
+        const unitCost = new BigNumber(lineCost).div(input.quantityDispatched)
+
+        planned.push({
+          itemId: input.itemId,
+          variantId: input.variantId ?? null,
+          quantityDispatched: input.quantityDispatched,
+          unitTransferPrice: new BigNumber(input.unitTransferPriceUgx),
+          unitCost,
+          allocations: plan.allocations,
+        })
       }
 
       const docNumber = await nextDocumentNumber(tx, "STR-RET")
@@ -94,21 +123,35 @@ export const dispatchStoreReturn = createServerFn()
         })
         .returning()
 
-      for (const detail of itemDetails) {
-        await tx.insert(storeReturnLines).values({
-          storeReturnId: storeReturn.id,
-          shopStockId: detail.stock.id,
-          quantityDispatched: detail.quantityDispatched,
-          unitTransferPriceUgx: detail.unitTransferPriceUgx,
-          unitCostUgx: detail.stock.costPerUnitUgx,
-        })
-
-        await tx
-          .update(shopStock)
-          .set({
-            quantityOnHand: sql`${shopStock.quantityOnHand} - ${detail.quantityDispatched}`,
+      for (const detail of planned) {
+        const [line] = await tx
+          .insert(storeReturnLines)
+          .values({
+            storeReturnId: storeReturn.id,
+            itemId: detail.itemId,
+            variantId: detail.variantId,
+            shopStockId: null,
+            quantityDispatched: detail.quantityDispatched,
+            unitTransferPriceUgx: detail.unitTransferPrice.toFixed(2),
+            unitCostUgx: detail.unitCost.toFixed(2),
           })
-          .where(eq(shopStock.id, detail.stock.id))
+          .returning()
+
+        for (const alloc of detail.allocations) {
+          await tx.insert(storeReturnLineAllocations).values({
+            storeReturnLineId: line.id,
+            shopStockId: alloc.shopStockId,
+            supplyRouteLineId: alloc.supplyRouteLineId,
+            quantity: alloc.quantity,
+            costPerUnitUgx: alloc.costPerUnitUgx,
+          })
+          await tx
+            .update(shopStock)
+            .set({
+              quantityOnHand: sql`${shopStock.quantityOnHand} - ${alloc.quantity}`,
+            })
+            .where(eq(shopStock.id, alloc.shopStockId))
+        }
       }
 
       const shop = await tx.query.shops.findFirst({
@@ -161,10 +204,11 @@ const receiveStoreReturnInput = z.object({
 })
 
 /**
- * Store confirms receipt of returned goods. Posts reverse journal entries
- * for the original transfer (Inventory shift back, Due-from/Due-to nets,
- * Store Transfer Revenue reversal) and increments store stock for the
- * received quantities.
+ * Store confirms receipt of returned goods (Plan 2b — item-level).
+ * Posts reverse journal entries for the original transfer (Inventory
+ * shift back, Due-from/Due-to nets, Store Transfer Revenue reversal)
+ * and rebuilds store_stock per allocation so the supply-line + cost
+ * provenance of each returned lot survives the round trip.
  */
 export const receiveStoreReturn = createServerFn()
   .inputValidator(receiveStoreReturnInput)
@@ -179,9 +223,9 @@ export const receiveStoreReturn = createServerFn()
         with: {
           items: {
             with: {
-              shopStock: {
-                with: { variant: { with: { color: { with: { item: true } } } } },
-              },
+              item: true,
+              variant: { with: { color: true } },
+              allocations: true,
             },
           },
         },
@@ -200,73 +244,105 @@ export const receiveStoreReturn = createServerFn()
       let totalCostDispatched = new BigNumber(0)
       let totalTransferDispatched = new BigNumber(0)
 
-      for (const item of storeReturn.items) {
+      for (const line of storeReturn.items) {
         totalCostDispatched = totalCostDispatched.plus(
-          new BigNumber(item.unitCostUgx).times(item.quantityDispatched),
+          new BigNumber(line.unitCostUgx).times(line.quantityDispatched),
         )
         totalTransferDispatched = totalTransferDispatched.plus(
-          new BigNumber(item.unitTransferPriceUgx).times(item.quantityDispatched),
+          new BigNumber(line.unitTransferPriceUgx).times(line.quantityDispatched),
         )
       }
 
       for (const receipt of data.itemReceipts) {
-        const item = storeReturn.items.find(
-          (i) => i.id === receipt.storeReturnItemId,
+        const line = storeReturn.items.find(
+          (l) => l.id === receipt.storeReturnItemId,
         )
-        if (!item) {
-          throw new Error(`Return item not found: ${receipt.storeReturnItemId}`)
+        if (!line) {
+          throw new Error(`Return line not found: ${receipt.storeReturnItemId}`)
         }
-        // Plan 2a: shop_stock.variant_id is now nullable. Returns
-        // bookkeeping still expects a resolved variant. Plan 2b will
-        // rewrite this for item-level returns.
-        if (!item.shopStock.variant || !item.shopStock.variantId) {
+        const label = line.variant
+          ? formatItemLabel(
+              line.item.articleNumber,
+              line.variant.color.colorName,
+              line.variant.size,
+            )
+          : formatItemLabelUnresolved(line.item.articleNumber, line.item.name)
+        if (receipt.quantityReceived > line.quantityDispatched) {
           throw new Error(
-            "Plan 2a: store return receipt on an unresolved shop stock row — specify the variant first (Plan 2b)",
+            `Received ${receipt.quantityReceived} > dispatched ${line.quantityDispatched} for ${label}`,
           )
         }
-        const itemLabel = formatItemLabel(
-          item.shopStock.variant.color.item.articleNumber,
-          item.shopStock.variant.color.colorName,
-          item.shopStock.variant.size,
-        )
-        if (receipt.quantityReceived > item.quantityDispatched) {
-          throw new Error(
-            `Received ${receipt.quantityReceived} > dispatched ${item.quantityDispatched} for ${itemLabel}`,
-          )
-        }
+
         await tx
           .update(storeReturnLines)
           .set({ quantityReceived: receipt.quantityReceived })
           .where(eq(storeReturnLines.id, receipt.storeReturnItemId))
 
-        const transferAmount = new BigNumber(item.unitTransferPriceUgx).times(
+        const transferAmount = new BigNumber(line.unitTransferPriceUgx).times(
           receipt.quantityReceived,
         )
-        const costAmount = new BigNumber(item.unitCostUgx).times(
+        const costAmount = new BigNumber(line.unitCostUgx).times(
           receipt.quantityReceived,
         )
-
         totalTransferPrice = totalTransferPrice.plus(transferAmount)
         totalCost = totalCost.plus(costAmount)
 
-        // Increment store stock — find the matching store_stock variant
-        const matching = await tx.query.storeStock.findFirst({
-          where: and(
-            eq(storeStock.storeId, storeReturn.storeId),
-            eq(storeStock.variantId, item.shopStock.variantId),
-          ),
-        })
-        if (matching) {
-          await tx
-            .update(storeStock)
-            .set({
-              quantityOnHand: sql`${storeStock.quantityOnHand} + ${receipt.quantityReceived}`,
+        if (receipt.quantityReceived <= 0) continue
+
+        // Distribute received qty across the line's allocations
+        // proportionally; last bucket absorbs rounding (mirrors
+        // confirmTransferReceipt's partial-receipt behaviour).
+        const allocs = [...line.allocations].sort(
+          (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+        )
+        const totalAllocQty = allocs.reduce((s, a) => s + a.quantity, 0)
+        let distributed = 0
+        for (let i = 0; i < allocs.length; i++) {
+          const a = allocs[i]
+          const portion =
+            i === allocs.length - 1
+              ? receipt.quantityReceived - distributed
+              : Math.floor(
+                  (a.quantity / totalAllocQty) * receipt.quantityReceived,
+                )
+          distributed += portion
+          if (portion <= 0) continue
+
+          // Upsert store_stock keyed (storeId, itemId, variantId, supplyRouteLineId)
+          const variantWhere = line.variantId
+            ? eq(storeStock.variantId, line.variantId)
+            : sql`${storeStock.variantId} IS NULL`
+          const lineWhere = a.supplyRouteLineId
+            ? eq(storeStock.supplyRouteLineId, a.supplyRouteLineId)
+            : sql`${storeStock.supplyRouteLineId} IS NULL`
+          const existing = await tx.query.storeStock.findFirst({
+            where: and(
+              eq(storeStock.storeId, storeReturn.storeId),
+              eq(storeStock.itemId, line.itemId),
+              variantWhere,
+              lineWhere,
+            ),
+          })
+          if (existing) {
+            await tx
+              .update(storeStock)
+              .set({
+                quantityOnHand: sql`${storeStock.quantityOnHand} + ${portion}`,
+              })
+              .where(eq(storeStock.id, existing.id))
+          } else {
+            await tx.insert(storeStock).values({
+              storeId: storeReturn.storeId,
+              itemId: line.itemId,
+              variantId: line.variantId,
+              supplyRouteLineId: a.supplyRouteLineId,
+              quantityOnHand: portion,
+              costPerUnitUgx: a.costPerUnitUgx,
             })
-            .where(eq(storeStock.id, matching.id))
+          }
         }
       }
 
-      // Build the (always balanced) reversal journal via the pure helper.
       const { entries } = buildStoreReturnReceiveEntries({
         totalCost: totalCost.toFixed(2),
         totalTransferPrice: totalTransferPrice.toFixed(2),

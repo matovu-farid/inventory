@@ -162,9 +162,17 @@ export const storeReturnLines = pgTable(
     storeReturnId: uuid("store_return_id")
       .notNull()
       .references(() => storeReturns.id, { onDelete: "cascade" }),
-    shopStockId: uuid("shop_stock_id")
+    // Plan 2b: item identity is denormalized on the line, variant is
+    // optional, lot breakdown lives in store_return_line_allocations.
+    itemId: uuid("item_id")
       .notNull()
-      .references(() => shopStock.id, { onDelete: "restrict" }),
+      .references(() => items.id, { onDelete: "restrict" }),
+    variantId: uuid("variant_id").references(() => variants.id, {
+      onDelete: "restrict",
+    }),
+    shopStockId: uuid("shop_stock_id").references(() => shopStock.id, {
+      onDelete: "restrict",
+    }),
     quantityDispatched: integer("quantity_dispatched").notNull(),
     quantityReceived: integer("quantity_received"),
     unitTransferPriceUgx: numeric("unit_transfer_price_ugx", {
@@ -177,7 +185,10 @@ export const storeReturnLines = pgTable(
     }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("idx_storerl_return").on(table.storeReturnId)],
+  (table) => [
+    index("idx_storerl_return").on(table.storeReturnId),
+    index("idx_storerl_item").on(table.itemId),
+  ],
 )
 
 export const shopReturnRelations = relations(shopReturns, ({ one, many }) => ({
@@ -274,6 +285,14 @@ export const storeReturnLineRelations = relations(storeReturnLines, ({ one, many
   storeReturn: one(storeReturns, {
     fields: [storeReturnLines.storeReturnId],
     references: [storeReturns.id],
+  }),
+  item: one(items, {
+    fields: [storeReturnLines.itemId],
+    references: [items.id],
+  }),
+  variant: one(variants, {
+    fields: [storeReturnLines.variantId],
+    references: [variants.id],
   }),
   shopStock: one(shopStock, {
     fields: [storeReturnLines.shopStockId],
