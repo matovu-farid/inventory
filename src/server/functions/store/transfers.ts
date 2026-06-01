@@ -273,17 +273,19 @@ export const confirmTransferReceipt = createServerFn()
     const userId = session.user.id
 
     return db.transaction(async (tx) => {
+      // Item-level transfer lines (Plan 2a Task 7) carry their source
+      // provenance in `store_transfer_allocations`. The receive flow
+      // walks those allocations to upsert one shop_stock row per
+      // (shop, item, variant, supply_route_line), preserving per-lot
+      // cost.
       const transfer = await tx.query.storeTransfers.findFirst({
         where: eq(storeTransfers.id, data.transferId),
         with: {
           items: {
             with: {
-              storeStockItem: {
-                with: {
-                  item: true,
-                  variant: { with: { color: { with: { item: true } } } },
-                },
-              },
+              item: true,
+              variant: { with: { color: true } },
+              allocations: true,
             },
           },
         },
@@ -297,40 +299,18 @@ export const confirmTransferReceipt = createServerFn()
       if (!store) throw new Error("Store not configured")
 
       for (const receiptItem of data.items) {
-        const ti = transfer.items.find((i) => i.id === receiptItem.transferItemId)
-        if (!ti) throw new Error(`Transfer item not found: ${receiptItem.transferItemId}`)
+        const tl = transfer.items.find((i) => i.id === receiptItem.transferItemId)
+        if (!tl) throw new Error(`Transfer item not found: ${receiptItem.transferItemId}`)
 
-        // Idempotency guard — aggregate ON CONFLICT means we can't safely re-apply
-        if (ti.quantityReceived !== null) {
+        // Idempotency guard — partial receipts not re-applied; use a
+        // return flow to adjust.
+        if (tl.quantityReceived !== null) {
           throw new Error("This transfer item has already been received. Use a return flow to adjust.")
         }
 
-        // Plan 2a Task 7 made `storeStockId` nullable for item-level
-        // dispatch — the receive side is rewritten in Task 8 to walk
-        // `store_transfer_allocations`. Until then, refuse to receive
-        // item-level lines and keep the legacy lot-linked path working
-        // so the rest of the transfer suite stays green.
-        if (!ti.storeStockItem) {
-          throw new Error(
-            `Transfer item ${ti.id} is an item-level dispatch — receive flow rewrite pending (Plan 2a Task 8).`,
-          )
-        }
-        const { variant, variantId } = ti.storeStockItem
-        if (!variant || !variantId) {
-          throw new Error(
-            `Transfer item ${ti.id} references stock without a color/size — this should be impossible. Refusing to receive.`,
-          )
-        }
-
-        const itemLabel = formatItemLabel(
-          variant.color.item.articleNumber,
-          variant.color.colorName,
-          variant.size,
-        )
-
         validateQuantityReceived(receiptItem.quantityReceived)
         validateDiscrepancyNotes({
-          quantityExpected: ti.quantityDispatched,
+          quantityExpected: tl.quantityDispatched,
           quantityReceived: receiptItem.quantityReceived,
           discrepancyNotes: receiptItem.discrepancyNotes,
         })
@@ -341,59 +321,82 @@ export const confirmTransferReceipt = createServerFn()
             quantityReceived: receiptItem.quantityReceived,
             discrepancyNotes: receiptItem.discrepancyNotes,
           })
-          .where(eq(storeTransferLines.id, ti.id))
+          .where(eq(storeTransferLines.id, tl.id))
 
-        // Upsert shop stock — Plan 2a Task 8 will replace this with a
-        // per-allocation upsert. Until then preserve the existing
-        // behaviour with the new (shop, item, variant, supply_line) key.
-        // The schema flip dropped `shopStock.minimumSellPriceUgx`; the
-        // floor now lives at the item level. The conflict target uses
-        // the new uq_shst_shop_item_variant_line key — but onConflict
-        // doesn't compose with nullable columns, so we do an explicit
-        // find-then-insert-or-update keyed on (shopId, itemId, variantId)
-        // with supplyRouteLineId left NULL on this path (transfers don't
-        // carry a per-lot supply line yet — Task 7/8 introduces it).
-        if (receiptItem.quantityReceived > 0) {
-          const itemId = ti.storeStockItem.itemId
+        // Distribute the received quantity across allocations
+        // proportionally. Each bucket gets `floor(received * alloc / dispatched)`;
+        // the last bucket absorbs the rounding remainder so the buckets
+        // always sum to exactly `received`.
+        const received = receiptItem.quantityReceived
+        let remaining = received
+        const lastIdx = tl.allocations.length - 1
+        const buckets = tl.allocations.map((a, i) => {
+          if (i === lastIdx) {
+            return { alloc: a, take: remaining }
+          }
+          const share = Math.floor((received * a.quantity) / tl.quantityDispatched)
+          remaining -= share
+          return { alloc: a, take: share }
+        })
+
+        // Upsert shop_stock per (shop, item, variant, supply_route_line).
+        // The unique key `uq_shst_shop_item_variant_line` is NULLS NOT
+        // DISTINCT but `onConflict` still can't target nullable columns
+        // cleanly, so we do an explicit find-then-insert-or-update.
+        for (const { alloc, take } of buckets) {
+          if (take <= 0) continue
           const existing = await tx.query.shopStock.findFirst({
             where: and(
               eq(shopStock.shopId, transfer.shopId),
-              eq(shopStock.itemId, itemId),
-              eq(shopStock.variantId, variantId),
-              isNull(shopStock.supplyRouteLineId),
+              eq(shopStock.itemId, tl.itemId),
+              tl.variantId
+                ? eq(shopStock.variantId, tl.variantId)
+                : isNull(shopStock.variantId),
+              alloc.supplyRouteLineId
+                ? eq(shopStock.supplyRouteLineId, alloc.supplyRouteLineId)
+                : isNull(shopStock.supplyRouteLineId),
             ),
           })
           if (existing) {
             await tx
               .update(shopStock)
               .set({
-                quantityOnHand: sql`${shopStock.quantityOnHand} + ${receiptItem.quantityReceived}`,
+                quantityOnHand: sql`${shopStock.quantityOnHand} + ${take}`,
               })
               .where(eq(shopStock.id, existing.id))
           } else {
             await tx.insert(shopStock).values({
               shopId: transfer.shopId,
-              itemId,
-              variantId,
-              supplyRouteLineId: null,
-              storeTransferItemId: ti.id,
-              quantityOnHand: receiptItem.quantityReceived,
-              costPerUnitUgx: ti.unitPriceUgx,
+              itemId: tl.itemId,
+              variantId: tl.variantId,
+              supplyRouteLineId: alloc.supplyRouteLineId,
+              storeTransferItemId: tl.id,
+              quantityOnHand: take,
+              costPerUnitUgx: alloc.costPerUnitUgx,
             })
           }
         }
 
-        // Distribution loss: items dispatched but never arrived at the shop.
-        const loss = ti.quantityDispatched - receiptItem.quantityReceived
+        // Distribution loss: items dispatched but never arrived at the
+        // shop. Value at the line's unit transfer price (the item floor
+        // captured at dispatch). Shape unchanged from the legacy path.
+        const loss = tl.quantityDispatched - received
         if (loss > 0) {
-          const lossValue = new BigNumber(ti.unitPriceUgx).times(loss)
+          const lossValue = new BigNumber(tl.unitPriceUgx).times(loss)
+          const itemLabel = tl.variant
+            ? formatItemLabel(
+                tl.item.articleNumber,
+                tl.variant.color.colorName,
+                tl.variant.size,
+              )
+            : `${tl.item.articleNumber} ${tl.item.name}`
           await postJournalEntry(tx, {
             entries: [
               { type: "debit", category: "Inventory Loss", amount: lossValue.toFixed(2) },
               { type: "credit", category: "Inventory - Shop", amount: lossValue.toFixed(2) },
             ],
             referenceType: "distribution_loss",
-            referenceId: ti.id,
+            referenceId: tl.id,
             locationType: "shop",
             locationId: transfer.shopId,
             recordedBy: userId,
