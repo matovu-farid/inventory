@@ -93,12 +93,7 @@ export const listOverrides = createServerFn()
     return db.query.notificationThresholdOverrides.findMany({
       where: whereClause,
       with: {
-        variant: {
-          with: {
-            item: true,
-            color: true,
-          },
-        },
+        item: true,
         shop: true,
       },
     })
@@ -106,7 +101,7 @@ export const listOverrides = createServerFn()
 
 const upsertOverrideInput = z.object({
   scope: scopeEnum,
-  variantId: z.uuid(),
+  itemId: z.uuid(),
   shopId: z.uuid().nullable(),
   mode: modeEnum,
   value: z.number().positive(),
@@ -121,7 +116,7 @@ export const upsertOverride = createServerFn()
       .insert(notificationThresholdOverrides)
       .values({
         scope: data.scope,
-        variantId: data.variantId,
+        itemId: data.itemId,
         shopId: data.shopId,
         mode: data.mode,
         value: String(data.value),
@@ -129,7 +124,7 @@ export const upsertOverride = createServerFn()
       .onConflictDoUpdate({
         target: [
           notificationThresholdOverrides.scope,
-          notificationThresholdOverrides.variantId,
+          notificationThresholdOverrides.itemId,
           notificationThresholdOverrides.shopId,
         ],
         set: {

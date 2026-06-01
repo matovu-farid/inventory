@@ -17,6 +17,7 @@ import { user } from './auth'
 import { shops } from './shops'
 import { stores } from './store'
 import { variants } from './variants'
+import { items } from './items'
 import { supplyRouteLines } from './supply-routes'
 
 export const notifications = pgTable(
@@ -101,9 +102,14 @@ export const notificationThresholdOverrides = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     scope: thresholdScopeEnum('scope').notNull(),
-    variantId: uuid('variant_id')
+    // Plan 2c: overrides are item-keyed. variantId retained but nullable
+    // for backwards compat with historical rows; new writes set item_id.
+    itemId: uuid('item_id')
       .notNull()
-      .references(() => variants.id, { onDelete: 'restrict' }),
+      .references(() => items.id, { onDelete: 'restrict' }),
+    variantId: uuid('variant_id').references(() => variants.id, {
+      onDelete: 'restrict',
+    }),
     shopId: uuid('shop_id').references(() => shops.id, { onDelete: 'cascade' }),
     mode: thresholdModeEnum('mode').notNull(),
     value: numeric('value', { precision: 10, scale: 2 }).notNull(),
@@ -116,14 +122,14 @@ export const notificationThresholdOverrides = pgTable(
       .notNull(),
   },
   (table) => [
-    unique('uq_thr_override')
-      .on(table.scope, table.variantId, table.shopId)
+    unique('uq_thr_override_item')
+      .on(table.scope, table.itemId, table.shopId)
       .nullsNotDistinct(),
     check(
       'ck_override_scope_shop',
       sql`${table.scope} = 'shop' OR ${table.shopId} IS NULL`,
     ),
-    index('idx_thr_override_variant').on(table.variantId),
+    index('idx_thr_override_item').on(table.itemId),
   ],
 )
 
@@ -134,9 +140,14 @@ export const lowStockAlerts = pgTable(
     scope: thresholdScopeEnum('scope').notNull(),
     // Polymorphic: stores.id when scope='store', shops.id when scope='shop'. No FK by design.
     locationId: uuid('location_id').notNull(),
-    variantId: uuid('variant_id')
+    // Plan 2c: alerts are item-keyed. variantId retained nullable for
+    // backwards compat with historical rows.
+    itemId: uuid('item_id')
       .notNull()
-      .references(() => variants.id, { onDelete: 'restrict' }),
+      .references(() => items.id, { onDelete: 'restrict' }),
+    variantId: uuid('variant_id').references(() => variants.id, {
+      onDelete: 'restrict',
+    }),
     status: lowStockAlertStatusEnum('status').notNull().default('open'),
     baselineQuantity: integer('baseline_quantity').notNull(),
     thresholdSnapshot: jsonb('threshold_snapshot')
@@ -154,8 +165,9 @@ export const lowStockAlerts = pgTable(
   (table) => [
     index('idx_lsa_status_scope').on(table.status, table.scope),
     index('idx_lsa_location').on(table.locationId),
-    uniqueIndex('uq_lsa_open')
-      .on(table.scope, table.locationId, table.variantId)
+    index('idx_lsa_item').on(table.itemId),
+    uniqueIndex('uq_lsa_open_item')
+      .on(table.scope, table.locationId, table.itemId)
       .where(sql`status = 'open'`),
   ],
 )
@@ -167,15 +179,18 @@ export const restockRequisitions = pgTable(
     storeId: uuid('store_id')
       .notNull()
       .references(() => stores.id, { onDelete: 'restrict' }),
-    variantId: uuid('variant_id')
+    // Plan 2c: requisitions are item-keyed. variantId retained nullable
+    // for backwards compat with historical rows.
+    itemId: uuid('item_id')
       .notNull()
-      .references(() => variants.id, { onDelete: 'restrict' }),
+      .references(() => items.id, { onDelete: 'restrict' }),
+    variantId: uuid('variant_id').references(() => variants.id, {
+      onDelete: 'restrict',
+    }),
     suggestedQuantity: integer('suggested_quantity').notNull(),
     baselineQuantity: integer('baseline_quantity').notNull(),
     quantityAtOpen: integer('quantity_at_open').notNull(),
     status: restockRequisitionStatusEnum('status').notNull().default('open'),
-    // Renamed from `supply_route_item_id` in Phase 2 (#8) when the source
-    // table was renamed `supply_route_items` → `supply_route_lines`.
     supplyRouteLineId: uuid('supply_route_line_id').references(
       () => supplyRouteLines.id,
       { onDelete: 'set null' },
@@ -188,8 +203,9 @@ export const restockRequisitions = pgTable(
   },
   (table) => [
     index('idx_req_store_status').on(table.storeId, table.status),
-    uniqueIndex('uq_req_open')
-      .on(table.storeId, table.variantId)
+    index('idx_req_item').on(table.itemId),
+    uniqueIndex('uq_req_open_item')
+      .on(table.storeId, table.itemId)
       .where(sql`status = 'open'`),
   ],
 )
@@ -207,6 +223,10 @@ export const notificationThresholdsRelations = relations(
 export const notificationThresholdOverridesRelations = relations(
   notificationThresholdOverrides,
   ({ one }) => ({
+    item: one(items, {
+      fields: [notificationThresholdOverrides.itemId],
+      references: [items.id],
+    }),
     variant: one(variants, {
       fields: [notificationThresholdOverrides.variantId],
       references: [variants.id],
@@ -219,6 +239,10 @@ export const notificationThresholdOverridesRelations = relations(
 )
 
 export const lowStockAlertsRelations = relations(lowStockAlerts, ({ one }) => ({
+  item: one(items, {
+    fields: [lowStockAlerts.itemId],
+    references: [items.id],
+  }),
   variant: one(variants, {
     fields: [lowStockAlerts.variantId],
     references: [variants.id],
@@ -235,6 +259,10 @@ export const restockRequisitionsRelations = relations(
     store: one(stores, {
       fields: [restockRequisitions.storeId],
       references: [stores.id],
+    }),
+    item: one(items, {
+      fields: [restockRequisitions.itemId],
+      references: [items.id],
     }),
     variant: one(variants, {
       fields: [restockRequisitions.variantId],

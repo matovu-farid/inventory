@@ -151,7 +151,7 @@ export const startStockTake = createServerFn()
           actorName,
           shopName: locationShop?.name,
           storeName: locationStore?.name,
-          itemCount: 0,
+          itemCount,
         }),
         articleNumbers,
         after: {

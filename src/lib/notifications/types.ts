@@ -15,7 +15,8 @@ export interface Defaults {
 
 export interface OverrideRow {
   scope: ThresholdScope
-  variantId: string
+  // Plan 2c: overrides are item-keyed.
+  itemId: string
   shopId: string | null
   rule: Rule
 }

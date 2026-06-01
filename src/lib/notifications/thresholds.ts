@@ -4,7 +4,6 @@ import type {
   Defaults,
   OverrideRow,
   Rule,
-  Variant,
 } from '#/lib/notifications/types'
 
 export type CreditSaleStatus = PaymentStatus
@@ -43,55 +42,57 @@ export function shouldNotifyOverdueCredit(
 // ---------- Threshold rule resolution ----------
 
 export interface OverrideMaps {
-  /** scope='shop', shopId set    → keyed by `${shopId}|${variantId}` */
+  /** scope='shop', shopId set    → keyed by `${shopId}|${itemId}` */
   shopWithShop: Map<string, Rule>
-  /** scope='shop', shopId null    → keyed by `${variantId}` */
-  shopVariantOnly: Map<string, Rule>
-  /** scope='store'                → keyed by `${variantId}` */
+  /** scope='shop', shopId null    → keyed by `${itemId}` */
+  shopItemOnly: Map<string, Rule>
+  /** scope='store'                → keyed by `${itemId}` */
   store: Map<string, Rule>
 }
 
-const shopVariantKey = (shopId: string, variantId: string) =>
-  `${shopId}|${variantId}`
+const shopItemKey = (shopId: string, itemId: string) =>
+  `${shopId}|${itemId}`
 
 export function buildOverrideMaps(rows: OverrideRow[]): OverrideMaps {
   const maps: OverrideMaps = {
     shopWithShop: new Map(),
-    shopVariantOnly: new Map(),
+    shopItemOnly: new Map(),
     store: new Map(),
   }
   for (const row of rows) {
     if (row.scope === 'store') {
-      maps.store.set(row.variantId, row.rule)
+      maps.store.set(row.itemId, row.rule)
     } else if (row.shopId === null) {
-      maps.shopVariantOnly.set(row.variantId, row.rule)
+      maps.shopItemOnly.set(row.itemId, row.rule)
     } else {
-      maps.shopWithShop.set(shopVariantKey(row.shopId, row.variantId), row.rule)
+      maps.shopWithShop.set(shopItemKey(row.shopId, row.itemId), row.rule)
     }
   }
   return maps
 }
 
+export interface ItemKey {
+  itemId: string
+}
+
 export function resolveShopRule(
   shopId: string,
-  variant: Variant,
+  item: ItemKey,
   maps: OverrideMaps,
   defaults: Defaults,
 ): Rule {
-  const specific = maps.shopWithShop.get(
-    shopVariantKey(shopId, variant.variantId),
-  )
+  const specific = maps.shopWithShop.get(shopItemKey(shopId, item.itemId))
   if (specific) return specific
-  const variantOnly = maps.shopVariantOnly.get(variant.variantId)
-  if (variantOnly) return variantOnly
+  const itemOnly = maps.shopItemOnly.get(item.itemId)
+  if (itemOnly) return itemOnly
   return defaults.shop
 }
 
 export function resolveStoreRule(
-  variant: Variant,
+  item: ItemKey,
   maps: OverrideMaps,
   defaults: Defaults,
 ): Rule {
-  const override = maps.store.get(variant.variantId)
+  const override = maps.store.get(item.itemId)
   return override ?? defaults.store
 }

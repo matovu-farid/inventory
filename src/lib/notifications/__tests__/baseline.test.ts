@@ -112,7 +112,7 @@ describe('computeStoreBaseline', () => {
   it('returns null baseline + sampleCount 0 when no receivings exist', async () => {
     const out = await computeStoreBaseline(db, {
       storeId: ctx.store.id,
-      variantId: ctx.variant.id,
+      itemId: ctx.item.id,
     })
     expect(out).toEqual({ baseline: null, sampleCount: 0 })
   })
@@ -168,7 +168,7 @@ describe('computeStoreBaseline', () => {
 
     const out = await computeStoreBaseline(db, {
       storeId: ctx.store.id,
-      variantId: ctx.variant.id,
+      itemId: ctx.item.id,
     })
     expect(out.sampleCount).toBe(3)
     expect(out.baseline).toBeCloseTo((50 + 80 + 200) / 3, 5)
@@ -179,7 +179,7 @@ describe('computeShopBaseline', () => {
   it('returns null baseline + sampleCount 0 when no transfers exist', async () => {
     const out = await computeShopBaseline(db, {
       shopId: ctx.shop.id,
-      variantId: ctx.variant.id,
+      itemId: ctx.item.id,
     })
     expect(out).toEqual({ baseline: null, sampleCount: 0 })
   })
@@ -190,7 +190,6 @@ describe('computeShopBaseline', () => {
       .values({
         storeId: ctx.store.id,
         itemId: ctx.item.id,
-        variantId: ctx.variant.id,
         quantityOnHand: 1000,
         costPerUnitUgx: '1000',
       })
@@ -210,7 +209,6 @@ describe('computeShopBaseline', () => {
       storeTransferId: t1.id,
       storeStockId: ss.id,
       itemId: ctx.item.id,
-      variantId: ctx.variant.id,
       quantityDispatched: 60,
       quantityReceived: 50,
       unitPriceUgx: '1500',
@@ -229,9 +227,7 @@ describe('computeShopBaseline', () => {
       .returning()
     await db.insert(storeTransferLines).values({
       storeTransferId: t2.id,
-      storeStockId: ss.id,
       itemId: ctx.item.id,
-      variantId: ctx.variant.id,
       quantityDispatched: 70,
       quantityReceived: null,
       unitPriceUgx: '1500',
@@ -240,7 +236,7 @@ describe('computeShopBaseline', () => {
 
     const out = await computeShopBaseline(db, {
       shopId: ctx.shop.id,
-      variantId: ctx.variant.id,
+      itemId: ctx.item.id,
     })
     expect(out.sampleCount).toBe(2)
     expect(out.baseline).toBeCloseTo((50 + 70) / 2, 5)

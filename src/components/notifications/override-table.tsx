@@ -23,45 +23,38 @@ import {
 } from '#/server/functions/notifications/thresholds'
 
 /**
- * Per-variant override row as returned by `listOverrides`. The relational
- * query traverses `variant → item / color` so the row carries enough catalog
- * data to render item + color + size in the table.
+ * Plan 2c: overrides are item-keyed. The row carries item identity for
+ * rendering; legacy variant fields (color/size) are dropped from the UI.
  */
 export interface OverrideRow {
   id: string
   scope: 'store' | 'shop'
-  variantId: string
-  variant: {
-    id: string
-    size: string
-    item: { id: string; articleNumber: string; name: string }
-    color: { id: string; colorName: string }
-  }
+  itemId: string
+  item: { id: string; articleNumber: string; name: string }
   shopId: string | null
   shop: { id: string; name: string } | null
   mode: 'percent' | 'units'
   value: string
 }
 
-/** A variant the override-form dropdown can pick from. */
-export interface VariantOption {
-  variantId: string
-  /** Article + color label, e.g. "SH-2045 · Black". */
+/** An item the override-form dropdown can pick from. */
+export interface ItemOption {
+  itemId: string
+  /** Article + name label, e.g. "SH-2045 Polo". */
   label: string
-  size: string
 }
 
 export function OverrideTable({
   rows,
   showShopColumn,
-  variantOptions,
+  itemOptions,
   shopOptions,
   defaultShopId,
   onChanged,
 }: {
   rows: OverrideRow[]
   showShopColumn: boolean
-  variantOptions: VariantOption[]
+  itemOptions: ItemOption[]
   shopOptions?: Array<{ id: string; name: string }>
   defaultShopId?: string | null
   onChanged: () => void
@@ -84,18 +77,6 @@ export function OverrideTable({
                 <InfoTip term="notifications.overrides.item" />
               </span>
             </TableHead>
-            <TableHead>
-              <span className="flex items-center gap-1">
-                Color
-                <InfoTip term="notifications.overrides.item" />
-              </span>
-            </TableHead>
-            <TableHead>
-              <span className="flex items-center gap-1">
-                Size
-                <InfoTip term="notifications.overrides.size" />
-              </span>
-            </TableHead>
             {showShopColumn && <TableHead>Shop</TableHead>}
             <TableHead>
               <span className="flex items-center gap-1">
@@ -110,9 +91,7 @@ export function OverrideTable({
           {rows.map((r) => (
             <TableRow key={r.id}>
               <TableCell className="capitalize">{r.scope}</TableCell>
-              <TableCell>{r.variant.item.articleNumber}</TableCell>
-              <TableCell>{r.variant.color.colorName}</TableCell>
-              <TableCell>{r.variant.size}</TableCell>
+              <TableCell>{r.item.articleNumber} {r.item.name}</TableCell>
               {showShopColumn && (
                 <TableCell>{r.shop?.name ?? '(all shops)'}</TableCell>
               )}
@@ -135,7 +114,7 @@ export function OverrideTable({
           {rows.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={showShopColumn ? 7 : 6}
+                colSpan={showShopColumn ? 5 : 4}
                 className="text-muted-foreground text-sm text-center"
               >
                 No overrides yet — defaults apply to everything.
@@ -148,7 +127,7 @@ export function OverrideTable({
       {adding ? (
         <AddOverrideForm
           showShopField={showShopColumn}
-          variantOptions={variantOptions}
+          itemOptions={itemOptions}
           shopOptions={shopOptions ?? []}
           defaultShopId={defaultShopId ?? null}
           onCancel={() => setAdding(false)}
@@ -168,14 +147,14 @@ export function OverrideTable({
 
 function AddOverrideForm({
   showShopField,
-  variantOptions,
+  itemOptions,
   shopOptions,
   defaultShopId,
   onCancel,
   onSaved,
 }: {
   showShopField: boolean
-  variantOptions: VariantOption[]
+  itemOptions: ItemOption[]
   shopOptions: Array<{ id: string; name: string }>
   defaultShopId: string | null
   onCancel: () => void
@@ -184,7 +163,7 @@ function AddOverrideForm({
   const [scope, setScope] = useState<'store' | 'shop'>(
     showShopField ? 'shop' : 'store',
   )
-  const [variantId, setVariantId] = useState(variantOptions[0]?.variantId ?? '')
+  const [itemId, setItemId] = useState(itemOptions[0]?.itemId ?? '')
   const [shopId, setShopId] = useState<string | null>(defaultShopId)
   const [mode, setMode] = useState<'percent' | 'units'>('percent')
   const [value, setValue] = useState('20')
@@ -196,7 +175,7 @@ function AddOverrideForm({
       await upsertOverride({
         data: {
           scope,
-          variantId,
+          itemId,
           shopId: scope === 'shop' ? shopId : null,
           mode,
           value: Number(value),
@@ -227,15 +206,15 @@ function AddOverrideForm({
           </Select>
         </div>
         <div>
-          <label className="text-xs font-medium">Variant</label>
-          <Select value={variantId} onValueChange={setVariantId}>
+          <label className="text-xs font-medium">Item</label>
+          <Select value={itemId} onValueChange={setItemId}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {variantOptions.map((v) => (
-                <SelectItem key={v.variantId} value={v.variantId}>
-                  {v.label} · {v.size}
+              {itemOptions.map((it) => (
+                <SelectItem key={it.itemId} value={it.itemId}>
+                  {it.label}
                 </SelectItem>
               ))}
             </SelectContent>

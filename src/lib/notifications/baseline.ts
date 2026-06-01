@@ -4,8 +4,6 @@ import {
   supplyRouteLines,
   storeTransfers,
   storeTransferLines,
-  storeStock,
-  variants,
 } from '#/db/schema'
 import { and, desc, eq, sql } from 'drizzle-orm'
 
@@ -14,21 +12,20 @@ export interface BaselineResult {
   sampleCount: 0 | 1 | 2 | 3
 }
 
-interface VariantKey {
+interface ItemKey {
   /**
-   * Variant the baseline is computed for. Supply-route tables still carry
-   * `(color_id, size)` (renamed from `(product_color_id, size)` in #6);
-   * stock tables key on `variant_id` directly (#4). Joins resolve both
-   * shapes via the variants table.
+   * Plan 2c: baselines are item-keyed. Supply route lines and transfer
+   * lines both carry `item_id` directly after the variant-flexibility
+   * rollout, so joins through the variant table are no longer needed.
    */
-  variantId: string
+  itemId: string
 }
 
 type Db = typeof defaultDb
 
 export async function computeStoreBaseline(
   db: Db,
-  args: { storeId: string } & VariantKey,
+  args: { storeId: string } & ItemKey,
 ): Promise<BaselineResult> {
   const rows = await db
     .select({ qty: storeReceivings.quantityReceived })
@@ -37,17 +34,10 @@ export async function computeStoreBaseline(
       supplyRouteLines,
       eq(storeReceivings.supplyRouteLineId, supplyRouteLines.id),
     )
-    .innerJoin(
-      variants,
-      and(
-        eq(variants.colorId, supplyRouteLines.colorId),
-        eq(variants.size, supplyRouteLines.size),
-      ),
-    )
     .where(
       and(
         eq(storeReceivings.storeId, args.storeId),
-        eq(variants.id, args.variantId),
+        eq(supplyRouteLines.itemId, args.itemId),
       ),
     )
     .orderBy(desc(storeReceivings.receivedDate))
@@ -58,7 +48,7 @@ export async function computeStoreBaseline(
 
 export async function computeShopBaseline(
   db: Db,
-  args: { shopId: string } & VariantKey,
+  args: { shopId: string } & ItemKey,
 ): Promise<BaselineResult> {
   const rows = await db
     .select({
@@ -69,12 +59,10 @@ export async function computeShopBaseline(
       storeTransfers,
       eq(storeTransferLines.storeTransferId, storeTransfers.id),
     )
-    .innerJoin(storeStock, eq(storeTransferLines.storeStockId, storeStock.id))
-    .innerJoin(variants, eq(variants.id, storeStock.variantId))
     .where(
       and(
         eq(storeTransfers.shopId, args.shopId),
-        eq(variants.id, args.variantId),
+        eq(storeTransferLines.itemId, args.itemId),
       ),
     )
     .orderBy(desc(storeTransferLines.createdAt))

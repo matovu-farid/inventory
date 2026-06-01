@@ -150,13 +150,13 @@ async function cleanup() {
   await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
   await db
     .delete(notificationThresholdOverrides)
-    .where(eq(notificationThresholdOverrides.variantId, variantId()))
+    .where(eq(notificationThresholdOverrides.itemId, itemId()))
   await db
     .delete(lowStockAlerts)
-    .where(eq(lowStockAlerts.variantId, variantId()))
+    .where(eq(lowStockAlerts.itemId, itemId()))
   await db
     .delete(restockRequisitions)
-    .where(eq(restockRequisitions.variantId, variantId()))
+    .where(eq(restockRequisitions.itemId, itemId()))
   await db.delete(storeReceivings).where(eq(storeReceivings.storeId, storeId()))
   await db
     .delete(supplyRouteLines)
@@ -182,13 +182,13 @@ afterAll(cleanup)
 beforeEach(async () => {
   await db
     .delete(lowStockAlerts)
-    .where(eq(lowStockAlerts.variantId, variantId()))
+    .where(eq(lowStockAlerts.itemId, itemId()))
   await db
     .delete(restockRequisitions)
-    .where(eq(restockRequisitions.variantId, variantId()))
+    .where(eq(restockRequisitions.itemId, itemId()))
   await db
     .delete(notificationThresholdOverrides)
-    .where(eq(notificationThresholdOverrides.variantId, variantId()))
+    .where(eq(notificationThresholdOverrides.itemId, itemId()))
   await db.delete(storeStock).where(eq(storeStock.storeId, storeId()))
   await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
 })
@@ -220,7 +220,7 @@ async function ourStoreAlerts() {
     .from(lowStockAlerts)
     .where(
       and(
-        eq(lowStockAlerts.variantId, variantId()),
+        eq(lowStockAlerts.itemId, itemId()),
         eq(lowStockAlerts.locationId, storeId()),
       ),
     )
@@ -233,7 +233,7 @@ async function ourShopAlerts() {
     .from(lowStockAlerts)
     .where(
       and(
-        eq(lowStockAlerts.variantId, variantId()),
+        eq(lowStockAlerts.itemId, itemId()),
         eq(lowStockAlerts.locationId, shopId()),
       ),
     )
@@ -312,6 +312,7 @@ describe('runThresholdChecksInternal', () => {
   it('respects a variant-specific units override that bypasses percent rule', async () => {
     await db.insert(notificationThresholdOverrides).values({
       scope: 'store',
+      itemId: itemId(),
       variantId: variantId(),
       shopId: null,
       mode: 'units',
@@ -331,6 +332,7 @@ describe('runThresholdChecksInternal', () => {
     // Add a units override so the rule fires.
     await db.insert(notificationThresholdOverrides).values({
       scope: 'shop',
+      itemId: itemId(),
       variantId: variantId(),
       shopId: null,
       mode: 'units',
@@ -346,7 +348,7 @@ describe('runThresholdChecksInternal', () => {
     const reqs = await db
       .select()
       .from(restockRequisitions)
-      .where(eq(restockRequisitions.variantId, variantId()))
+      .where(eq(restockRequisitions.itemId, itemId()))
     expect(reqs).toHaveLength(0)
   })
 })

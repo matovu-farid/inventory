@@ -135,18 +135,14 @@ export const listItemColorsForOverrides = createServerFn().handler(
 )
 
 /**
- * Returns every variant (item × color × size) with enough catalog data to
- * render an article + color + size label.  Used by the notification
- * threshold-override picker now that overrides are keyed by `variant_id`.
+ * Plan 2c: notification threshold overrides are keyed by item_id, so the
+ * override picker lists items, not variants.
  */
-export const listVariantsForOverrides = createServerFn().handler(async () => {
+export const listItemsForOverrides = createServerFn().handler(async () => {
   const session = await requireSession()
   requireRole(session, ['admin', 'supervisor'])
-  return db.query.variants.findMany({
-    with: {
-      item: true,
-      color: true,
-    },
-    orderBy: (v, { asc }) => [asc(v.itemId), asc(v.colorId), asc(v.size)],
+  return db.query.items.findMany({
+    columns: { id: true, articleNumber: true, name: true },
+    orderBy: (i, { asc }) => [asc(i.articleNumber)],
   })
 })

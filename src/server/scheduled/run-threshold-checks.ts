@@ -7,8 +7,6 @@ import {
   restockRequisitions,
   shopStock,
   storeStock,
-  variants,
-  itemColors,
   items,
   shops,
 } from '#/db/schema'
@@ -22,7 +20,6 @@ import {
   computeStoreBaseline,
 } from '#/lib/notifications/baseline'
 import { isBelowThreshold } from '#/lib/notifications/check'
-import { formatItemLabel } from '#/lib/items'
 import { emitToRoles } from '#/lib/notifications/emit'
 import type { Defaults, OverrideRow, Rule } from '#/lib/notifications/types'
 import type { Role } from '#/lib/roles'
@@ -94,7 +91,7 @@ async function loadOverrides(db: Db): Promise<OverrideRow[]> {
   const rows = await db.select().from(notificationThresholdOverrides)
   return rows.map((r) => ({
     scope: r.scope,
-    variantId: r.variantId,
+    itemId: r.itemId,
     shopId: r.shopId,
     rule: { mode: r.mode, value: Number(r.value) },
   }))
@@ -107,42 +104,41 @@ async function processShopStock(
   maps: ReturnType<typeof buildOverrideMaps>,
   summary: CheckSummary,
 ) {
-  // shop_stock keys on variant_id directly (#4). Join through variants to
-  // collect the labels (item article number, color, size) needed for alert
-  // copy and threshold-override lookups.
+  // Plan 2c: aggregate shop_stock by (shop_id, item_id). Unresolved +
+  // variant lots all roll up to the item total.
   const rows = await db
     .select({
-      stockId: shopStock.id,
       shopId: shopStock.shopId,
-      size: variants.size,
-      quantityOnHand: shopStock.quantityOnHand,
-      variantId: variants.id,
+      itemId: shopStock.itemId,
+      totalQty: sql<number>`SUM(${shopStock.quantityOnHand})::int`,
       articleNumber: items.articleNumber,
-      colorName: itemColors.colorName,
+      itemName: items.name,
       shopName: shops.name,
     })
     .from(shopStock)
-    .innerJoin(variants, eq(variants.id, shopStock.variantId))
-    .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
-    .innerJoin(items, eq(items.id, itemColors.itemId))
+    .innerJoin(items, eq(items.id, shopStock.itemId))
     .innerJoin(shops, eq(shops.id, shopStock.shopId))
+    .groupBy(
+      shopStock.shopId,
+      shopStock.itemId,
+      items.articleNumber,
+      items.name,
+      shops.name,
+    )
+
   for (const row of rows) {
     try {
       const rule = resolveShopRule(
         row.shopId,
-        { variantId: row.variantId },
+        { itemId: row.itemId },
         maps,
         defaults,
       )
       const baseline = await computeShopBaseline(db, {
         shopId: row.shopId,
-        variantId: row.variantId,
+        itemId: row.itemId,
       })
-      const result = isBelowThreshold(
-        row.quantityOnHand,
-        baseline.baseline,
-        rule,
-      )
+      const result = isBelowThreshold(row.totalQty, baseline.baseline, rule)
       if (
         result.reason === 'no_baseline_for_percent' ||
         result.reason === 'zero_baseline'
@@ -151,22 +147,19 @@ async function processShopStock(
       }
       await reconcileShopAlert(db, now, {
         shopId: row.shopId,
-        variantId: row.variantId,
+        itemId: row.itemId,
         below: result.below,
         rule,
         baseline: baseline.baseline ?? 0,
-        quantityOnHand: row.quantityOnHand,
-        itemLabel: formatItemLabel(
-          row.articleNumber,
-          row.colorName,
-          row.size,
-        ),
+        quantityOnHand: row.totalQty,
+        itemLabel: `${row.articleNumber} ${row.itemName}`,
         shopName: row.shopName,
         summary,
       })
     } catch (error) {
       console.error('[runThresholdChecks] shop row failed', {
-        shopStockId: row.stockId,
+        shopId: row.shopId,
+        itemId: row.itemId,
         error,
       })
     }
@@ -182,58 +175,54 @@ async function processStoreStock(
 ) {
   const rows = await db
     .select({
-      stockId: storeStock.id,
       storeId: storeStock.storeId,
-      size: variants.size,
-      quantityOnHand: storeStock.quantityOnHand,
-      variantId: variants.id,
+      itemId: storeStock.itemId,
+      totalQty: sql<number>`SUM(${storeStock.quantityOnHand})::int`,
       articleNumber: items.articleNumber,
-      colorName: itemColors.colorName,
+      itemName: items.name,
     })
     .from(storeStock)
-    .innerJoin(variants, eq(variants.id, storeStock.variantId))
-    .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
-    .innerJoin(items, eq(items.id, itemColors.itemId))
+    .innerJoin(items, eq(items.id, storeStock.itemId))
+    .groupBy(
+      storeStock.storeId,
+      storeStock.itemId,
+      items.articleNumber,
+      items.name,
+    )
+
   for (const row of rows) {
     try {
       const rule = resolveStoreRule(
-        { variantId: row.variantId },
+        { itemId: row.itemId },
         maps,
         defaults,
       )
       const baseline = await computeStoreBaseline(db, {
         storeId: row.storeId,
-        variantId: row.variantId,
+        itemId: row.itemId,
       })
-      const result = isBelowThreshold(
-        row.quantityOnHand,
-        baseline.baseline,
-        rule,
-      )
+      const result = isBelowThreshold(row.totalQty, baseline.baseline, rule)
       if (
         result.reason === 'no_baseline_for_percent' ||
         result.reason === 'zero_baseline'
       ) {
         summary.skippedNoBaseline++
       }
-      const itemLabel = formatItemLabel(
-        row.articleNumber,
-        row.colorName,
-        row.size,
-      )
+      const itemLabel = `${row.articleNumber} ${row.itemName}`
       await reconcileStoreAlert(db, now, {
         storeId: row.storeId,
-        variantId: row.variantId,
+        itemId: row.itemId,
         below: result.below,
         rule,
         baseline: baseline.baseline ?? 0,
-        quantityOnHand: row.quantityOnHand,
+        quantityOnHand: row.totalQty,
         itemLabel,
         summary,
       })
     } catch (error) {
       console.error('[runThresholdChecks] store row failed', {
-        storeStockId: row.stockId,
+        storeId: row.storeId,
+        itemId: row.itemId,
         error,
       })
     }
@@ -242,7 +231,7 @@ async function processStoreStock(
 
 interface ShopReconcileArgs {
   shopId: string
-  variantId: string
+  itemId: string
   below: boolean
   rule: Rule
   baseline: number
@@ -261,7 +250,7 @@ async function reconcileShopAlert(db: Db, now: Date, args: ShopReconcileArgs) {
         and(
           eq(lowStockAlerts.scope, 'shop'),
           eq(lowStockAlerts.locationId, args.shopId),
-          eq(lowStockAlerts.variantId, args.variantId),
+          eq(lowStockAlerts.itemId, args.itemId),
           eq(lowStockAlerts.status, 'open'),
         ),
       )
@@ -292,7 +281,7 @@ async function openShopAlert(
         .values({
           scope: 'shop',
           locationId: args.shopId,
-          variantId: args.variantId,
+          itemId: args.itemId,
           status: 'open',
           baselineQuantity: Math.round(args.baseline),
           thresholdSnapshot: args.rule,
@@ -302,13 +291,13 @@ async function openShopAlert(
           target: [
             lowStockAlerts.scope,
             lowStockAlerts.locationId,
-            lowStockAlerts.variantId,
+            lowStockAlerts.itemId,
           ],
           where: sql`${lowStockAlerts.status} = 'open'`,
         })
         .returning()
     ).at(0)
-    if (!alert) return // raced — another pass already opened it
+    if (!alert) return
     inserted = true
     const notification = await emitToRoles(tx, {
       kind: 'low_stock_open',
@@ -330,7 +319,7 @@ async function openShopAlert(
 
 interface StoreReconcileArgs {
   storeId: string
-  variantId: string
+  itemId: string
   below: boolean
   rule: Rule
   baseline: number
@@ -352,7 +341,7 @@ async function reconcileStoreAlert(
         and(
           eq(lowStockAlerts.scope, 'store'),
           eq(lowStockAlerts.locationId, args.storeId),
-          eq(lowStockAlerts.variantId, args.variantId),
+          eq(lowStockAlerts.itemId, args.itemId),
           eq(lowStockAlerts.status, 'open'),
         ),
       )
@@ -377,7 +366,7 @@ async function reconcileStoreAlert(
         .where(
           and(
             eq(restockRequisitions.storeId, args.storeId),
-            eq(restockRequisitions.variantId, args.variantId),
+            eq(restockRequisitions.itemId, args.itemId),
             inArray(restockRequisitions.status, ['open', 'planned']),
           ),
         )
@@ -404,7 +393,7 @@ async function openStoreAlertAndRequisition(
         .values({
           scope: 'store',
           locationId: args.storeId,
-          variantId: args.variantId,
+          itemId: args.itemId,
           status: 'open',
           baselineQuantity: Math.round(args.baseline),
           thresholdSnapshot: args.rule,
@@ -414,7 +403,7 @@ async function openStoreAlertAndRequisition(
           target: [
             lowStockAlerts.scope,
             lowStockAlerts.locationId,
-            lowStockAlerts.variantId,
+            lowStockAlerts.itemId,
           ],
           where: sql`${lowStockAlerts.status} = 'open'`,
         })
@@ -428,14 +417,14 @@ async function openStoreAlertAndRequisition(
       .insert(restockRequisitions)
       .values({
         storeId: args.storeId,
-        variantId: args.variantId,
+        itemId: args.itemId,
         suggestedQuantity,
         baselineQuantity: Math.round(args.baseline),
         quantityAtOpen: args.quantityOnHand,
         status: 'open',
       })
       .onConflictDoNothing({
-        target: [restockRequisitions.storeId, restockRequisitions.variantId],
+        target: [restockRequisitions.storeId, restockRequisitions.itemId],
         where: sql`${restockRequisitions.status} = 'open'`,
       })
 

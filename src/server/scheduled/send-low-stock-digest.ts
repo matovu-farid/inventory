@@ -2,7 +2,6 @@ import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import type { db as defaultDb } from '#/db'
 import { lowStockAlerts, shops, stores, user } from '#/db/schema'
 import { sendLowStockDigest } from '#/lib/email'
-import { formatItemLabel } from '#/lib/items'
 import { severityForAlert, severityRank } from '#/lib/notifications/severity'
 import { env } from '#/env'
 import type { LowStockDigestData } from '#/lib/emails'
@@ -22,19 +21,11 @@ export async function sendDailyLowStockDigestInternal(
   db: Db,
   now: Date,
 ): Promise<DigestSummary> {
-  // Hydrate `variant → item / color` so the digest can render a human
-  // product label per alert (#5 swapped (product_color_id, size) for
-  // variant_id on low_stock_alerts).
+  // Plan 2c: alerts are item-keyed. Hydrate the item directly so the
+  // digest can render `articleNumber name` per alert.
   const alerts = await db.query.lowStockAlerts.findMany({
     where: eq(lowStockAlerts.status, 'open'),
-    with: {
-      variant: {
-        with: {
-          item: true,
-          color: true,
-        },
-      },
-    },
+    with: { item: true },
   })
 
   if (alerts.length === 0) {
@@ -72,11 +63,7 @@ export async function sendDailyLowStockDigestInternal(
       return {
         scope: a.scope,
         locationName: locationName.get(a.locationId) ?? '(unknown)',
-        itemLabel: formatItemLabel(
-          a.variant.item.articleNumber,
-          a.variant.color.colorName,
-          a.variant.size,
-        ),
+        itemLabel: `${a.item.articleNumber} ${a.item.name}`,
         quantityAtOpen: qoh,
         baseline,
         rule,

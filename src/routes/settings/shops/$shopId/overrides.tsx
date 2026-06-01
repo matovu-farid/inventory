@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '#/components/ui/card'
 import { listOverrides } from '#/server/functions/notifications/thresholds'
-import { listVariantsForOverrides } from '#/server/functions/items/colors'
+import { listItemsForOverrides } from '#/server/functions/items/colors'
 import { getShop } from '#/server/functions/shop/list-shops'
 import { OverrideTable } from '#/components/notifications/override-table'
 
@@ -16,23 +16,22 @@ export const Route = createFileRoute('/settings/shops/$shopId/overrides')({
   beforeLoad: ({ context }) =>
     requireUiPermission(context, 'notifications.manage'),
   loader: async ({ params }) => {
-    const [shop, overrides, variantsRaw] = await Promise.all([
+    const [shop, overrides, itemsRaw] = await Promise.all([
       getShop({ data: { id: params.shopId } }),
       listOverrides({ data: { shopId: params.shopId } }),
-      listVariantsForOverrides(),
+      listItemsForOverrides(),
     ])
-    const variantOptions = variantsRaw.map((v) => ({
-      variantId: v.id,
-      label: `${v.item.articleNumber} · ${v.color.colorName}`,
-      size: v.size,
+    const itemOptions = itemsRaw.map((it) => ({
+      itemId: it.id,
+      label: `${it.articleNumber} ${it.name}`,
     }))
-    return { shop, overrides, variantOptions }
+    return { shop, overrides, itemOptions }
   },
   component: PerShopOverridesPage,
 })
 
 function PerShopOverridesPage() {
-  const { shop, overrides, variantOptions } = Route.useLoaderData()
+  const { shop, overrides, itemOptions } = Route.useLoaderData()
   const router = useRouter()
   return (
     <div className="container max-w-3xl py-8 space-y-4">
@@ -56,7 +55,7 @@ function PerShopOverridesPage() {
           <OverrideTable
             rows={overrides}
             showShopColumn={true}
-            variantOptions={variantOptions}
+            itemOptions={itemOptions}
             shopOptions={[{ id: shop.id, name: shop.name }]}
             defaultShopId={shop.id}
             onChanged={() => {

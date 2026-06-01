@@ -75,6 +75,8 @@ function supplierId(): string {
 const SIZE = 'M'
 
 async function seed() {
+  // A previous run may have left the user behind if cleanup threw mid-way.
+  await db.delete(userTable).where(eq(userTable.id, FIXTURE.user))
   await db.insert(userTable).values({
     id: FIXTURE.user,
     name: 'Notif Variant Tester',
@@ -160,13 +162,13 @@ async function cleanup() {
   await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
   await db
     .delete(notificationThresholdOverrides)
-    .where(eq(notificationThresholdOverrides.variantId, variantId()))
+    .where(eq(notificationThresholdOverrides.itemId, itemId()))
   await db
     .delete(lowStockAlerts)
-    .where(eq(lowStockAlerts.variantId, variantId()))
+    .where(eq(lowStockAlerts.itemId, itemId()))
   await db
     .delete(restockRequisitions)
-    .where(eq(restockRequisitions.variantId, variantId()))
+    .where(eq(restockRequisitions.itemId, itemId()))
   await db.delete(storeReceivings).where(eq(storeReceivings.storeId, storeId()))
   await db
     .delete(supplyRouteLines)
@@ -191,13 +193,13 @@ afterAll(cleanup)
 beforeEach(async () => {
   await db
     .delete(lowStockAlerts)
-    .where(eq(lowStockAlerts.variantId, variantId()))
+    .where(eq(lowStockAlerts.itemId, itemId()))
   await db
     .delete(restockRequisitions)
-    .where(eq(restockRequisitions.variantId, variantId()))
+    .where(eq(restockRequisitions.itemId, itemId()))
   await db
     .delete(notificationThresholdOverrides)
-    .where(eq(notificationThresholdOverrides.variantId, variantId()))
+    .where(eq(notificationThresholdOverrides.itemId, itemId()))
   await db.delete(storeStock).where(eq(storeStock.storeId, storeId()))
   await db.delete(shopStock).where(eq(shopStock.shopId, shopId()))
 })
@@ -218,7 +220,7 @@ async function ourStoreAlerts() {
     .from(lowStockAlerts)
     .where(
       and(
-        eq(lowStockAlerts.variantId, variantId()),
+        eq(lowStockAlerts.itemId, itemId()),
         eq(lowStockAlerts.locationId, storeId()),
       ),
     )
@@ -230,13 +232,14 @@ describe('notification tables keyed by variant_id', () => {
       .insert(notificationThresholdOverrides)
       .values({
         scope: 'store',
+      itemId: itemId(),
         variantId: variantId(),
         shopId: null,
         mode: 'units',
         value: '100',
       })
       .returning()
-    expect(row.variantId).toBe(variantId())
+    expect(row.itemId).toBe(itemId())
     // Confirm the old composite columns are gone from the type — if they
     // existed we'd be able to read them on the row.
     expect((row as Record<string, unknown>).itemColorId).toBeUndefined()
@@ -249,7 +252,7 @@ describe('notification tables keyed by variant_id', () => {
 
     let alerts = await ourStoreAlerts()
     expect(alerts).toHaveLength(1)
-    expect(alerts[0].variantId).toBe(variantId())
+    expect(alerts[0].itemId).toBe(itemId())
     expect(alerts[0].status).toBe('open')
 
     const reqs = await db
@@ -257,7 +260,7 @@ describe('notification tables keyed by variant_id', () => {
       .from(restockRequisitions)
       .where(eq(restockRequisitions.storeId, storeId()))
     expect(reqs).toHaveLength(1)
-    expect(reqs[0].variantId).toBe(variantId())
+    expect(reqs[0].itemId).toBe(itemId())
     expect(reqs[0].status).toBe('open')
 
     // recover → resolves alert + fulfils requisition
@@ -296,7 +299,7 @@ describe('notification tables keyed by variant_id', () => {
 
     const alerts = await ourStoreAlerts()
     expect(alerts).toHaveLength(2)
-    expect(alerts.every((a) => a.variantId === variantId())).toBe(true)
+    expect(alerts.every((a) => a.itemId === itemId())).toBe(true)
     const open = alerts.filter((a) => a.status === 'open')
     expect(open).toHaveLength(1)
   })
@@ -304,6 +307,7 @@ describe('notification tables keyed by variant_id', () => {
   it('respects a variant-keyed units override', async () => {
     await db.insert(notificationThresholdOverrides).values({
       scope: 'store',
+      itemId: itemId(),
       variantId: variantId(),
       shopId: null,
       mode: 'units',
@@ -314,7 +318,7 @@ describe('notification tables keyed by variant_id', () => {
 
     const alerts = await ourStoreAlerts()
     expect(alerts).toHaveLength(1)
-    expect(alerts[0].variantId).toBe(variantId())
+    expect(alerts[0].itemId).toBe(itemId())
     expect(alerts[0].status).toBe('open')
   })
 })

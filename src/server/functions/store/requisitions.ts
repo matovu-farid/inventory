@@ -9,12 +9,10 @@ import {
 } from '#/db/schema'
 import { requireSession } from '#/server/middleware/auth'
 import { requireRole } from '#/server/middleware/rbac'
-import { formatItemLabel } from '#/lib/items'
 
 /**
- * Lists open restock requisitions. Each requisition is keyed by `variant_id`
- * (per #5); we hydrate item + color + size from the variant relation so
- * downstream UI can render a human-readable product label.
+ * Plan 2c: requisitions are item-keyed. The UI renders an item label
+ * (article + name); no variant breakdown.
  */
 export const listOpenRequisitions = createServerFn().handler(async () => {
   const session = await requireSession()
@@ -23,25 +21,15 @@ export const listOpenRequisitions = createServerFn().handler(async () => {
     where: eq(restockRequisitions.status, 'open'),
     with: {
       store: true,
-      variant: {
-        with: {
-          item: true,
-          color: true,
-        },
-      },
+      item: true,
     },
   })
   return rows.map((r) => ({
     id: r.id,
     storeId: r.storeId,
     storeName: r.store.name,
-    variantId: r.variantId,
-    size: r.variant.size,
-    itemLabel: formatItemLabel(
-      r.variant.item.articleNumber,
-      r.variant.color.colorName,
-      r.variant.size,
-    ),
+    itemId: r.itemId,
+    itemLabel: `${r.item.articleNumber} ${r.item.name}`,
     suggestedQuantity: r.suggestedQuantity,
     baseline: r.baselineQuantity,
     quantityAtOpen: r.quantityAtOpen,
@@ -56,13 +44,12 @@ const promoteInput = z.object({
 })
 
 /**
- * Promotes a set of open restock requisitions into supply-route line items.
+ * Promotes a set of open restock requisitions into supply-route lines.
  *
- * Requisitions are addressed by `variant_id` (per #5); the supply-route
- * `*_items` tables now carry `(item_id, color_id, size)` after the column
- * rename in #6 (the table rename to `*_lines` lives in Phase 2 / #8). We
- * project the variant back to its color + size + parent item to fill in
- * those columns.
+ * Plan 2c: requisitions are item-keyed, so the resulting supply_route_lines
+ * are also unresolved (no color/size). The receiving flow already accepts
+ * unresolved lines (Plan 1 receiveGoods), and they can be split into
+ * variants pre- or post-receipt.
  */
 export const promoteRequisitionsToRoute = createServerFn()
   .inputValidator(promoteInput)
@@ -71,7 +58,6 @@ export const promoteRequisitionsToRoute = createServerFn()
     requireRole(session, ['admin'])
 
     return db.transaction(async (tx) => {
-      // Lock target requisitions
       const target = await tx
         .select()
         .from(restockRequisitions)
@@ -95,29 +81,15 @@ export const promoteRequisitionsToRoute = createServerFn()
         throw new Error("Supply route must be in 'planning' status.")
       }
 
-      // Resolve each requisition's variant_id back to (item_id, color_id, size)
-      // to fill in supply_route_lines's catalog FKs.
-      const variantIds = stillOpen.map((r) => r.variantId)
-      const variantRows = await tx.query.variants.findMany({
-        where: (v, ops) => ops.inArray(v.id, variantIds),
-      })
-      const variantById = new Map(variantRows.map((v) => [v.id, v]))
-
       for (const req of stillOpen) {
-        const variant = variantById.get(req.variantId)
-        if (!variant) {
-          throw new Error(
-            `Variant ${req.variantId} for requisition ${req.id} not found.`,
-          )
-        }
-        const [item] = await tx
+        const [line] = await tx
           .insert(supplyRouteLines)
           .values({
             supplyRouteId: data.supplyRouteId,
             supplierId: data.supplierId,
-            colorId: variant.colorId,
-            itemId: variant.itemId,
-            size: variant.size,
+            itemId: req.itemId,
+            colorId: null,
+            size: null,
             quantity: req.suggestedQuantity,
             unitPriceForeign: '0',
             foreignCurrency: 'RMB',
@@ -127,7 +99,7 @@ export const promoteRequisitionsToRoute = createServerFn()
           .returning()
         await tx
           .update(restockRequisitions)
-          .set({ status: 'planned', supplyRouteLineId: item.id })
+          .set({ status: 'planned', supplyRouteLineId: line.id })
           .where(eq(restockRequisitions.id, req.id))
       }
       return { promoted: stillOpen.length }

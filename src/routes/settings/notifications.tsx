@@ -19,30 +19,28 @@ import { runThresholdChecksNow } from '#/server/functions/notifications/notifica
 import { ThresholdField } from '#/components/notifications/threshold-form'
 import type { ThresholdValue } from '#/components/notifications/threshold-form'
 import { OverrideTable } from '#/components/notifications/override-table'
-import { listVariantsForOverrides } from '#/server/functions/items/colors'
+import { listItemsForOverrides } from '#/server/functions/items/colors'
 import { listShopsForReports } from '#/server/functions/shop/list-shops'
 
 export const Route = createFileRoute('/settings/notifications')({
   beforeLoad: ({ context }) =>
     requireUiPermission(context, 'notifications.manage'),
   loader: async () => {
-    const [thresholds, allOverrides, variantsRaw, shops] = await Promise.all([
+    const [thresholds, allOverrides, itemsRaw, shops] = await Promise.all([
       getThresholds(),
       listOverrides({ data: {} }),
-      listVariantsForOverrides(),
+      listItemsForOverrides(),
       listShopsForReports(),
     ])
 
-    // Product-scope overrides: shopId is null (no shop filter)
     const productOverrides = allOverrides.filter((o) => o.shopId === null)
 
-    const variantOptions = variantsRaw.map((v) => ({
-      variantId: v.id,
-      label: `${v.item.articleNumber} · ${v.color.colorName}`,
-      size: v.size,
+    const itemOptions = itemsRaw.map((it) => ({
+      itemId: it.id,
+      label: `${it.articleNumber} ${it.name}`,
     }))
 
-    return { thresholds, productOverrides, variantOptions, shops }
+    return { thresholds, productOverrides, itemOptions, shops }
   },
   component: NotificationsSettingsPage,
 })
@@ -185,7 +183,7 @@ function NotificationsSettingsPage() {
           <OverrideTable
             rows={loaderData.productOverrides}
             showShopColumn={false}
-            variantOptions={loaderData.variantOptions}
+            itemOptions={loaderData.itemOptions}
             shopOptions={loaderData.shops}
             onChanged={() => {
               void router.invalidate()
