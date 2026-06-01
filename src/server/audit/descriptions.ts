@@ -115,7 +115,7 @@ export function renderAuditDescription(
       const remainingUnresolved = ctx.remainingUnresolved ?? 0
       const variantWord = variantCount === 1 ? "variant" : "variants"
       const tail =
-        remainingUnresolved > 0 ? `, ${remainingUnresolved} left unresolved` : ""
+        remainingUnresolved > 0 ? `, ${remainingUnresolved} still to label` : ""
       return `${actor} specified ${specifiedTotal}× ${ctx.articleNumber ?? "(unknown)"} ${ctx.itemName ?? ""} into ${variantCount} ${variantWord}${tail}.`
     }
     default:

@@ -157,7 +157,7 @@ export function ReceiveTransferForm({
                           ? v.color.item.name
                           : item.storeStockItem.item.name}
                       </span>
-                      {v ? (
+                      {v && (
                         <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
                           <span
                             className="size-3 rounded-full border"
@@ -165,10 +165,6 @@ export function ReceiveTransferForm({
                             aria-hidden
                           />
                           {v.color.colorName} · {v.size}
-                        </span>
-                      ) : (
-                        <span className="text-xs italic text-muted-foreground">
-                          unresolved
                         </span>
                       )}
                     </div>
@@ -217,7 +213,7 @@ export function ReceiveTransferForm({
                 const v = item.storeStockItem.variant
                 const label = v
                   ? `${v.color.item.name} · ${v.color.colorName} · ${v.size}`
-                  : `${item.storeStockItem.item.name} (unresolved)`
+                  : item.storeStockItem.item.name
                 return (
                   <div key={item.id} className="space-y-2">
                     <div className="flex items-center justify-between">

@@ -81,7 +81,7 @@ export const startStockTake = createServerFn()
                 item.variant.color.colorName,
                 item.variant.size,
               )
-            : `${item.item.articleNumber} — ${item.item.name} (unresolved)`
+            : `${item.item.articleNumber} — ${item.item.name}`
           await tx.insert(stockTakeLines).values({
             stockTakeId: st.id,
             storeStockId: item.id,

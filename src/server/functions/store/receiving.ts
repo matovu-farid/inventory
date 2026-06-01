@@ -145,7 +145,7 @@ export const receiveGoods = createServerFn()
     const now = new Date()
     const receivedDate = data.receivedDate ?? now
 
-    if (receivedDate.getTime() > now.getTime()) {
+    if (formatDayKampala(receivedDate) > formatDayKampala(now)) {
       throw new Error("Receipt date can't be in the future.")
     }
 
@@ -265,7 +265,7 @@ export const receiveGoods = createServerFn()
               resolved.itemColor.colorName,
               resolved.size,
             )
-          : `${articleNumber} (unresolved)`
+          : articleNumber
 
         // One receipt per item — refuse if already received
         const prior = await tx.query.storeReceivings.findFirst({
@@ -473,7 +473,7 @@ export const getStoreStock = createServerFn().handler(async () => {
     with: {
       item: { with: { colors: true } },
       variant: { with: { color: true } },
-      supplyRouteLine: true,
+      supplyRouteLine: { with: { itemColor: true } },
     },
   })
 

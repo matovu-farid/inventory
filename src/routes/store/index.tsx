@@ -227,22 +227,26 @@ function ItemStockRow({
           <TableRow key={r.id} className="bg-muted/30">
             <TableCell />
             <TableCell className="pl-8 text-sm">
-              {r.variant ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <span
-                    className="inline-block size-3 rounded-full border"
-                    style={{ backgroundColor: r.variant.color.colorHex }}
-                    aria-hidden
-                  />
-                  {r.variant.color.colorName} · {r.variant.size}
-                </span>
-              ) : (
-                <em className="text-muted-foreground">Unresolved</em>
-              )}
+              {(() => {
+                const color =
+                  r.variant?.color ?? r.supplyRouteLine?.itemColor ?? null
+                const size = r.variant?.size ?? null
+                if (!color) return null
+                return (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="inline-block size-3 rounded-full border"
+                      style={{ backgroundColor: color.colorHex }}
+                      aria-hidden
+                    />
+                    {color.colorName}
+                    {size ? ` · ${size}` : null}
+                  </span>
+                )
+              })()}
             </TableCell>
-            <TableCell className="text-sm text-muted-foreground">
-              {r.supplyRouteLine?.id.slice(0, 8) ?? "—"}
-            </TableCell>
+            <TableCell />
+
             <TableCell className="text-right font-mono">
               {r.quantityOnHand}
             </TableCell>
@@ -274,6 +278,7 @@ function ItemStockRow({
           itemName={group.item.name}
           available={specifyingRow.quantityOnHand}
           itemColors={group.item.colors}
+          fixedColor={specifyingRow.supplyRouteLine?.itemColor ?? null}
           onSuccess={() => {
             setSpecifying(null)
             onSpecified()

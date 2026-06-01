@@ -92,7 +92,7 @@ export const helpDict = {
   },
   'item.minSellPrice': {
     description:
-      "The lowest UGX price the shop is allowed to charge for this item. Applies to every variant and any unresolved (no-color/size) stock of this item. Cashiers selling below this price must record a reason.",
+      "The lowest UGX price the shop is allowed to charge for this item. Applies to every variant and any stock of this item that doesn't yet have a color/size set. Cashiers selling below this price must record a reason.",
     example: '12,500 UGX',
   },
   'item.lowStockThreshold': {
@@ -102,7 +102,7 @@ export const helpDict = {
   },
   'item.variantsOptional': {
     description:
-      "Colors and sizes are refinements. You can add them now, while receiving, or after items land in stock. Stock without variants is called 'unresolved'.",
+      "Colors and sizes are refinements. You can add them now, while receiving, or after items land in stock. Items without colors or sizes still count and sell — they just appear by article number.",
     example: 'Add later from this page or while receiving.',
   },
 
@@ -247,11 +247,6 @@ export const helpDict = {
   'col.qtyOnHand': {
     description:
       'Number of units currently available to sell at this location. Updates as items are received, transferred, or sold.',
-  },
-  'col.unresolved': {
-    description:
-      "Stock that hasn't been labelled with a specific color and size yet. Use the Specify button to break it into proper variants any time.",
-    example: '4 unresolved units of V-Neck',
   },
   'col.expected': {
     description:

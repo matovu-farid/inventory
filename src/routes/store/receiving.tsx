@@ -145,7 +145,10 @@ function ReceivingPage() {
             quantityReceived: receivedQtys[i.id] ?? i.quantity,
             discrepancyNotes: (discrepancyNotes[i.id] ?? "").trim() || undefined,
           })),
-          receivedDate: new Date(`${receivedDateInput}T12:00:00`),
+          receivedDate:
+            receivedDateInput === todayLocal
+              ? new Date()
+              : new Date(`${receivedDateInput}T12:00:00`),
         },
       })
       setDiscrepancyOpen(false)
@@ -206,8 +209,8 @@ function ReceivingPage() {
         {unresolvedCount > 0 && (
           <p className="text-sm text-muted-foreground">
             {unresolvedCount} item{unresolvedCount === 1 ? "" : "s"} on this route
-            {" "}have no color or size yet. You can receive as-is (they'll land as
-            {" "}<em>unresolved</em> stock) or use Split to assign variants now.
+            {" "}have no color or size yet. You can receive as-is and label them
+            later, or use Split to assign variants now.
           </p>
         )}
 
@@ -275,9 +278,7 @@ function ReceivingPage() {
                                 {item.itemColor.colorName}
                                 {item.size ? ` · ${item.size}` : " · —"}
                               </>
-                            ) : (
-                              <em>Unresolved</em>
-                            )}
+                            ) : null}
                           </span>
                         </div>
                       </TableCell>
@@ -366,9 +367,7 @@ function ReceivingPage() {
                               {item.itemColor.colorName}
                               {item.size ? ` · ${item.size}` : " · —"}
                             </>
-                          ) : (
-                            <em>Unresolved</em>
-                          )}
+                          ) : null}
                         </span>
                       </div>
                       <Badge variant="destructive">{missing} missing</Badge>

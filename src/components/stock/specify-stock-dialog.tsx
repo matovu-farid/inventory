@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Plus, Trash2 } from "lucide-react"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
 import { FieldLabel } from "#/components/ui/field-label"
-import { InfoTip } from "#/components/ui/info-tip"
 import {
   Dialog,
   DialogContent,
@@ -36,17 +35,6 @@ interface DraftLine {
 
 const DEFAULT_NEW_COLOR_HEX = "#888888"
 
-function makeEmptyLine(): DraftLine {
-  return {
-    key: crypto.randomUUID(),
-    colorId: null,
-    colorName: "",
-    colorHex: DEFAULT_NEW_COLOR_HEX,
-    size: "",
-    quantity: 0,
-  }
-}
-
 /**
  * Dialog for splitting an unresolved store_stock row into one or more
  * (color, size, quantity) lines. Backed by the {@link specifyStock} server fn
@@ -63,6 +51,7 @@ export function SpecifyStockDialog({
   itemName,
   available,
   itemColors,
+  fixedColor,
   onSuccess,
 }: {
   open: boolean
@@ -73,9 +62,22 @@ export function SpecifyStockDialog({
   itemName: string
   available: number
   itemColors: ReadonlyArray<ItemColor>
+  fixedColor?: ItemColor | null
   onSuccess: () => void
 }) {
-  const [lines, setLines] = useState<DraftLine[]>([makeEmptyLine()])
+  const makeEmptyLine = useCallback(
+    (): DraftLine => ({
+      key: crypto.randomUUID(),
+      colorId: fixedColor?.id ?? null,
+      colorName: fixedColor?.colorName ?? "",
+      colorHex: fixedColor?.colorHex ?? DEFAULT_NEW_COLOR_HEX,
+      size: "",
+      quantity: 0,
+    }),
+    [fixedColor?.id, fixedColor?.colorName, fixedColor?.colorHex],
+  )
+
+  const [lines, setLines] = useState<DraftLine[]>(() => [makeEmptyLine()])
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -201,13 +203,30 @@ export function SpecifyStockDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            Specify variants for {articleNumber} — {available} unresolved
+            {fixedColor
+              ? `Specify sizes for ${articleNumber} ${fixedColor.colorName} — ${available} units`
+              : `Specify variants for ${articleNumber} — ${available} units`}
           </DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          {itemName}. Add one row per (color, size) you want to label. You can
-          leave some quantity unresolved and specify it later.{" "}
-          <InfoTip term="col.unresolved" />
+        <p className="text-sm text-muted-foreground inline-flex flex-wrap items-center gap-1.5">
+          {fixedColor ? (
+            <>
+              <span>{itemName} ·</span>
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="inline-block size-3 rounded-full border"
+                  style={{ backgroundColor: fixedColor.colorHex }}
+                  aria-hidden
+                />
+                {fixedColor.colorName}
+              </span>
+              <span>· Add one row per size you want to label. You can label part of the quantity now and leave the rest for later.</span>
+            </>
+          ) : (
+            <span>
+              {itemName}. Add one row per (color, size) you want to label. You can label part of the quantity now and leave the rest for later.
+            </span>
+          )}
         </p>
 
         <div className="space-y-2">
@@ -218,27 +237,29 @@ export function SpecifyStockDialog({
                 key={l.key}
                 className="grid grid-cols-12 gap-2 items-end"
               >
-                <div className="col-span-5">
-                  <FieldLabel>Color</FieldLabel>
-                  <div className="flex items-center gap-2">
-                    <CreatableCombobox
-                      options={colorOptions}
-                      value={l.colorName}
-                      onChange={(next) => setColorName(l, next)}
-                      placeholder="Pick or create color"
-                      className="min-w-[12rem]"
-                    />
-                    {isNewColor && (
-                      <HexColorField
-                        value={l.colorHex}
-                        onChange={(hex) => updateLine(l.key, { colorHex: hex })}
-                        ariaLabel={`Pick hex for new color ${l.colorName}`}
-                        className="h-9 w-10 shrink-0"
+                {!fixedColor && (
+                  <div className="col-span-5">
+                    <FieldLabel>Color</FieldLabel>
+                    <div className="flex items-center gap-2">
+                      <CreatableCombobox
+                        options={colorOptions}
+                        value={l.colorName}
+                        onChange={(next) => setColorName(l, next)}
+                        placeholder="Pick or create color"
+                        className="min-w-[12rem]"
                       />
-                    )}
+                      {isNewColor && (
+                        <HexColorField
+                          value={l.colorHex}
+                          onChange={(hex) => updateLine(l.key, { colorHex: hex })}
+                          ariaLabel={`Pick hex for new color ${l.colorName}`}
+                          className="h-9 w-10 shrink-0"
+                        />
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="col-span-4">
+                )}
+                <div className={fixedColor ? "col-span-7" : "col-span-4"}>
                   <FieldLabel>Size</FieldLabel>
                   <Input
                     value={l.size}
@@ -248,7 +269,7 @@ export function SpecifyStockDialog({
                     placeholder="e.g. M"
                   />
                 </div>
-                <div className="col-span-2">
+                <div className={fixedColor ? "col-span-4" : "col-span-2"}>
                   <FieldLabel>Qty</FieldLabel>
                   <Input
                     type="number"
@@ -282,7 +303,7 @@ export function SpecifyStockDialog({
           })}
           <Button variant="outline" size="sm" onClick={addLine}>
             <Plus className="mr-1 h-3.5 w-3.5" />
-            Add variant
+            {fixedColor ? "Add size" : "Add variant"}
           </Button>
         </div>
 
@@ -296,7 +317,7 @@ export function SpecifyStockDialog({
           ) : (
             <span className="text-muted-foreground">
               <span className="font-mono">{remaining}</span> will stay
-              unresolved
+              as-is
             </span>
           )}
         </p>

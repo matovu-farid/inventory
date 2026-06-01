@@ -297,9 +297,7 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
                     {r.color.colorName} · {r.size}
                   </span>
                 ) : (
-                  <span className="text-xs text-muted-foreground">
-                    unresolved
-                  </span>
+                  <span className="text-xs text-muted-foreground">—</span>
                 )}
               </td>
               <td className="p-2 text-right tabular-nums">{r.qty}</td>

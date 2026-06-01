@@ -113,7 +113,7 @@ export const createTransfer = createServerFn()
         // Force the operator to Specify the lot before transferring.
         if (!stock.variant) {
           throw new Error(
-            `Stock for ${stock.item.articleNumber} is unresolved (no color/size yet). Specify the variant on the store stock page before transferring.`,
+            `Stock for ${stock.item.articleNumber} has no color or size set yet. Specify the variant on the store stock page before transferring.`,
           )
         }
         const itemLabel = formatItemLabel(
@@ -293,7 +293,7 @@ export const confirmTransferReceipt = createServerFn()
         const { variant, variantId } = ti.storeStockItem
         if (!variant || !variantId) {
           throw new Error(
-            `Transfer item ${ti.id} references unresolved stock — this should be impossible. Refusing to receive.`,
+            `Transfer item ${ti.id} references stock without a color/size — this should be impossible. Refusing to receive.`,
           )
         }
 
