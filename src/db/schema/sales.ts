@@ -14,6 +14,8 @@ import { user } from "./auth"
 import { shops, shopStock } from "./shops"
 import { bankAccounts } from "./bank-accounts"
 import { supplyRouteLines } from "./supply-routes"
+import { items } from "./items"
+import { variants } from "./variants"
 
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "bank", "credit"])
 
@@ -70,9 +72,21 @@ export const shopSaleLines = pgTable(
     shopSaleId: uuid("shop_sale_id")
       .notNull()
       .references(() => shopSales.id, { onDelete: "cascade" }),
-    shopStockId: uuid("shop_stock_id")
+    // Item-level identity (Plan 2b). Lot breakdown lives in
+    // shop_sale_line_allocations — one row per source shop_stock lot
+    // drained by this line.
+    itemId: uuid("item_id")
       .notNull()
-      .references(() => shopStock.id, { onDelete: "restrict" }),
+      .references(() => items.id, { onDelete: "restrict" }),
+    variantId: uuid("variant_id").references(() => variants.id, {
+      onDelete: "restrict",
+    }),
+    // Nullable now — item-level sales reference one or many lots via
+    // allocations. Retained for backwards compat with audit/article-number
+    // resolvers that still walk this column (Plan 2c will sweep).
+    shopStockId: uuid("shop_stock_id").references(() => shopStock.id, {
+      onDelete: "restrict",
+    }),
     quantity: integer("quantity").notNull(),
     unitPriceUgx: numeric("unit_price_ugx", { precision: 15, scale: 2 }).notNull(),
     minimumPriceUgx: numeric("minimum_price_ugx", { precision: 15, scale: 2 }).notNull(),
@@ -81,7 +95,10 @@ export const shopSaleLines = pgTable(
     totalPriceUgx: numeric("total_price_ugx", { precision: 15, scale: 2 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("idx_ssl_sale").on(table.shopSaleId)],
+  (table) => [
+    index("idx_ssl_sale").on(table.shopSaleId),
+    index("idx_ssl_item").on(table.itemId),
+  ],
 )
 
 // Relations
@@ -111,6 +128,14 @@ export const shopSaleLineRelations = relations(shopSaleLines, ({ one, many }) =>
   shopSale: one(shopSales, {
     fields: [shopSaleLines.shopSaleId],
     references: [shopSales.id],
+  }),
+  item: one(items, {
+    fields: [shopSaleLines.itemId],
+    references: [items.id],
+  }),
+  variant: one(variants, {
+    fields: [shopSaleLines.variantId],
+    references: [variants.id],
   }),
   shopStockItem: one(shopStock, {
     fields: [shopSaleLines.shopStockId],

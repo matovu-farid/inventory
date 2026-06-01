@@ -26,6 +26,8 @@ let runId: string
 let shopId: string
 let userId: string
 let stockId: string
+let itemId: string
+let variantId: string
 
 async function seed() {
   runId = `sr-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
@@ -66,6 +68,8 @@ async function seed() {
       .values({ itemId: p.id, colorId: pc.id, size: "M" })
       .returning()
   )[0]
+  itemId = p.id
+  variantId = v.id
   stockId = (
     await db
       .insert(shopStock)
@@ -115,6 +119,8 @@ async function addSale(method: "cash" | "bank" | "credit", total: string) {
     .returning()
   await db.insert(shopSaleLines).values({
     shopSaleId: sale.id,
+    itemId,
+    variantId,
     shopStockId: stockId,
     quantity: 1,
     unitPriceUgx: total,

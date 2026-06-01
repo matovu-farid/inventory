@@ -156,6 +156,8 @@ export const recordSale = createServerFn()
       // Validate all items first
       const itemDetails: Array<{
         stockId: string
+        itemId: string
+        variantId: string | null
         costPerUnitUgx: string
         minimumSellPriceUgx: string
         quantity: number
@@ -216,6 +218,8 @@ export const recordSale = createServerFn()
 
         itemDetails.push({
           stockId: stock.id,
+          itemId: stock.itemId,
+          variantId: stock.variantId,
           costPerUnitUgx: stock.costPerUnitUgx,
           minimumSellPriceUgx,
           quantity: item.quantity,
@@ -252,6 +256,8 @@ export const recordSale = createServerFn()
       for (const detail of itemDetails) {
         await tx.insert(shopSaleLines).values({
           shopSaleId: sale.id,
+          itemId: detail.itemId,
+          variantId: detail.variantId,
           shopStockId: detail.stockId,
           quantity: detail.quantity,
           unitPriceUgx: detail.unitPrice.toFixed(2),

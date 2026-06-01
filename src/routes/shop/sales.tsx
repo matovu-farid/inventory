@@ -62,7 +62,7 @@ function SalesPage() {
               }
             }
           } | null
-        }
+        } | null
       }>
       soldByUser: { id: string; name: string } | null
     }>
@@ -150,7 +150,7 @@ function SalesPage() {
                 cell: (s) => (
                   <div className="flex flex-col gap-1">
                     {s.items.map((i, idx) => {
-                      const v = i.shopStockItem.variant
+                      const v = i.shopStockItem?.variant ?? null
                       if (!v) {
                         // Plan 2a: an unresolved shop_stock row sneaked
                         // into a sale. Sales don't actually allow this

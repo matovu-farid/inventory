@@ -53,7 +53,7 @@ export const getSaleReceiptHtml = createServerFn()
       customerName: customer?.name ?? null,
       clerkName: sale.soldByUser.name,
       items: sale.items.map((i) => {
-        const v = i.shopStockItem.variant
+        const v = i.shopStockItem?.variant ?? null
         // Plan 2a: shop_stock.variant_id is now nullable for unresolved
         // lots. Sales today still go through variant-keyed flows, so a
         // historical sale line will always carry a variant. Plan 2b will
