@@ -16,6 +16,7 @@ import { bankAccounts } from "./bank-accounts"
 import { shopSales } from "./sales"
 import { storeTransfers } from "./transfers"
 import { customers } from "./customers"
+import { supplyRouteLines } from "./supply-routes"
 
 export const refundMethodEnum = pgEnum("refund_method", [
   "cash",
@@ -181,12 +182,56 @@ export const shopReturnRelations = relations(shopReturns, ({ one, many }) => ({
   items: many(shopReturnLines),
 }))
 
-export const shopReturnLineRelations = relations(shopReturnLines, ({ one }) => ({
+export const shopReturnLineRelations = relations(shopReturnLines, ({ one, many }) => ({
   shopReturn: one(shopReturns, {
     fields: [shopReturnLines.shopReturnId],
     references: [shopReturns.id],
   }),
+  allocations: many(shopReturnLineAllocations),
 }))
+
+export const shopReturnLineAllocations = pgTable(
+  "shop_return_line_allocations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shopReturnLineId: uuid("shop_return_line_id")
+      .notNull()
+      .references(() => shopReturnLines.id, { onDelete: "cascade" }),
+    shopStockId: uuid("shop_stock_id")
+      .notNull()
+      .references(() => shopStock.id, { onDelete: "restrict" }),
+    supplyRouteLineId: uuid("supply_route_line_id").references(
+      () => supplyRouteLines.id,
+      { onDelete: "set null" },
+    ),
+    quantity: integer("quantity").notNull(),
+    costPerUnitUgx: numeric("cost_per_unit_ugx", { precision: 15, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_shrla_line").on(table.shopReturnLineId),
+    index("idx_shrla_stock").on(table.shopStockId),
+    index("idx_shrla_supply_line").on(table.supplyRouteLineId),
+  ],
+)
+
+export const shopReturnLineAllocationRelations = relations(
+  shopReturnLineAllocations,
+  ({ one }) => ({
+    returnLine: one(shopReturnLines, {
+      fields: [shopReturnLineAllocations.shopReturnLineId],
+      references: [shopReturnLines.id],
+    }),
+    shopStockItem: one(shopStock, {
+      fields: [shopReturnLineAllocations.shopStockId],
+      references: [shopStock.id],
+    }),
+    supplyRouteLine: one(supplyRouteLines, {
+      fields: [shopReturnLineAllocations.supplyRouteLineId],
+      references: [supplyRouteLines.id],
+    }),
+  }),
+)
 
 export const storeReturnRelations = relations(storeReturns, ({ one, many }) => ({
   shop: one(shops, { fields: [storeReturns.shopId], references: [shops.id] }),
@@ -200,7 +245,7 @@ export const storeReturnRelations = relations(storeReturns, ({ one, many }) => (
   items: many(storeReturnLines),
 }))
 
-export const storeReturnLineRelations = relations(storeReturnLines, ({ one }) => ({
+export const storeReturnLineRelations = relations(storeReturnLines, ({ one, many }) => ({
   storeReturn: one(storeReturns, {
     fields: [storeReturnLines.storeReturnId],
     references: [storeReturns.id],
@@ -209,4 +254,48 @@ export const storeReturnLineRelations = relations(storeReturnLines, ({ one }) =>
     fields: [storeReturnLines.shopStockId],
     references: [shopStock.id],
   }),
+  allocations: many(storeReturnLineAllocations),
 }))
+
+export const storeReturnLineAllocations = pgTable(
+  "store_return_line_allocations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storeReturnLineId: uuid("store_return_line_id")
+      .notNull()
+      .references(() => storeReturnLines.id, { onDelete: "cascade" }),
+    shopStockId: uuid("shop_stock_id")
+      .notNull()
+      .references(() => shopStock.id, { onDelete: "restrict" }),
+    supplyRouteLineId: uuid("supply_route_line_id").references(
+      () => supplyRouteLines.id,
+      { onDelete: "set null" },
+    ),
+    quantity: integer("quantity").notNull(),
+    costPerUnitUgx: numeric("cost_per_unit_ugx", { precision: 15, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_storla_line").on(table.storeReturnLineId),
+    index("idx_storla_stock").on(table.shopStockId),
+    index("idx_storla_supply_line").on(table.supplyRouteLineId),
+  ],
+)
+
+export const storeReturnLineAllocationRelations = relations(
+  storeReturnLineAllocations,
+  ({ one }) => ({
+    returnLine: one(storeReturnLines, {
+      fields: [storeReturnLineAllocations.storeReturnLineId],
+      references: [storeReturnLines.id],
+    }),
+    shopStockItem: one(shopStock, {
+      fields: [storeReturnLineAllocations.shopStockId],
+      references: [shopStock.id],
+    }),
+    supplyRouteLine: one(supplyRouteLines, {
+      fields: [storeReturnLineAllocations.supplyRouteLineId],
+      references: [supplyRouteLines.id],
+    }),
+  }),
+)
