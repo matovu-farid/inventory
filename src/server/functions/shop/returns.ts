@@ -1,15 +1,18 @@
 import { createServerFn } from "@tanstack/react-start"
-import { eq, sql } from "drizzle-orm"
+import { and, desc, eq, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
 import {
   shopReturns,
   shopReturnLines,
+  shopReturnLineAllocations,
+  shopSaleLines,
   shopStock,
   shopSales,
   customers,
   shops,
+  items,
 } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
@@ -24,7 +27,8 @@ import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
 import { getActorName } from "#/server/audit/actor"
 
 const returnItemInput = z.object({
-  shopStockId: z.uuid(),
+  itemId: z.uuid(),
+  variantId: z.uuid().optional(),
   quantity: z.number().int().positive(),
   unitRefundPriceUgx: z.string(),
 })
@@ -40,9 +44,106 @@ const recordCustomerReturnInput = z.object({
   notes: z.string().optional(),
 })
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
 /**
- * Record a customer returning goods to a shop. Admin/Supervisor approval
- * required. Returned items go back to sellable shop stock. The journal posts:
+ * Plan a return-line lot reversal. Two modes:
+ *   - With `originalSaleId`: walk the sale's allocations for the matching
+ *     (item, variant) pair, oldest-first, up to the returned quantity.
+ *     Re-stocks the exact lots the sale drained — COGS reversal posts
+ *     against the original cost basis.
+ *   - Without (open-counter return): re-stock the newest matching shop_stock
+ *     lot — most likely to be the one the goods came from. If no row
+ *     exists, throws (caller should hint the user that the lot has
+ *     been fully sold or removed).
+ */
+async function planReturnAllocations(
+  tx: Tx,
+  input: {
+    shopId: string
+    itemId: string
+    variantId: string | null
+    quantity: number
+    originalSaleId?: string
+  },
+): Promise<Array<{ shopStockId: string; quantity: number; costPerUnitUgx: string; supplyRouteLineId: string | null }>> {
+  const allocations: Array<{
+    shopStockId: string
+    quantity: number
+    costPerUnitUgx: string
+    supplyRouteLineId: string | null
+  }> = []
+  let remaining = input.quantity
+
+  if (input.originalSaleId) {
+    const variantWhere = input.variantId
+      ? eq(shopSaleLines.variantId, input.variantId)
+      : isNull(shopSaleLines.variantId)
+    const saleLines = await tx.query.shopSaleLines.findMany({
+      where: and(
+        eq(shopSaleLines.shopSaleId, input.originalSaleId),
+        eq(shopSaleLines.itemId, input.itemId),
+        variantWhere,
+      ),
+      with: { allocations: true },
+    })
+    for (const line of saleLines) {
+      const lineAllocs = [...line.allocations].sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+      )
+      for (const a of lineAllocs) {
+        if (remaining <= 0) break
+        const take = Math.min(a.quantity, remaining)
+        allocations.push({
+          shopStockId: a.shopStockId,
+          quantity: take,
+          costPerUnitUgx: a.costPerUnitUgx,
+          supplyRouteLineId: a.supplyRouteLineId,
+        })
+        remaining -= take
+      }
+      if (remaining <= 0) break
+    }
+  }
+
+  if (remaining > 0) {
+    // Fallback: newest matching lot. Used when there's no originalSale
+    // *and* when the originalSale's allocations don't cover the qty.
+    const variantWhere = input.variantId
+      ? eq(shopStock.variantId, input.variantId)
+      : isNull(shopStock.variantId)
+    const target = await tx.query.shopStock.findFirst({
+      where: and(
+        eq(shopStock.shopId, input.shopId),
+        eq(shopStock.itemId, input.itemId),
+        variantWhere,
+      ),
+      orderBy: [desc(shopStock.createdAt)],
+    })
+    if (!target) {
+      throw new Error(
+        `No shop_stock row to re-stock for return — item ${input.itemId}` +
+          (input.variantId ? ` variant ${input.variantId}` : " (unresolved)"),
+      )
+    }
+    allocations.push({
+      shopStockId: target.id,
+      quantity: remaining,
+      costPerUnitUgx: target.costPerUnitUgx,
+      supplyRouteLineId: target.supplyRouteLineId,
+    })
+  }
+
+  return allocations
+}
+
+/**
+ * Record a customer return to a shop (Plan 2b — item-level).
+ *
+ * Admin/Supervisor approval required. Returned items go back to sellable
+ * shop stock; each return line records lot-level allocations so the
+ * COGS reversal posts against the original cost basis.
+ *
  *   DR Sales Returns (contra-revenue) / CR Cash | Bank | A/R
  *   DR Inventory - Shop / CR Cost of Goods Sold
  */
@@ -70,8 +171,7 @@ export const recordCustomerReturn = createServerFn()
       let totalRefund = new BigNumber(0)
       let totalCost = new BigNumber(0)
 
-      const itemDetails: Array<{
-        stockId: string
+      const planned: Array<{
         itemId: string
         variantId: string | null
         quantity: number
@@ -79,29 +179,49 @@ export const recordCustomerReturn = createServerFn()
         totalRefund: BigNumber
         unitCost: BigNumber
         totalCost: BigNumber
+        allocations: Array<{
+          shopStockId: string
+          quantity: number
+          costPerUnitUgx: string
+          supplyRouteLineId: string | null
+        }>
       }> = []
-      for (const item of data.items) {
-        const stock = await tx.query.shopStock.findFirst({
-          where: eq(shopStock.id, item.shopStockId),
+
+      for (const input of data.items) {
+        const item = await tx.query.items.findFirst({
+          where: eq(items.id, input.itemId),
+          columns: { id: true },
         })
-        if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
-        const unitRefund = new BigNumber(item.unitRefundPriceUgx)
-        const totalRefundForItem = unitRefund.times(item.quantity)
-        const costPerUnit = new BigNumber(stock.costPerUnitUgx)
-        const totalCostForItem = costPerUnit.times(item.quantity)
+        if (!item) throw new Error(`Item not found: ${input.itemId}`)
+
+        const allocations = await planReturnAllocations(tx, {
+          shopId: data.shopId,
+          itemId: input.itemId,
+          variantId: input.variantId ?? null,
+          quantity: input.quantity,
+          originalSaleId: data.originalSaleId,
+        })
+
+        const lineCost = allocations.reduce(
+          (s, a) => s.plus(new BigNumber(a.costPerUnitUgx).times(a.quantity)),
+          new BigNumber(0),
+        )
+        const unitCost = new BigNumber(lineCost).div(input.quantity)
+        const unitRefund = new BigNumber(input.unitRefundPriceUgx)
+        const totalRefundForItem = unitRefund.times(input.quantity)
 
         totalRefund = totalRefund.plus(totalRefundForItem)
-        totalCost = totalCost.plus(totalCostForItem)
+        totalCost = totalCost.plus(lineCost)
 
-        itemDetails.push({
-          stockId: stock.id,
-          itemId: stock.itemId,
-          variantId: stock.variantId,
-          quantity: item.quantity,
+        planned.push({
+          itemId: item.id,
+          variantId: input.variantId ?? null,
+          quantity: input.quantity,
           unitRefund,
           totalRefund: totalRefundForItem,
-          unitCost: costPerUnit,
-          totalCost: totalCostForItem,
+          unitCost,
+          totalCost: lineCost,
+          allocations,
         })
       }
 
@@ -124,36 +244,44 @@ export const recordCustomerReturn = createServerFn()
         })
         .returning()
 
-      // Create return-item rows and re-stock the returned items
-      for (const detail of itemDetails) {
-        await tx.insert(shopReturnLines).values({
-          shopReturnId: shopReturn.id,
-          itemId: detail.itemId,
-          variantId: detail.variantId,
-          shopStockId: detail.stockId,
-          quantity: detail.quantity,
-          unitRefundPriceUgx: detail.unitRefund.toFixed(2),
-          unitCostUgx: detail.unitCost.toFixed(2),
-          totalRefundUgx: detail.totalRefund.toFixed(2),
-        })
-
-        await tx
-          .update(shopStock)
-          .set({
-            quantityOnHand: sql`${shopStock.quantityOnHand} + ${detail.quantity}`,
+      for (const detail of planned) {
+        const [line] = await tx
+          .insert(shopReturnLines)
+          .values({
+            shopReturnId: shopReturn.id,
+            itemId: detail.itemId,
+            variantId: detail.variantId,
+            shopStockId: null,
+            quantity: detail.quantity,
+            unitRefundPriceUgx: detail.unitRefund.toFixed(2),
+            unitCostUgx: detail.unitCost.toFixed(2),
+            totalRefundUgx: detail.totalRefund.toFixed(2),
           })
-          .where(eq(shopStock.id, detail.stockId))
+          .returning()
+
+        for (const alloc of detail.allocations) {
+          await tx.insert(shopReturnLineAllocations).values({
+            shopReturnLineId: line.id,
+            shopStockId: alloc.shopStockId,
+            supplyRouteLineId: alloc.supplyRouteLineId,
+            quantity: alloc.quantity,
+            costPerUnitUgx: alloc.costPerUnitUgx,
+          })
+          await tx
+            .update(shopStock)
+            .set({
+              quantityOnHand: sql`${shopStock.quantityOnHand} + ${alloc.quantity}`,
+            })
+            .where(eq(shopStock.id, alloc.shopStockId))
+        }
       }
 
-      // For credit_adjustment refunds, look up the original sale and guard
-      // against over-refunding before posting any journal entry.
+      // For credit_adjustment refunds, look up the original sale and
+      // guard against over-refunding before posting any journal entry.
       let originalSale:
         | typeof shopSales.$inferSelect
         | undefined
-      if (
-        data.refundMethod === "credit_adjustment" &&
-        data.originalSaleId
-      ) {
+      if (data.refundMethod === "credit_adjustment" && data.originalSaleId) {
         originalSale = await tx.query.shopSales.findFirst({
           where: eq(shopSales.id, data.originalSaleId),
         })
@@ -165,7 +293,6 @@ export const recordCustomerReturn = createServerFn()
         }
       }
 
-      // Refund leg
       const refundCreditCategory =
         data.refundMethod === "credit_adjustment"
           ? "Accounts Receivable"
@@ -201,7 +328,6 @@ export const recordCustomerReturn = createServerFn()
         description: `Refund ${docNumber.formatted}: ${data.reason}`,
       })
 
-      // COGS reversal — returned goods go back to sellable inventory
       if (totalCost.gt(0)) {
         await postJournalEntry(tx, {
           entries: [
@@ -225,12 +351,7 @@ export const recordCustomerReturn = createServerFn()
         })
       }
 
-      // For credit_adjustment refunds against an open credit sale, reduce
-      // that sale's outstanding balance and update its status.
-      if (
-        data.refundMethod === "credit_adjustment" &&
-        data.originalSaleId
-      ) {
+      if (data.refundMethod === "credit_adjustment" && data.originalSaleId) {
         const sale = originalSale
         if (sale && isPaymentStatusOpen(sale.paymentStatus)) {
           const newBalance = BigNumber.maximum(
