@@ -6,9 +6,11 @@ import { db } from "#/db"
 import {
   storeTransfers,
   storeTransferLines,
+  storeTransferAllocations,
   storeStock,
   shopStock,
   shops,
+  items,
 } from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { recordAuditLog } from "#/server/middleware/audit-store"
@@ -23,6 +25,7 @@ import {
   validateQuantityReceived,
 } from "./receive-validate"
 import { buildTransferInventoryEntries } from "./transfer-entries"
+import { pickStoreStockFifo } from "./fifo"
 
 export const listTransfers = createServerFn().handler(async () => {
   const session = await requireSession()
@@ -47,11 +50,13 @@ export const listTransfers = createServerFn().handler(async () => {
 })
 
 const transferItemInput = z.object({
-  storeStockId: z.uuid(),
+  /** Item-level dispatch — the FIFO picker chooses which store_stock
+   *  rows to drain. `variantId` narrows the pool to a single variant
+   *  when set; when omitted, unresolved lots drain first, then
+   *  variant-keyed lots, both oldest-supply-line first. */
+  itemId: z.uuid(),
+  variantId: z.uuid().optional(),
   quantityDispatched: z.number().int().positive(),
-  /** Min sell price the shop must charge for this item. Optional;
-   *  falls back to the store's cost-per-unit when omitted. */
-  minimumSellPriceUgx: z.string().optional(),
 })
 
 const createTransferInput = z.object({
@@ -63,13 +68,21 @@ const createTransferInput = z.object({
 /**
  * Create and dispatch a transfer from store to a shop.
  *
- * 1. Validates stock availability
- * 2. Decrements store stock
- * 3. Creates transfer + transfer items at the minimum sell price
+ * 1. Plans an item-level FIFO allocation across source store_stock rows
+ *    via `pickStoreStockFifo`. Throws if total on-hand < requested.
+ * 2. Records one `store_transfer_lines` row per requested item with
+ *    `storeStockId = null` (item-level dispatch) plus one
+ *    `store_transfer_allocations` row per source lot drained.
+ * 3. Decrements each source `store_stock.quantityOnHand`.
  * 4. Posts compound ledger entries:
  *    DR Inventory-Shop (transfer price)   / CR Inventory-Store (cost)
  *                                         / CR Store Transfer Revenue (margin)
  *    DR Due from Shop (transfer price)    / CR Due to Store (transfer price)
+ *
+ * The unit transfer price now comes from the item-level floor
+ * (`items.minimum_sell_price_ugx`) — Plan 2a Task 7 dropped the per-line
+ * price override input. The total cost is the weighted sum across the
+ * FIFO allocations (lot costs may differ).
  */
 export const createTransfer = createServerFn()
   .inputValidator(createTransferInput)
@@ -99,69 +112,73 @@ export const createTransfer = createServerFn()
       let totalCostValue = new BigNumber(0)
 
       for (const item of data.items) {
-        // Validate stock
-        const stock = await tx.query.storeStock.findFirst({
-          where: eq(storeStock.id, item.storeStockId),
-          with: {
-            item: true,
-            variant: { with: { color: { with: { item: true } } } },
-          },
+        const itemRow = await tx.query.items.findFirst({
+          where: eq(items.id, item.itemId),
         })
-        if (!stock) throw new Error(`Store stock not found: ${item.storeStockId}`)
-        // Unresolved store stock cannot be transferred yet — shop_stock still
-        // requires a variant_id (Plan 2 of variant-flexibility widens it).
-        // Force the operator to Specify the lot before transferring.
-        if (!stock.variant) {
+        if (!itemRow) throw new Error(`Item not found: ${item.itemId}`)
+
+        // FIFO planning — unresolved lots first when variantId is
+        // omitted, oldest supply line first within each group. The
+        // picker runs inside this transaction so the read sees the
+        // same snapshot as the subsequent decrements.
+        const plan = await pickStoreStockFifo(tx, {
+          storeId: store.id,
+          itemId: item.itemId,
+          variantId: item.variantId,
+          quantity: item.quantityDispatched,
+        })
+
+        if (plan.shortfall > 0) {
+          const onHand = item.quantityDispatched - plan.shortfall
           throw new Error(
-            `Stock for ${stock.item.articleNumber} has no color or size set yet. Specify the variant on the store stock page before transferring.`,
+            `Insufficient stock for ${itemRow.articleNumber} ${itemRow.name}: ` +
+              `have ${onHand}, need ${item.quantityDispatched}`,
           )
         }
-        const itemLabel = formatItemLabel(
-          stock.variant.color.item.articleNumber,
-          stock.variant.color.colorName,
-          stock.variant.size,
-        )
-        if (stock.quantityOnHand < item.quantityDispatched) {
-          throw new Error(`Insufficient stock for ${itemLabel}: have ${stock.quantityOnHand}, need ${item.quantityDispatched}`)
-        }
 
-        const unitPrice = new BigNumber(stock.item.minimumSellPriceUgx)
+        const unitPrice = new BigNumber(itemRow.minimumSellPriceUgx)
         const totalPrice = unitPrice.times(item.quantityDispatched)
-        const itemCost = new BigNumber(stock.costPerUnitUgx).times(item.quantityDispatched)
+        // Cost: weighted sum across allocations (lot costs may differ).
+        const totalCost = plan.allocations.reduce(
+          (sum, a) =>
+            sum.plus(new BigNumber(a.costPerUnitUgx).times(a.quantity)),
+          new BigNumber(0),
+        )
 
-        // Shop's minimum sell price defaults to the store's cost-per-unit
-        // when the dispatcher doesn't override it.
-        const shopMinSellRaw =
-          item.minimumSellPriceUgx && item.minimumSellPriceUgx.trim().length > 0
-            ? item.minimumSellPriceUgx
-            : stock.costPerUnitUgx
-        const shopMinSell = new BigNumber(shopMinSellRaw)
-        if (!shopMinSell.isFinite() || shopMinSell.lte(0)) {
-          throw new Error(
-            `Invalid shop minimum sell price for ${itemLabel}`,
-          )
-        }
-
-        // Create transfer item
-        await tx.insert(storeTransferLines).values({
-          storeTransferId: transfer.id,
-          storeStockId: item.storeStockId,
-          quantityDispatched: item.quantityDispatched,
-          unitPriceUgx: unitPrice.toFixed(2),
-          totalPriceUgx: totalPrice.toFixed(2),
-          minimumSellPriceUgx: shopMinSell.toFixed(2),
-        })
-
-        // Decrement store stock
-        await tx
-          .update(storeStock)
-          .set({
-            quantityOnHand: sql`${storeStock.quantityOnHand} - ${item.quantityDispatched}`,
+        // Item-level transfer line — `storeStockId = null` signals that
+        // the per-source provenance lives in `store_transfer_allocations`.
+        const [line] = await tx
+          .insert(storeTransferLines)
+          .values({
+            storeTransferId: transfer.id,
+            storeStockId: null,
+            itemId: item.itemId,
+            variantId: item.variantId ?? null,
+            quantityDispatched: item.quantityDispatched,
+            unitPriceUgx: unitPrice.toFixed(2),
+            totalPriceUgx: totalPrice.toFixed(2),
           })
-          .where(eq(storeStock.id, item.storeStockId))
+          .returning()
+
+        // Record per-source allocations and decrement each source row.
+        for (const alloc of plan.allocations) {
+          await tx.insert(storeTransferAllocations).values({
+            storeTransferLineId: line.id,
+            storeStockId: alloc.storeStockId,
+            supplyRouteLineId: alloc.supplyRouteLineId,
+            quantity: alloc.quantity,
+            costPerUnitUgx: alloc.costPerUnitUgx,
+          })
+          await tx
+            .update(storeStock)
+            .set({
+              quantityOnHand: sql`${storeStock.quantityOnHand} - ${alloc.quantity}`,
+            })
+            .where(eq(storeStock.id, alloc.storeStockId))
+        }
 
         totalTransferValue = totalTransferValue.plus(totalPrice)
-        totalCostValue = totalCostValue.plus(itemCost)
+        totalCostValue = totalCostValue.plus(totalCost)
       }
 
       // Ledger: inventory movement (always balanced via the helper)
@@ -288,8 +305,16 @@ export const confirmTransferReceipt = createServerFn()
           throw new Error("This transfer item has already been received. Use a return flow to adjust.")
         }
 
-        // createTransfer rejects unresolved lots, so every dispatched item
-        // has a variant. Guard explicitly to satisfy the type narrowing.
+        // Plan 2a Task 7 made `storeStockId` nullable for item-level
+        // dispatch — the receive side is rewritten in Task 8 to walk
+        // `store_transfer_allocations`. Until then, refuse to receive
+        // item-level lines and keep the legacy lot-linked path working
+        // so the rest of the transfer suite stays green.
+        if (!ti.storeStockItem) {
+          throw new Error(
+            `Transfer item ${ti.id} is an item-level dispatch — receive flow rewrite pending (Plan 2a Task 8).`,
+          )
+        }
         const { variant, variantId } = ti.storeStockItem
         if (!variant || !variantId) {
           throw new Error(

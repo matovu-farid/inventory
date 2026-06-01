@@ -25,6 +25,7 @@ import { db } from "#/db"
 import {
   itemColors,
   items,
+  shops,
   storeStock,
   stores,
   suppliers,
@@ -110,6 +111,15 @@ export async function seedStore(input?: { name?: string }): Promise<string> {
     .values({ name: input?.name ?? "Test Store" })
     .returning()
   assertDefined(row, "seedStore: insert returned no row")
+  return row.id
+}
+
+export async function seedShop(input?: { name?: string }): Promise<string> {
+  const [row] = await db
+    .insert(shops)
+    .values({ name: input?.name ?? `Test Shop ${Math.random().toString(36).slice(2, 8)}` })
+    .returning()
+  assertDefined(row, "seedShop: insert returned no row")
   return row.id
 }
 
