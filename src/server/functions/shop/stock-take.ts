@@ -85,6 +85,8 @@ export const startStockTake = createServerFn()
           await tx.insert(stockTakeLines).values({
             stockTakeId: st.id,
             storeStockId: item.id,
+            itemId: item.itemId,
+            variantId: item.variantId,
             itemName: itemLabel,
             systemQuantity: item.quantityOnHand,
             physicalQuantity: item.quantityOnHand, // default to matching
@@ -101,22 +103,20 @@ export const startStockTake = createServerFn()
           },
         })
         for (const item of items) {
-          // Plan 2a: shop_stock.variant_id is now nullable. Stock-take
-          // listing still expects per-variant labels; Plan 2b/Task 14 will
-          // adapt the writer to emit item-level lines for unresolved rows.
-          if (!item.variant) {
-            throw new Error(
-              "Plan 2a: shop stock-take encountered an unresolved row — specify the variant first (Plan 2b)",
-            )
-          }
-          const itemLabel = formatItemLabel(
-            item.variant.color.item.articleNumber,
-            item.variant.color.colorName,
-            item.variant.size,
-          )
+          // Plan 2a/Task 14: shop_stock.variant_id is nullable. Unresolved
+          // rows still count — they just appear under the bare item label.
+          const itemLabel = item.variant
+            ? formatItemLabel(
+                item.variant.color.item.articleNumber,
+                item.variant.color.colorName,
+                item.variant.size,
+              )
+            : `${item.item.articleNumber} — ${item.item.name}`
           await tx.insert(stockTakeLines).values({
             stockTakeId: st.id,
             shopStockId: item.id,
+            itemId: item.itemId,
+            variantId: item.variantId,
             itemName: itemLabel,
             systemQuantity: item.quantityOnHand,
             physicalQuantity: item.quantityOnHand,
