@@ -43,6 +43,10 @@ export function itemImageUrl(s3Key: string | null | undefined): string | null {
  */
 interface StockRow {
   quantityOnHand: number
+  // Plan 2b: variant is optional — unresolved lots have a null variant.
+  // Aggregation groups by item; unresolved rows still contribute their
+  // quantity to the parent item's total without producing a variant entry.
+  item?: { id: string; articleNumber: string; name: string }
   variant: {
     id: string
     size: string
@@ -53,7 +57,7 @@ interface StockRow {
       imageS3Key: string | null
       item: { id: string; articleNumber: string; name: string }
     }
-  }
+  } | null
 }
 
 export interface AggregatedItem {
@@ -78,32 +82,41 @@ export function aggregateStockByArticle(
 ): AggregatedItem[] {
   const byArticle = new Map<string, AggregatedItem>()
   for (const row of rows) {
-    const color = row.variant.color
-    const key = color.item.articleNumber
+    // Identify the parent item — prefer the denormalized `item` field
+    // (Plan 2b: present on every shop_stock row), fall back to the
+    // variant's joined item for callers that still pass variant-only
+    // shapes (e.g. POS variant picker).
+    const parentItem = row.item ?? row.variant?.color.item
+    if (!parentItem) continue
+    const key = parentItem.articleNumber
     let entry = byArticle.get(key)
     if (!entry) {
       entry = {
-        item: color.item,
+        item: parentItem,
         colors: [],
         variants: [],
         total: 0,
       }
       byArticle.set(key, entry)
     }
-    if (!entry.colors.some((c) => c.id === color.id)) {
-      entry.colors.push({
-        id: color.id,
-        colorName: color.colorName,
-        colorHex: color.colorHex,
-        imageS3Key: color.imageS3Key,
-      })
-    }
-    if (!entry.variants.some((v) => v.id === row.variant.id)) {
-      entry.variants.push({
-        id: row.variant.id,
-        colorId: color.id,
-        size: row.variant.size,
-      })
+    const variant = row.variant
+    if (variant) {
+      const color = variant.color
+      if (!entry.colors.some((c) => c.id === color.id)) {
+        entry.colors.push({
+          id: color.id,
+          colorName: color.colorName,
+          colorHex: color.colorHex,
+          imageS3Key: color.imageS3Key,
+        })
+      }
+      if (!entry.variants.some((v) => v.id === variant.id)) {
+        entry.variants.push({
+          id: variant.id,
+          colorId: color.id,
+          size: variant.size,
+        })
+      }
     }
     entry.total += row.quantityOnHand
   }

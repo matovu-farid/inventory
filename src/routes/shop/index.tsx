@@ -54,30 +54,12 @@ import { getShopStock, recordSale } from "#/server/functions/shop/sales"
 import { listTransfers } from "#/server/functions/store/transfers"
 import { getSession } from "#/server/middleware/auth"
 
-// Plan 2a: getShopStock can return rows with a null variant_id (unresolved
-// lots). The shop list + new-sale UI still assume per-variant rows, so the
-// page filters unresolved rows before rendering and projects the
-// item-level minimum sell price (which used to live on shop_stock) onto
-// each row to keep the existing UI shape. Plan 2b will rewrite this for
-// item-level sales.
+// Plan 2b: getShopStock returns rows with optional variant. The shop
+// list and the New Sale picker both consume RawShopStockItem directly;
+// recordSale resolves the lot via FIFO so the picker no longer needs
+// to project resolved-only rows. The "Unresolved" admin specify pane
+// still pulls unresolved rows out of the same query.
 type RawShopStockItem = Awaited<ReturnType<typeof getShopStock>>[number]
-type ShopStockItem = Omit<RawShopStockItem, "variant"> & {
-  variant: NonNullable<RawShopStockItem["variant"]>
-  minimumSellPriceUgx: string
-}
-
-function projectResolvedShopStock(rows: RawShopStockItem[]): ShopStockItem[] {
-  const out: ShopStockItem[] = []
-  for (const r of rows) {
-    if (!r.variant) continue
-    out.push({
-      ...r,
-      variant: r.variant,
-      minimumSellPriceUgx: r.item.minimumSellPriceUgx,
-    })
-  }
-  return out
-}
 
 const searchSchema = z.object({
   shopId: z.uuid().optional(),
@@ -114,22 +96,22 @@ function ShopPage() {
   const pendingTransfers = transfers.filter(
     (t) => t.status === "dispatched" && t.shopId === shopId,
   )
-  const [stock, setStock] = useState<ShopStockItem[]>([])
-  const [unresolved, setUnresolved] = useState<RawShopStockItem[]>([])
+  const [stock, setStock] = useState<RawShopStockItem[]>([])
   const [specifying, setSpecifying] = useState<RawShopStockItem | null>(null)
   const [saleOpen, setSaleOpen] = useState(false)
   const [prerequisites, setPrerequisites] = useState<PrerequisiteResult>(SATISFIED)
+
+  // Unresolved rows still need their own admin-only "Specify" callout.
+  const unresolved = stock.filter((r) => !r.variant)
 
   const loadStock = useCallback(async (id: string) => {
     setShopId(id)
     if (!id) {
       setStock([])
-      setUnresolved([])
       return
     }
     const s = await getShopStock({ data: { shopId: id } })
-    setStock(projectResolvedShopStock(s))
-    setUnresolved(s.filter((r) => !r.variant))
+    setStock(s)
   }, [])
 
   const shopsLength = shops.length
@@ -414,9 +396,10 @@ function ShopPage() {
 /* New Sale Form                                                       */
 /* ------------------------------------------------------------------ */
 
-function itemLabel(s: ShopStockItem): string {
-  // Stock now references variant_id (issue #4); the joined variant
-  // carries color + size — the picker still groups rows as (color × size).
+function itemLabel(s: RawShopStockItem): string {
+  // Plan 2b: rows can be unresolved (variantId NULL). Variant rows keep
+  // the full color/size suffix; unresolved rows show just the item name.
+  if (!s.variant) return s.item.name
   return `${s.variant.color.item.name} — ${s.variant.color.colorName} / ${s.variant.size}`
 }
 
@@ -426,7 +409,7 @@ function NewSaleForm({
   onSuccess,
 }: {
   shopId: string
-  stock: ShopStockItem[]
+  stock: RawShopStockItem[]
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
@@ -453,7 +436,7 @@ function NewSaleForm({
         {
           stockId,
           qty: 1,
-          price: item.minimumSellPriceUgx,
+          price: item.item.minimumSellPriceUgx,
           belowMinimumReason: "",
         },
       ]
@@ -502,7 +485,7 @@ function NewSaleForm({
       if (
         s &&
         item.price !== "" &&
-        new BigNumber(item.price || 0).lt(s.minimumSellPriceUgx) &&
+        new BigNumber(item.price || 0).lt(s.item.minimumSellPriceUgx) &&
         item.belowMinimumReason.trim().length === 0
       ) {
         newErrors[`reason_${item.stockId}`] = "Reason required for below-minimum sale"
@@ -525,7 +508,7 @@ function NewSaleForm({
             if (!s) throw new Error(`Cart row references missing stock ${c.stockId}`)
             return {
               itemId: s.item.id,
-              variantId: s.variant.id,
+              variantId: s.variant?.id ?? undefined,
               quantity: c.qty,
               unitPriceUgx: c.price,
               belowMinimumReason: c.belowMinimumReason.trim() || undefined,
@@ -559,7 +542,7 @@ function NewSaleForm({
             {stock.map((s) => {
               const isSelected = selectedIds.has(s.id)
               const label = itemLabel(s)
-              const article = s.variant.color.item.articleNumber
+              const article = s.item.articleNumber
               return (
                 <CommandItem
                   key={s.id}
@@ -585,7 +568,7 @@ function NewSaleForm({
                   <div className="flex shrink-0 gap-3 text-xs text-muted-foreground">
                     <span>avail {s.quantityOnHand}</span>
                     <span className="font-mono">
-                      min {formatUgx(s.minimumSellPriceUgx)}
+                      min {formatUgx(s.item.minimumSellPriceUgx)}
                     </span>
                   </div>
                 </CommandItem>
@@ -629,7 +612,7 @@ function NewSaleForm({
             if (!s) return null
             const isBelowMin =
               item.price !== "" &&
-              new BigNumber(item.price || 0).lt(s.minimumSellPriceUgx)
+              new BigNumber(item.price || 0).lt(s.item.minimumSellPriceUgx)
             const decQty = () =>
               updateCart(
                 item.stockId,
@@ -702,7 +685,7 @@ function NewSaleForm({
                   </div>
                   <div className="min-w-[10rem] flex-1 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
-                      Price (min: {formatUgx(s.minimumSellPriceUgx)})
+                      Price (min: {formatUgx(s.item.minimumSellPriceUgx)})
                     </Label>
                     <MoneyInput
                       currency="UGX"
@@ -720,7 +703,7 @@ function NewSaleForm({
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
                       Reason for selling below{" "}
-                      {formatUgx(s.minimumSellPriceUgx)}
+                      {formatUgx(s.item.minimumSellPriceUgx)}
                     </Label>
                     <Input
                       className="h-11 text-base"
