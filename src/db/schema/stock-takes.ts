@@ -12,6 +12,8 @@ import { user } from "./auth"
 import { locationTypeEnum } from "./expenses"
 import { storeStock } from "./store"
 import { shopStock } from "./shops"
+import { items } from "./items"
+import { variants } from "./variants"
 
 export const stockTakeStatusEnum = pgEnum("stock_take_status", [
   "in_progress",
@@ -56,6 +58,12 @@ export const stockTakeLines = pgTable(
     shopStockId: uuid("shop_stock_id").references(() => shopStock.id, {
       onDelete: "restrict",
     }),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "restrict" }),
+    variantId: uuid("variant_id").references(() => variants.id, {
+      onDelete: "restrict",
+    }),
     itemName: text("product_name").notNull(),
     systemQuantity: integer("system_quantity").notNull(),
     physicalQuantity: integer("physical_quantity").notNull(),
@@ -63,7 +71,11 @@ export const stockTakeLines = pgTable(
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("idx_stkl_take").on(table.stockTakeId)],
+  (table) => [
+    index("idx_stkl_take").on(table.stockTakeId),
+    index("idx_stkl_item").on(table.itemId),
+    index("idx_stkl_variant").on(table.variantId),
+  ],
 )
 
 // Relations
@@ -89,5 +101,13 @@ export const stockTakeLineRelations = relations(stockTakeLines, ({ one }) => ({
   shopStockItem: one(shopStock, {
     fields: [stockTakeLines.shopStockId],
     references: [shopStock.id],
+  }),
+  item: one(items, {
+    fields: [stockTakeLines.itemId],
+    references: [items.id],
+  }),
+  variant: one(variants, {
+    fields: [stockTakeLines.variantId],
+    references: [variants.id],
   }),
 }))
