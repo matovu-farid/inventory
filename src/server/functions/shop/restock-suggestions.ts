@@ -29,6 +29,7 @@ export const listShopRestockSuggestions = createServerFn()
       .select({
         alertId: lowStockAlerts.id,
         shopStockId: shopStock.id,
+        itemId: items.id,
         variantId: variants.id,
         size: variants.size,
         quantityOnHand: shopStock.quantityOnHand,
@@ -61,6 +62,7 @@ export const listShopRestockSuggestions = createServerFn()
     return rows.map((r) => ({
       alertId: r.alertId,
       shopStockId: r.shopStockId,
+      itemId: r.itemId,
       variantId: r.variantId,
       size: r.size,
       quantityOnHand: r.quantityOnHand,

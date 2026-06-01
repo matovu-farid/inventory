@@ -1,14 +1,12 @@
-import { roundUgxBankers50, formatUgx, formatDate } from "#/lib/format"
+import { roundUgxBankers50, formatDate } from "#/lib/format"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { requireUiPermission } from "#/lib/permissions"
 import BigNumber from "bignumber.js"
 import { Button } from "#/components/ui/button"
 import { Input } from "#/components/ui/input"
-import { MoneyInput } from "#/components/ui/money-input"
 import { Label } from "#/components/ui/label"
 import { Badge } from "#/components/ui/badge"
-import { InfoTip } from "#/components/ui/info-tip"
 import { PrereqBanner } from "#/components/prerequisites/prereq-banner"
 import { getTransfersPrereqs } from "#/server/functions/prereqs/transfers"
 import {
@@ -65,34 +63,6 @@ function TransfersPage() {
 
   const dispatchedTransfers = transfers.filter((t) => t.status === "dispatched")
 
-  // getStoreStock returns a per-item grouping; the transfer picker wants
-  // flat per-lot rows. Unresolved lots (variant_id NULL) can't be
-  // transferred — shop_stock still requires a variant_id — so we filter
-  // them out at this boundary.
-  const transferableStock = stock.flatMap((g) =>
-    g.rows
-      .filter((r): r is typeof r & { variant: NonNullable<typeof r.variant> } =>
-        r.variant !== null,
-      )
-      .map((r) => ({
-        id: r.id,
-        quantityOnHand: r.quantityOnHand,
-        costPerUnitUgx: r.costPerUnitUgx,
-        minimumSellPriceUgx: g.item.minimumSellPriceUgx,
-        variant: {
-          size: r.variant.size,
-          color: {
-            colorName: r.variant.color.colorName,
-            colorHex: r.variant.color.colorHex,
-            item: {
-              name: g.item.name,
-              articleNumber: g.item.articleNumber,
-            },
-          },
-        },
-      })),
-  )
-
   return (
     <div className="space-y-6">
       <div>
@@ -138,7 +108,7 @@ function TransfersPage() {
                 <DialogTitle>Create Transfer</DialogTitle>
               </DialogHeader>
               <CreateTransferForm
-                stock={transferableStock}
+                stock={stock}
                 shops={shops}
                 onSuccess={(shopId) => {
                   setCreateOpen(false)
@@ -207,95 +177,160 @@ function TransfersPage() {
 /* Create Transfer Form                                                */
 /* ------------------------------------------------------------------ */
 
+// `StockGroup` mirrors the shape returned by `getStoreStock` — one bucket
+// per item, plus the underlying store_stock rows so we can offer per-variant
+// dispatch (and show per-variant availability).
+type StockGroup = {
+  item: {
+    id: string
+    name: string
+    articleNumber: string
+  }
+  totalQty: number
+  rows: Array<{
+    id: string
+    quantityOnHand: number
+    variantId: string | null
+    variant: {
+      id: string
+      size: string
+      color: { colorName: string; colorHex: string }
+    } | null
+  }>
+}
+
+type LineDraft = {
+  itemId: string
+  // `undefined` means "any (FIFO)" — server drains unresolved-first.
+  variantId: string | undefined
+  qty: number
+}
+
 function CreateTransferForm({
   stock,
   shops,
   onSuccess,
 }: {
-  // Stock now references variant_id (issue #4); the joined variant
-  // carries size + color (with parent item/product).
-  stock: Array<{
-    id: string
-    quantityOnHand: number
-    costPerUnitUgx: string
-    minimumSellPriceUgx: string
-    variant: {
-      size: string
-      color: {
-        colorName: string
-        colorHex: string
-        item: { name: string; articleNumber: string }
-      }
-    }
-  }>
+  stock: StockGroup[]
   shops: Array<{ id: string; name: string }>
   onSuccess: (shopId: string) => void
 }) {
   const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [shopId, setShopId] = useState(shops[0]?.id ?? "")
-  const [selectedItems, setSelectedItems] = useState<
-    Array<{ storeStockId: string; qty: number; minSellPriceUgx: string }>
-  >([])
+  const [lines, setLines] = useState<LineDraft[]>([])
 
-  const availableStock = stock.filter((s) => s.quantityOnHand > 0)
+  // Only show item buckets with at least one unit on hand.
+  const availableStock = useMemo(
+    () => stock.filter((g) => g.totalQty > 0),
+    [stock],
+  )
 
-  function toggleItem(stockId: string) {
-    setSelectedItems((prev) => {
-      const exists = prev.find((i) => i.storeStockId === stockId)
-      if (exists) return prev.filter((i) => i.storeStockId !== stockId)
-      const item = stock.find((s) => s.id === stockId)
-      return [
-        ...prev,
-        {
-          storeStockId: stockId,
-          qty: item?.quantityOnHand ?? 1,
-          // Default the shop's minimum sell price to the store's cost-per-unit;
-          // dispatcher can edit before submitting.
-          minSellPriceUgx: item?.costPerUnitUgx ?? "",
-        },
-      ]
+  // Per-item, group rows by variant so we can render variant chips with their
+  // own availability. `null` variantId (unresolved lots) is summed into a
+  // separate "Unresolved" bucket — picking "Any (FIFO)" lets the server drain
+  // unresolved-first.
+  function variantsForItem(group: StockGroup) {
+    const byVariant = new Map<
+      string,
+      {
+        variantId: string
+        size: string
+        colorName: string
+        colorHex: string
+        qty: number
+      }
+    >()
+    let unresolvedQty = 0
+    for (const r of group.rows) {
+      if (r.variant === null) {
+        unresolvedQty += r.quantityOnHand
+        continue
+      }
+      const v = r.variant
+      const existing = byVariant.get(v.id)
+      if (existing) {
+        existing.qty += r.quantityOnHand
+      } else {
+        byVariant.set(v.id, {
+          variantId: v.id,
+          size: v.size,
+          colorName: v.color.colorName,
+          colorHex: v.color.colorHex,
+          qty: r.quantityOnHand,
+        })
+      }
+    }
+    return {
+      variants: Array.from(byVariant.values()).sort((a, b) =>
+        `${a.colorName} ${a.size}`.localeCompare(`${b.colorName} ${b.size}`),
+      ),
+      unresolvedQty,
+    }
+  }
+
+  function findLine(itemId: string) {
+    return lines.find((l) => l.itemId === itemId)
+  }
+
+  function setItemSelected(itemId: string, on: boolean) {
+    setLines((prev) => {
+      if (!on) return prev.filter((l) => l.itemId !== itemId)
+      if (prev.some((l) => l.itemId === itemId)) return prev
+      const group = availableStock.find((g) => g.item.id === itemId)
+      const defaultQty = group ? Math.max(1, Math.min(1, group.totalQty)) : 1
+      return [...prev, { itemId, variantId: undefined, qty: defaultQty }]
     })
   }
 
-  function setQty(stockId: string, qty: number) {
-    setSelectedItems((prev) =>
-      prev.map((i) =>
-        i.storeStockId === stockId ? { ...i, qty } : i,
-      ),
+  function setLineVariant(itemId: string, variantId: string | undefined) {
+    setLines((prev) =>
+      prev.map((l) => (l.itemId === itemId ? { ...l, variantId } : l)),
     )
   }
 
-  function setMinSellPrice(stockId: string, val: string) {
-    setSelectedItems((prev) =>
-      prev.map((i) =>
-        i.storeStockId === stockId ? { ...i, minSellPriceUgx: val } : i,
-      ),
+  function setLineQty(itemId: string, qty: number) {
+    setLines((prev) =>
+      prev.map((l) => (l.itemId === itemId ? { ...l, qty } : l)),
     )
   }
 
-  const allMinPricesValid = selectedItems.every((i) => {
-    const n = new BigNumber(i.minSellPriceUgx || 0)
-    return n.isFinite() && n.gt(0)
+  // Availability for a given line: total on-hand at the source if "Any (FIFO)",
+  // or the per-variant total when a variant chip is selected.
+  function availabilityFor(line: LineDraft): number {
+    const group = availableStock.find((g) => g.item.id === line.itemId)
+    if (!group) return 0
+    if (line.variantId === undefined) return group.totalQty
+    return group.rows
+      .filter((r) => r.variantId === line.variantId)
+      .reduce((s, r) => s + r.quantityOnHand, 0)
+  }
+
+  const allLinesValid = lines.every((l) => {
+    if (l.qty <= 0) return false
+    return l.qty <= availabilityFor(l)
   })
 
   async function handleSubmit() {
-    if (!shopId || selectedItems.length === 0) return
-    if (!allMinPricesValid) return
+    if (!shopId || lines.length === 0) return
+    if (!allLinesValid) return
     setPending(true)
+    setError(null)
     try {
       await createTransfer({
         data: {
           shopId,
-          items: selectedItems.map((i) => ({
-            storeStockId: i.storeStockId,
-            quantityDispatched: i.qty,
-            minimumSellPriceUgx: i.minSellPriceUgx,
+          items: lines.map((l) => ({
+            itemId: l.itemId,
+            variantId: l.variantId,
+            quantityDispatched: l.qty,
           })),
         },
       })
       onSuccess(shopId)
     } catch (err) {
       console.error("Failed to create transfer:", err)
+      setError(err instanceof Error ? err.message : "Failed to create transfer.")
     } finally {
       setPending(false)
     }
@@ -321,80 +356,129 @@ function CreateTransferForm({
 
       <div className="space-y-2">
         <Label>Select Items</Label>
-        <div className="max-h-64 overflow-y-auto border rounded-md">
+        <div className="max-h-80 overflow-y-auto border rounded-md">
           {availableStock.length === 0 ? (
             <p className="text-muted-foreground p-4 text-sm text-center">
               No stock available.
             </p>
           ) : (
-            availableStock.map((s) => {
-              const selected = selectedItems.find(
-                (i) => i.storeStockId === s.id,
-              )
+            availableStock.map((g) => {
+              const line = findLine(g.item.id)
+              const { variants, unresolvedQty } = variantsForItem(g)
+              const selected = line !== undefined
               return (
                 <div
-                  key={s.id}
-                  className="space-y-3 p-3 border-b last:border-b-0"
+                  key={g.item.id}
+                  className="space-y-2 p-3 border-b last:border-b-0"
                 >
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
-                      checked={!!selected}
-                      onChange={() => toggleItem(s.id)}
+                      checked={selected}
+                      onChange={(e) =>
+                        setItemSelected(g.item.id, e.target.checked)
+                      }
+                      aria-label={`Select ${g.item.name}`}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {s.variant.color.item.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-                        <span
-                          className="size-3 rounded-full border"
-                          style={{ backgroundColor: s.variant.color.colorHex }}
-                          aria-hidden
-                        />
-                        {s.variant.color.colorName} · {s.variant.size}
-                        <span className="ml-1 font-mono">
-                          [{s.variant.color.item.articleNumber}]
-                        </span>
+                        {g.item.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Available: {s.quantityOnHand} | Cost:{" "}
-                        {formatUgx(s.costPerUnitUgx)}
+                        <span className="font-mono">{g.item.articleNumber}</span>
+                        {" · Available: "}
+                        {g.totalQty}
+                        {unresolvedQty > 0 && (
+                          <span className="ml-1 italic">
+                            ({unresolvedQty} unresolved)
+                          </span>
+                        )}
                       </p>
                     </div>
-                    {selected && (
-                      <Input
-                        type="number"
-                        min={1}
-                        max={s.quantityOnHand}
-                        className="w-20 text-right"
-                        value={selected.qty}
-                        onChange={(e) => setQty(s.id, Number(e.target.value))}
-                      />
-                    )}
                   </div>
-                  {selected && (
-                    <div className="ml-7 space-y-1">
-                      <Label
-                        htmlFor={`min-sell-${s.id}`}
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground"
-                      >
-                        Shop Min Sell Price (UGX)
-                        <InfoTip term="transferItem.minSellPrice" />
-                      </Label>
-                      <MoneyInput
-                        id={`min-sell-${s.id}`}
-                        currency="UGX"
-                        roundTo={50}
-                        value={selected.minSellPriceUgx}
-                        onChange={(val) => setMinSellPrice(s.id, val)}
-                        placeholder="0"
-                        error={
-                          new BigNumber(selected.minSellPriceUgx || 0).lte(0)
-                            ? "Required"
-                            : undefined
-                        }
-                      />
+
+                  {line && (
+                    <div className="ml-7 space-y-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setLineVariant(g.item.id, undefined)}
+                          className="rounded-full"
+                          aria-pressed={line.variantId === undefined}
+                        >
+                          <Badge
+                            variant={
+                              line.variantId === undefined
+                                ? "default"
+                                : "outline"
+                            }
+                            className="italic cursor-pointer"
+                          >
+                            Any (FIFO)
+                          </Badge>
+                        </button>
+                        {variants.map((v) => {
+                          const active = line.variantId === v.variantId
+                          return (
+                            <button
+                              key={v.variantId}
+                              type="button"
+                              onClick={() =>
+                                setLineVariant(g.item.id, v.variantId)
+                              }
+                              className="rounded-full"
+                              aria-pressed={active}
+                              title={`${v.colorName} ${v.size} — ${v.qty} on hand`}
+                            >
+                              <Badge
+                                variant={active ? "default" : "outline"}
+                                className="cursor-pointer inline-flex items-center gap-1.5"
+                              >
+                                <span
+                                  className="size-2.5 rounded-full border"
+                                  style={{ backgroundColor: v.colorHex }}
+                                  aria-hidden
+                                />
+                                {v.colorName} · {v.size}
+                                <span className="text-[10px] opacity-70">
+                                  ({v.qty})
+                                </span>
+                              </Badge>
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Label
+                          htmlFor={`qty-${g.item.id}`}
+                          className="text-xs text-muted-foreground"
+                        >
+                          Quantity
+                        </Label>
+                        <Input
+                          id={`qty-${g.item.id}`}
+                          type="number"
+                          min={1}
+                          max={availabilityFor(line)}
+                          className="w-24 text-right"
+                          value={line.qty}
+                          onChange={(e) =>
+                            setLineQty(g.item.id, Number(e.target.value))
+                          }
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          of {availabilityFor(line)} available
+                          {line.variantId === undefined && variants.length > 0
+                            ? " (across all variants)"
+                            : ""}
+                        </span>
+                      </div>
+                      {line.qty > availabilityFor(line) && (
+                        <p className="text-xs text-destructive">
+                          Quantity exceeds available stock.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -404,20 +488,28 @@ function CreateTransferForm({
         </div>
       </div>
 
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+
       <Button
         className="w-full"
-        onClick={() => { void handleSubmit() }}
+        onClick={() => {
+          void handleSubmit()
+        }}
         disabled={
           pending ||
           !shopId ||
-          selectedItems.length === 0 ||
-          !allMinPricesValid
+          lines.length === 0 ||
+          !allLinesValid
         }
       >
-        {pending ? "Creating..." : `Dispatch ${selectedItems.length} items`}
+        {pending
+          ? "Creating..."
+          : `Dispatch ${lines.length} ${lines.length === 1 ? "item" : "items"}`}
       </Button>
     </div>
   )
 }
-
-

@@ -13,6 +13,7 @@ import {
 export interface SuggestionRow {
   alertId: string
   shopStockId: string
+  itemId: string
   storeStockId: string | null
   variantId: string
   size: string
@@ -24,7 +25,8 @@ export interface SuggestionRow {
 }
 
 export interface SuggestionSelection {
-  storeStockId: string
+  itemId: string
+  variantId: string
   quantity: number
   itemLabel: string
 }
@@ -59,11 +61,11 @@ export function RestockSuggestionsTable({
       const selections: SuggestionSelection[] = rows.flatMap((r) => {
         const pick = picks[r.alertId]
         if (!pick.checked) return []
-        const storeStockId = r.storeStockId
-        if (storeStockId === null) return []
+        if (pick.quantity <= 0) return []
         return [
           {
-            storeStockId,
+            itemId: r.itemId,
+            variantId: r.variantId,
             quantity: pick.quantity,
             itemLabel: r.itemLabel,
           },

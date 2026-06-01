@@ -295,11 +295,6 @@ export const helpDict = {
     description:
       'Filter by the business date (when the event actually happened), not when it was entered.',
   },
-  'transferItem.minSellPrice': {
-    description:
-      "The lowest price the shop is allowed to charge customers for this item. Defaults to the warehouse's cost-per-unit; the dispatcher can raise it to enforce a margin floor.",
-  },
-
   // ─── Workflow status values ──────────────────────────────────────────
   'status.planning': {
     description:

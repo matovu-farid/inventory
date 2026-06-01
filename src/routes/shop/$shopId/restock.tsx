@@ -51,7 +51,8 @@ function ShopRestockPage() {
         data: {
           shopId: params.shopId,
           items: selections.map((s) => ({
-            storeStockId: s.storeStockId,
+            itemId: s.itemId,
+            variantId: s.variantId,
             quantityDispatched: s.quantity,
           })),
         },
