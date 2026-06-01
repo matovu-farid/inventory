@@ -58,7 +58,8 @@ export function CheckoutSheet({ shopId, open, onOpenChange, onSaleComplete }: Pr
         shopId,
         paymentMethod,
         items: state.items.map((i) => ({
-          shopStockId: i.shopStockId,
+          itemId: i.itemId,
+          variantId: i.variantId ?? undefined,
           quantity: i.qty,
           unitPriceUgx: i.unitPriceUgx,
           belowMinimumReason: i.belowMinimumReason.trim() || undefined,

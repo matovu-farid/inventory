@@ -1,9 +1,17 @@
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, sql } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import BigNumber from "bignumber.js"
 import { db } from "#/db"
-import { shops, shopSales, shopSaleLines, shopStock, customers } from "#/db/schema"
+import {
+  items,
+  shops,
+  shopSales,
+  shopSaleLines,
+  shopSaleLineAllocations,
+  shopStock,
+  customers,
+} from "#/db/schema"
 import { postJournalEntry } from "#/lib/accounting/ledger"
 import { nextDocumentNumber } from "#/lib/document-numbers-db"
 import { recordAuditLog } from "#/server/middleware/audit-store"
@@ -13,7 +21,8 @@ import {
   depositCategoryFor,
   depositLocationFor,
 } from "#/lib/payment-method"
-import { formatItemLabel } from "#/lib/items"
+import { formatItemLabel, formatItemLabelUnresolved } from "#/lib/items"
+import { pickShopStockFifo } from "./fifo"
 import { validateBelowMinimumSale } from "./sale-validate"
 import { renderAuditDescription } from "#/server/audit/descriptions"
 import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
@@ -28,9 +37,8 @@ export const getShopStock = createServerFn()
     return db.query.shopStock.findMany({
       where: eq(shopStock.shopId, data.shopId),
       with: {
-        // item-level join so callers can read the item-wide minimum sell
-        // price (the per-row column was dropped in the shop_stock schema
-        // flip — variant-flexibility Plan 2 Task 1). `colors` is read by
+        // item-level join gives the item-wide minimum sell price and lets
+        // unresolved rows render a label. `colors` is read by
         // SpecifyStockDialog on unresolved rows (Plan 2a Task 12).
         item: { with: { colors: true } },
         variant: { with: { color: { with: { item: true } } } },
@@ -82,6 +90,11 @@ export const listShopSales = createServerFn()
       with: {
         items: {
           with: {
+            // Plan 2b: lines carry item identity directly + optional variant.
+            // `shopStockItem` is retained for backwards compat with audit
+            // resolvers that still walk it; Plan 2c will sweep.
+            item: true,
+            variant: { with: { color: { with: { item: true } } } },
             shopStockItem: {
               with: { variant: { with: { color: { with: { item: true } } } } },
             },
@@ -95,7 +108,8 @@ export const listShopSales = createServerFn()
   })
 
 const saleItemInput = z.object({
-  shopStockId: z.uuid(),
+  itemId: z.uuid(),
+  variantId: z.uuid().optional(),
   quantity: z.number().int().positive(),
   unitPriceUgx: z.string(),
   belowMinimumReason: z.string().optional(),
@@ -112,13 +126,13 @@ const recordSaleInput = z.object({
 })
 
 /**
- * Record a shop sale.
+ * Record a shop sale (Plan 2b — item-level).
  *
- * 1. Validate stock and minimum price enforcement
- * 2. Create sale + sale items
- * 3. Decrement shop stock
- * 4. Post ledger: DR Cash/Bank, CR Sales Revenue
- *                 DR Cost of Goods Sold, CR Inventory-Shop
+ * 1. Validate stock availability via `pickShopStockFifo` (per-item).
+ * 2. Validate minimum-price + reason against item-level floor.
+ * 3. Create sale + one sale-line per input item + N allocations per line.
+ * 4. Decrement each source shop_stock lot by its allocation quantity.
+ * 5. Post ledger: DR Cash/Bank/A/R, CR Sales Revenue; DR COGS, CR Inv-Shop.
  */
 export const recordSale = createServerFn()
   .inputValidator(recordSaleInput)
@@ -140,7 +154,6 @@ export const recordSale = createServerFn()
     }
 
     return db.transaction(async (tx) => {
-      // Verify customer exists when this is a credit sale
       if (data.paymentMethod === "credit" && data.customerId) {
         const customer = await tx.query.customers.findFirst({
           where: eq(customers.id, data.customerId),
@@ -149,85 +162,89 @@ export const recordSale = createServerFn()
           throw new Error(`Customer not found: ${data.customerId}`)
         }
       }
+
       let totalAmount = new BigNumber(0)
       let totalCost = new BigNumber(0)
       let hasBelowMinimum = false
 
-      // Validate all items first
-      const itemDetails: Array<{
-        stockId: string
+      const planned: Array<{
         itemId: string
         variantId: string | null
-        costPerUnitUgx: string
-        minimumSellPriceUgx: string
         quantity: number
         unitPrice: BigNumber
         totalPrice: BigNumber
-        costPerUnit: BigNumber
+        minimumSellPriceUgx: string
         isBelowMinimum: boolean
         belowMinimumReason: string | null
+        allocations: Array<{
+          shopStockId: string
+          quantity: number
+          costPerUnitUgx: string
+          supplyRouteLineId: string | null
+        }>
       }> = []
 
-      for (const item of data.items) {
-        const stock = await tx.query.shopStock.findFirst({
-          where: eq(shopStock.id, item.shopStockId),
-          with: {
-            item: true,
-            variant: { with: { color: { with: { item: true } } } },
+      for (const input of data.items) {
+        const item = await tx.query.items.findFirst({
+          where: eq(items.id, input.itemId),
+          columns: {
+            id: true,
+            articleNumber: true,
+            name: true,
+            minimumSellPriceUgx: true,
           },
         })
-        if (!stock) throw new Error(`Stock item not found: ${item.shopStockId}`)
-        // Plan 2a: shop_stock.variant_id is now nullable. POS sales still
-        // assume a resolved variant. Plan 2b will rewrite recordSale to
-        // accept item-level lines; until then assert.
-        if (!stock.variant) {
+        if (!item) throw new Error(`Item not found: ${input.itemId}`)
+
+        const plan = await pickShopStockFifo(tx, {
+          shopId: data.shopId,
+          itemId: input.itemId,
+          variantId: input.variantId,
+          quantity: input.quantity,
+        })
+        if (plan.shortfall > 0) {
           throw new Error(
-            "Plan 2a: shop sale on an unresolved shop stock row — specify the variant first (Plan 2b)",
+            `Insufficient stock for ${item.articleNumber} ${item.name}: ` +
+              `short by ${plan.shortfall}`,
           )
         }
-        // minimum sell price now lives at the item level after the schema
-        // flip; read it through the joined item.
-        const minimumSellPriceUgx = stock.item.minimumSellPriceUgx
-        const itemLabel = formatItemLabel(
-          stock.variant.color.item.articleNumber,
-          stock.variant.color.colorName,
-          stock.variant.size,
-        )
-        if (stock.quantityOnHand < item.quantity) {
-          throw new Error(
-            `Insufficient stock for ${itemLabel}: have ${stock.quantityOnHand}, need ${item.quantity}`,
-          )
-        }
+
+        // Item-level label (color/size optional). Used in below-minimum
+        // validator error messages and the audit description fallback.
+        const itemLabel = input.variantId
+          ? formatItemLabel(item.articleNumber, item.name, "")
+          : formatItemLabelUnresolved(item.articleNumber, item.name)
 
         const { isBelowMinimum, reason: belowMinimumReason } =
           validateBelowMinimumSale({
-            unitPriceUgx: item.unitPriceUgx,
-            minimumSellPriceUgx,
+            unitPriceUgx: input.unitPriceUgx,
+            minimumSellPriceUgx: item.minimumSellPriceUgx,
             userRole,
-            reason: item.belowMinimumReason ?? "",
+            reason: input.belowMinimumReason ?? "",
             itemName: itemLabel,
           })
         if (isBelowMinimum) hasBelowMinimum = true
 
-        const unitPrice = new BigNumber(item.unitPriceUgx)
-        const tp = unitPrice.times(item.quantity)
-        totalAmount = totalAmount.plus(tp)
-        totalCost = totalCost.plus(
-          new BigNumber(stock.costPerUnitUgx).times(item.quantity),
+        const unitPrice = new BigNumber(input.unitPriceUgx)
+        const totalPrice = unitPrice.times(input.quantity)
+        const lineCost = plan.allocations.reduce(
+          (s, a) => s.plus(new BigNumber(a.costPerUnitUgx).times(a.quantity)),
+          new BigNumber(0),
         )
 
-        itemDetails.push({
-          stockId: stock.id,
-          itemId: stock.itemId,
-          variantId: stock.variantId,
-          costPerUnitUgx: stock.costPerUnitUgx,
-          minimumSellPriceUgx,
-          quantity: item.quantity,
+        totalAmount = totalAmount.plus(totalPrice)
+        totalCost = totalCost.plus(lineCost)
+
+        planned.push({
+          itemId: item.id,
+          variantId: input.variantId ?? null,
+          quantity: input.quantity,
           unitPrice,
-          totalPrice: tp,
-          costPerUnit: new BigNumber(stock.costPerUnitUgx),
+          totalPrice,
+          minimumSellPriceUgx: item.minimumSellPriceUgx,
           isBelowMinimum,
           belowMinimumReason,
+          allocations: plan.allocations,
         })
       }
 
@@ -252,27 +269,46 @@ export const recordSale = createServerFn()
         })
         .returning()
 
-      // Create sale items + update stock
-      for (const detail of itemDetails) {
-        await tx.insert(shopSaleLines).values({
-          shopSaleId: sale.id,
-          itemId: detail.itemId,
-          variantId: detail.variantId,
-          shopStockId: detail.stockId,
-          quantity: detail.quantity,
-          unitPriceUgx: detail.unitPrice.toFixed(2),
-          minimumPriceUgx: detail.minimumSellPriceUgx,
-          isBelowMinimum: detail.isBelowMinimum,
-          belowMinimumReason: detail.belowMinimumReason,
-          totalPriceUgx: detail.totalPrice.toFixed(2),
-        })
-
-        await tx
-          .update(shopStock)
-          .set({
-            quantityOnHand: sql`${shopStock.quantityOnHand} - ${detail.quantity}`,
+      for (const detail of planned) {
+        const [line] = await tx
+          .insert(shopSaleLines)
+          .values({
+            shopSaleId: sale.id,
+            itemId: detail.itemId,
+            variantId: detail.variantId,
+            shopStockId: null,
+            quantity: detail.quantity,
+            unitPriceUgx: detail.unitPrice.toFixed(2),
+            minimumPriceUgx: detail.minimumSellPriceUgx,
+            isBelowMinimum: detail.isBelowMinimum,
+            belowMinimumReason: detail.belowMinimumReason,
+            totalPriceUgx: detail.totalPrice.toFixed(2),
           })
-          .where(eq(shopStock.id, detail.stockId))
+          .returning()
+
+        for (const alloc of detail.allocations) {
+          await tx.insert(shopSaleLineAllocations).values({
+            shopSaleLineId: line.id,
+            shopStockId: alloc.shopStockId,
+            supplyRouteLineId: alloc.supplyRouteLineId,
+            quantity: alloc.quantity,
+            costPerUnitUgx: alloc.costPerUnitUgx,
+          })
+          // Decrement source row.
+          const sourceRow = await tx.query.shopStock.findFirst({
+            where: eq(shopStock.id, alloc.shopStockId),
+            columns: { quantityOnHand: true },
+          })
+          if (!sourceRow) {
+            throw new Error(
+              `FIFO plan referenced missing shop_stock row ${alloc.shopStockId}`,
+            )
+          }
+          await tx
+            .update(shopStock)
+            .set({ quantityOnHand: sourceRow.quantityOnHand - alloc.quantity })
+            .where(eq(shopStock.id, alloc.shopStockId))
+        }
       }
 
       const debitCategory =
@@ -299,7 +335,6 @@ export const recordSale = createServerFn()
         description: `Sale ${docNumber.formatted} (${data.items.length} items)`,
       })
 
-      // Post ledger: COGS
       await postJournalEntry(tx, {
         entries: [
           { type: "debit", category: "Cost of Goods Sold", amount: totalCost.toFixed(2) },

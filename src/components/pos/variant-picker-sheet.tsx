@@ -22,6 +22,8 @@ import { deriveSizes } from "#/lib/variants"
 
 type StockRow = {
   id: string
+  itemId: string
+  variantId: string | null
   itemColorId: string
   size: string
   quantityOnHand: number
@@ -105,6 +107,8 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
     const label = `${item.item.articleNumber} · ${item.item.name} — ${color.colorName} / ${size}`
     add({
       shopStockId: currentRow.id,
+      itemId: currentRow.itemId,
+      variantId: currentRow.variantId,
       itemLabel: label,
       imageUrl: color.imageS3Key ? itemImageUrl(color.imageS3Key) : null,
       colorHex: color.colorHex,

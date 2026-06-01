@@ -5,6 +5,8 @@ import type { CartItem } from "#/lib/pos/cart-reducer"
 
 const base: CartItem = {
   shopStockId: "stk1",
+  itemId: "itm1",
+  variantId: "var1",
   itemLabel: "TR-001 Tee",
   imageUrl: null,
   colorHex: "#000",

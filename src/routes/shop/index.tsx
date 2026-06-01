@@ -520,12 +520,17 @@ function NewSaleForm({
         data: {
           shopId,
           paymentMethod,
-          items: cart.map((c) => ({
-            shopStockId: c.stockId,
-            quantity: c.qty,
-            unitPriceUgx: c.price,
-            belowMinimumReason: c.belowMinimumReason.trim() || undefined,
-          })),
+          items: cart.map((c) => {
+            const s = stock.find((x) => x.id === c.stockId)
+            if (!s) throw new Error(`Cart row references missing stock ${c.stockId}`)
+            return {
+              itemId: s.item.id,
+              variantId: s.variant.id,
+              quantity: c.qty,
+              unitPriceUgx: c.price,
+              belowMinimumReason: c.belowMinimumReason.trim() || undefined,
+            }
+          }),
         },
       })
       onSuccess()

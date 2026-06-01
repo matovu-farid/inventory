@@ -75,6 +75,9 @@ function PosInner() {
     () =>
       resolved.map((s) => ({
         id: s.id,
+        // Item identity for Plan 2b's item-level recordSale input.
+        itemId: s.itemId,
+        variantId: s.variantId,
         // Stock now keys on variant_id (issue #4). The variant picker UI
         // still groups rows by (color × size); expose the variant's
         // colorId + size so its existing data shape stays intact.

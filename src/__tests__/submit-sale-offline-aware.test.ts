@@ -17,7 +17,7 @@ const sampleInput = {
   paymentMethod: "cash" as const,
   items: [
     {
-      shopStockId: "stock-1",
+      itemId: "item-1",
       quantity: 2,
       unitPriceUgx: "50000",
     },

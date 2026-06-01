@@ -1,7 +1,12 @@
 import BigNumber from "bignumber.js"
 
 export type CartItem = {
+  // Stable per-row key for cart UI. Today this is the source shop_stock
+  // row the user picked; after Plan 2b's item-level flip the server fn
+  // ignores it and uses `itemId`/`variantId` to FIFO-pick lots itself.
   shopStockId: string
+  itemId: string
+  variantId: string | null
   itemLabel: string
   imageUrl: string | null
   colorHex: string

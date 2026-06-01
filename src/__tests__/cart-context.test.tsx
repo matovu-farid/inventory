@@ -9,6 +9,8 @@ beforeEach(() => window.localStorage.clear())
 
 const item: CartItem = {
   shopStockId: "stk1",
+  itemId: "itm1",
+  variantId: "var1",
   itemLabel: "TR-001 Tee",
   imageUrl: null,
   colorHex: "#000",

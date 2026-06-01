@@ -13,6 +13,17 @@ export function formatItemLabel(
   return `${articleNumber} ${colorName}/${size}`
 }
 
+/**
+ * Item-level label for unresolved (variant-less) sale/return/transfer
+ * lines. Used by Plan 2b call sites where a line may carry no variant.
+ */
+export function formatItemLabelUnresolved(
+  articleNumber: string,
+  name: string,
+): string {
+  return `${articleNumber} ${name}`
+}
+
 export function itemImageUrl(s3Key: string): string
 export function itemImageUrl(s3Key: string | null | undefined): string | null
 export function itemImageUrl(s3Key: string | null | undefined): string | null {
