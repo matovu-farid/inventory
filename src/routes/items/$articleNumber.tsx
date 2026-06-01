@@ -8,8 +8,8 @@ import {
 } from "#/server/functions/items/items"
 import {
   listItemStockPrices,
+  // Plan 2b removed setShopStockMinimumPrice — shop floors are item-wide now.
   setItemMinimumSellPrice,
-  setShopStockMinimumPrice,
 } from "#/server/functions/items/prices"
 import { countVariantStockLocations } from "#/server/functions/items/variant-stock-counts"
 import {
@@ -228,15 +228,12 @@ type StockPrices = {
       color: { colorName: string; colorHex: string }
     } | null
   }>
+  // Plan 2b: shop_stock no longer carries a per-row minimum sell price —
+  // shop floors are read from `item.minimumSellPriceUgx` like store floors.
   shop: Array<{
     id: string
     quantityOnHand: number
-    minimumSellPriceUgx: string
     shop: { name: string }
-    // After shop_stock.variant_id was made nullable in variant-flexibility
-    // Plan 2 Task 1, shop rows may also be unresolved. Plan 2b will adapt
-    // the editor UI; for now we render "—" for color/size like the store
-    // side already does.
     variant: {
       size: string
       color: { colorName: string; colorHex: string }
@@ -265,7 +262,8 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
       color: s.variant?.color ?? null,
       size: s.variant?.size ?? null,
       qty: s.quantityOnHand,
-      price: s.minimumSellPriceUgx,
+      // Shop rows inherit the item-wide floor after Plan 2b.
+      price: itemFloor,
     })),
   ]
   if (rows.length === 0) {
@@ -321,69 +319,35 @@ function PriceEditor({
   prices: StockPrices
   onSaved: () => void
 }) {
-  // After variant-flexibility Task 2 there are two kinds of editable rows:
-  //   - one item-level floor (writes `items.minimumSellPriceUgx` via
-  //     `setItemMinimumSellPrice`) — applies to every store lot.
-  //   - one per shop_stock row (writes `shop_stock.minimum_sell_price_ugx`
-  //     via `setShopStockMinimumPrice`) — still per-lot for shops.
-  type ItemDraft = {
+  // Plan 2b: a single item-wide minimum sell price applies to every
+  // store + shop lot. The editor has one row.
+  type DraftRow = {
     key: "item"
-    kind: "item"
     itemId: string
     location: string
     original: string
     value: string
     qty: number
   }
-  type ShopDraft = {
-    key: string
-    kind: "shop"
-    stockId: string
-    location: string
-    color: { colorName: string; colorHex: string }
-    size: string
-    qty: number
-    original: string
-    value: string
-  }
-  type DraftRow = ItemDraft | ShopDraft
 
-  const storeQty = prices.store.reduce((sum, s) => sum + s.quantityOnHand, 0)
+  const totalQty =
+    prices.store.reduce((s, r) => s + r.quantityOnHand, 0) +
+    prices.shop.reduce((s, r) => s + r.quantityOnHand, 0)
   const itemFloor = prices.item?.minimumSellPriceUgx ?? "0"
   const itemId = prices.item?.id
 
   const [rows, setRows] = useState<DraftRow[]>(() => {
-    const draft: DraftRow[] = []
-    if (itemId) {
-      draft.push({
+    if (!itemId) return []
+    return [
+      {
         key: "item",
-        kind: "item",
         itemId,
-        location: "Store · item-wide floor",
+        location: "Item-wide floor (store + shop)",
         original: itemFloor,
         value: itemFloor,
-        qty: storeQty,
-      })
-    }
-    for (const s of prices.shop) {
-      // Shop rows can now be unresolved (variant null) after the shop_stock
-      // schema flip. Plan 2b will replace this with an item-level shop
-      // editor; until then skip unresolved rows from the per-lot editor
-      // because there's nothing variant-specific to label them with.
-      if (!s.variant) continue
-      draft.push({
-        key: `shop-${s.id}`,
-        kind: "shop",
-        stockId: s.id,
-        location: `Shop · ${s.shop.name}`,
-        color: s.variant.color,
-        size: s.variant.size,
-        qty: s.quantityOnHand,
-        original: s.minimumSellPriceUgx,
-        value: s.minimumSellPriceUgx,
-      })
-    }
-    return draft
+        qty: totalQty,
+      },
+    ]
   })
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -404,15 +368,9 @@ function PriceEditor({
     setError(null)
     try {
       for (const r of dirty) {
-        if (r.kind === "item") {
-          await setItemMinimumSellPrice({
-            data: { itemId: r.itemId, minimumSellPriceUgx: r.value },
-          })
-        } else {
-          await setShopStockMinimumPrice({
-            data: { shopStockId: r.stockId, minimumSellPriceUgx: r.value },
-          })
-        }
+        await setItemMinimumSellPrice({
+          data: { itemId: r.itemId, minimumSellPriceUgx: r.value },
+        })
       }
       onSaved()
     } catch (err) {
@@ -439,20 +397,9 @@ function PriceEditor({
               <tr key={r.key} className="border-t align-top">
                 <td className="p-2">{r.location}</td>
                 <td className="p-2">
-                  {r.kind === "shop" ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        className="inline-block size-3 rounded-full border"
-                        style={{ backgroundColor: r.color.colorHex }}
-                        aria-hidden
-                      />
-                      {r.color.colorName} · {r.size}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      all colors · all sizes
-                    </span>
-                  )}
+                  <span className="text-xs text-muted-foreground">
+                    all colors · all sizes
+                  </span>
                 </td>
                 <td className="p-2 text-right tabular-nums">{r.qty}</td>
                 <td className="p-2 w-44">
