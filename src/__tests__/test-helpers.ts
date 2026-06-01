@@ -267,6 +267,74 @@ export async function seedStoreStockLot(input: {
 }
 
 /**
+ * Seed a single shop_stock lot.
+ *
+ * Mirrors `seedStoreStockLot` variant-resolution rules:
+ *  - `variantId === null` → unresolved lot.
+ *  - `variantId` is a string → use as-is.
+ *  - `variantId` omitted but `colorId` + `size` present → look up or
+ *    create the matching variant.
+ *  - Anything else throws.
+ */
+export async function seedShopStockLot(input: {
+  shopId: string
+  itemId: string
+  variantId?: string | null
+  colorId?: string
+  size?: string
+  supplyRouteLineId: string | null
+  quantity: number
+  costPerUnitUgx: string
+}): Promise<{ stockId: string; variantId: string | null }> {
+  let resolvedVariantId: string | null
+  if (input.variantId === null) {
+    resolvedVariantId = null
+  } else if (typeof input.variantId === "string") {
+    resolvedVariantId = input.variantId
+  } else if (input.colorId && input.size) {
+    const existing = await db.query.variants.findFirst({
+      where: and(
+        eq(variants.itemId, input.itemId),
+        eq(variants.colorId, input.colorId),
+        eq(variants.size, input.size),
+      ),
+    })
+    if (existing) {
+      resolvedVariantId = existing.id
+    } else {
+      const [created] = await db
+        .insert(variants)
+        .values({
+          itemId: input.itemId,
+          colorId: input.colorId,
+          size: input.size,
+        })
+        .returning()
+      assertDefined(created, "seedShopStockLot: variant insert returned no row")
+      resolvedVariantId = created.id
+    }
+  } else {
+    throw new Error(
+      "seedShopStockLot: pass variantId (or null), or both colorId + size",
+    )
+  }
+
+  const [row] = await db
+    .insert(shopStock)
+    .values({
+      shopId: input.shopId,
+      itemId: input.itemId,
+      variantId: resolvedVariantId,
+      supplyRouteLineId: input.supplyRouteLineId,
+      quantityOnHand: input.quantity,
+      costPerUnitUgx: input.costPerUnitUgx,
+    })
+    .returning()
+  assertDefined(row, "seedShopStockLot: insert returned no row")
+  return { stockId: row.id, variantId: resolvedVariantId }
+}
+
+/**
  * Seed a single unresolved shop_stock lot (variantId NULL).
  *
  * Auto-creates a supply_route_line when none is provided so the resulting
