@@ -4,7 +4,11 @@ export interface OpeningBalanceCell {
   // Variant the cell creates stock for. Replaces the legacy
   // (itemColorId, size) shape in #6 — opening balance now points at a
   // pre-materialised variant rather than reaching for one by (color, size).
-  variantId: string
+  //
+  // Plan 2a (Task 3): `variantId` is optional. When null/omitted the cell
+  // creates a variant-less (aggregate / unresolved) stock row — used by
+  // the Excel importer when the source sheet only carries item info.
+  variantId: string | null
   quantity: number
 }
 
@@ -17,7 +21,11 @@ export interface OpeningBalanceItemEntry {
 }
 
 export function validateOpeningBalanceCell(cell: OpeningBalanceCell, unitCostUgx: string): void {
-  if (!cell.variantId) throw new Error("variantId is required")
+  // variantId is intentionally nullable — see Plan 2a Task 3. We only
+  // reject an explicit empty-string (a likely accidental UI submission)
+  // and accept `null` / `undefined` as "unresolved row, write variantId
+  // = NULL into shop_stock".
+  if (cell.variantId === "") throw new Error("variantId must be a uuid or null")
   if (!Number.isInteger(cell.quantity) || cell.quantity <= 0) {
     throw new Error("quantity must be a positive integer")
   }

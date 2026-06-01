@@ -18,12 +18,12 @@ import { validateOpeningBalanceCell } from "./opening-balance-validate"
 import { renderAuditDescription } from "#/server/audit/descriptions"
 import { getActorName } from "#/server/audit/actor"
 
-// Opening balance cells now address inventory by `variant_id` directly
-// (the variant is the unit of stock since #4 / #5 / #6). Operators pick a
-// variant from a dropdown that lists pre-materialised (color, size) pairs
-// — the server no longer reaches for one by (color, size) on the fly.
+// Opening balance cells address inventory by `variant_id` when the source
+// data carries one, or by item-only when the importer/UI only knows the
+// article (Plan 2a Task 3 — variant-flexible opening balance, mirrors the
+// Plan 1 unresolved-row pattern used by `receiveGoods`/`specifyStock`).
 const cellSchema = z.object({
-  variantId: z.uuid(),
+  variantId: z.uuid().nullable(),
   quantity: z.number().int().positive(),
 })
 
@@ -48,17 +48,27 @@ interface ResolvedVariant {
 }
 
 /**
- * Resolve a set of cell variantIds to their (colorName, size) breakdown so
- * we can:
+ * Resolve the (colorName, size) breakdown for every cell that carries a
+ * variantId so we can:
  *   - sanity-check that every referenced variant exists,
  *   - emit a self-describing audit payload that doesn't depend on the
  *     variant row still existing later.
+ *
+ * Cells with `variantId === null` are skipped — those become item-keyed,
+ * variant-less stock rows (Plan 2a Task 3, mirrors the unresolved-row
+ * pattern from Plan 1's `receiveGoods`/`specifyStock`).
  */
 async function resolveVariantContext(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   cells: CellInput[],
 ): Promise<Map<string, ResolvedVariant>> {
-  const ids = Array.from(new Set(cells.map((c) => c.variantId)))
+  const ids = Array.from(
+    new Set(
+      cells
+        .map((c) => c.variantId)
+        .filter((id): id is string => id !== null),
+    ),
+  )
   if (ids.length === 0) return new Map()
 
   const rows = await tx
@@ -114,9 +124,9 @@ export const addStoreOpeningBalance = createServerFn()
       const createdIds: string[] = []
       let totalValue = new BigNumber(0)
       const auditLines: Array<{
-        variantId: string
-        colorName: string
-        size: string
+        variantId: string | null
+        colorName: string | null
+        size: string | null
         quantity: number
       }> = []
 
@@ -126,12 +136,16 @@ export const addStoreOpeningBalance = createServerFn()
         const entryRowIds: string[] = []
 
         for (const cell of entry.cells) {
-          const ctx = variantById.get(cell.variantId)
-          if (!ctx) {
-            // Defensive — resolveVariantContext already throws when a
-            // variant is missing, but keep a narrow guard so TS knows
-            // `ctx` is defined on the audit-line push below.
-            throw new Error(`Variant ${cell.variantId} not resolved`)
+          // Cells without a variantId become item-keyed, variant-less rows
+          // (Plan 2a Task 3). When a variantId is provided we still require
+          // `resolveVariantContext` to have found it.
+          let ctx: ResolvedVariant | null = null
+          if (cell.variantId !== null) {
+            const resolved = variantById.get(cell.variantId)
+            if (!resolved) {
+              throw new Error(`Variant ${cell.variantId} not resolved`)
+            }
+            ctx = resolved
           }
           const [row] = await tx
             .insert(storeStock)
@@ -149,8 +163,8 @@ export const addStoreOpeningBalance = createServerFn()
           entryValue = entryValue.plus(cost.times(cell.quantity))
           auditLines.push({
             variantId: cell.variantId,
-            colorName: ctx.colorName,
-            size: ctx.size,
+            colorName: ctx?.colorName ?? null,
+            size: ctx?.size ?? null,
             quantity: cell.quantity,
           })
         }
@@ -165,7 +179,7 @@ export const addStoreOpeningBalance = createServerFn()
           locationType: "store",
           locationId: store.id,
           recordedBy: userId,
-          description: `Opening balance: ${entry.cells.length} variants of item ${entry.itemId}`,
+          description: `Opening balance: ${entry.cells.length} cell(s) of item ${entry.itemId}`,
         })
 
         totalValue = totalValue.plus(entryValue)
@@ -224,9 +238,9 @@ export const addShopOpeningBalance = createServerFn()
       const createdIds: string[] = []
       let totalValue = new BigNumber(0)
       const auditLines: Array<{
-        variantId: string
-        colorName: string
-        size: string
+        variantId: string | null
+        colorName: string | null
+        size: string | null
         quantity: number
       }> = []
 
@@ -236,9 +250,16 @@ export const addShopOpeningBalance = createServerFn()
         const entryRowIds: string[] = []
 
         for (const cell of entry.cells) {
-          const ctx = variantById.get(cell.variantId)
-          if (!ctx) {
-            throw new Error(`Variant ${cell.variantId} not resolved`)
+          // Cells without a variantId become item-keyed, variant-less shop
+          // rows (Plan 2a Task 3) — used by the Excel opening-balance
+          // importer when the sheet only carries article-level info.
+          let ctx: ResolvedVariant | null = null
+          if (cell.variantId !== null) {
+            const resolved = variantById.get(cell.variantId)
+            if (!resolved) {
+              throw new Error(`Variant ${cell.variantId} not resolved`)
+            }
+            ctx = resolved
           }
           const [row] = await tx
             .insert(shopStock)
@@ -257,8 +278,8 @@ export const addShopOpeningBalance = createServerFn()
           entryValue = entryValue.plus(cost.times(cell.quantity))
           auditLines.push({
             variantId: cell.variantId,
-            colorName: ctx.colorName,
-            size: ctx.size,
+            colorName: ctx?.colorName ?? null,
+            size: ctx?.size ?? null,
             quantity: cell.quantity,
           })
         }
@@ -273,7 +294,7 @@ export const addShopOpeningBalance = createServerFn()
           locationType: "shop",
           locationId: shop.id,
           recordedBy: userId,
-          description: `Opening balance: ${entry.cells.length} variants of item ${entry.itemId}`,
+          description: `Opening balance: ${entry.cells.length} cell(s) of item ${entry.itemId}`,
         })
 
         totalValue = totalValue.plus(entryValue)
