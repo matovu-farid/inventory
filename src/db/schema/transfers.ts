@@ -14,6 +14,7 @@ import { stores, storeStock } from "./store"
 import { shops } from "./shops"
 import { items } from "./items"
 import { variants } from "./variants"
+import { supplyRouteLines } from "./supply-routes"
 
 export const transferStatusEnum = pgEnum("transfer_status", [
   "pending",
@@ -111,7 +112,7 @@ export const storeTransferRelations = relations(storeTransfers, ({ one, many }) 
   items: many(storeTransferLines),
 }))
 
-export const storeTransferLineRelations = relations(storeTransferLines, ({ one }) => ({
+export const storeTransferLineRelations = relations(storeTransferLines, ({ one, many }) => ({
   storeTransfer: one(storeTransfers, {
     fields: [storeTransferLines.storeTransferId],
     references: [storeTransfers.id],
@@ -128,6 +129,53 @@ export const storeTransferLineRelations = relations(storeTransferLines, ({ one }
     fields: [storeTransferLines.variantId],
     references: [variants.id],
   }),
-  // Forward-declared — table added in Task 5.
-  // allocations: many(storeTransferAllocations),
+  allocations: many(storeTransferAllocations),
 }))
+
+export const storeTransferAllocations = pgTable(
+  "store_transfer_allocations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storeTransferLineId: uuid("store_transfer_line_id")
+      .notNull()
+      .references(() => storeTransferLines.id, { onDelete: "cascade" }),
+    storeStockId: uuid("store_stock_id")
+      .notNull()
+      .references(() => storeStock.id, { onDelete: "restrict" }),
+    // Snapshot of the source stock row's supply line at allocation time.
+    // Lets the receive side rebuild shop_stock rows with the correct
+    // supply_route_line_id even if the source row is later deleted by
+    // a zeroing transfer.
+    supplyRouteLineId: uuid("supply_route_line_id").references(
+      () => supplyRouteLines.id,
+      { onDelete: "set null" },
+    ),
+    quantity: integer("quantity").notNull(),
+    // Cost snapshot from source row at allocation time.
+    costPerUnitUgx: numeric("cost_per_unit_ugx", { precision: 15, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_sta_line").on(table.storeTransferLineId),
+    index("idx_sta_stock").on(table.storeStockId),
+    index("idx_sta_supply_line").on(table.supplyRouteLineId),
+  ],
+)
+
+export const storeTransferAllocationRelations = relations(
+  storeTransferAllocations,
+  ({ one }) => ({
+    transferLine: one(storeTransferLines, {
+      fields: [storeTransferAllocations.storeTransferLineId],
+      references: [storeTransferLines.id],
+    }),
+    storeStockItem: one(storeStock, {
+      fields: [storeTransferAllocations.storeStockId],
+      references: [storeStock.id],
+    }),
+    supplyRouteLine: one(supplyRouteLines, {
+      fields: [storeTransferAllocations.supplyRouteLineId],
+      references: [supplyRouteLines.id],
+    }),
+  }),
+)
