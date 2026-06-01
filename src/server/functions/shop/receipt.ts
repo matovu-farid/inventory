@@ -10,6 +10,59 @@ import { requireRole } from "#/server/middleware/rbac"
 const getReceiptInput = z.object({ saleId: z.uuid() })
 
 /**
+ * Pure renderer — exported so unit tests can exercise the item-level
+ * branching without going through `runWithStartContext` (which swallows
+ * return values).
+ */
+export async function buildSaleReceiptHtml(saleId: string): Promise<string> {
+  const sale = await db.query.shopSales.findFirst({
+    where: eq(shopSales.id, saleId),
+    with: {
+      items: {
+        with: {
+          // Plan 2b: lines carry item identity directly. Variant is
+          // optional — unresolved sale lines have null variantId.
+          item: true,
+          variant: { with: { color: true } },
+        },
+      },
+      soldByUser: { columns: { id: true, name: true } },
+    },
+  })
+  if (!sale) throw new Error(`Sale not found: ${saleId}`)
+
+  const shop = await db.query.shops.findFirst({
+    where: eq(shops.id, sale.shopId),
+  })
+  const customer = sale.customerId
+    ? await db.query.customers.findFirst({
+        where: eq(customers.id, sale.customerId),
+      })
+    : null
+
+  return renderSaleReceipt({
+    documentNumber: sale.documentNumber,
+    saleDate: sale.saleDate,
+    shopName: shop?.name ?? "Shop",
+    totalAmount: sale.totalAmount,
+    paymentMethod: sale.paymentMethod,
+    customerName: customer?.name ?? null,
+    clerkName: sale.soldByUser.name,
+    items: sale.items.map((i) => {
+      const itemName = i.variant
+        ? `${i.item.articleNumber} ${i.item.name} · ${i.variant.color.colorName} / ${i.variant.size}`
+        : `${i.item.articleNumber} ${i.item.name}`
+      return {
+        itemName,
+        quantity: i.quantity,
+        unitPriceUgx: i.unitPriceUgx,
+        totalPriceUgx: i.totalPriceUgx,
+      }
+    }),
+  })
+}
+
+/**
  * Render a printable HTML receipt for a sale. The browser can save it
  * to PDF via the print dialog. Returns the HTML string; the front-end
  * is expected to open it in a new window.
@@ -19,57 +72,5 @@ export const getSaleReceiptHtml = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSession()
     requireRole(session, ["admin", "supervisor", "sales"])
-
-    const sale = await db.query.shopSales.findFirst({
-      where: eq(shopSales.id, data.saleId),
-      with: {
-        items: {
-          with: {
-            shopStockItem: {
-              with: { variant: { with: { color: { with: { item: true } } } } },
-            },
-          },
-        },
-        soldByUser: { columns: { id: true, name: true } },
-      },
-    })
-    if (!sale) throw new Error(`Sale not found: ${data.saleId}`)
-
-    const shop = await db.query.shops.findFirst({
-      where: eq(shops.id, sale.shopId),
-    })
-    const customer = sale.customerId
-      ? await db.query.customers.findFirst({
-          where: eq(customers.id, sale.customerId),
-        })
-      : null
-
-    return renderSaleReceipt({
-      documentNumber: sale.documentNumber,
-      saleDate: sale.saleDate,
-      shopName: shop?.name ?? "Shop",
-      totalAmount: sale.totalAmount,
-      paymentMethod: sale.paymentMethod,
-      customerName: customer?.name ?? null,
-      clerkName: sale.soldByUser.name,
-      items: sale.items.map((i) => {
-        const v = i.shopStockItem?.variant ?? null
-        // Plan 2a: shop_stock.variant_id is now nullable for unresolved
-        // lots. Sales today still go through variant-keyed flows, so a
-        // historical sale line will always carry a variant. Plan 2b will
-        // rewrite sales to support item-level lines; until then assert.
-        if (!v) {
-          throw new Error(
-            "Plan 2a: receipt for sale line without a resolved variant — Plan 2b will handle item-level sales",
-          )
-        }
-        const itemName = `${v.color.item.articleNumber} ${v.color.item.name} · ${v.color.colorName} / ${v.size}`
-        return {
-          itemName,
-          quantity: i.quantity,
-          unitPriceUgx: i.unitPriceUgx,
-          totalPriceUgx: i.totalPriceUgx,
-        }
-      }),
-    })
+    return buildSaleReceiptHtml(data.saleId)
   })
