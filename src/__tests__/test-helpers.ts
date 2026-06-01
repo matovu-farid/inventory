@@ -26,6 +26,7 @@ import {
   itemColors,
   items,
   shops,
+  shopStock,
   storeStock,
   stores,
   suppliers,
@@ -263,6 +264,43 @@ export async function seedStoreStockLot(input: {
     .returning()
   assertDefined(row, "seedStoreStockLot: insert returned no row")
   return { stockId: row.id, variantId: resolvedVariantId }
+}
+
+/**
+ * Seed a single unresolved shop_stock lot (variantId NULL).
+ *
+ * Auto-creates a supply_route_line when none is provided so the resulting
+ * row carries the supply-line provenance that `specifyShopStock` inherits
+ * onto the variant-keyed children.
+ */
+export async function seedUnresolvedShopStock(input: {
+  shopId: string
+  itemId: string
+  supplyRouteLineId?: string | null
+  quantity: number
+  costPerUnitUgx: string
+}): Promise<{ stockId: string; supplyRouteLineId: string | null }> {
+  const supplyRouteLineId =
+    input.supplyRouteLineId === undefined
+      ? await seedSupplyRouteLine({
+          itemId: input.itemId,
+          quantity: input.quantity,
+        })
+      : input.supplyRouteLineId
+
+  const [row] = await db
+    .insert(shopStock)
+    .values({
+      shopId: input.shopId,
+      itemId: input.itemId,
+      variantId: null,
+      supplyRouteLineId,
+      quantityOnHand: input.quantity,
+      costPerUnitUgx: input.costPerUnitUgx,
+    })
+    .returning()
+  assertDefined(row, "seedUnresolvedShopStock: insert returned no row")
+  return { stockId: row.id, supplyRouteLineId }
 }
 
 // Re-exported so tests can build `where`-clause asserts off the same
