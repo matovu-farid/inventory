@@ -16,13 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
 
   test:
     name: Unit Tests
@@ -53,11 +54,12 @@ jobs:
       S3_PRODUCT_BUCKET: ${{ secrets.S3_PRODUCT_BUCKET }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Write .env.test for vitest
         run: |
           {
@@ -72,10 +74,10 @@ jobs:
             echo "S3_PRODUCT_BUCKET=$S3_PRODUCT_BUCKET"
           } > .env.test
       - name: Apply database migrations
-        run: npx drizzle-kit push --force
+        run: pnpm exec drizzle-kit push --force
       - name: Seed transaction categories
-        run: npx tsx src/db/seed.ts
-      - run: npm test
+        run: pnpm exec tsx src/db/seed.ts
+      - run: pnpm test
 
   e2e:
     name: E2E Tests (Cypress)
@@ -106,11 +108,12 @@ jobs:
       S3_PRODUCT_BUCKET: ${{ secrets.S3_PRODUCT_BUCKET }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Write .env.local for dev server
         run: |
           {
@@ -125,14 +128,14 @@ jobs:
             echo "S3_PRODUCT_BUCKET=$S3_PRODUCT_BUCKET"
           } > .env.local
       - name: Apply database migrations
-        run: npx drizzle-kit push --force
+        run: pnpm exec drizzle-kit push --force
       - name: Seed transaction categories
-        run: npx tsx src/db/seed.ts
+        run: pnpm exec tsx src/db/seed.ts
       - name: Run Cypress
         uses: cypress-io/github-action@v6
         with:
           install: false
-          start: npm run dev
+          start: pnpm dev
           wait-on: "http://localhost:3000"
           wait-on-timeout: 120
           browser: chrome
@@ -160,12 +163,13 @@ jobs:
       S3_PRODUCT_BUCKET: ${{ secrets.S3_PRODUCT_BUCKET }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx vite build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vite build
 
   deploy:
     name: Deploy
@@ -184,12 +188,13 @@ jobs:
       S3_PRODUCT_BUCKET: ${{ secrets.S3_PRODUCT_BUCKET }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx vite build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vite build
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
