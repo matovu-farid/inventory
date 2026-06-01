@@ -51,19 +51,26 @@ describe.skip("Mobile POS happy path", () => {
        WHERE p.article_number = 'TR-POS' AND pc.color_name = 'Red'
        ON CONFLICT DO NOTHING`,
     )
+    // shop_stock now carries item_id (Plan 2a Task 1); minimum_sell_price_ugx
+    // moved to items.minimum_sell_price_ugx and must be set there instead.
     cy.task(
       "dbQuery",
-      `INSERT INTO shop_stock (shop_id, variant_id, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
+      `UPDATE items SET minimum_sell_price_ugx = 50000 WHERE article_number = 'TR-POS'`,
+    )
+    cy.task(
+      "dbQuery",
+      `INSERT INTO shop_stock (shop_id, item_id, variant_id, quantity_on_hand, cost_per_unit_ugx)
        SELECT
          (SELECT id FROM shops WHERE name = 'POS Shop' LIMIT 1),
+         p.id,
          (SELECT v.id FROM variants v
             JOIN item_colors pc ON pc.id = v.color_id
-            JOIN items p ON p.id = pc.item_id
-            WHERE p.article_number = 'TR-POS' AND pc.color_name = 'Red' AND v.size = 'M'
+            WHERE pc.item_id = p.id AND pc.color_name = 'Red' AND v.size = 'M'
             LIMIT 1),
          10,
-         30000,
-         50000
+         30000
+       FROM items p
+       WHERE p.article_number = 'TR-POS'
        ON CONFLICT DO NOTHING`,
     )
 

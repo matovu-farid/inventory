@@ -107,21 +107,29 @@ describe('Low-stock restock flow', () => {
       Cypress.env('RESTOCK_SHOP_ID', shopId)
 
       // Store stock — warehouse has 100 units available.
+      // item_id is denormalized after the variant-flexibility flip (Plan 1);
+      // resolve it from variants -> item_colors. minimum_sell_price_ugx is
+      // now item-level (lives on items.minimum_sell_price_ugx).
       cy.task(
         'dbQuery',
         `
-        INSERT INTO store_stock (id, store_id, variant_id, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
-        VALUES (gen_random_uuid(), '${storeId}', '${variantId}', 100, 1000, 1500)
+        INSERT INTO store_stock (id, store_id, item_id, variant_id, quantity_on_hand, cost_per_unit_ugx)
+        SELECT gen_random_uuid(), '${storeId}', pc.item_id, v.id, 100, 1000
+        FROM variants v JOIN item_colors pc ON pc.id = v.color_id
+        WHERE v.id = '${variantId}'
         RETURNING id;
       `,
       ).as('storeStockId')
 
-      // Shop stock — only 2 units (below the threshold of 5)
+      // Shop stock — only 2 units (below the threshold of 5).
+      // Same item_id denorm pattern after Plan 2a Task 1.
       cy.task(
         'dbQuery',
         `
-        INSERT INTO shop_stock (id, shop_id, variant_id, quantity_on_hand, cost_per_unit_ugx, minimum_sell_price_ugx)
-        VALUES (gen_random_uuid(), '${shopId}', '${variantId}', 2, 1500, 2000);
+        INSERT INTO shop_stock (id, shop_id, item_id, variant_id, quantity_on_hand, cost_per_unit_ugx)
+        SELECT gen_random_uuid(), '${shopId}', pc.item_id, v.id, 2, 1500
+        FROM variants v JOIN item_colors pc ON pc.id = v.color_id
+        WHERE v.id = '${variantId}';
       `,
       )
 
