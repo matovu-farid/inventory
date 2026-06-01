@@ -13,6 +13,7 @@ import { relations } from "drizzle-orm"
 import { user } from "./auth"
 import { shops, shopStock } from "./shops"
 import { bankAccounts } from "./bank-accounts"
+import { supplyRouteLines } from "./supply-routes"
 
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "bank", "credit"])
 
@@ -106,7 +107,7 @@ export const shopSaleRelations = relations(shopSales, ({ one, many }) => ({
   items: many(shopSaleLines),
 }))
 
-export const shopSaleLineRelations = relations(shopSaleLines, ({ one }) => ({
+export const shopSaleLineRelations = relations(shopSaleLines, ({ one, many }) => ({
   shopSale: one(shopSales, {
     fields: [shopSaleLines.shopSaleId],
     references: [shopSales.id],
@@ -115,4 +116,48 @@ export const shopSaleLineRelations = relations(shopSaleLines, ({ one }) => ({
     fields: [shopSaleLines.shopStockId],
     references: [shopStock.id],
   }),
+  allocations: many(shopSaleLineAllocations),
 }))
+
+export const shopSaleLineAllocations = pgTable(
+  "shop_sale_line_allocations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shopSaleLineId: uuid("shop_sale_line_id")
+      .notNull()
+      .references(() => shopSaleLines.id, { onDelete: "cascade" }),
+    shopStockId: uuid("shop_stock_id")
+      .notNull()
+      .references(() => shopStock.id, { onDelete: "restrict" }),
+    supplyRouteLineId: uuid("supply_route_line_id").references(
+      () => supplyRouteLines.id,
+      { onDelete: "set null" },
+    ),
+    quantity: integer("quantity").notNull(),
+    costPerUnitUgx: numeric("cost_per_unit_ugx", { precision: 15, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_ssla_line").on(table.shopSaleLineId),
+    index("idx_ssla_stock").on(table.shopStockId),
+    index("idx_ssla_supply_line").on(table.supplyRouteLineId),
+  ],
+)
+
+export const shopSaleLineAllocationRelations = relations(
+  shopSaleLineAllocations,
+  ({ one }) => ({
+    saleLine: one(shopSaleLines, {
+      fields: [shopSaleLineAllocations.shopSaleLineId],
+      references: [shopSaleLines.id],
+    }),
+    shopStockItem: one(shopStock, {
+      fields: [shopSaleLineAllocations.shopStockId],
+      references: [shopStock.id],
+    }),
+    supplyRouteLine: one(supplyRouteLines, {
+      fields: [shopSaleLineAllocations.supplyRouteLineId],
+      references: [supplyRouteLines.id],
+    }),
+  }),
+)
