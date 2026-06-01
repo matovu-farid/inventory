@@ -37,12 +37,9 @@ export const listTransfers = createServerFn().handler(async () => {
       shop: true,
       items: {
         with: {
-          storeStockItem: {
-            with: {
-              item: true,
-              variant: { with: { color: { with: { item: true } } } },
-            },
-          },
+          item: true,
+          variant: { with: { color: true } },
+          allocations: true,
         },
       },
     },

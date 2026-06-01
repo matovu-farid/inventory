@@ -22,21 +22,17 @@ export interface ReceivableTransfer {
   items: Array<{
     id: string
     quantityDispatched: number
-    storeStockItem: {
-      item: { name: string; articleNumber: string }
-      // store_stock.variant_id is nullable since variant-flexibility Plan 1.
-      // createTransfer rejects unresolved lots, so dispatched items always
-      // have a variant in practice — but the type system can't see that
-      // invariant. The display falls back to the item label when null.
-      variant: {
-        size: string
-        color: {
-          colorName: string
-          colorHex: string
-          item: { name: string; articleNumber: string }
-        }
-      } | null
-    }
+    // Plan 2a: transfer lines are item-level. `item` is always present;
+    // `variant` is null for unresolved lots (item dispatched without a
+    // chosen color/size). The display omits the color/size span when null.
+    item: { name: string; articleNumber: string }
+    variant: {
+      size: string
+      color: {
+        colorName: string
+        colorHex: string
+      }
+    } | null
   }>
 }
 
@@ -148,14 +144,12 @@ export function ReceiveTransferForm({
             columns={[
               {
                 header: "Item",
-                cell: (item) => {
-                  const v = item.storeStockItem.variant
+                cell: (line) => {
+                  const v = line.variant
                   return (
                     <div className="flex flex-col">
                       <span className="font-medium">
-                        {v
-                          ? v.color.item.name
-                          : item.storeStockItem.item.name}
+                        {line.item.articleNumber} {line.item.name}
                       </span>
                       {v && (
                         <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
@@ -207,15 +201,15 @@ export function ReceiveTransferForm({
               <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
                 Fewer items received than dispatched. Explain why for each item.
               </p>
-              {discrepantItems.map((item) => {
-                const received = receivedQtys[item.id] ?? item.quantityDispatched
-                const missing = item.quantityDispatched - received
-                const v = item.storeStockItem.variant
+              {discrepantItems.map((line) => {
+                const received = receivedQtys[line.id] ?? line.quantityDispatched
+                const missing = line.quantityDispatched - received
+                const v = line.variant
                 const label = v
-                  ? `${v.color.item.name} · ${v.color.colorName} · ${v.size}`
-                  : item.storeStockItem.item.name
+                  ? `${line.item.articleNumber} ${line.item.name} · ${v.color.colorName} · ${v.size}`
+                  : `${line.item.articleNumber} ${line.item.name}`
                 return (
-                  <div key={item.id} className="space-y-2">
+                  <div key={line.id} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">{label}</span>
                       <Badge variant="destructive">{missing} missing</Badge>
@@ -223,11 +217,11 @@ export function ReceiveTransferForm({
                     <Textarea
                       rows={2}
                       placeholder="e.g. lost during delivery, broken on the way"
-                      value={discrepancyNotes[item.id] ?? ""}
+                      value={discrepancyNotes[line.id] ?? ""}
                       onChange={(e) =>
                         setDiscrepancyNotes((n) => ({
                           ...n,
-                          [item.id]: e.target.value,
+                          [line.id]: e.target.value,
                         }))
                       }
                     />
