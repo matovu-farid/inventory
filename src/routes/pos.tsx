@@ -63,9 +63,9 @@ function PosInner() {
 
 
   // Filter out unresolved (variant_id NULL) shop_stock rows for the
-  // POS surface — Plan 2a permits unresolved lots in shop_stock, but
-  // sales still require a resolved variant. Plan 2b will revisit this
-  // and let the POS sell unresolved lots after a Specify step.
+  // touch POS surface. The variant-picker UI is variant-scoped by
+  // design; the admin-side New Sale dialog in /shop is where Plan 2b's
+  // item-level recordSale handles unresolved lots directly.
   const resolved = React.useMemo(
     () => stock.filter((s): s is typeof s & { variant: NonNullable<typeof s.variant> } => s.variant !== null),
     [stock],

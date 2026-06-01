@@ -134,8 +134,8 @@ describe('shop_stock — variant_id swap', () => {
       .values({
         shopId: fx.shopId,
         // shop_stock now carries item_id alongside variant_id (the latter
-        // became nullable in Plan 2a Task 1). Tests still exercise the
-        // resolved path; Plan 2b will add unresolved-row coverage.
+        // became nullable in Plan 2a Task 1). Unresolved-row coverage is
+        // exercised by shop-fifo, record-sale-item-level, etc.
         itemId: fx.itemId,
         variantId: fx.variantId,
         quantityOnHand: 7,
