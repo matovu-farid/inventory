@@ -209,6 +209,8 @@ describe('computeShopBaseline', () => {
     await db.insert(storeTransferLines).values({
       storeTransferId: t1.id,
       storeStockId: ss.id,
+      itemId: ctx.item.id,
+      variantId: ctx.variant.id,
       quantityDispatched: 60,
       quantityReceived: 50,
       unitPriceUgx: '1500',
@@ -228,6 +230,8 @@ describe('computeShopBaseline', () => {
     await db.insert(storeTransferLines).values({
       storeTransferId: t2.id,
       storeStockId: ss.id,
+      itemId: ctx.item.id,
+      variantId: ctx.variant.id,
       quantityDispatched: 70,
       quantityReceived: null,
       unitPriceUgx: '1500',

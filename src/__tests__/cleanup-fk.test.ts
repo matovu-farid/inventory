@@ -173,11 +173,12 @@ describe("cleanupAllTestData — race safety vs concurrent FK referrer", () => {
         `INSERT INTO shops (name) VALUES ('CFK Shop') RETURNING id`,
       )
       const shopId = shop.rows[0].id
-      const storeRes = await setup.query<{ id: string }>(
-        `SELECT store_id AS id FROM store_stock WHERE id = $1`,
+      const storeRes = await setup.query<{ id: string; item_id: string }>(
+        `SELECT store_id AS id, item_id FROM store_stock WHERE id = $1`,
         [storeStockId],
       )
       const storeId = storeRes.rows[0].id
+      const itemId = storeRes.rows[0].item_id
       await setup.end()
 
       // Two long-lived clients on independent connections.
@@ -208,10 +209,10 @@ describe("cleanupAllTestData — race safety vs concurrent FK referrer", () => {
         const transferId = transferRes.rows[0].id
         await clientB.query(
           `INSERT INTO store_transfer_lines
-             (store_transfer_id, store_stock_id, quantity_dispatched,
+             (store_transfer_id, store_stock_id, item_id, quantity_dispatched,
               unit_price_ugx, total_price_ugx)
-           VALUES ($1, $2, 1, 1000, 1000)`,
-          [transferId, storeStockId],
+           VALUES ($1, $2, $3, 1, 1000, 1000)`,
+          [transferId, storeStockId, itemId],
         )
 
         // A starts the cleanup. With the pre-fix sequential DELETE, A

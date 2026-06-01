@@ -12,6 +12,8 @@ import { relations } from "drizzle-orm"
 import { user } from "./auth"
 import { stores, storeStock } from "./store"
 import { shops } from "./shops"
+import { items } from "./items"
+import { variants } from "./variants"
 
 export const transferStatusEnum = pgEnum("transfer_status", [
   "pending",
@@ -55,24 +57,33 @@ export const storeTransferLines = pgTable(
     storeTransferId: uuid("store_transfer_id")
       .notNull()
       .references(() => storeTransfers.id, { onDelete: "cascade" }),
-    storeStockId: uuid("store_stock_id")
+    // Now nullable — item-level dispatch records the source rows in
+    // store_transfer_allocations instead of a single stock_id.
+    storeStockId: uuid("store_stock_id").references(() => storeStock.id, {
+      onDelete: "restrict",
+    }),
+    itemId: uuid("item_id")
       .notNull()
-      .references(() => storeStock.id, { onDelete: "restrict" }),
+      .references(() => items.id, { onDelete: "restrict" }),
+    variantId: uuid("variant_id").references(() => variants.id, {
+      onDelete: "restrict",
+    }),
     quantityDispatched: integer("quantity_dispatched").notNull(),
     quantityReceived: integer("quantity_received"),
     discrepancyNotes: text("discrepancy_notes"),
     unitPriceUgx: numeric("unit_price_ugx", { precision: 15, scale: 2 }).notNull(),
     totalPriceUgx: numeric("total_price_ugx", { precision: 15, scale: 2 }).notNull(),
-    /** Minimum sell price the shop must charge customers for this item.
-     *  Set by the dispatcher; defaults to store cost-per-unit. */
-    minimumSellPriceUgx: numeric("minimum_sell_price_ugx", { precision: 15, scale: 2 }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("idx_stl_transfer").on(table.storeTransferId)],
+  (table) => [
+    index("idx_stl_transfer").on(table.storeTransferId),
+    index("idx_stl_item").on(table.itemId),
+    index("idx_stl_variant").on(table.variantId),
+  ],
 )
 
 // Relations
@@ -109,4 +120,14 @@ export const storeTransferLineRelations = relations(storeTransferLines, ({ one }
     fields: [storeTransferLines.storeStockId],
     references: [storeStock.id],
   }),
+  item: one(items, {
+    fields: [storeTransferLines.itemId],
+    references: [items.id],
+  }),
+  variant: one(variants, {
+    fields: [storeTransferLines.variantId],
+    references: [variants.id],
+  }),
+  // Forward-declared — table added in Task 5.
+  // allocations: many(storeTransferAllocations),
 }))
