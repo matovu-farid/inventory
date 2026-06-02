@@ -133,31 +133,35 @@ describe('Low-stock restock flow', () => {
       `,
       )
 
-      // Per-variant units override: threshold = 5 (qoh=2 is below it).
-      // Keyed by variant_id now that #5 has landed.
+      // Per-item units override: threshold = 5 (qoh=2 is below it).
+      // Plan 2c made overrides item-keyed; variant_id is now optional.
       cy.task(
         'dbQuery',
         `
-        INSERT INTO notification_threshold_overrides (id, scope, variant_id, shop_id, mode, value)
-        VALUES (gen_random_uuid(), 'shop', '${variantId}', NULL, 'units', 5);
+        INSERT INTO notification_threshold_overrides (id, scope, item_id, variant_id, shop_id, mode, value)
+        SELECT gen_random_uuid(), 'shop', pc.item_id, v.id, NULL, 'units', 5
+        FROM variants v JOIN item_colors pc ON pc.id = v.color_id
+        WHERE v.id = '${variantId}';
       `,
       )
 
       // Pre-seed an open low_stock_alert so the restock page shows results
       // even if the manual check button doesn't re-open one already open.
+      // Plan 2c made alerts item-keyed; variant_id is still recorded.
       cy.task(
         'dbQuery',
         `
         INSERT INTO low_stock_alerts (
-          id, scope, location_id, variant_id, status,
+          id, scope, location_id, item_id, variant_id, status,
           baseline_quantity, threshold_snapshot, quantity_at_open
         )
-        VALUES (
-          gen_random_uuid(), 'shop', '${shopId}', '${variantId}', 'open',
+        SELECT
+          gen_random_uuid(), 'shop', '${shopId}', pc.item_id, v.id, 'open',
           10,
           '{"mode":"units","value":5}',
           2
-        );
+        FROM variants v JOIN item_colors pc ON pc.id = v.color_id
+        WHERE v.id = '${variantId}';
       `,
       )
     })
