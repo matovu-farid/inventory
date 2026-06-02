@@ -42,7 +42,7 @@ vi.mock("#/server/middleware/rbac", () => ({
 }))
 
 const { recordSale } = await import("#/server/functions/shop/sales")
-const { buildSaleReceiptHtml } = await import("#/server/functions/shop/receipt")
+const { buildSaleReceiptHtml } = await import("#/server/functions/shop/receipt-render.server")
 
 const stubStartContext = {
   getRouter: (() => { throw new Error("router not available") }) as never,
