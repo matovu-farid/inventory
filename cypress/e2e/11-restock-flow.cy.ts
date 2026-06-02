@@ -183,8 +183,10 @@ describe('Low-stock restock flow', () => {
 
     cy.contains('button', 'Run check now').should('be.visible').click()
 
-    // Banner text: "Check complete. Opened: N, resolved: N."
-    cy.contains(/check complete/i, { timeout: 10000 }).should('be.visible')
+    // In CI's dev server the threshold-checks server-fn chunk compiles on
+    // first click, which can take well past the default 4s. 30s timeout
+    // covers cold-compile + the actual scan.
+    cy.contains(/check complete/i, { timeout: 30000 }).should('be.visible')
   })
 
   it('shows low-stock item on the shop restock page', () => {
