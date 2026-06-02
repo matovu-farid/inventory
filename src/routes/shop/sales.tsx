@@ -44,24 +44,10 @@ function SalesPage() {
         quantity: number
         unitPriceUgx: string
         isBelowMinimum: boolean
-        shopStockItem: {
-          // Stock references a single variant_id; the joined variant
-          // carries size + color (with parent item/product). After the
-          // variant-flexibility Plan 2 Task 1 schema flip the join can be
-          // null for unresolved lots — Plan 2b will rewrite the sales
-          // table to handle item-level sale lines. Until then we render
-          // a placeholder for unresolved rows.
-          variant: {
-            size: string
-            color: {
-              colorName: string
-              colorHex: string
-              item: {
-                articleNumber: string
-                name: string
-              }
-            }
-          } | null
+        item: { articleNumber: string; name: string }
+        variant: {
+          size: string
+          color: { colorName: string; colorHex: string }
         } | null
       }>
       soldByUser: { id: string; name: string } | null
@@ -150,33 +136,24 @@ function SalesPage() {
                 cell: (s) => (
                   <div className="flex flex-col gap-1">
                     {s.items.map((i, idx) => {
-                      const v = i.shopStockItem?.variant ?? null
-                      if (!v) {
-                        // Plan 2a: an unresolved shop_stock row sneaked
-                        // into a sale. Sales don't actually allow this
-                        // today (recordSale rejects it), so this is just
-                        // a visual fallback for legacy/edge data.
-                        return (
-                          <div key={idx} className="flex items-center gap-2 text-sm">
-                            <span className="font-mono">{i.quantity}x</span>
-                            <span className="text-muted-foreground text-xs">
-                              unresolved item
-                            </span>
-                          </div>
-                        )
-                      }
+                      // Plan 2c: line carries item directly; variant is
+                      // optional. Render item label + optional variant chip.
                       return (
                         <div key={idx} className="flex items-center gap-2 text-sm">
-                          <span className="font-mono">{i.quantity}x {v.color.item.articleNumber}</span>
-                          <span className="text-muted-foreground">{v.color.item.name}</span>
-                          <span
-                            className="inline-block h-3 w-3 rounded-full border"
-                            style={{ backgroundColor: v.color.colorHex }}
-                            aria-hidden
-                          />
-                          <span className="text-muted-foreground text-xs">
-                            {v.color.colorName} / {v.size}
-                          </span>
+                          <span className="font-mono">{i.quantity}x {i.item.articleNumber}</span>
+                          <span className="text-muted-foreground">{i.item.name}</span>
+                          {i.variant && (
+                            <>
+                              <span
+                                className="inline-block h-3 w-3 rounded-full border"
+                                style={{ backgroundColor: i.variant.color.colorHex }}
+                                aria-hidden
+                              />
+                              <span className="text-muted-foreground text-xs">
+                                {i.variant.color.colorName} / {i.variant.size}
+                              </span>
+                            </>
+                          )}
                         </div>
                       )
                     })}

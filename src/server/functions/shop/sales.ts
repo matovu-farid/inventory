@@ -90,14 +90,8 @@ export const listShopSales = createServerFn()
       with: {
         items: {
           with: {
-            // Plan 2b: lines carry item identity directly + optional variant.
-            // `shopStockItem` is retained for backwards compat with audit
-            // resolvers that still walk it; Plan 2c will sweep.
             item: true,
-            variant: { with: { color: { with: { item: true } } } },
-            shopStockItem: {
-              with: { variant: { with: { color: { with: { item: true } } } } },
-            },
+            variant: { with: { color: true } },
           },
         },
         soldByUser: { columns: { id: true, name: true } },

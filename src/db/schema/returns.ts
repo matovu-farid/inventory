@@ -219,10 +219,6 @@ export const shopReturnLineRelations = relations(shopReturnLines, ({ one, many }
     fields: [shopReturnLines.variantId],
     references: [variants.id],
   }),
-  shopStockItem: one(shopStock, {
-    fields: [shopReturnLines.shopStockId],
-    references: [shopStock.id],
-  }),
   allocations: many(shopReturnLineAllocations),
 }))
 
@@ -293,10 +289,6 @@ export const storeReturnLineRelations = relations(storeReturnLines, ({ one, many
   variant: one(variants, {
     fields: [storeReturnLines.variantId],
     references: [variants.id],
-  }),
-  shopStock: one(shopStock, {
-    fields: [storeReturnLines.shopStockId],
-    references: [shopStock.id],
   }),
   allocations: many(storeReturnLineAllocations),
 }))

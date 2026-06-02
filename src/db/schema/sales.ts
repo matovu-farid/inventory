@@ -137,10 +137,6 @@ export const shopSaleLineRelations = relations(shopSaleLines, ({ one, many }) =>
     fields: [shopSaleLines.variantId],
     references: [variants.id],
   }),
-  shopStockItem: one(shopStock, {
-    fields: [shopSaleLines.shopStockId],
-    references: [shopStock.id],
-  }),
   allocations: many(shopSaleLineAllocations),
 }))
 
