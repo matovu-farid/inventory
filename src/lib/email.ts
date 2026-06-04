@@ -8,6 +8,7 @@ import {
 } from "#/lib/emails"
 import type { LowStockDigestData } from "#/lib/emails"
 
+const MOCK_EMAILS = env.MOCK_EMAILS === "true"
 const resend = new Resend(env.RESEND_API_KEY)
 
 const FROM = env.EMAIL_FROM ?? "Inventory Management <noreply@fidexa.org>"
@@ -22,7 +23,18 @@ type InviteArgs = {
   url: string
 }
 
+// Test-mode short-circuit: when MOCK_EMAILS=true the Resend SDK is never
+// called. Set in .env.test and in the CI test/e2e jobs so Cypress runs do
+// not consume real Resend quota or harm sender reputation by bouncing
+// against synthetic @test.com addresses.
+function skipForTest(kind: string, to: string): boolean {
+  if (!MOCK_EMAILS) return false
+  console.log(`[Email:mock] ${kind} -> ${to}`)
+  return true
+}
+
 export async function sendVerificationEmail({ to, name, url }: VerifyArgs) {
+  if (skipForTest("verify", to)) return
   try {
     await resend.emails.send({
       from: FROM,
@@ -36,6 +48,7 @@ export async function sendVerificationEmail({ to, name, url }: VerifyArgs) {
 }
 
 export async function sendPasswordResetEmail({ to, name, url }: ResetArgs) {
+  if (skipForTest("reset", to)) return
   try {
     await resend.emails.send({
       from: FROM,
@@ -54,6 +67,7 @@ export async function sendInviteEmail({
   inviterName,
   url,
 }: InviteArgs) {
+  if (skipForTest("invite", to)) return
   try {
     await resend.emails.send({
       from: FROM,
@@ -68,6 +82,7 @@ export async function sendInviteEmail({
 
 type DigestArgs = { to: string; data: LowStockDigestData }
 export async function sendLowStockDigest({ to, data }: DigestArgs) {
+  if (skipForTest("low-stock-digest", to)) return
   try {
     await resend.emails.send({
       from: FROM,

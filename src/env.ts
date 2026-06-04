@@ -15,6 +15,7 @@ export const env = createEnv({
     AWS_SECRET_ACCESS_KEY: z.string().min(1),
     AWS_REGION: z.string().min(1),
     S3_PRODUCT_BUCKET: z.string().min(1),
+    MOCK_EMAILS: z.string().optional(),
   },
   clientPrefix: "VITE_",
   client: {
@@ -37,6 +38,7 @@ export const env = createEnv({
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
     AWS_REGION: process.env.AWS_REGION,
     S3_PRODUCT_BUCKET: process.env.S3_PRODUCT_BUCKET,
+    MOCK_EMAILS: process.env.MOCK_EMAILS,
     VITE_APP_TITLE: import.meta.env.VITE_APP_TITLE,
   },
   emptyStringAsUndefined: true,
