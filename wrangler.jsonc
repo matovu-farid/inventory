@@ -9,6 +9,6 @@
     { "pattern": "inventory.fidexa.org", "custom_domain": true }
   ],
   "triggers": {
-    "crons": ["0 * * * *", "0 4 * * *"]
+    "crons": ["0 * * * *"]
   }
 }

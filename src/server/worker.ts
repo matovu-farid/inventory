@@ -28,9 +28,11 @@ export default {
   ): void => {
     const now = new Date(event.scheduledTime)
 
-    // 0 4 * * * (daily 04:00 UTC = 07:00 EAT) → threshold check + digest
-    // 0 * * * * (hourly)                       → threshold check only
-    if (event.cron === "0 4 * * *") {
+    // Single hourly trigger ("0 * * * *") — threshold check runs every hour;
+    // daily digest runs once per day at 04:00 UTC (07:00 EAT). Collapsed from
+    // two cron triggers to one to stay under Cloudflare's per-account 5-cron
+    // limit on Workers Free; semantics are unchanged.
+    if (now.getUTCHours() === 4) {
       ctx.waitUntil(
         (async () => {
           await runThresholdChecksInternal(db, now)
