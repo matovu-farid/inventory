@@ -208,7 +208,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Apply database migrations
-        run: pnpm exec drizzle-kit migrate
+        run: pnpm exec tsx scripts/migrate.ts
       - run: pnpm exec vite build
       - uses: cloudflare/wrangler-action@v3
         with:
