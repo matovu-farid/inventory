@@ -5,50 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1780228353505,
-      "tag": "0000_grey_scream",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1780240832144,
-      "tag": "0001_natural_venom",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1780242440111,
-      "tag": "0002_tired_toxin",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1780285816814,
-      "tag": "0003_oval_fenris",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1780287393783,
-      "tag": "0004_uneven_jean_grey",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1780287956159,
-      "tag": "0005_useful_lord_hawal",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1780291709333,
-      "tag": "0006_gigantic_quasimodo",
+      "when": 1780849851958,
+      "tag": "0000_baseline",
       "breakpoints": true
     }
   ]

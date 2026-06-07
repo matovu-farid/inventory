@@ -52,7 +52,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       S3_PRODUCT_BUCKET: ${{ secrets.S3_PRODUCT_BUCKET }}
-      MOCK_EMAILS: "true"
+      MOCK_EMAILS: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -108,7 +108,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       S3_PRODUCT_BUCKET: ${{ secrets.S3_PRODUCT_BUCKET }}
-      MOCK_EMAILS: "true"
+      MOCK_EMAILS: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -149,7 +149,7 @@ jobs:
         with:
           install: false
           start: pnpm dev
-          wait-on: "http://localhost:3000"
+          wait-on: 'http://localhost:3000'
           wait-on-timeout: 120
           browser: chrome
       - name: Upload screenshots on failure
@@ -207,6 +207,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Apply database migrations
+        run: pnpm exec drizzle-kit migrate
       - run: pnpm exec vite build
       - uses: cloudflare/wrangler-action@v3
         with:

@@ -1,5 +1,5 @@
 {
-  "id": "eb6a0152-6b0b-40c8-a8f9-744895125b14",
+  "id": "5eddac94-b25a-4cc3-9ea9-b568e4149749",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1180,11 +1180,17 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "variant_id": {
           "name": "variant_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "supply_route_line_id": {
           "name": "supply_route_line_id",
@@ -1201,12 +1207,6 @@
         },
         "cost_per_unit_ugx": {
           "name": "cost_per_unit_ugx",
-          "type": "numeric(15, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "minimum_sell_price_ugx": {
-          "name": "minimum_sell_price_ugx",
           "type": "numeric(15, 2)",
           "primaryKey": false,
           "notNull": true
@@ -1232,6 +1232,21 @@
           "columns": [
             {
               "expression": "store_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_ss_item": {
+          "name": "idx_ss_item",
+          "columns": [
+            {
+              "expression": "item_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1287,6 +1302,19 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
+        "store_stock_item_id_items_id_fk": {
+          "name": "store_stock_item_id_items_id_fk",
+          "tableFrom": "store_stock",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
         "store_stock_variant_id_variants_id_fk": {
           "name": "store_stock_variant_id_variants_id_fk",
           "tableFrom": "store_stock",
@@ -1316,12 +1344,14 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "uq_ss_variant": {
-          "name": "uq_ss_variant",
-          "nullsNotDistinct": false,
+        "uq_ss_store_item_variant_line": {
+          "name": "uq_ss_store_item_variant_line",
+          "nullsNotDistinct": true,
           "columns": [
             "store_id",
-            "variant_id"
+            "item_id",
+            "variant_id",
+            "supply_route_line_id"
           ]
         }
       },
@@ -1392,11 +1422,23 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "variant_id": {
           "name": "variant_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "supply_route_line_id": {
+          "name": "supply_route_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "store_transfer_item_id": {
           "name": "store_transfer_item_id",
@@ -1413,12 +1455,6 @@
         },
         "cost_per_unit_ugx": {
           "name": "cost_per_unit_ugx",
-          "type": "numeric(15, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "minimum_sell_price_ugx": {
-          "name": "minimum_sell_price_ugx",
           "type": "numeric(15, 2)",
           "primaryKey": false,
           "notNull": true
@@ -1454,11 +1490,11 @@
           "method": "btree",
           "with": {}
         },
-        "idx_shst_transfer_item": {
-          "name": "idx_shst_transfer_item",
+        "idx_shst_item": {
+          "name": "idx_shst_item",
           "columns": [
             {
-              "expression": "store_transfer_item_id",
+              "expression": "item_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1474,6 +1510,36 @@
           "columns": [
             {
               "expression": "variant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_shst_line": {
+          "name": "idx_shst_line",
+          "columns": [
+            {
+              "expression": "supply_route_line_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_shst_transfer_item": {
+          "name": "idx_shst_transfer_item",
+          "columns": [
+            {
+              "expression": "store_transfer_item_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1499,6 +1565,19 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
+        "shop_stock_item_id_items_id_fk": {
+          "name": "shop_stock_item_id_items_id_fk",
+          "tableFrom": "shop_stock",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
         "shop_stock_variant_id_variants_id_fk": {
           "name": "shop_stock_variant_id_variants_id_fk",
           "tableFrom": "shop_stock",
@@ -1511,16 +1590,31 @@
           ],
           "onDelete": "restrict",
           "onUpdate": "no action"
+        },
+        "shop_stock_supply_route_line_id_supply_route_lines_id_fk": {
+          "name": "shop_stock_supply_route_line_id_supply_route_lines_id_fk",
+          "tableFrom": "shop_stock",
+          "tableTo": "supply_route_lines",
+          "columnsFrom": [
+            "supply_route_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "uq_shst_variant": {
-          "name": "uq_shst_variant",
-          "nullsNotDistinct": false,
+        "uq_shst_shop_item_variant_line": {
+          "name": "uq_shst_shop_item_variant_line",
+          "nullsNotDistinct": true,
           "columns": [
             "shop_id",
-            "variant_id"
+            "item_id",
+            "variant_id",
+            "supply_route_line_id"
           ]
         }
       },
@@ -1594,6 +1688,149 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.store_transfer_allocations": {
+      "name": "store_transfer_allocations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "store_transfer_line_id": {
+          "name": "store_transfer_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_stock_id": {
+          "name": "store_stock_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supply_route_line_id": {
+          "name": "supply_route_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cost_per_unit_ugx": {
+          "name": "cost_per_unit_ugx",
+          "type": "numeric(15, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_sta_line": {
+          "name": "idx_sta_line",
+          "columns": [
+            {
+              "expression": "store_transfer_line_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_sta_stock": {
+          "name": "idx_sta_stock",
+          "columns": [
+            {
+              "expression": "store_stock_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_sta_supply_line": {
+          "name": "idx_sta_supply_line",
+          "columns": [
+            {
+              "expression": "supply_route_line_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "store_transfer_allocations_store_transfer_line_id_store_transfer_lines_id_fk": {
+          "name": "store_transfer_allocations_store_transfer_line_id_store_transfer_lines_id_fk",
+          "tableFrom": "store_transfer_allocations",
+          "tableTo": "store_transfer_lines",
+          "columnsFrom": [
+            "store_transfer_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "store_transfer_allocations_store_stock_id_store_stock_id_fk": {
+          "name": "store_transfer_allocations_store_stock_id_store_stock_id_fk",
+          "tableFrom": "store_transfer_allocations",
+          "tableTo": "store_stock",
+          "columnsFrom": [
+            "store_stock_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "store_transfer_allocations_supply_route_line_id_supply_route_lines_id_fk": {
+          "name": "store_transfer_allocations_supply_route_line_id_supply_route_lines_id_fk",
+          "tableFrom": "store_transfer_allocations",
+          "tableTo": "supply_route_lines",
+          "columnsFrom": [
+            "supply_route_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.store_transfer_lines": {
       "name": "store_transfer_lines",
       "schema": "",
@@ -1615,7 +1852,19 @@
           "name": "store_stock_id",
           "type": "uuid",
           "primaryKey": false,
+          "notNull": false
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
           "notNull": true
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "quantity_dispatched": {
           "name": "quantity_dispatched",
@@ -1647,12 +1896,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "minimum_sell_price_ugx": {
-          "name": "minimum_sell_price_ugx",
-          "type": "numeric(15, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1674,6 +1917,36 @@
           "columns": [
             {
               "expression": "store_transfer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_stl_item": {
+          "name": "idx_stl_item",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_stl_variant": {
+          "name": "idx_stl_variant",
+          "columns": [
+            {
+              "expression": "variant_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1705,6 +1978,32 @@
           "tableTo": "store_stock",
           "columnsFrom": [
             "store_stock_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "store_transfer_lines_item_id_items_id_fk": {
+          "name": "store_transfer_lines_item_id_items_id_fk",
+          "tableFrom": "store_transfer_lines",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "store_transfer_lines_variant_id_variants_id_fk": {
+          "name": "store_transfer_lines_variant_id_variants_id_fk",
+          "tableFrom": "store_transfer_lines",
+          "tableTo": "variants",
+          "columnsFrom": [
+            "variant_id"
           ],
           "columnsTo": [
             "id"
@@ -1961,6 +2260,149 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.shop_sale_line_allocations": {
+      "name": "shop_sale_line_allocations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "shop_sale_line_id": {
+          "name": "shop_sale_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shop_stock_id": {
+          "name": "shop_stock_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supply_route_line_id": {
+          "name": "supply_route_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cost_per_unit_ugx": {
+          "name": "cost_per_unit_ugx",
+          "type": "numeric(15, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_ssla_line": {
+          "name": "idx_ssla_line",
+          "columns": [
+            {
+              "expression": "shop_sale_line_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_ssla_stock": {
+          "name": "idx_ssla_stock",
+          "columns": [
+            {
+              "expression": "shop_stock_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_ssla_supply_line": {
+          "name": "idx_ssla_supply_line",
+          "columns": [
+            {
+              "expression": "supply_route_line_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "shop_sale_line_allocations_shop_sale_line_id_shop_sale_lines_id_fk": {
+          "name": "shop_sale_line_allocations_shop_sale_line_id_shop_sale_lines_id_fk",
+          "tableFrom": "shop_sale_line_allocations",
+          "tableTo": "shop_sale_lines",
+          "columnsFrom": [
+            "shop_sale_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "shop_sale_line_allocations_shop_stock_id_shop_stock_id_fk": {
+          "name": "shop_sale_line_allocations_shop_stock_id_shop_stock_id_fk",
+          "tableFrom": "shop_sale_line_allocations",
+          "tableTo": "shop_stock",
+          "columnsFrom": [
+            "shop_stock_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "shop_sale_line_allocations_supply_route_line_id_supply_route_lines_id_fk": {
+          "name": "shop_sale_line_allocations_supply_route_line_id_supply_route_lines_id_fk",
+          "tableFrom": "shop_sale_line_allocations",
+          "tableTo": "supply_route_lines",
+          "columnsFrom": [
+            "supply_route_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.shop_sale_lines": {
       "name": "shop_sale_lines",
       "schema": "",
@@ -1978,11 +2420,23 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "shop_stock_id": {
           "name": "shop_stock_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "quantity": {
           "name": "quantity",
@@ -2044,6 +2498,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_ssl_item": {
+          "name": "idx_ssl_item",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -2058,6 +2527,32 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "shop_sale_lines_item_id_items_id_fk": {
+          "name": "shop_sale_lines_item_id_items_id_fk",
+          "tableFrom": "shop_sale_lines",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "shop_sale_lines_variant_id_variants_id_fk": {
+          "name": "shop_sale_lines_variant_id_variants_id_fk",
+          "tableFrom": "shop_sale_lines",
+          "tableTo": "variants",
+          "columnsFrom": [
+            "variant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
         "shop_sale_lines_shop_stock_id_shop_stock_id_fk": {
@@ -2502,6 +2997,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "product_name": {
           "name": "product_name",
           "type": "text",
@@ -2555,6 +3062,36 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_stkl_item": {
+          "name": "idx_stkl_item",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_stkl_variant": {
+          "name": "idx_stkl_variant",
+          "columns": [
+            {
+              "expression": "variant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -2590,6 +3127,32 @@
           "tableTo": "shop_stock",
           "columnsFrom": [
             "shop_stock_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "stock_take_lines_item_id_items_id_fk": {
+          "name": "stock_take_lines_item_id_items_id_fk",
+          "tableFrom": "stock_take_lines",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "stock_take_lines_variant_id_variants_id_fk": {
+          "name": "stock_take_lines_variant_id_variants_id_fk",
+          "tableFrom": "stock_take_lines",
+          "tableTo": "variants",
+          "columnsFrom": [
+            "variant_id"
           ],
           "columnsTo": [
             "id"
@@ -3717,6 +4280,149 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.shop_return_line_allocations": {
+      "name": "shop_return_line_allocations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "shop_return_line_id": {
+          "name": "shop_return_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shop_stock_id": {
+          "name": "shop_stock_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supply_route_line_id": {
+          "name": "supply_route_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cost_per_unit_ugx": {
+          "name": "cost_per_unit_ugx",
+          "type": "numeric(15, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_shrla_line": {
+          "name": "idx_shrla_line",
+          "columns": [
+            {
+              "expression": "shop_return_line_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_shrla_stock": {
+          "name": "idx_shrla_stock",
+          "columns": [
+            {
+              "expression": "shop_stock_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_shrla_supply_line": {
+          "name": "idx_shrla_supply_line",
+          "columns": [
+            {
+              "expression": "supply_route_line_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "shop_return_line_allocations_shop_return_line_id_shop_return_lines_id_fk": {
+          "name": "shop_return_line_allocations_shop_return_line_id_shop_return_lines_id_fk",
+          "tableFrom": "shop_return_line_allocations",
+          "tableTo": "shop_return_lines",
+          "columnsFrom": [
+            "shop_return_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "shop_return_line_allocations_shop_stock_id_shop_stock_id_fk": {
+          "name": "shop_return_line_allocations_shop_stock_id_shop_stock_id_fk",
+          "tableFrom": "shop_return_line_allocations",
+          "tableTo": "shop_stock",
+          "columnsFrom": [
+            "shop_stock_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "shop_return_line_allocations_supply_route_line_id_supply_route_lines_id_fk": {
+          "name": "shop_return_line_allocations_supply_route_line_id_supply_route_lines_id_fk",
+          "tableFrom": "shop_return_line_allocations",
+          "tableTo": "supply_route_lines",
+          "columnsFrom": [
+            "supply_route_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.shop_return_lines": {
       "name": "shop_return_lines",
       "schema": "",
@@ -3734,11 +4440,23 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "shop_stock_id": {
           "name": "shop_stock_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "quantity": {
           "name": "quantity",
@@ -3787,6 +4505,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_shrl_item": {
+          "name": "idx_shrl_item",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -3801,6 +4534,32 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "shop_return_lines_item_id_items_id_fk": {
+          "name": "shop_return_lines_item_id_items_id_fk",
+          "tableFrom": "shop_return_lines",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "shop_return_lines_variant_id_variants_id_fk": {
+          "name": "shop_return_lines_variant_id_variants_id_fk",
+          "tableFrom": "shop_return_lines",
+          "tableTo": "variants",
+          "columnsFrom": [
+            "variant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
         "shop_return_lines_shop_stock_id_shop_stock_id_fk": {
@@ -4055,6 +4814,149 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.store_return_line_allocations": {
+      "name": "store_return_line_allocations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "store_return_line_id": {
+          "name": "store_return_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shop_stock_id": {
+          "name": "shop_stock_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supply_route_line_id": {
+          "name": "supply_route_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cost_per_unit_ugx": {
+          "name": "cost_per_unit_ugx",
+          "type": "numeric(15, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_storla_line": {
+          "name": "idx_storla_line",
+          "columns": [
+            {
+              "expression": "store_return_line_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_storla_stock": {
+          "name": "idx_storla_stock",
+          "columns": [
+            {
+              "expression": "shop_stock_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_storla_supply_line": {
+          "name": "idx_storla_supply_line",
+          "columns": [
+            {
+              "expression": "supply_route_line_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "store_return_line_allocations_store_return_line_id_store_return_lines_id_fk": {
+          "name": "store_return_line_allocations_store_return_line_id_store_return_lines_id_fk",
+          "tableFrom": "store_return_line_allocations",
+          "tableTo": "store_return_lines",
+          "columnsFrom": [
+            "store_return_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "store_return_line_allocations_shop_stock_id_shop_stock_id_fk": {
+          "name": "store_return_line_allocations_shop_stock_id_shop_stock_id_fk",
+          "tableFrom": "store_return_line_allocations",
+          "tableTo": "shop_stock",
+          "columnsFrom": [
+            "shop_stock_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "store_return_line_allocations_supply_route_line_id_supply_route_lines_id_fk": {
+          "name": "store_return_line_allocations_supply_route_line_id_supply_route_lines_id_fk",
+          "tableFrom": "store_return_line_allocations",
+          "tableTo": "supply_route_lines",
+          "columnsFrom": [
+            "supply_route_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.store_return_lines": {
       "name": "store_return_lines",
       "schema": "",
@@ -4072,11 +4974,23 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "shop_stock_id": {
           "name": "shop_stock_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "quantity_dispatched": {
           "name": "quantity_dispatched",
@@ -4125,6 +5039,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_storerl_item": {
+          "name": "idx_storerl_item",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -4139,6 +5068,32 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "store_return_lines_item_id_items_id_fk": {
+          "name": "store_return_lines_item_id_items_id_fk",
+          "tableFrom": "store_return_lines",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "store_return_lines_variant_id_variants_id_fk": {
+          "name": "store_return_lines_variant_id_variants_id_fk",
+          "tableFrom": "store_return_lines",
+          "tableTo": "variants",
+          "columnsFrom": [
+            "variant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
         "store_return_lines_shop_stock_id_shop_stock_id_fk": {
@@ -4412,11 +5367,17 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "variant_id": {
           "name": "variant_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "status": {
           "name": "status",
@@ -4501,8 +5462,23 @@
           "method": "btree",
           "with": {}
         },
-        "uq_lsa_open": {
-          "name": "uq_lsa_open",
+        "idx_lsa_item": {
+          "name": "idx_lsa_item",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "uq_lsa_open_item": {
+          "name": "uq_lsa_open_item",
           "columns": [
             {
               "expression": "scope",
@@ -4517,7 +5493,7 @@
               "nulls": "last"
             },
             {
-              "expression": "variant_id",
+              "expression": "item_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4531,6 +5507,19 @@
         }
       },
       "foreignKeys": {
+        "low_stock_alerts_item_id_items_id_fk": {
+          "name": "low_stock_alerts_item_id_items_id_fk",
+          "tableFrom": "low_stock_alerts",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
         "low_stock_alerts_variant_id_variants_id_fk": {
           "name": "low_stock_alerts_variant_id_variants_id_fk",
           "tableFrom": "low_stock_alerts",
@@ -4582,11 +5571,17 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "variant_id": {
           "name": "variant_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "shop_id": {
           "name": "shop_id",
@@ -4623,11 +5618,11 @@
         }
       },
       "indexes": {
-        "idx_thr_override_variant": {
-          "name": "idx_thr_override_variant",
+        "idx_thr_override_item": {
+          "name": "idx_thr_override_item",
           "columns": [
             {
-              "expression": "variant_id",
+              "expression": "item_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4640,6 +5635,19 @@
         }
       },
       "foreignKeys": {
+        "notification_threshold_overrides_item_id_items_id_fk": {
+          "name": "notification_threshold_overrides_item_id_items_id_fk",
+          "tableFrom": "notification_threshold_overrides",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
         "notification_threshold_overrides_variant_id_variants_id_fk": {
           "name": "notification_threshold_overrides_variant_id_variants_id_fk",
           "tableFrom": "notification_threshold_overrides",
@@ -4669,12 +5677,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "uq_thr_override": {
-          "name": "uq_thr_override",
+        "uq_thr_override_item": {
+          "name": "uq_thr_override_item",
           "nullsNotDistinct": true,
           "columns": [
             "scope",
-            "variant_id",
+            "item_id",
             "shop_id"
           ]
         }
@@ -4907,11 +5915,17 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "variant_id": {
           "name": "variant_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "suggested_quantity": {
           "name": "suggested_quantity",
@@ -4987,8 +6001,23 @@
           "method": "btree",
           "with": {}
         },
-        "uq_req_open": {
-          "name": "uq_req_open",
+        "idx_req_item": {
+          "name": "idx_req_item",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "uq_req_open_item": {
+          "name": "uq_req_open_item",
           "columns": [
             {
               "expression": "store_id",
@@ -4997,7 +6026,7 @@
               "nulls": "last"
             },
             {
-              "expression": "variant_id",
+              "expression": "item_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5017,6 +6046,19 @@
           "tableTo": "stores",
           "columnsFrom": [
             "store_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "restock_requisitions_item_id_items_id_fk": {
+          "name": "restock_requisitions_item_id_items_id_fk",
+          "tableFrom": "restock_requisitions",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
           ],
           "columnsTo": [
             "id"
@@ -5232,6 +6274,19 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "minimum_sell_price_ugx": {
+          "name": "minimum_sell_price_ugx",
+          "type": "numeric(15, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "low_stock_threshold": {
+          "name": "low_stock_threshold",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
