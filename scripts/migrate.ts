@@ -8,6 +8,15 @@ if (!url) {
   process.exit(1)
 }
 
+try {
+  const parsed = new URL(url)
+  console.log(
+    `DATABASE_URL: host=${parsed.hostname} port=${parsed.port || '(default)'} db=${parsed.pathname.slice(1)} user=${parsed.username || '(none)'} length=${url.length}`,
+  )
+} catch (e) {
+  console.error(`DATABASE_URL is not a parseable URL (length=${url.length}, starts=${url.slice(0, 12)}...)`)
+}
+
 const pool = new pg.Pool({ connectionString: url })
 
 try {
