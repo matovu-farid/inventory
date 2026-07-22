@@ -1,18 +1,18 @@
-import { useRouter } from "@tanstack/react-router"
-import { useState } from "react"
-import BigNumber from "bignumber.js"
-import { Plus, Trash2 } from "lucide-react"
-import { Button } from "#/components/ui/button"
-import { MoneyInput } from "#/components/ui/money-input"
-import { FieldLabel } from "#/components/ui/field-label"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
+import { useRouter } from '@tanstack/react-router'
+import { useState } from 'react'
+import BigNumber from 'bignumber.js'
+import { Plus, Trash2 } from 'lucide-react'
+import { Button } from '#/components/ui/button'
+import { MoneyInput } from '#/components/ui/money-input'
+import { FieldLabel } from '#/components/ui/field-label'
+import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
+} from '#/components/ui/select'
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
@@ -20,22 +20,42 @@ import {
   ResponsiveDialogFooter as DialogFooter,
   ResponsiveDialogHeader as DialogHeader,
   ResponsiveDialogTitle as DialogTitle,
-} from "#/components/ui/responsive-dialog"
+} from '#/components/ui/responsive-dialog'
 import {
   addStoreOpeningBalance,
   addShopOpeningBalance,
-} from "#/server/functions/admin/opening-balance"
-import { roundUgxBankers50 } from "#/lib/format"
-import { deriveSizes } from "#/lib/variants"
+} from '#/server/functions/admin/opening-balance'
+import { roundUgxBankers50 } from '#/lib/format'
 import {
-  ItemPicker
-  
-} from "#/components/items/item-picker"
-import type {ItemSummary} from "#/components/items/item-picker";
-import { ItemEditor } from "#/components/items/item-editor"
-import { ColorEditor } from "#/components/items/color-editor"
-import { VariantGrid } from "#/components/items/variant-grid"
-import { getItemByArticle } from "#/server/functions/items/items"
+  deriveSizes,
+  openingBalanceImplicitSize,
+  openingBalanceUsesVariantGrid,
+} from '#/lib/variants'
+import { ItemPicker } from '#/components/items/item-picker'
+import type { ItemSummary } from '#/components/items/item-picker'
+import { ItemEditor } from '#/components/items/item-editor'
+import { ColorEditor } from '#/components/items/color-editor'
+import { VariantGrid } from '#/components/items/variant-grid'
+import { ColorQuantityList } from '#/components/supply/split-item-form'
+import { getItemByArticle } from '#/server/functions/items/items'
+
+function cellsFromBlock(b: ValidBlock) {
+  if (!openingBalanceUsesVariantGrid(b.item)) {
+    const size = openingBalanceImplicitSize(b.item)
+    return Object.entries(b.quantities)
+      .filter(([, q]) => q > 0)
+      .map(([colorId, q]) => ({ colorId, size, quantity: q }))
+  }
+  return Object.entries(b.quantities)
+    .filter(([, q]) => q > 0)
+    .map(([key, q]) => {
+      const [colorId, size] = key.split('|')
+      if (!colorId || !size) {
+        throw new Error(`Invalid grid cell key: ${key}`)
+      }
+      return { colorId, size, quantity: q }
+    })
+}
 
 interface DraftBlock {
   id: string
@@ -47,7 +67,7 @@ interface DraftBlock {
 }
 
 interface SubmitSummary {
-  scope: "store" | "shop"
+  scope: 'store' | 'shop'
   itemCount: number
   totalValueUgx: string
 }
@@ -56,7 +76,7 @@ function newBlock(): DraftBlock {
   return {
     id: crypto.randomUUID(),
     item: undefined,
-    unitCostUgx: "",
+    unitCostUgx: '',
     quantities: {},
     itemEditorOpen: false,
     colorEditorOpen: false,
@@ -71,22 +91,19 @@ type ValidBlock = DraftBlock & { item: ItemSummary }
 
 function blockIsValid(b: DraftBlock): b is ValidBlock {
   if (!b.item) return false
-  const cost = new BigNumber(b.unitCostUgx || "0")
+  const cost = new BigNumber(b.unitCostUgx || '0')
   if (!cost.isFinite() || cost.lte(0)) return false
   return blockUnitTotal(b) > 0
 }
 
 function blockValue(b: DraftBlock): BigNumber {
   if (!blockIsValid(b)) return new BigNumber(0)
-  const cost = new BigNumber(b.unitCostUgx || "0")
+  const cost = new BigNumber(b.unitCostUgx || '0')
   return cost.times(blockUnitTotal(b))
 }
 
 function blocksTotal(blocks: DraftBlock[]): BigNumber {
-  return blocks.reduce(
-    (sum, b) => sum.plus(blockValue(b)),
-    new BigNumber(0),
-  )
+  return blocks.reduce((sum, b) => sum.plus(blockValue(b)), new BigNumber(0))
 }
 
 export type OpeningBalanceShop = {
@@ -96,7 +113,7 @@ export type OpeningBalanceShop = {
 }
 
 interface OpeningBalanceFormProps {
-  scope: "store" | "shop"
+  scope: 'store' | 'shop'
   /** Required when scope === "shop": list of shops the user can choose between. */
   shops?: OpeningBalanceShop[]
   /** Optional initial shop selection (used when arriving from Shop page with ?shopId=…). */
@@ -118,7 +135,7 @@ export function OpeningBalanceForm({
   const [blocks, setBlocks] = useState<DraftBlock[]>([newBlock()])
   const [shopId, setShopId] = useState<string>(() => {
     if (initialShopId) return initialShopId
-    if (shops.length === 0) return ""
+    if (shops.length === 0) return ''
     return shops[0].id
   })
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -129,13 +146,9 @@ export function OpeningBalanceForm({
   const total = blocksTotal(blocks)
   const validBlocks = blocks.filter(blockIsValid)
   const validCount = validBlocks.length
-  const totalUnits = validBlocks.reduce(
-    (s, b) => s + blockUnitTotal(b),
-    0,
-  )
+  const totalUnits = validBlocks.reduce((s, b) => s + blockUnitTotal(b), 0)
   const allBlocksValid = blocks.length > 0 && blocks.every(blockIsValid)
-  const canSubmit =
-    allBlocksValid && (scope === "store" || !!shopId)
+  const canSubmit = allBlocksValid && (scope === 'store' || !!shopId)
 
   function updateBlock(id: string, patch: Partial<DraftBlock>) {
     setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, ...patch } : b)))
@@ -161,25 +174,7 @@ export function OpeningBalanceForm({
     setError(null)
     try {
       const items = blocks.filter(blockIsValid).map((b) => {
-        // VariantGrid keys cells by `${itemColorId}|${size}`. Opening
-        // balance writes to variant-keyed stock now (#6), so translate
-        // each (color, size) pair to its variantId via the hydrated
-        // variants list before the server call.
-        const variantsForBlock = b.item.variants ?? []
-        const variantByPair = new Map(
-          variantsForBlock.map((v) => [`${v.colorId}|${v.size}`, v.id]),
-        )
-        const cells = Object.entries(b.quantities)
-          .filter(([, q]) => q > 0)
-          .map(([key, q]) => {
-            const variantId = variantByPair.get(key)
-            if (!variantId) {
-              throw new Error(
-                `No variant exists for (${key}). Add the size to the item or create the variant first.`,
-              )
-            }
-            return { variantId, quantity: q }
-          })
+        const cells = cellsFromBlock(b)
         return {
           itemId: b.item.id,
           unitCostUgx: new BigNumber(b.unitCostUgx).toFixed(2),
@@ -188,7 +183,7 @@ export function OpeningBalanceForm({
       })
 
       const result =
-        scope === "store"
+        scope === 'store'
           ? await addStoreOpeningBalance({ data: { items } })
           : await addShopOpeningBalance({ data: { shopId, items } })
 
@@ -207,21 +202,21 @@ export function OpeningBalanceForm({
     }
   }
 
-  const scopeLabel = scope === "store" ? "the Warehouse" : "Shop"
+  const scopeLabel = scope === 'store' ? 'the Warehouse' : 'Shop'
   const selectedShopName =
-    scope === "shop" ? shops.find((s) => s.id === shopId)?.name : undefined
+    scope === 'shop' ? shops.find((s) => s.id === shopId)?.name : undefined
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>
-          {scope === "store"
-            ? "Warehouse opening balance"
-            : "Shop opening balance"}
+          {scope === 'store'
+            ? 'Warehouse opening balance'
+            : 'Shop opening balance'}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {scope === "shop" && (
+        {scope === 'shop' && (
           <div className="space-y-2 max-w-sm">
             <FieldLabel htmlFor="ob-shop" help="openingBalance.shop">
               Shop
@@ -239,7 +234,7 @@ export function OpeningBalanceForm({
                   {shops.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
-                      {s.location ? ` — ${s.location}` : ""}
+                      {s.location ? ` — ${s.location}` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -250,13 +245,13 @@ export function OpeningBalanceForm({
 
         {summary && (
           <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">
-            Posted {summary.itemCount} item{summary.itemCount === 1 ? "" : "s"}{" "}
-            worth{" "}
+            Posted {summary.itemCount} item{summary.itemCount === 1 ? '' : 's'}{' '}
+            worth{' '}
             <span className="font-mono font-semibold">
               {roundUgxBankers50(summary.totalValueUgx).toFormat(0)}
-            </span>{" "}
-            UGX as opening balance for{" "}
-            {summary.scope === "store" ? "the Warehouse" : "the selected Shop"}.
+            </span>{' '}
+            UGX as opening balance for{' '}
+            {summary.scope === 'store' ? 'the Warehouse' : 'the selected Shop'}.
           </div>
         )}
 
@@ -297,9 +292,7 @@ export function OpeningBalanceForm({
                 </div>
 
                 <div className="space-y-2">
-                  <FieldLabel help="openingBalance.itemName">
-                    Item *
-                  </FieldLabel>
+                  <FieldLabel help="openingBalance.itemName">Item *</FieldLabel>
                   <ItemPicker
                     value={b.item?.id}
                     onChange={(_, p) =>
@@ -329,14 +322,30 @@ export function OpeningBalanceForm({
                       </Button>
                     </div>
                     <div className="-mx-3 overflow-x-auto px-3 md:mx-0 md:px-0">
-                      <VariantGrid
-                        sizes={deriveSizes(b.item.variants ?? [])}
-                        colors={b.item.colors}
-                        quantities={b.quantities}
-                        onChange={(next) =>
-                          updateBlock(b.id, { quantities: next })
-                        }
-                      />
+                      {openingBalanceUsesVariantGrid(b.item) ? (
+                        <VariantGrid
+                          sizes={deriveSizes(b.item.variants ?? [])}
+                          colors={b.item.colors}
+                          quantities={b.quantities}
+                          onChange={(next) =>
+                            updateBlock(b.id, { quantities: next })
+                          }
+                        />
+                      ) : (
+                        <div className="space-y-2">
+                          <ColorQuantityList
+                            colors={b.item.colors}
+                            values={b.quantities}
+                            onChange={(next) =>
+                              updateBlock(b.id, { quantities: next })
+                            }
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Quantities are per color. Stock is recorded as
+                            size {openingBalanceImplicitSize(b.item)}.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -358,17 +367,17 @@ export function OpeningBalanceForm({
                   <div className="space-y-2">
                     <FieldLabel>Block total</FieldLabel>
                     <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-                      <span className="font-mono">{units}</span>{" "}
-                      <span className="text-muted-foreground">units ×</span>{" "}
+                      <span className="font-mono">{units}</span>{' '}
+                      <span className="text-muted-foreground">units ×</span>{' '}
                       <span className="font-mono">
                         {b.unitCostUgx
                           ? roundUgxBankers50(b.unitCostUgx).toFormat(0)
-                          : "0"}
-                      </span>{" "}
-                      <span className="text-muted-foreground">=</span>{" "}
+                          : '0'}
+                      </span>{' '}
+                      <span className="text-muted-foreground">=</span>{' '}
                       <span className="font-mono font-semibold">
                         {roundUgxBankers50(value).toFormat(0)}
-                      </span>{" "}
+                      </span>{' '}
                       <span className="text-muted-foreground">UGX</span>
                     </div>
                   </div>
@@ -411,10 +420,7 @@ export function OpeningBalanceForm({
                         onCreated={() => {
                           updateBlock(b.id, { colorEditorOpen: false })
                           if (b.item) {
-                            void refreshBlockItem(
-                              b.id,
-                              b.item.articleNumber,
-                            )
+                            void refreshBlockItem(b.id, b.item.articleNumber)
                           }
                         }}
                       />
@@ -433,10 +439,10 @@ export function OpeningBalanceForm({
           </Button>
           <div className="text-sm text-muted-foreground">
             {validCount} of {blocks.length} item
-            {blocks.length === 1 ? "" : "s"} valid · {totalUnits} units · Total:{" "}
+            {blocks.length === 1 ? '' : 's'} valid · {totalUnits} units · Total:{' '}
             <span className="font-mono font-semibold text-foreground">
               {roundUgxBankers50(total).toFormat(0)}
-            </span>{" "}
+            </span>{' '}
             UGX
           </div>
         </div>
@@ -456,18 +462,18 @@ export function OpeningBalanceForm({
             <DialogHeader>
               <DialogTitle>Confirm opening balance</DialogTitle>
               <DialogDescription>
-                This will add{" "}
+                This will add{' '}
                 <span className="font-semibold">{validCount}</span> item
-                {validCount === 1 ? "" : "s"} totaling{" "}
-                <span className="font-mono font-semibold">{totalUnits}</span>{" "}
-                units (worth{" "}
+                {validCount === 1 ? '' : 's'} totaling{' '}
+                <span className="font-mono font-semibold">{totalUnits}</span>{' '}
+                units (worth{' '}
                 <span className="font-mono font-semibold">
                   {roundUgxBankers50(total).toFormat(0)}
-                </span>{" "}
-                UGX) to{" "}
-                {scope === "store"
+                </span>{' '}
+                UGX) to{' '}
+                {scope === 'store'
                   ? scopeLabel
-                  : `${scopeLabel}${selectedShopName ? ` "${selectedShopName}"` : ""}`}{" "}
+                  : `${scopeLabel}${selectedShopName ? ` "${selectedShopName}"` : ''}`}{' '}
                 as opening balance. This permanently affects the books.
                 Continue?
               </DialogDescription>
@@ -481,7 +487,7 @@ export function OpeningBalanceForm({
                 Cancel
               </Button>
               <Button onClick={() => void performSubmit()} disabled={pending}>
-                {pending ? "Posting..." : "Confirm & Post"}
+                {pending ? 'Posting...' : 'Confirm & Post'}
               </Button>
             </DialogFooter>
           </DialogContent>

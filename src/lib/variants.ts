@@ -80,3 +80,51 @@ export function deriveSizes(variants: ReadonlyArray<VariantLike>): string[] {
   others.sort()
   return [...letters, ...numerics, ...others]
 }
+
+/** Default size when stock is entered per color on a non-sized item. */
+export const DEFAULT_UNSIZED_LABEL = 'OS'
+
+export interface ItemColorLike {
+  id: string
+}
+
+export interface ItemWithVariantsLike {
+  colors: ReadonlyArray<ItemColorLike>
+  variants?: ReadonlyArray<VariantLike>
+}
+
+/**
+ * True when every color has a variant row for the item's sole size — i.e.
+ * the catalog is a complete single-size matrix. Partial rows (Royal/M
+ * only, Black missing) return false so opening balance stays color-only.
+ */
+export function hasCompleteSingleSizeMatrix(
+  item: ItemWithVariantsLike,
+): boolean {
+  const variants = item.variants ?? []
+  const sizes = deriveSizes(variants)
+  if (sizes.length !== 1) return false
+  const size = sizes[0]
+  if (item.colors.length === 0) return false
+  return item.colors.every((c) =>
+    variants.some((v) => v.colorId === c.id && v.size === size),
+  )
+}
+
+/**
+ * Opening balance shows the color × size grid only when the item carries
+ * 2+ distinct sizes. Single-size and color-only catalogs use per-color entry.
+ */
+export function openingBalanceUsesVariantGrid(
+  item: ItemWithVariantsLike,
+): boolean {
+  return deriveSizes(item.variants ?? []).length > 1
+}
+
+/** Size written when posting color-only opening balance cells. */
+export function openingBalanceImplicitSize(item: ItemWithVariantsLike): string {
+  if (hasCompleteSingleSizeMatrix(item)) {
+    return deriveSizes(item.variants ?? [])[0]!
+  }
+  return DEFAULT_UNSIZED_LABEL
+}

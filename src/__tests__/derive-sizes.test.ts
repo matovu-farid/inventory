@@ -68,3 +68,53 @@ describe('deriveSizes', () => {
     expect(deriveSizes(variants)).toEqual(['M', 'AAA', 'FREE'])
   })
 })
+
+describe('openingBalanceUsesVariantGrid', () => {
+  it('returns false when there are no variants', async () => {
+    const { openingBalanceUsesVariantGrid } = await import('#/lib/variants')
+    expect(
+      openingBalanceUsesVariantGrid({
+        colors: [{ id: 'c1' }, { id: 'c2' }],
+        variants: [],
+      }),
+    ).toBe(false)
+  })
+
+  it('returns false for a partial single-size catalog (TR-004 shape)', async () => {
+    const { openingBalanceUsesVariantGrid, openingBalanceImplicitSize } =
+      await import('#/lib/variants')
+    const item = {
+      colors: [{ id: 'black' }, { id: 'royal' }],
+      variants: [{ id: 'v1', colorId: 'royal', size: 'M' }],
+    }
+    expect(openingBalanceUsesVariantGrid(item)).toBe(false)
+    expect(openingBalanceImplicitSize(item)).toBe('OS')
+  })
+
+  it('returns true when every color has the sole size', async () => {
+    const { openingBalanceUsesVariantGrid, openingBalanceImplicitSize } =
+      await import('#/lib/variants')
+    const item = {
+      colors: [{ id: 'c1' }, { id: 'c2' }],
+      variants: [
+        { id: 'v1', colorId: 'c1', size: 'M' },
+        { id: 'v2', colorId: 'c2', size: 'M' },
+      ],
+    }
+    expect(openingBalanceUsesVariantGrid(item)).toBe(false)
+    expect(openingBalanceImplicitSize(item)).toBe('M')
+  })
+
+  it('returns true for multi-size items', async () => {
+    const { openingBalanceUsesVariantGrid } = await import('#/lib/variants')
+    expect(
+      openingBalanceUsesVariantGrid({
+        colors: [{ id: 'c1' }],
+        variants: [
+          { id: 'v1', colorId: 'c1', size: 'S' },
+          { id: 'v2', colorId: 'c1', size: 'M' },
+        ],
+      }),
+    ).toBe(true)
+  })
+})
