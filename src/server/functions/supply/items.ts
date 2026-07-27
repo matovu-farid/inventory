@@ -1,8 +1,15 @@
 import { createServerFn } from '@tanstack/react-start'
 import { eq, ilike } from 'drizzle-orm'
+import BigNumber from 'bignumber.js'
 import { z } from 'zod'
 import { db } from '#/db'
-import { supplyRouteLines, items, itemColors } from '#/db/schema'
+import {
+  supplyRouteLines,
+  items,
+  itemColors,
+  supplyRoutes,
+  storeReceivings,
+} from '#/db/schema'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 import {
   materializeSplitRows,
@@ -16,7 +23,48 @@ export const addSupplyRouteVariants = createServerFn()
   .inputValidator(variantInput)
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin'])
-    const rows = materializeVariantRows(data)
+    const [item, route] = await Promise.all([
+      db.query.items.findFirst({ where: eq(items.id, data.itemId) }),
+      db.query.supplyRoutes.findFirst({
+        where: eq(supplyRoutes.id, data.supplyRouteId),
+      }),
+    ])
+    if (!item) throw new Error('Item not found')
+    if (!route) throw new Error('Supply route not found')
+    if (
+      !item.supplierId ||
+      !item.costPrice ||
+      !item.costCurrency ||
+      !item.minimumSellPriceUgx ||
+      Number(item.minimumSellPriceUgx) <= 0
+    ) {
+      throw new Error(
+        'Configure the item supplier, cost, currency, and minimum sell price before purchasing it',
+      )
+    }
+    const exchangeRateForeignToUsd =
+      data.exchangeRateForeignToUsd ??
+      (item.costCurrency === 'RMB'
+        ? (route.rateRmbPerUsd ?? undefined)
+        : undefined)
+    const exchangeRateUsdToUgx =
+      data.exchangeRateUsdToUgx ??
+      (item.costCurrency !== 'UGX'
+        ? (route.rateUgxPerUsd ?? undefined)
+        : undefined)
+    if (item.costCurrency === 'RMB' && !exchangeRateForeignToUsd)
+      throw new Error('Set the RMB/USD route rate or provide a line override')
+    if (item.costCurrency !== 'UGX' && !exchangeRateUsdToUgx)
+      throw new Error('Set the USD/UGX route rate or provide a line override')
+    const rows = materializeVariantRows({
+      ...data,
+      supplierId: item.supplierId,
+      unitPriceForeign: item.costPrice,
+      foreignCurrency: item.costCurrency,
+      minimumSellPriceUgx: item.minimumSellPriceUgx,
+      exchangeRateForeignToUsd,
+      exchangeRateUsdToUgx,
+    })
     return db.insert(supplyRouteLines).values(rows).returning()
   })
 
@@ -24,7 +72,66 @@ export const deleteSupplyRouteItem = createServerFn()
   .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin'])
+    const line = await db.query.supplyRouteLines.findFirst({
+      where: eq(supplyRouteLines.id, data.id),
+      with: { supplyRoute: true },
+    })
+    if (!line) throw new Error('Supply route line not found')
+    if (line.supplyRoute.status !== 'planning')
+      throw new Error('Only planning routes can be edited')
+    const received = await db.query.storeReceivings.findFirst({
+      where: eq(storeReceivings.supplyRouteLineId, data.id),
+    })
+    if (received) throw new Error('Received lines cannot be deleted')
     await db.delete(supplyRouteLines).where(eq(supplyRouteLines.id, data.id))
+  })
+
+export const updateSupplyRouteLineQuantity = createServerFn()
+  .inputValidator(
+    z.object({ id: z.uuid(), quantity: z.number().int().positive() }),
+  )
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin'])
+    return db.transaction(async (tx) => {
+      const line = await tx.query.supplyRouteLines.findFirst({
+        where: eq(supplyRouteLines.id, data.id),
+        with: { supplyRoute: true },
+      })
+      if (!line) throw new Error('Supply route line not found')
+      if (line.supplyRoute.status !== 'planning')
+        throw new Error('Only planning routes can be edited')
+      const received = await tx.query.storeReceivings.findFirst({
+        where: eq(storeReceivings.supplyRouteLineId, data.id),
+      })
+      if (received) throw new Error('Received lines cannot be edited')
+      const unit = new BigNumber(line.unitPriceForeign)
+      const totalForeign = unit.times(data.quantity).toFixed(2)
+      const isUgx = line.foreignCurrency === 'UGX'
+      const isUsd = line.foreignCurrency === 'USD'
+      const totalUsd = isUgx
+        ? null
+        : isUsd
+          ? totalForeign
+          : new BigNumber(totalForeign)
+              .div(line.exchangeRateForeignToUsd ?? '1')
+              .toFixed(2)
+      const totalCostUgx = isUgx
+        ? totalForeign
+        : new BigNumber(totalForeign)
+            .div(isUsd ? '1' : (line.exchangeRateForeignToUsd ?? '1'))
+            .times(line.exchangeRateUsdToUgx ?? '1')
+            .toFixed(2)
+      return tx
+        .update(supplyRouteLines)
+        .set({
+          quantity: data.quantity,
+          totalAmountForeign: totalForeign,
+          totalAmountUsd: totalUsd,
+          totalCostUgx,
+        })
+        .where(eq(supplyRouteLines.id, data.id))
+        .returning()
+    })
   })
 
 export const getItemNameSuggestions = createServerFn()
@@ -105,6 +212,7 @@ export const splitSupplyRouteItem = createServerFn()
           foreignCurrency: original.foreignCurrency,
           exchangeRateForeignToUsd: original.exchangeRateForeignToUsd,
           exchangeRateUsdToUgx: original.exchangeRateUsdToUgx,
+          minimumSellPriceUgx: original.minimumSellPriceUgx,
         },
         itemIdFallback,
         data.cells,

@@ -13,6 +13,7 @@ import { relations } from 'drizzle-orm'
 // because Drizzle's `relations()` helper resolves lazily at first query.
 import { variants } from './variants'
 import { storeStock } from './store'
+import { suppliers } from './suppliers'
 
 /**
  * Catalog: items and item_colors. After the items-free-text-category change
@@ -34,6 +35,11 @@ export const items = pgTable(
      * `listItemCategories()`.
      */
     category: text('category').notNull(),
+    supplierId: uuid('supplier_id').references(() => suppliers.id, {
+      onDelete: 'restrict',
+    }),
+    costPrice: numeric('cost_price', { precision: 15, scale: 2 }),
+    costCurrency: text('cost_currency'),
     minimumSellPriceUgx: numeric('minimum_sell_price_ugx', {
       precision: 15,
       scale: 2,
@@ -79,7 +85,11 @@ export const itemColors = pgTable(
   ],
 )
 
-export const itemRelations = relations(items, ({ many }) => ({
+export const itemRelations = relations(items, ({ one, many }) => ({
+  supplier: one(suppliers, {
+    fields: [items.supplierId],
+    references: [suppliers.id],
+  }),
   colors: many(itemColors),
   // `variants` (one row per item × color × size) was added in #2 and is
   // now the unit of stock since #4 / #5 / #6.

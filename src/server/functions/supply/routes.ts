@@ -167,7 +167,7 @@ export const removeSupplierFromRoute = createServerFn()
   })
 
 export const listSuppliersForSelect = createServerFn().handler(async () => {
-  await requireSessionAndRole(['admin'])
+  await requireSessionAndRole(['admin', 'supervisor'])
 
   return db
     .select({ id: suppliers.id, name: suppliers.name, type: suppliers.type })

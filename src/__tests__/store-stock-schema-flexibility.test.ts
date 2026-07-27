@@ -13,9 +13,7 @@ describe('store_stock schema — variant-flexibility', () => {
     expect((col as { notNull?: boolean }).notNull).toBeFalsy()
   })
 
-  it('no longer has minimumSellPriceUgx column', () => {
-    expect(
-      (storeStock as unknown as Record<string, unknown>).minimumSellPriceUgx,
-    ).toBeUndefined()
+  it('stores the lot minimum sell price', () => {
+    expect(storeStock.minimumSellPriceUgx).toBeDefined()
   })
 })

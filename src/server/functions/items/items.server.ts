@@ -33,6 +33,12 @@ export const upsertInput = z.object({
    * a brand new value typed by the user.
    */
   category: z.string().trim().min(1).max(64),
+  supplierId: z.uuid().optional(),
+  costPrice: z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/)
+    .optional(),
+  costCurrency: z.enum(['RMB', 'USD', 'UGX']).optional(),
   // Sizes are no longer persisted on items (issue #7 drops items.sizes).
   // The caller still passes them on create so the server can materialize
   // the (colors × sizes) cross product into the variants table.
@@ -44,7 +50,11 @@ export const upsertInput = z.object({
    * defaults them to "0" and null respectively (matching the column
    * defaults / nullability in items schema).
    */
-  minimumSellPriceUgx: z.string().optional(),
+  minimumSellPriceUgx: z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/)
+    .refine((v) => Number(v) > 0, 'Minimum sell price must be positive')
+    .optional(),
   lowStockThreshold: z.number().int().min(0).nullable().optional(),
 })
 
@@ -53,12 +63,22 @@ export const updateInput = upsertInput
   // On update, sizes/colors are managed independently through the
   // variant + color endpoints; ignore them here so callers don't have
   // to send the full payload. Category may be patched.
-  .partial({ sizes: true, colors: true, category: true })
+  .partial({
+    sizes: true,
+    colors: true,
+    category: true,
+    supplierId: true,
+    costPrice: true,
+    costCurrency: true,
+    minimumSellPriceUgx: true,
+    lowStockThreshold: true,
+  })
 
 // Item-detail queries hydrate the variants list so UI flows that pick a
 // (color, size) cell — opening balance, supply route editor — can map that
 // pair back to a `variantId` client-side.
 const ITEM_DETAIL_WITH = {
+  supplier: { columns: { id: true, name: true } },
   colors: true,
   variants: {
     columns: { id: true, colorId: true, size: true },
@@ -117,6 +137,9 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
       name: data.name,
       description: data.description,
       category: data.category,
+      supplierId: data.supplierId,
+      costPrice: data.costPrice,
+      costCurrency: data.costCurrency,
       minimumSellPriceUgx: data.minimumSellPriceUgx ?? '0',
       lowStockThreshold: data.lowStockThreshold ?? null,
     })
@@ -161,6 +184,13 @@ export async function updateItemQuery(data: z.infer<typeof updateInput>) {
     name: fields.name,
     description: fields.description,
     ...(category === undefined ? {} : { category }),
+    ...(fields.supplierId === undefined
+      ? {}
+      : { supplierId: fields.supplierId }),
+    ...(fields.costPrice === undefined ? {} : { costPrice: fields.costPrice }),
+    ...(fields.costCurrency === undefined
+      ? {}
+      : { costCurrency: fields.costCurrency }),
     // Treat undefined as "no change"; null clears the threshold.
     // Using `=== undefined` (not `"key" in data`) so a caller that
     // explicitly passes the key with `undefined` is still a no-op,

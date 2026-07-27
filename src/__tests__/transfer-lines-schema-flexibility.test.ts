@@ -19,10 +19,7 @@ describe('store_transfer_lines schema — variant-flexibility', () => {
     expect((col as { notNull?: boolean }).notNull).toBeFalsy()
   })
 
-  it('no longer carries minimumSellPriceUgx', () => {
-    expect(
-      (storeTransferLines as unknown as Record<string, unknown>)
-        .minimumSellPriceUgx,
-    ).toBeUndefined()
+  it('keeps transfer price at line level while allocations carry lot floors', () => {
+    expect(storeTransferLines.unitPriceUgx).toBeDefined()
   })
 })

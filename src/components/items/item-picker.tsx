@@ -7,6 +7,10 @@ export interface ItemSummary {
   id: string
   articleNumber: string
   name: string
+  costPrice?: string | null
+  costCurrency?: 'RMB' | 'USD' | 'UGX' | string | null
+  supplier?: { id: string; name: string } | null
+  minimumSellPriceUgx?: string
   colors: Array<{
     id: string
     colorName: string

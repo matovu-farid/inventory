@@ -331,6 +331,7 @@ export const receiveGoods = createServerFn()
               supplyRouteLineId: sri.id,
               quantityOnHand: item.quantityReceived,
               costPerUnitUgx: costPerUnit.toFixed(2),
+              minimumSellPriceUgx: sri.minimumSellPriceUgx,
             })
           }
         }

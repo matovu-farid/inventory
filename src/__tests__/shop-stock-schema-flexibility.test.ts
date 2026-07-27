@@ -19,9 +19,7 @@ describe('shop_stock schema — variant-flexibility', () => {
     expect((col as { notNull?: boolean }).notNull).toBeFalsy()
   })
 
-  it('no longer carries minimumSellPriceUgx', () => {
-    expect(
-      (shopStock as unknown as Record<string, unknown>).minimumSellPriceUgx,
-    ).toBeUndefined()
+  it('carries the lot minimumSellPriceUgx', () => {
+    expect(shopStock.minimumSellPriceUgx).toBeDefined()
   })
 })

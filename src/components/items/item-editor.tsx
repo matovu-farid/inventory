@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Textarea } from '#/components/ui/textarea'
@@ -6,17 +6,20 @@ import { Badge } from '#/components/ui/badge'
 import { CreatableCombobox } from '#/components/ui/creatable-combobox'
 import { X } from 'lucide-react'
 import { createItem } from '#/server/functions/items/items'
+import { listSuppliersForSelect } from '#/server/functions/supply/routes'
 import { matchPaletteHex } from '#/lib/colors/match-palette'
 import { CLOTHING_PALETTE } from '#/lib/colors/palette'
 import { HexColorField } from './hex-color-field'
 import { InfoTip } from '#/components/ui/info-tip'
 import { FieldLabel } from '#/components/ui/field-label'
 import { MoneyInput } from '#/components/ui/money-input'
+import { Combobox } from '#/components/ui/combobox'
 
 const SIZE_QUICK_PICKS = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 interface Props {
   categories: ReadonlyArray<string>
+  suppliers?: ReadonlyArray<{ id: string; name: string }>
   onCreated: (itemId: string, articleNumber: string) => void
 }
 
@@ -31,12 +34,22 @@ interface ColorDraft {
  * the server can materialize the (color × size) cross-product into
  * the variants table when saving.
  */
-export function ItemEditor({ categories, onCreated }: Props) {
+export function ItemEditor({
+  categories,
+  suppliers: suppliedSuppliers,
+  onCreated,
+}: Props) {
   const [articleNumber, setArticleNumber] = useState('')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('')
-  const [minimumSellPriceUgx, setMinimumSellPriceUgx] = useState<string>('0')
+  const [supplierId, setSupplierId] = useState('')
+  const [suppliers, setSuppliers] = useState<
+    ReadonlyArray<{ id: string; name: string }>
+  >(suppliedSuppliers ?? [])
+  const [costPrice, setCostPrice] = useState('')
+  const [costCurrency, setCostCurrency] = useState<'RMB' | 'USD' | 'UGX'>('RMB')
+  const [minimumSellPriceUgx, setMinimumSellPriceUgx] = useState<string>('')
   const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
     null,
   )
@@ -48,6 +61,14 @@ export function ItemEditor({ categories, onCreated }: Props) {
   const lastSuggestedName = useRef<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (suppliedSuppliers) {
+      setSuppliers(suppliedSuppliers)
+      return
+    }
+    void listSuppliersForSelect().then(setSuppliers)
+  }, [suppliedSuppliers])
 
   function handleHexChange(hex: string) {
     setColorHexDraft(hex)
@@ -106,9 +127,12 @@ export function ItemEditor({ categories, onCreated }: Props) {
           name,
           description: description || undefined,
           category: category.trim(),
+          supplierId,
+          costPrice,
+          costCurrency,
           sizes,
           colors,
-          minimumSellPriceUgx: minimumSellPriceUgx || '0',
+          minimumSellPriceUgx,
           lowStockThreshold,
         },
       })
@@ -159,6 +183,42 @@ export function ItemEditor({ categories, onCreated }: Props) {
           searchPlaceholder="Search categories…"
           emptyMessage="Type to create a new category."
         />
+      </div>
+      <div className="space-y-2">
+        <FieldLabel>Current supplier</FieldLabel>
+        <Combobox
+          options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+          value={supplierId}
+          onChange={setSupplierId}
+          placeholder="Select supplier"
+          searchPlaceholder="Search suppliers…"
+          emptyMessage="Create a supplier before creating an item."
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <FieldLabel>Current supplier cost</FieldLabel>
+          <MoneyInput
+            value={costPrice}
+            onChange={setCostPrice}
+            currency={costCurrency}
+            decimals={2}
+          />
+        </div>
+        <div className="space-y-2">
+          <FieldLabel>Cost currency</FieldLabel>
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={costCurrency}
+            onChange={(e) =>
+              setCostCurrency(e.target.value as typeof costCurrency)
+            }
+          >
+            <option value="RMB">RMB</option>
+            <option value="USD">USD</option>
+            <option value="UGX">UGX</option>
+          </select>
+        </div>
       </div>
       <div className="space-y-2">
         <FieldLabel help="item.minSellPrice">
@@ -313,7 +373,15 @@ export function ItemEditor({ categories, onCreated }: Props) {
       <div className="flex justify-end">
         <Button
           onClick={() => void save()}
-          disabled={!articleNumber || !name || !category.trim() || submitting}
+          disabled={
+            !articleNumber ||
+            !name ||
+            !category.trim() ||
+            !supplierId ||
+            !costPrice ||
+            !minimumSellPriceUgx ||
+            submitting
+          }
         >
           {submitting ? 'Saving…' : 'Create item'}
         </Button>

@@ -40,6 +40,21 @@ describe('materializeVariantRows', () => {
     expect(rows[0].totalCostUgx).toBe('462500.00')
   })
 
+  it('carries the commercial snapshot into every materialized row', () => {
+    const [row] = materializeVariantRows({
+      supplyRouteId: 'r1',
+      supplierId: 's1',
+      itemId: 'p1',
+      unitPriceForeign: '45',
+      foreignCurrency: 'RMB',
+      minimumSellPriceUgx: '90000',
+      exchangeRateForeignToUsd: '7.2',
+      exchangeRateUsdToUgx: '3700',
+      cells: [{ itemColorId: 'c1', size: 'M', quantity: 1 }],
+    })
+    expect(row.minimumSellPriceUgx).toBe('90000')
+  })
+
   it('handles local UGX purchase', () => {
     const rows = materializeVariantRows({
       supplyRouteId: 'r1',

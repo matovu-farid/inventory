@@ -27,12 +27,13 @@ export const cellSchema = z.object({
 
 export const variantInput = z.object({
   supplyRouteId: z.uuid(),
-  supplierId: z.uuid(),
   itemId: z.uuid(),
-  unitPriceForeign: z.string(),
-  foreignCurrency: z.string().default('RMB'),
   exchangeRateForeignToUsd: z.string().optional(),
   exchangeRateUsdToUgx: z.string().optional(),
+  supplierId: z.uuid().optional(),
+  unitPriceForeign: z.string().optional(),
+  foreignCurrency: z.string().optional(),
+  minimumSellPriceUgx: z.string().optional(),
   cells: z.array(cellSchema).min(1),
 })
 
@@ -53,14 +54,21 @@ export type MaterializedRow = {
   totalAmountForeign: string
   totalAmountUsd: string | null
   totalCostUgx: string
+  minimumSellPriceUgx: string
 }
 
 export function materializeVariantRows(
   input: z.infer<typeof variantInput>,
 ): MaterializedRow[] {
   const cells = input.cells.filter((c) => c.quantity > 0)
-  const unitPrice = new BigNumber(input.unitPriceForeign)
-  const isUsd = input.foreignCurrency === 'USD'
+  if (!input.supplierId || !input.unitPriceForeign || !input.foreignCurrency) {
+    throw new Error('Supplier and item cost snapshot are required')
+  }
+  const supplierId = input.supplierId
+  const unitPriceForeign = input.unitPriceForeign
+  const foreignCurrency = input.foreignCurrency
+  const unitPrice = new BigNumber(unitPriceForeign)
+  const isUsd = foreignCurrency === 'USD'
   const fxToUsdStr = isUsd
     ? (input.exchangeRateForeignToUsd ?? '1')
     : input.exchangeRateForeignToUsd
@@ -70,7 +78,7 @@ export function materializeVariantRows(
     let totalAmountUsd: string | null = null
     let totalCostUgx: string
     if (
-      input.foreignCurrency === 'UGX' ||
+      foreignCurrency === 'UGX' ||
       !fxToUsdStr ||
       !input.exchangeRateUsdToUgx
     ) {
@@ -92,18 +100,19 @@ export function materializeVariantRows(
     }
     return {
       supplyRouteId: input.supplyRouteId,
-      supplierId: input.supplierId,
+      supplierId,
       itemId: input.itemId,
       colorId: cell.itemColorId ?? null,
       size: cell.size ?? null,
       quantity: cell.quantity,
-      unitPriceForeign: input.unitPriceForeign,
-      foreignCurrency: input.foreignCurrency,
+      unitPriceForeign,
+      foreignCurrency,
       exchangeRateForeignToUsd: input.exchangeRateForeignToUsd,
       exchangeRateUsdToUgx: input.exchangeRateUsdToUgx,
       totalAmountForeign,
       totalAmountUsd,
       totalCostUgx,
+      minimumSellPriceUgx: input.minimumSellPriceUgx ?? '0',
     }
   })
 }
@@ -126,6 +135,7 @@ export interface SplitSourceRow {
   foreignCurrency: string
   exchangeRateForeignToUsd: string | null
   exchangeRateUsdToUgx: string | null
+  minimumSellPriceUgx?: string | null
 }
 
 export interface SplitCell {
@@ -153,6 +163,7 @@ export function materializeSplitRows(
     foreignCurrency: source.foreignCurrency,
     exchangeRateForeignToUsd: source.exchangeRateForeignToUsd ?? undefined,
     exchangeRateUsdToUgx: source.exchangeRateUsdToUgx ?? undefined,
+    minimumSellPriceUgx: source.minimumSellPriceUgx ?? '0',
     cells: cells.map((c) => ({
       itemColorId: c.itemColorId,
       size: c.size,

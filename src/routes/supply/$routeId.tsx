@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 import * as React from 'react'
 import { useState } from 'react'
 import { requireUiPermission } from '#/lib/permissions'
@@ -12,7 +12,6 @@ import { InfoTip } from '#/components/ui/info-tip'
 import { Badge } from '#/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Separator } from '#/components/ui/separator'
-import { Combobox } from '#/components/ui/combobox'
 import {
   Select,
   SelectContent,
@@ -36,18 +35,10 @@ import {
   TableHeader,
   TableRow,
 } from '#/components/ui/table'
-import {
-  Plus,
-  Trash2,
-  ArrowRight,
-  Split,
-  ChevronDown,
-  ChevronRight,
-} from 'lucide-react'
+import { Plus, Trash2, Split, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   getSupplyRoute,
   updateSupplyRoute,
-  listSuppliersForSelect,
 } from '#/server/functions/supply/routes'
 import {
   addSupplyRouteVariants,
@@ -82,13 +73,12 @@ import {
 export const Route = createFileRoute('/supply/$routeId')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
   loader: async ({ params }) => {
-    const [route, suppliers, prerequisites, categories] = await Promise.all([
+    const [route, prerequisites, categories] = await Promise.all([
       getSupplyRoute({ data: { id: params.routeId } }),
-      listSuppliersForSelect(),
       getSupplyRouteDetailPrereqs(),
       listItemCategories(),
     ])
-    return { route, suppliers, prerequisites, categories }
+    return { route, prerequisites, categories }
   },
   component: RouteDetailPage,
 })
@@ -121,7 +111,7 @@ function expenseAmountUgx(exp: {
 }
 
 function RouteDetailPage() {
-  const { route, suppliers, prerequisites, categories } = Route.useLoaderData()
+  const { route, prerequisites, categories } = Route.useLoaderData()
   const router = useRouter()
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
@@ -194,10 +184,6 @@ function RouteDetailPage() {
   }
 
   // Build supplier lookup for items form
-  const routeSupplierIds = route.suppliers.map((s) => s.supplier.id)
-  const routeSuppliers = suppliers.filter((s) =>
-    routeSupplierIds.includes(s.id),
-  )
 
   return (
     <div className="space-y-6">
@@ -302,9 +288,6 @@ function RouteDetailPage() {
                 </DialogHeader>
                 <AddItemForm
                   supplyRouteId={route.id}
-                  suppliers={
-                    routeSuppliers.length > 0 ? routeSuppliers : suppliers
-                  }
                   rateUgxPerUsd={route.rateUgxPerUsd}
                   rateRmbPerUsd={route.rateRmbPerUsd}
                   categories={categories}
@@ -646,23 +629,18 @@ function RouteDetailPage() {
 
 function AddItemForm({
   supplyRouteId,
-  suppliers,
   rateUgxPerUsd,
   rateRmbPerUsd,
   categories,
   onSuccess,
 }: {
   supplyRouteId: string
-  suppliers: Array<{ id: string; name: string }>
   rateUgxPerUsd?: string | null
   rateRmbPerUsd?: string | null
   categories: ReadonlyArray<string>
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
-  const [supplierId, setSupplierId] = useState(
-    suppliers.length === 1 ? suppliers[0].id : '',
-  )
   const [product, setProduct] = useState<ItemSummary | undefined>()
   const [productEditorOpen, setProductEditorOpen] = useState(false)
   const [colorEditorOpen, setColorEditorOpen] = useState(false)
@@ -674,19 +652,12 @@ function AddItemForm({
   const [aggregateQty, setAggregateQty] = useState('')
   const [colorQtys, setColorQtys] = useState<Record<string, number>>({})
   const [quantities, setQuantities] = useState<Record<string, number>>({})
-  const [unitPrice, setUnitPrice] = useState('')
   const initialCurrency = 'RMB'
   const initialFxToUsd = rateRmbPerUsd ?? ''
   const [currency, setCurrency] = useState<string>(initialCurrency)
   const [fxToUsd, setFxToUsd] = useState(initialFxToUsd)
   const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? '')
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-
-  function handleCurrencyChange(next: string) {
-    setCurrency(next)
-    if (next === 'RMB') setFxToUsd(rateRmbPerUsd ?? '')
-    else setFxToUsd('')
-  }
 
   async function refreshProduct(articleNumber: string) {
     const p = await getItemByArticle({ data: { articleNumber } })
@@ -757,11 +728,8 @@ function AddItemForm({
               })
 
     const errs: Record<string, string> = {}
-    if (!supplierId) errs.supplierId = 'Select a supplier'
     if (!product) errs.product = 'Pick a product'
     if (cells.length === 0) errs.quantities = 'Enter at least one quantity'
-    if (!unitPrice || Number(unitPrice) <= 0)
-      errs.unitPrice = 'Enter a valid price'
     if (currency !== 'UGX') {
       if (currency !== 'USD') {
         if (!fxToUsd || Number(fxToUsd) <= 0)
@@ -778,10 +746,7 @@ function AddItemForm({
       await addSupplyRouteVariants({
         data: {
           supplyRouteId,
-          supplierId,
           itemId: product.id,
-          unitPriceForeign: unitPrice,
-          foreignCurrency: currency,
           exchangeRateForeignToUsd:
             currency !== 'UGX' && currency !== 'USD'
               ? fxToUsd || undefined
@@ -809,42 +774,19 @@ function AddItemForm({
       className="space-y-4"
     >
       <div className="space-y-2">
-        <FieldLabel htmlFor="supplierId" help="item.supplierId">
-          Supplier *
-        </FieldLabel>
-        <Combobox
-          id="supplierId"
-          options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
-          value={supplierId}
-          onChange={setSupplierId}
-          placeholder="Select supplier"
-          searchPlaceholder="Search suppliers..."
-          emptyMessage={
-            <div className="space-y-1.5">
-              <p>No suppliers found.</p>
-              <Link
-                to="/supply/suppliers"
-                className="text-primary hover:underline inline-flex items-center gap-1 text-xs"
-              >
-                Add a supplier
-                <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
-          }
-          aria-invalid={!!formErrors.supplierId}
-        />
-        {formErrors.supplierId && (
-          <p className="text-xs text-destructive">{formErrors.supplierId}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
         <FieldLabel help="item.name">Item *</FieldLabel>
         <ItemPicker
           value={product?.id}
           onChange={(_, p) => {
             setProduct(p)
             setQuantities({})
+            if (
+              p?.costCurrency === 'RMB' ||
+              p?.costCurrency === 'USD' ||
+              p?.costCurrency === 'UGX'
+            ) {
+              setCurrency(p.costCurrency)
+            }
           }}
           onCreateNew={() => setProductEditorOpen(true)}
         />
@@ -952,31 +894,10 @@ function AddItemForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <FieldLabel help="item.unitPrice">Unit Price *</FieldLabel>
-          <MoneyInput
-            currency={currency}
-            value={unitPrice}
-            onChange={setUnitPrice}
-            placeholder="0"
-            error={formErrors.unitPrice}
-          />
-        </div>
-        <div className="space-y-2">
-          <FieldLabel help="item.currency">Currency</FieldLabel>
-          <Select value={currency} onValueChange={handleCurrencyChange}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="RMB">RMB</SelectItem>
-              <SelectItem value="USD">USD</SelectItem>
-              <SelectItem value="UGX">UGX</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        Supplier and purchase cost come from the item. These optional rates
+        override the route defaults for this line only.
+      </p>
 
       {currency !== 'UGX' && (
         <div className="grid grid-cols-2 gap-4">

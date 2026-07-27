@@ -100,6 +100,7 @@ async function seed() {
     if (!existingSupplier) {
       throw new Error('Failed to create or find seed supplier')
     }
+    const seedSupplierId = existingSupplier.id
 
     // Stores / shops don't have unique constraints on name, so we look first.
     let store = await db.query.stores.findFirst({
@@ -144,6 +145,8 @@ async function seed() {
       articleNumber: string
       name: string
       sizes: string[]
+      costPrice: string
+      minimumSellPriceUgx: string
     }) {
       const existing = await db.query.items.findFirst({
         where: eq(items.articleNumber, args.articleNumber),
@@ -155,6 +158,10 @@ async function seed() {
           articleNumber: args.articleNumber,
           name: args.name,
           category: 'Uncategorized',
+          supplierId: seedSupplierId,
+          costPrice: args.costPrice,
+          costCurrency: 'RMB',
+          minimumSellPriceUgx: args.minimumSellPriceUgx,
         })
         .returning()
       return created
@@ -164,16 +171,22 @@ async function seed() {
       articleNumber: 'TR-001',
       name: 'Crew-neck T-shirt',
       sizes: ['S', 'M', 'L'],
+      costPrice: '85.00',
+      minimumSellPriceUgx: '80000.00',
     })
     const jacket = await upsertProduct({
       articleNumber: 'JK-100',
       name: 'Bomber Jacket',
       sizes: ['M', 'L', 'XL'],
+      costPrice: '320.00',
+      minimumSellPriceUgx: '300000.00',
     })
     const trouser = await upsertProduct({
       articleNumber: 'PT-200',
       name: 'Chino Trousers',
       sizes: ['30', '32', '34'],
+      costPrice: '140.00',
+      minimumSellPriceUgx: '140000.00',
     })
 
     async function upsertColor(args: {
@@ -326,6 +339,14 @@ async function seed() {
           totalAmountForeign: totalForeign.toFixed(2),
           totalAmountUsd: totalUsd.toFixed(2),
           totalCostUgx: totalUgx.toFixed(2),
+          minimumSellPriceUgx:
+            s.itemColorId === tshirtBlack.id ||
+            s.itemColorId === tshirtBurgundy.id
+              ? tshirt.minimumSellPriceUgx
+              : s.itemColorId === jacketNavy.id ||
+                  s.itemColorId === jacketOlive.id
+                ? jacket.minimumSellPriceUgx
+                : trouser.minimumSellPriceUgx,
         }
       })
       await db.insert(supplyRouteLines).values(rows)

@@ -118,6 +118,7 @@ export const specifyStock = createServerFn()
             supplyRouteLineId: source.supplyRouteLineId,
             quantityOnHand: line.quantity,
             costPerUnitUgx: source.costPerUnitUgx,
+            minimumSellPriceUgx: source.minimumSellPriceUgx,
           })
         }
       }

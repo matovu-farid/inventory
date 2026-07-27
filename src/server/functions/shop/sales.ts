@@ -212,10 +212,17 @@ export const recordSale = createServerFn()
           ? formatItemLabel(item.articleNumber, item.name, '')
           : formatItemLabelUnresolved(item.articleNumber, item.name)
 
+        const minimumSellPriceUgx = plan.allocations
+          .reduce(
+            (max, a) =>
+              BigNumber.maximum(max, new BigNumber(a.minimumSellPriceUgx)),
+            new BigNumber(0),
+          )
+          .toFixed(2)
         const { isBelowMinimum, reason: belowMinimumReason } =
           validateBelowMinimumSale({
             unitPriceUgx: input.unitPriceUgx,
-            minimumSellPriceUgx: item.minimumSellPriceUgx,
+            minimumSellPriceUgx,
             userRole,
             reason: input.belowMinimumReason ?? '',
             itemName: itemLabel,
@@ -238,7 +245,7 @@ export const recordSale = createServerFn()
           quantity: input.quantity,
           unitPrice,
           totalPrice,
-          minimumSellPriceUgx: item.minimumSellPriceUgx,
+          minimumSellPriceUgx,
           isBelowMinimum,
           belowMinimumReason,
           allocations: plan.allocations,

@@ -35,7 +35,12 @@ async function runScheduledChecks(
 export default {
   fetch(request: Request, env: unknown, ctx: ExecutionContext): Promise<Response> {
     return withRequestDb(
-      () => tanstackHandler.fetch(request, env, ctx),
+      async () => {
+        const handler = tanstackHandler as unknown as {
+          fetch: (...args: unknown[]) => Response | Promise<Response>
+        }
+        return handler.fetch(request, env, ctx)
+      },
       ctx.waitUntil.bind(ctx),
     )
   },

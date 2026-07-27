@@ -40,6 +40,7 @@ export interface FifoAllocation {
   storeStockId: string
   quantity: number
   costPerUnitUgx: string
+  minimumSellPriceUgx: string
   supplyRouteLineId: string | null
 }
 
@@ -81,6 +82,7 @@ export async function pickStoreStockFifo(
       supplyRouteLineId: storeStock.supplyRouteLineId,
       quantityOnHand: storeStock.quantityOnHand,
       costPerUnitUgx: storeStock.costPerUnitUgx,
+      minimumSellPriceUgx: storeStock.minimumSellPriceUgx,
       supplyLineCreatedAt: supplyRouteLines.createdAt,
     })
     .from(storeStock)
@@ -100,6 +102,8 @@ export async function pickStoreStockFifo(
       storeStockId: a.stockId,
       quantity: a.quantity,
       costPerUnitUgx: a.costPerUnitUgx,
+      minimumSellPriceUgx:
+        rows.find((r) => r.id === a.stockId)?.minimumSellPriceUgx ?? '0',
       supplyRouteLineId: a.supplyRouteLineId,
     })),
     shortfall: plan.shortfall,
