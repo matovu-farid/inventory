@@ -1,17 +1,17 @@
-import * as React from "react"
+import * as React from 'react'
 // Browser entry skips qrcode's node fs/stream transitive path.
 // @ts-expect-error – no type declarations for the /lib/browser.js subpath
-import QRCode from "qrcode/lib/browser.js"
-import { Button } from "#/components/ui/button"
-import { useIsMobile } from "#/lib/hooks/use-is-mobile"
-import { shrinkImage } from "#/lib/images/shrink-image"
+import QRCode from 'qrcode/lib/browser.js'
+import { Button } from '#/components/ui/button'
+import { useIsMobile } from '#/lib/hooks/use-is-mobile'
+import { shrinkImage } from '#/lib/images/shrink-image'
 import {
   createPhotoUploadToken,
   getPhotoUploadStatus,
-} from "#/server/functions/items/photo-handoff"
-import { getItemImageUploadUrl } from "#/server/functions/items/uploads"
-import { setItemColorImage } from "#/server/functions/items/colors"
-import { itemImageUrl } from "#/lib/items"
+} from '#/server/functions/items/photo-handoff'
+import { getItemImageUploadUrl } from '#/server/functions/items/uploads'
+import { setItemColorImage } from '#/server/functions/items/colors'
+import { itemImageUrl } from '#/lib/items'
 
 interface Props {
   itemColorId: string
@@ -41,14 +41,14 @@ export const PhotoHandoffQR = PhotoCapture
 // Shared upload button — file input + shrink + presigned PUT
 // ---------------------------------------------------------------------------
 
-type UploadState = "idle" | "shrinking" | "uploading" | "error"
+type UploadState = 'idle' | 'shrinking' | 'uploading' | 'error'
 
 interface UploadButtonProps {
   itemColorId: string
   onUploaded: (imageUrl: string) => void
-  capture?: "environment"
+  capture?: 'environment'
   idleLabel: string
-  size?: "sm" | "default"
+  size?: 'sm' | 'default'
 }
 
 function UploadButton({
@@ -56,25 +56,25 @@ function UploadButton({
   onUploaded,
   capture,
   idleLabel,
-  size = "default",
+  size = 'default',
 }: UploadButtonProps) {
   const inputRef = React.useRef<HTMLInputElement>(null)
-  const [state, setState] = React.useState<UploadState>("idle")
+  const [state, setState] = React.useState<UploadState>('idle')
   const [error, setError] = React.useState<string | null>(null)
 
   async function onFile(file: File) {
     setError(null)
     try {
-      setState("shrinking")
+      setState('shrinking')
       const blob = await shrinkImage(file)
 
-      setState("uploading")
+      setState('uploading')
       const { uploadUrl, s3Key } = await getItemImageUploadUrl({
-        data: { itemColorId, contentType: "image/jpeg" },
+        data: { itemColorId, contentType: 'image/jpeg' },
       })
       const res = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "image/jpeg" },
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/jpeg' },
         body: blob,
       })
       if (!res.ok) throw new Error(`Upload failed (${res.status})`)
@@ -82,19 +82,19 @@ function UploadButton({
 
       const url = itemImageUrl(s3Key)
       if (url) onUploaded(url)
-      setState("idle")
+      setState('idle')
     } catch (e) {
-      setState("error")
+      setState('error')
       setError(e instanceof Error ? e.message : String(e))
     }
   }
 
-  const busy = state === "shrinking" || state === "uploading"
+  const busy = state === 'shrinking' || state === 'uploading'
   const label =
-    state === "shrinking"
-      ? "Preparing…"
-      : state === "uploading"
-        ? "Uploading…"
+    state === 'shrinking'
+      ? 'Preparing…'
+      : state === 'uploading'
+        ? 'Uploading…'
         : idleLabel
 
   return (
@@ -108,7 +108,7 @@ function UploadButton({
         onChange={(e) => {
           const f = e.target.files?.[0]
           if (f) void onFile(f)
-          e.target.value = ""
+          e.target.value = ''
         }}
       />
       <Button
@@ -120,7 +120,7 @@ function UploadButton({
       >
         {label}
       </Button>
-      {state === "error" && error && (
+      {state === 'error' && error && (
         <div className="text-xs text-red-600">{error}</div>
       )}
     </div>
@@ -183,13 +183,13 @@ function DesktopHandoff({ itemColorId, onUploaded }: Props) {
     const id = setInterval(() => {
       void (async () => {
         const status = await getPhotoUploadStatus({ data: { token } })
-        if (status.status === "consumed" && status.imageUrl) {
+        if (status.status === 'consumed' && status.imageUrl) {
           clearInterval(id)
           onUploaded(status.imageUrl)
           setDataUrl(null)
           setToken(null)
           setExpiresAt(null)
-        } else if (status.status === "expired") {
+        } else if (status.status === 'expired') {
           clearInterval(id)
           // Keep dataUrl rendered with the Expired label; user clicks Regenerate.
         }
@@ -203,7 +203,7 @@ function DesktopHandoff({ itemColorId, onUploaded }: Props) {
     ? Math.max(0, Math.floor((expiresAt.getTime() - now) / 1000))
     : 0
   const mm = Math.floor(secondsLeft / 60)
-  const ss = (secondsLeft % 60).toString().padStart(2, "0")
+  const ss = (secondsLeft % 60).toString().padStart(2, '0')
 
   if (!dataUrl) {
     return (
@@ -214,7 +214,7 @@ function DesktopHandoff({ itemColorId, onUploaded }: Props) {
           onClick={() => void generate()}
           disabled={generating}
         >
-          {generating ? "Generating…" : "Take with phone (QR)"}
+          {generating ? 'Generating…' : 'Take with phone (QR)'}
         </Button>
         <UploadButton
           itemColorId={itemColorId}
@@ -236,7 +236,7 @@ function DesktopHandoff({ itemColorId, onUploaded }: Props) {
       />
       <div className="text-xs text-muted-foreground">
         {expired
-          ? "QR expired — generate a new one"
+          ? 'QR expired — generate a new one'
           : `Scan with your phone · expires in ${mm}:${ss}`}
       </div>
       <div className="flex flex-wrap justify-center gap-2">
@@ -247,7 +247,7 @@ function DesktopHandoff({ itemColorId, onUploaded }: Props) {
           onClick={() => void generate()}
           disabled={generating}
         >
-          {generating ? "Generating…" : "Regenerate"}
+          {generating ? 'Generating…' : 'Regenerate'}
         </Button>
         <UploadButton
           itemColorId={itemColorId}

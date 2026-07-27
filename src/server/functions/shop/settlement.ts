@@ -1,16 +1,17 @@
-import { createServerFn } from "@tanstack/react-start"
-import { z } from "zod"
-import BigNumber from "bignumber.js"
-import { db } from "#/db"
-import { postJournalEntry } from "#/lib/accounting/ledger"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { depositCategoryFor } from "#/lib/payment-method"
+import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
+import { db } from '#/db'
+import { postJournalEntry } from '#/lib/accounting/ledger'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { depositCategoryFor } from '#/lib/payment-method'
 
 const settleInput = z.object({
   shopId: z.uuid(),
-  amount: z.string().refine((v) => new BigNumber(v).gt(0), "Amount must be positive"),
-  paymentMethod: z.enum(["cash", "bank"]),
+  amount: z
+    .string()
+    .refine((v) => new BigNumber(v).gt(0), 'Amount must be positive'),
+  paymentMethod: z.enum(['cash', 'bank']),
   bankAccountId: z.uuid().optional(),
   description: z.string().optional(),
 })
@@ -25,12 +26,11 @@ const settleInput = z.object({
 export const settleInterBranch = createServerFn()
   .inputValidator(settleInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    const session = await requireSessionAndRole(['admin', 'supervisor'])
     const userId = session.user.id
 
     const store = await db.query.stores.findFirst()
-    if (!store) throw new Error("Store not configured")
+    if (!store) throw new Error('Store not configured')
 
     return db.transaction(async (tx) => {
       const depositCat = depositCategoryFor(data.paymentMethod)
@@ -38,33 +38,33 @@ export const settleInterBranch = createServerFn()
       // Store side: receive payment
       await postJournalEntry(tx, {
         entries: [
-          { type: "debit", category: depositCat, amount: data.amount },
-          { type: "credit", category: "Due from Shop", amount: data.amount },
+          { type: 'debit', category: depositCat, amount: data.amount },
+          { type: 'credit', category: 'Due from Shop', amount: data.amount },
         ],
-        referenceType: "settlement",
+        referenceType: 'settlement',
         referenceId: data.shopId,
-        locationType: "store",
+        locationType: 'store',
         locationId: store.id,
         depositLocation: data.paymentMethod,
         bankAccountId: data.bankAccountId,
         recordedBy: userId,
-        description: data.description ?? "Inter-branch settlement from shop",
+        description: data.description ?? 'Inter-branch settlement from shop',
       })
 
       // Shop side: make payment
       await postJournalEntry(tx, {
         entries: [
-          { type: "debit", category: "Due to Store", amount: data.amount },
-          { type: "credit", category: depositCat, amount: data.amount },
+          { type: 'debit', category: 'Due to Store', amount: data.amount },
+          { type: 'credit', category: depositCat, amount: data.amount },
         ],
-        referenceType: "settlement",
+        referenceType: 'settlement',
         referenceId: store.id,
-        locationType: "shop",
+        locationType: 'shop',
         locationId: data.shopId,
         depositLocation: data.paymentMethod,
         bankAccountId: data.bankAccountId,
         recordedBy: userId,
-        description: data.description ?? "Inter-branch settlement to store",
+        description: data.description ?? 'Inter-branch settlement to store',
       })
 
       return { settled: true }

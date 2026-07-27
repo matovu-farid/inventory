@@ -1,24 +1,23 @@
-import { createServerFn } from "@tanstack/react-start"
+import { createServerFn } from '@tanstack/react-start'
 import {
   getRequestHeaders,
   setResponseHeader,
-} from "@tanstack/react-start/server"
-import { and, eq } from "drizzle-orm"
-import { z } from "zod"
-import { hashPassword } from "better-auth/crypto"
-import { db } from "#/db"
-import { user, account } from "#/db/schema"
-import { auth } from "#/lib/auth"
-import { createInvite, consumeInvite, peekInvite } from "#/lib/invite"
-import { sendInviteEmail } from "#/lib/email"
-import { env } from "#/env"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { ROLES } from "#/lib/roles"
-import { randomBytes } from "node:crypto"
+} from '@tanstack/react-start/server'
+import { and, eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { hashPassword } from 'better-auth/crypto'
+import { db } from '#/db'
+import { user, account } from '#/db/schema'
+import { auth } from '#/lib/auth'
+import { createInvite, consumeInvite, peekInvite } from '#/lib/invite'
+import { sendInviteEmail } from '#/lib/email'
+import { env } from '#/env'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { ROLES } from '#/lib/roles'
+import { randomBytes } from 'node:crypto'
 
 function tempPassword() {
-  return randomBytes(24).toString("base64url") + "Aa1!"
+  return randomBytes(24).toString('base64url') + 'Aa1!'
 }
 
 const inviteInput = z.object({
@@ -31,8 +30,7 @@ const inviteInput = z.object({
 export const inviteUser = createServerFn()
   .inputValidator(inviteInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    const session = await requireSessionAndRole(['admin'])
 
     const headers = getRequestHeaders()
     const created = await auth.api.createUser({
@@ -63,8 +61,7 @@ export const inviteUser = createServerFn()
 export const resendInvite = createServerFn()
   .inputValidator(z.object({ userId: z.string() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    const session = await requireSessionAndRole(['admin'])
 
     const target = await db
       .select()
@@ -72,7 +69,7 @@ export const resendInvite = createServerFn()
       .where(eq(user.id, data.userId))
       .limit(1)
     const u = target.at(0)
-    if (!u) throw new Error("User not found")
+    if (!u) throw new Error('User not found')
 
     const { token } = await createInvite({ userId: u.id })
     const url = `${env.APP_URL}/accept-invite?token=${token}`
@@ -95,7 +92,7 @@ export const acceptInvite = createServerFn()
   .handler(async ({ data }) => {
     const consumed = await consumeInvite(data.token)
     if (!consumed) {
-      throw new Error("Invite is invalid or expired")
+      throw new Error('Invite is invalid or expired')
     }
 
     const target = await db
@@ -104,7 +101,7 @@ export const acceptInvite = createServerFn()
       .where(eq(user.id, consumed.userId))
       .limit(1)
     const u = target.at(0)
-    if (!u) throw new Error("Invited user no longer exists")
+    if (!u) throw new Error('Invited user no longer exists')
 
     // Hash + store the new password directly — setUserPassword requires an
     // admin session which is unavailable on this public endpoint.
@@ -113,15 +110,12 @@ export const acceptInvite = createServerFn()
       .update(account)
       .set({ password: hashed })
       .where(
-        and(eq(account.userId, u.id), eq(account.providerId, "credential")),
+        and(eq(account.userId, u.id), eq(account.providerId, 'credential')),
       )
 
     // Accepting the invite verifies the email. Better Auth's signInEmail
     // below requires emailVerified=true when requireEmailVerification is on.
-    await db
-      .update(user)
-      .set({ emailVerified: true })
-      .where(eq(user.id, u.id))
+    await db.update(user).set({ emailVerified: true }).where(eq(user.id, u.id))
 
     // Mint a session and forward Set-Cookie headers
     const response = await auth.api.signInEmail({
@@ -130,8 +124,8 @@ export const acceptInvite = createServerFn()
     })
 
     response.headers.forEach((value, key) => {
-      if (key.toLowerCase() === "set-cookie") {
-        setResponseHeader("set-cookie", value)
+      if (key.toLowerCase() === 'set-cookie') {
+        setResponseHeader('set-cookie', value)
       }
     })
 
@@ -165,10 +159,9 @@ export const setUserRole = createServerFn()
     }),
   )
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    const session = await requireSessionAndRole(['admin'])
     if (session.user.id === data.userId) {
-      throw new Error("You cannot change your own role")
+      throw new Error('You cannot change your own role')
     }
     await auth.api.setRole({
       headers: getRequestHeaders(),
@@ -180,10 +173,9 @@ export const setUserRole = createServerFn()
 export const removeUser = createServerFn()
   .inputValidator(z.object({ userId: z.string() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    const session = await requireSessionAndRole(['admin'])
     if (session.user.id === data.userId) {
-      throw new Error("You cannot remove yourself")
+      throw new Error('You cannot remove yourself')
     }
     await auth.api.removeUser({
       headers: getRequestHeaders(),
@@ -193,11 +185,10 @@ export const removeUser = createServerFn()
   })
 
 export const listUsers = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin"])
+  await requireSessionAndRole(['admin'])
   const result = await auth.api.listUsers({
     headers: getRequestHeaders(),
-    query: { limit: "200" },
+    query: { limit: '200' },
   })
   return result
 })

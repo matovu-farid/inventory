@@ -1,7 +1,6 @@
-import { createServerFn } from "@tanstack/react-start"
-import { z } from "zod"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 const getReceiptInput = z.object({ saleId: z.uuid() })
 
@@ -16,8 +15,7 @@ const getReceiptInput = z.object({ saleId: z.uuid() })
 export const getSaleReceiptHtml = createServerFn()
   .inputValidator(getReceiptInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor", "sales"])
-    const { buildSaleReceiptHtml } = await import("./receipt-render.server")
+    await requireSessionAndRole(['admin', 'supervisor', 'sales'])
+    const { buildSaleReceiptHtml } = await import('./receipt-render.server')
     return buildSaleReceiptHtml(data.saleId)
   })

@@ -1,24 +1,24 @@
 // src/components/pos/variant-picker-sheet.tsx
-import * as React from "react"
-import BigNumber from "bignumber.js"
-import { ArrowLeft, ArrowRight, Plus, Minus } from "lucide-react"
+import * as React from 'react'
+import BigNumber from 'bignumber.js'
+import { ArrowLeft, ArrowRight, Plus, Minus } from 'lucide-react'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "#/components/ui/sheet"
-import { Button } from "#/components/ui/button"
-import { Label } from "#/components/ui/label"
-import { Input } from "#/components/ui/input"
-import { MoneyInput } from "#/components/ui/money-input"
-import { InfoTip } from "#/components/ui/info-tip"
-import { useCart } from "#/components/pos/cart-context"
-import { itemImageUrl } from "#/lib/items"
-import { formatUgx, formatUgxTotal } from "#/lib/format"
-import { cn } from "#/lib/utils"
-import type { AggregatedItem } from "#/lib/items"
-import { deriveSizes } from "#/lib/variants"
+} from '#/components/ui/sheet'
+import { Button } from '#/components/ui/button'
+import { Label } from '#/components/ui/label'
+import { Input } from '#/components/ui/input'
+import { MoneyInput } from '#/components/ui/money-input'
+import { InfoTip } from '#/components/ui/info-tip'
+import { useCart } from '#/components/pos/cart-context'
+import { itemImageUrl } from '#/lib/items'
+import { formatUgx, formatUgxTotal } from '#/lib/format'
+import { cn } from '#/lib/utils'
+import type { AggregatedItem } from '#/lib/items'
+import { deriveSizes } from '#/lib/variants'
 
 type StockRow = {
   id: string
@@ -45,8 +45,8 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
   const [colorId, setColorId] = React.useState<string | null>(null)
   const [size, setSize] = React.useState<string | null>(null)
   const [qty, setQty] = React.useState(1)
-  const [price, setPrice] = React.useState("")
-  const [reason, setReason] = React.useState("")
+  const [price, setPrice] = React.useState('')
+  const [reason, setReason] = React.useState('')
 
   // All useEffect hooks must be called unconditionally before any early returns.
   React.useEffect(() => {
@@ -55,8 +55,8 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
     setColorId(null)
     setSize(null)
     setQty(1)
-    setPrice("")
-    setReason("")
+    setPrice('')
+    setReason('')
   }, [open, item?.item.articleNumber])
 
   // currentRow is derived below, but we need the id for the effect dep.
@@ -64,7 +64,7 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
   const variantRow = React.useCallback(
     (cid: string | null, sz: string | null) =>
       cid && sz
-        ? stock.find((s) => s.itemColorId === cid && s.size === sz) ?? null
+        ? (stock.find((s) => s.itemColorId === cid && s.size === sz) ?? null)
         : null,
     [stock],
   )
@@ -72,7 +72,7 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
 
   React.useEffect(() => {
     if (!currentRow) return
-    if (price === "") setPrice(currentRow.minimumSellPriceUgx)
+    if (price === '') setPrice(currentRow.minimumSellPriceUgx)
   }, [currentRow, price])
 
   const availableColors = item?.colors ?? []
@@ -80,7 +80,8 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
   // from the materialised variants attached to the AggregatedItem
   // entry. Falls back to an empty list when the item has no stock.
   const availableSizes = deriveSizes(item?.variants ?? [])
-  const stockForColor = (cid: string) => stock.filter((s) => s.itemColorId === cid && s.quantityOnHand > 0)
+  const stockForColor = (cid: string) =>
+    stock.filter((s) => s.itemColorId === cid && s.quantityOnHand > 0)
   const sizeAvailableForColor = (cid: string, sz: string) => {
     const r = stock.find((s) => s.itemColorId === cid && s.size === sz)
     return r ? r.quantityOnHand > 0 : false
@@ -90,8 +91,8 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
     setColorId(cid)
     setSize(null)
     setQty(1)
-    setPrice("")
-    setReason("")
+    setPrice('')
+    setReason('')
     setStep(2)
   }
 
@@ -121,24 +122,32 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
     onOpenChange(false)
   }
 
-  const min = currentRow ? new BigNumber(currentRow.minimumSellPriceUgx) : new BigNumber(0)
+  const min = currentRow
+    ? new BigNumber(currentRow.minimumSellPriceUgx)
+    : new BigNumber(0)
   const priceBn = new BigNumber(price || 0)
   const isBelowMin = currentRow != null && priceBn.gt(0) && priceBn.lt(min)
-  const canAdd = !!currentRow && qty >= 1 && priceBn.gt(0) && (!isBelowMin || reason.trim().length > 0)
+  const canAdd =
+    !!currentRow &&
+    qty >= 1 &&
+    priceBn.gt(0) &&
+    (!isBelowMin || reason.trim().length > 0)
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>
-            {item ? `${item.item.name} · ${item.item.articleNumber}` : ""}
+            {item ? `${item.item.name} · ${item.item.articleNumber}` : ''}
           </SheetTitle>
           <p className="text-xs text-muted-foreground">Step {step} of 3</p>
         </SheetHeader>
 
         {step === 1 && (
           <div className="space-y-3 px-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pick a color</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Pick a color
+            </p>
             <div className="grid grid-cols-4 gap-3">
               {availableColors.map((c) => {
                 const hasStock = stockForColor(c.id).length > 0
@@ -149,11 +158,15 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
                     disabled={!hasStock}
                     onClick={() => pickColor(c.id)}
                     className={cn(
-                      "flex flex-col items-center gap-1 rounded-lg border p-2 disabled:opacity-30",
-                      colorId === c.id && "border-foreground",
+                      'flex flex-col items-center gap-1 rounded-lg border p-2 disabled:opacity-30',
+                      colorId === c.id && 'border-foreground',
                     )}
                   >
-                    <span className="size-10 rounded-md border" style={{ backgroundColor: c.colorHex }} aria-hidden />
+                    <span
+                      className="size-10 rounded-md border"
+                      style={{ backgroundColor: c.colorHex }}
+                      aria-hidden
+                    />
                     <span className="truncate text-xs">{c.colorName}</span>
                   </button>
                 )
@@ -164,7 +177,9 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
 
         {step === 2 && colorId && (
           <div className="space-y-3 px-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pick a size</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Pick a size
+            </p>
             <div className="flex flex-wrap gap-2">
               {availableSizes.map((sz) => {
                 const avail = sizeAvailableForColor(colorId, sz)
@@ -175,8 +190,9 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
                     disabled={!avail}
                     onClick={() => pickSize(sz)}
                     className={cn(
-                      "h-11 min-w-[3.5rem] rounded-lg border px-4 font-semibold disabled:line-through disabled:opacity-30",
-                      size === sz && "border-foreground bg-foreground text-background",
+                      'h-11 min-w-[3.5rem] rounded-lg border px-4 font-semibold disabled:line-through disabled:opacity-30',
+                      size === sz &&
+                        'border-foreground bg-foreground text-background',
                     )}
                   >
                     {sz}
@@ -209,14 +225,26 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
                   value={qty}
                   min={1}
                   max={currentRow.quantityOnHand}
-                  onChange={(e) => setQty(Math.max(1, Math.min(currentRow.quantityOnHand, Number(e.target.value) || 1)))}
+                  onChange={(e) =>
+                    setQty(
+                      Math.max(
+                        1,
+                        Math.min(
+                          currentRow.quantityOnHand,
+                          Number(e.target.value) || 1,
+                        ),
+                      ),
+                    )
+                  }
                 />
                 <Button
                   type="button"
                   size="icon"
                   variant="outline"
                   className="size-11"
-                  onClick={() => setQty((q) => Math.min(currentRow.quantityOnHand, q + 1))}
+                  onClick={() =>
+                    setQty((q) => Math.min(currentRow.quantityOnHand, q + 1))
+                  }
                   disabled={qty >= currentRow.quantityOnHand}
                 >
                   <Plus className="size-4" />
@@ -225,7 +253,9 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Price per unit (min {formatUgx(currentRow.minimumSellPriceUgx)})</Label>
+              <Label>
+                Price per unit (min {formatUgx(currentRow.minimumSellPriceUgx)})
+              </Label>
               <MoneyInput
                 currency="UGX"
                 roundTo={50}
@@ -238,7 +268,8 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
             {isBelowMin && (
               <div className="space-y-1.5 rounded-lg border border-amber-300 bg-amber-50 p-3">
                 <Label className="flex items-center gap-1 text-xs text-amber-900">
-                  Reason for selling below {formatUgx(currentRow.minimumSellPriceUgx)}
+                  Reason for selling below{' '}
+                  {formatUgx(currentRow.minimumSellPriceUgx)}
                   <InfoTip term="pos.belowMin" />
                 </Label>
                 <Input
@@ -254,7 +285,11 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
 
         <div className="sticky bottom-0 mt-4 flex gap-2 border-t bg-background px-4 py-3">
           {step > 1 && (
-            <Button variant="outline" className="h-11" onClick={() => setStep((s) => (s - 1) as Step)}>
+            <Button
+              variant="outline"
+              className="h-11"
+              onClick={() => setStep((s) => (s - 1) as Step)}
+            >
               <ArrowLeft className="mr-1 size-4" /> Back
             </Button>
           )}

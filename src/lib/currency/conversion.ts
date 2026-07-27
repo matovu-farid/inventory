@@ -1,4 +1,4 @@
-import BigNumber from "bignumber.js"
+import BigNumber from 'bignumber.js'
 
 /**
  * Convert foreign currency to UGX via USD.
@@ -16,9 +16,14 @@ export function foreignToUgx(params: {
   const fxToUsd = new BigNumber(params.exchangeRateForeignToUsd)
   const usdToUgx = new BigNumber(params.exchangeRateUsdToUgx)
 
-  if (fxToUsd.lte(0)) throw new Error("Exchange rate (foreign to USD) must be positive")
+  if (fxToUsd.lte(0))
+    throw new Error('Exchange rate (foreign to USD) must be positive')
 
-  return unitPrice.div(fxToUsd).times(usdToUgx).times(params.quantity).dp(2, BigNumber.ROUND_HALF_UP)
+  return unitPrice
+    .div(fxToUsd)
+    .times(usdToUgx)
+    .times(params.quantity)
+    .dp(2, BigNumber.ROUND_HALF_UP)
 }
 
 /**
@@ -29,7 +34,8 @@ export function foreignToUsd(params: {
   exchangeRateForeignToUsd: string
 }): BigNumber {
   const rate = new BigNumber(params.exchangeRateForeignToUsd)
-  if (rate.lte(0)) throw new Error("Exchange rate must be positive")
-  return new BigNumber(params.amountForeign).div(rate).dp(2, BigNumber.ROUND_HALF_UP)
+  if (rate.lte(0)) throw new Error('Exchange rate must be positive')
+  return new BigNumber(params.amountForeign)
+    .div(rate)
+    .dp(2, BigNumber.ROUND_HALF_UP)
 }
-

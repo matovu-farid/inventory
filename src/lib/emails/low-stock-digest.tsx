@@ -12,7 +12,7 @@ import {
   Section,
   Tailwind,
   Text,
-} from "@react-email/components"
+} from '@react-email/components'
 
 export interface LowStockDigestData {
   recipientName: string
@@ -22,13 +22,13 @@ export interface LowStockDigestData {
   shopLowCount: number
   shopsAffectedCount: number
   topItems: Array<{
-    scope: "store" | "shop"
+    scope: 'store' | 'shop'
     locationName: string
     itemLabel: string
     quantityAtOpen: number
     baseline: number
-    rule: { mode: "percent" | "units"; value: number }
-    severity: "critical" | "warning"
+    rule: { mode: 'percent' | 'units'; value: number }
+    severity: 'critical' | 'warning'
   }>
   storeRequisitionsUrl: string
   shopSuggestionsUrl: string
@@ -36,12 +36,12 @@ export interface LowStockDigestData {
 }
 
 const fmtDate = (d: Date) =>
-  d.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Africa/Kampala",
+  d.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Africa/Kampala',
   })
 
 export function LowStockDigestTemplate(data: LowStockDigestData) {
@@ -67,7 +67,7 @@ export function LowStockDigestTemplate(data: LowStockDigestData) {
                         className="rounded-[12px] block"
                       />
                     </td>
-                    <td valign="middle" style={{ paddingLeft: "16px" }}>
+                    <td valign="middle" style={{ paddingLeft: '16px' }}>
                       <Text className="text-white text-[18px] font-bold m-0 tracking-[-0.3px]">
                         Inventory Management
                       </Text>
@@ -93,7 +93,11 @@ export function LowStockDigestTemplate(data: LowStockDigestData) {
               <table cellPadding="0" cellSpacing="0" border={0} width="100%">
                 <tbody>
                   <tr>
-                    <td width="50%" valign="top" style={{ paddingRight: "8px" }}>
+                    <td
+                      width="50%"
+                      valign="top"
+                      style={{ paddingRight: '8px' }}
+                    >
                       <Section className="bg-rose-50 rounded-lg px-5 py-4">
                         <Text className="text-rose-900 text-[28px] font-bold m-0 leading-none">
                           {data.storeLowCount}
@@ -103,7 +107,7 @@ export function LowStockDigestTemplate(data: LowStockDigestData) {
                         </Text>
                       </Section>
                     </td>
-                    <td width="50%" valign="top" style={{ paddingLeft: "8px" }}>
+                    <td width="50%" valign="top" style={{ paddingLeft: '8px' }}>
                       <Section className="bg-amber-50 rounded-lg px-5 py-4">
                         <Text className="text-amber-900 text-[28px] font-bold m-0 leading-none">
                           {data.shopLowCount}
@@ -111,7 +115,7 @@ export function LowStockDigestTemplate(data: LowStockDigestData) {
                         <Text className="text-amber-700 text-[13px] font-medium m-0 mt-2">
                           shop items low
                           {data.shopsAffectedCount > 0 &&
-                            ` · ${data.shopsAffectedCount} shop${data.shopsAffectedCount === 1 ? "" : "s"}`}
+                            ` · ${data.shopsAffectedCount} shop${data.shopsAffectedCount === 1 ? '' : 's'}`}
                         </Text>
                       </Section>
                     </td>
@@ -142,7 +146,7 @@ export function LowStockDigestTemplate(data: LowStockDigestData) {
                       <td
                         width="50%"
                         align="center"
-                        style={{ paddingRight: "6px" }}
+                        style={{ paddingRight: '6px' }}
                       >
                         <Button
                           href={data.storeRequisitionsUrl}
@@ -154,7 +158,7 @@ export function LowStockDigestTemplate(data: LowStockDigestData) {
                       <td
                         width="50%"
                         align="center"
-                        style={{ paddingLeft: "6px" }}
+                        style={{ paddingLeft: '6px' }}
                       >
                         <Button
                           href={data.shopSuggestionsUrl}
@@ -175,7 +179,7 @@ export function LowStockDigestTemplate(data: LowStockDigestData) {
             <Section className="bg-white rounded-b-xl px-8 py-5">
               <Text className="text-slate-400 text-[12px] leading-5 m-0 text-center">
                 You&apos;re receiving this because you&apos;re an admin or
-                supervisor.{" "}
+                supervisor.{' '}
                 <Link
                   href={data.manageNotificationsUrl}
                   className="text-[#0066E6]"
@@ -195,29 +199,25 @@ export function LowStockDigestTemplate(data: LowStockDigestData) {
   )
 }
 
-function ItemRow({
-  item,
-}: {
-  item: LowStockDigestData["topItems"][number]
-}) {
+function ItemRow({ item }: { item: LowStockDigestData['topItems'][number] }) {
   const tone =
-    item.severity === "critical"
+    item.severity === 'critical'
       ? {
-          bg: "bg-rose-50",
-          border: "border-rose-300",
-          chipBg: "bg-rose-100",
-          chipText: "text-rose-800",
-          label: "Critical",
+          bg: 'bg-rose-50',
+          border: 'border-rose-300',
+          chipBg: 'bg-rose-100',
+          chipText: 'text-rose-800',
+          label: 'Critical',
         }
       : {
-          bg: "bg-amber-50",
-          border: "border-amber-300",
-          chipBg: "bg-amber-100",
-          chipText: "text-amber-800",
-          label: "Warning",
+          bg: 'bg-amber-50',
+          border: 'border-amber-300',
+          chipBg: 'bg-amber-100',
+          chipText: 'text-amber-800',
+          label: 'Warning',
         }
   const detail =
-    item.rule.mode === "percent"
+    item.rule.mode === 'percent'
       ? `${item.quantityAtOpen} on hand when alert opened (threshold ${item.rule.value}% of ~${item.baseline} typical)`
       : `${item.quantityAtOpen} when alert opened (threshold ${item.rule.value} units)`
   return (
@@ -232,7 +232,7 @@ function ItemRow({
                 {item.itemLabel}
               </Text>
               <Text className="text-slate-600 text-[12px] m-0 mt-1">
-                {item.scope === "store" ? "Store" : "Shop"} ·{" "}
+                {item.scope === 'store' ? 'Store' : 'Shop'} ·{' '}
                 {item.locationName}
               </Text>
               <Text className="text-slate-500 text-[12px] m-0 mt-1">

@@ -1,16 +1,14 @@
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import { items, storeStock, shopStock } from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { items, storeStock, shopStock } from '#/db/schema'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 export const listItemStockPrices = createServerFn()
   .inputValidator(z.object({ itemId: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    await requireSessionAndRole(['admin', 'supervisor'])
 
     const item = await db.query.items.findFirst({
       where: eq(items.id, data.itemId),
@@ -51,7 +49,7 @@ export const listItemStockPrices = createServerFn()
 const priceAmount = z
   .string()
   .refine((v) => /^\d+(\.\d{1,2})?$/.test(v) && Number(v) >= 0, {
-    message: "Enter a non-negative amount",
+    message: 'Enter a non-negative amount',
   })
 
 /**
@@ -67,8 +65,7 @@ const setItemMinPriceInput = z.object({
 export const setItemMinimumSellPrice = createServerFn()
   .inputValidator(setItemMinPriceInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const updated = (
       await db
@@ -77,6 +74,6 @@ export const setItemMinimumSellPrice = createServerFn()
         .where(eq(items.id, data.itemId))
         .returning()
     ).at(0)
-    if (!updated) throw new Error("Item not found")
+    if (!updated) throw new Error('Item not found')
     return updated
   })

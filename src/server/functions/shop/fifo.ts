@@ -1,13 +1,14 @@
 /**
  * `pickShopStockFifo` — unresolved-first FIFO picker for shop_stock.
  *
- * Pure planning logic mirroring `pickStoreStockFifo`
- * (`src/server/functions/store/fifo.ts`). Given
+ * Thin wrapper around the shared `planFifoFromRows` helper
+ * (`src/server/functions/_shared/fifo.ts`), mirroring
+ * `pickStoreStockFifo` for shop-side stock. Given
  * `(shopId, itemId, optional variantId, quantity)`, returns a per-row
- * allocation plan that drains source `shop_stock` rows in the right order.
- * No writes — the caller (Plan 2b `recordSale`, `dispatchStoreReturn`,
- * `recordCustomerReturn`) decides whether to honour the plan or throw on
- * shortfall.
+ * allocation plan that drains source `shop_stock` rows in the right
+ * order. No writes — the caller (Plan 2b `recordSale`,
+ * `dispatchStoreReturn`, `recordCustomerReturn`) decides whether to
+ * honour the plan or throw on shortfall.
  *
  * Ordering rules:
  *   1. If `variantId` is provided → only rows matching that variant are
@@ -20,10 +21,11 @@
  * drain before any goods-received lot.
  */
 
-import { and, eq } from "drizzle-orm"
+import { and, eq } from 'drizzle-orm'
 
-import { shopStock, supplyRouteLines } from "#/db/schema"
-import type { DbOrTx } from "#/server/functions/store/fifo"
+import { shopStock, supplyRouteLines } from '#/db/schema'
+import { planFifoFromRows } from '#/server/functions/_shared/fifo'
+import type { DbOrTx } from '#/server/functions/store/fifo'
 
 export interface ShopFifoAllocation {
   shopStockId: string
@@ -79,31 +81,18 @@ export async function pickShopStockFifo(
     )
     .where(and(...conditions))
 
-  const sorted = [...rows].sort((a, b) => {
-    if (!input.variantId) {
-      const aUnresolved = a.variantId === null
-      const bUnresolved = b.variantId === null
-      if (aUnresolved !== bUnresolved) return aUnresolved ? -1 : 1
-    }
-    const at = a.supplyLineCreatedAt?.getTime() ?? 0
-    const bt = b.supplyLineCreatedAt?.getTime() ?? 0
-    return at - bt
+  const plan = planFifoFromRows(rows, {
+    variantId: input.variantId,
+    quantity: input.quantity,
   })
 
-  const allocations: ShopFifoAllocation[] = []
-  let remaining = input.quantity
-  for (const r of sorted) {
-    if (remaining <= 0) break
-    if (r.quantityOnHand <= 0) continue
-    const take = Math.min(r.quantityOnHand, remaining)
-    allocations.push({
-      shopStockId: r.id,
-      quantity: take,
-      costPerUnitUgx: r.costPerUnitUgx,
-      supplyRouteLineId: r.supplyRouteLineId,
-    })
-    remaining -= take
+  return {
+    allocations: plan.allocations.map((a) => ({
+      shopStockId: a.stockId,
+      quantity: a.quantity,
+      costPerUnitUgx: a.costPerUnitUgx,
+      supplyRouteLineId: a.supplyRouteLineId,
+    })),
+    shortfall: plan.shortfall,
   }
-
-  return { allocations, shortfall: remaining }
 }

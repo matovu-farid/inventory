@@ -1,8 +1,8 @@
-describe("Authentication", () => {
+describe('Authentication', () => {
   const testUser = {
-    name: "Test Admin",
+    name: 'Test Admin',
     email: `test-admin-${Date.now()}@test.com`,
-    password: "TestPassword123!",
+    password: 'TestPassword123!',
   }
 
   before(() => {
@@ -14,17 +14,17 @@ describe("Authentication", () => {
     cy.cleanupTestUser(testUser.email)
   })
 
-  it("signs up the bootstrap admin", () => {
+  it('signs up the bootstrap admin', () => {
     cy.signup(testUser.name, testUser.email, testUser.password).then((resp) => {
       expect(resp.status).to.be.oneOf([200, 201])
     })
   })
 
-  it("blocks sign-in until email is verified", () => {
+  it('blocks sign-in until email is verified', () => {
     cy.request({
-      method: "POST",
-      url: "/api/auth/sign-in/email",
-      headers: { Origin: "http://localhost:3000" },
+      method: 'POST',
+      url: '/api/auth/sign-in/email',
+      headers: { Origin: 'http://localhost:3000' },
       body: { email: testUser.email, password: testUser.password },
       failOnStatusCode: false,
     }).then((resp) => {
@@ -32,26 +32,26 @@ describe("Authentication", () => {
     })
   })
 
-  it("signs in after manually marking email verified", () => {
+  it('signs in after manually marking email verified', () => {
     cy.dbQuery(
       `UPDATE "user" SET email_verified = TRUE WHERE email = '${testUser.email}'`,
     )
     cy.login(testUser.email, testUser.password)
-    cy.request("/api/auth/get-session").then((resp) => {
+    cy.request('/api/auth/get-session').then((resp) => {
       expect(resp.status).to.eq(200)
       expect(resp.body.user.email).to.eq(testUser.email)
     })
   })
 
-  it("blocks a second self-signup", () => {
+  it('blocks a second self-signup', () => {
     cy.request({
-      method: "POST",
-      url: "/api/auth/sign-up/email",
-      headers: { Origin: "http://localhost:3000" },
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      headers: { Origin: 'http://localhost:3000' },
       body: {
         email: `second-${Date.now()}@test.com`,
-        password: "Whatever1234",
-        name: "Second",
+        password: 'Whatever1234',
+        name: 'Second',
       },
       failOnStatusCode: false,
     }).then((resp) => {

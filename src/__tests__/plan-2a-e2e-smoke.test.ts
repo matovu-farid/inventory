@@ -28,11 +28,11 @@ import {
   beforeAll,
   afterAll,
   beforeEach,
-} from "vitest"
-import { runWithStartContext } from "@tanstack/start-storage-context"
-import { and, eq, isNull } from "drizzle-orm"
+} from 'vitest'
+import { runWithStartContext } from '@tanstack/start-storage-context'
+import { and, eq, isNull } from 'drizzle-orm'
 
-import { db } from "#/db"
+import { db } from '#/db'
 import {
   shopStock,
   storeStock,
@@ -44,7 +44,7 @@ import {
   transactions,
   auditLogs,
   user,
-} from "#/db/schema"
+} from '#/db/schema'
 import {
   resetTestDb,
   seedItem,
@@ -54,49 +54,49 @@ import {
   seedSupplier,
   seedSupplyRoute,
   assertDefined,
-} from "./test-helpers"
+} from './test-helpers'
 
 const TEST_USER_ID = `00000000-0000-0000-0000-${Date.now()
   .toString()
   .slice(-12)
-  .padStart(12, "0")}`
+  .padStart(12, '0')}`
 const session = {
-  user: { id: TEST_USER_ID, role: "admin" as "admin" | "supervisor" },
+  user: { id: TEST_USER_ID, role: 'admin' as 'admin' | 'supervisor' },
 }
 
-vi.mock("#/server/middleware/auth", () => ({
+vi.mock('#/server/middleware/auth', () => ({
   requireSession: () => Promise.resolve(session),
 }))
-vi.mock("#/server/middleware/rbac", () => ({
+vi.mock('#/server/middleware/rbac', () => ({
   requireRole: (sess: { user: { role: string } }, roles: string[]) => {
     if (!roles.includes(sess.user.role)) {
       throw new Error(
-        `Forbidden: role ${sess.user.role} not in ${roles.join(",")}`,
+        `Forbidden: role ${sess.user.role} not in ${roles.join(',')}`,
       )
     }
   },
   hasRole: (sess: { user: { role: string } }, roles: string[]) =>
     roles.includes(sess.user.role),
+  requireSessionAndRole: () => Promise.resolve(session),
 }))
 
 // Import after vi.mock so the mocks bind to the handlers under test.
-const { receiveGoods } = await import("#/server/functions/store/receiving")
-const { createTransfer, confirmTransferReceipt } = await import(
-  "#/server/functions/store/transfers"
-)
-const { specifyStock } = await import("#/server/functions/store/specify")
-const { specifyShopStock } = await import("#/server/functions/shop/specify")
-const { startStockTake } = await import("#/server/functions/shop/stock-take")
+const { receiveGoods } = await import('#/server/functions/store/receiving')
+const { createTransfer, confirmTransferReceipt } =
+  await import('#/server/functions/store/transfers')
+const { specifyStock } = await import('#/server/functions/store/specify')
+const { specifyShopStock } = await import('#/server/functions/shop/specify')
+const { startStockTake } = await import('#/server/functions/shop/stock-take')
 
 const stubStartContext = {
   getRouter: (() => {
-    throw new Error("router not available in tests")
+    throw new Error('router not available in tests')
   }) as never,
-  request: new Request("http://localhost/test"),
+  request: new Request('http://localhost/test'),
   startOptions: { functionMiddleware: [] },
   contextAfterGlobalMiddlewares: {},
   executedRequestMiddlewares: new Set(),
-  handlerType: "serverFn" as const,
+  handlerType: 'serverFn' as const,
 }
 function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
   return runWithStartContext(stubStartContext, fn)
@@ -105,14 +105,14 @@ function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
 // All the ledger categories the chain touches: receiveGoods + transfer
 // dispatch + transfer receipt + (optional) loss postings.
 const REQUIRED_CATEGORIES = [
-  { name: "Inventory - Store", type: "asset" as const },
-  { name: "Inventory - Shop", type: "asset" as const },
-  { name: "Cash", type: "asset" as const },
-  { name: "Store Transfer Revenue", type: "revenue" as const },
-  { name: "Store Transfer Loss", type: "expense" as const },
-  { name: "Inventory Loss", type: "expense" as const },
-  { name: "Due from Shop", type: "asset" as const },
-  { name: "Due to Store", type: "liability" as const },
+  { name: 'Inventory - Store', type: 'asset' as const },
+  { name: 'Inventory - Shop', type: 'asset' as const },
+  { name: 'Cash', type: 'asset' as const },
+  { name: 'Store Transfer Revenue', type: 'revenue' as const },
+  { name: 'Store Transfer Loss', type: 'expense' as const },
+  { name: 'Inventory Loss', type: 'expense' as const },
+  { name: 'Due from Shop', type: 'asset' as const },
+  { name: 'Due to Store', type: 'liability' as const },
 ]
 
 async function seedTestUser(): Promise<void> {
@@ -120,10 +120,10 @@ async function seedTestUser(): Promise<void> {
     .insert(user)
     .values({
       id: TEST_USER_ID,
-      name: "Test Admin",
+      name: 'Test Admin',
       email: `test-e2e-${TEST_USER_ID}@example.com`,
       emailVerified: true,
-      role: "admin",
+      role: 'admin',
     })
     .onConflictDoNothing()
 }
@@ -159,13 +159,13 @@ async function insertAggregateSupplyLine(input: {
       colorId: null,
       size: null,
       quantity: input.quantity,
-      unitPriceForeign: "1.00",
-      foreignCurrency: "RMB",
+      unitPriceForeign: '1.00',
+      foreignCurrency: 'RMB',
       totalAmountForeign: input.quantity.toFixed(2),
       totalCostUgx: input.totalCostUgx,
     })
     .returning()
-  assertDefined(row, "insertAggregateSupplyLine: no row returned")
+  assertDefined(row, 'insertAggregateSupplyLine: no row returned')
   return row.id
 }
 
@@ -176,9 +176,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await resetTestDb()
-  await db
-    .delete(transactions)
-    .where(eq(transactions.recordedBy, TEST_USER_ID))
+  await db.delete(transactions).where(eq(transactions.recordedBy, TEST_USER_ID))
   await db.delete(auditLogs).where(eq(auditLogs.actorUserId, TEST_USER_ID))
   await db.delete(user).where(eq(user.id, TEST_USER_ID))
 })
@@ -189,22 +187,22 @@ beforeEach(async () => {
   await seedTestUser()
 })
 
-describe("Plan 2a E2E — unresolved chain", () => {
-  it("receives unresolved → transfers item-level → confirms at shop → specifies → stock-take captures denorms", async () => {
+describe('Plan 2a E2E — unresolved chain', () => {
+  it('receives unresolved → transfers item-level → confirms at shop → specifies → stock-take captures denorms', async () => {
     // ---- 1. Catalog seed ----
     const itemId = await seedItem({
-      articleNumber: "E2E-1",
-      name: "Polo",
-      minimumSellPriceUgx: "200.00",
+      articleNumber: 'E2E-1',
+      name: 'Polo',
+      minimumSellPriceUgx: '200.00',
     })
     const burgundyId = await seedColor({
       itemId,
-      colorName: "Burgundy",
-      colorHex: "#722F37",
+      colorName: 'Burgundy',
+      colorHex: '#722F37',
     })
 
     // Receive handler picks the first store, so we need one.
-    await seedStore({ name: "E2E Store" })
+    await seedStore({ name: 'E2E Store' })
 
     const supplierId = await seedSupplier()
     const supplyRouteId = await seedSupplyRoute()
@@ -214,7 +212,7 @@ describe("Plan 2a E2E — unresolved chain", () => {
       supplierId,
       itemId,
       quantity: 10,
-      totalCostUgx: "1000.00",
+      totalCostUgx: '1000.00',
     })
 
     // ---- 2. Receive 10 unresolved into the store ----
@@ -228,10 +226,7 @@ describe("Plan 2a E2E — unresolved chain", () => {
     )
 
     const storeAfterReceive = await db.query.storeStock.findMany({
-      where: and(
-        eq(storeStock.itemId, itemId),
-        isNull(storeStock.variantId),
-      ),
+      where: and(eq(storeStock.itemId, itemId), isNull(storeStock.variantId)),
     })
     expect(storeAfterReceive).toHaveLength(1)
     expect(storeAfterReceive[0].quantityOnHand).toBe(10)
@@ -239,7 +234,7 @@ describe("Plan 2a E2E — unresolved chain", () => {
     const storeCostPerUnit = storeAfterReceive[0].costPerUnitUgx
 
     // ---- 3. Transfer 6 item-level (no variant) to a shop ----
-    const shopId = await seedShop({ name: "E2E Shop" })
+    const shopId = await seedShop({ name: 'E2E Shop' })
     await callServerFn(() =>
       createTransfer({
         data: {
@@ -251,7 +246,7 @@ describe("Plan 2a E2E — unresolved chain", () => {
     const transfer = await db.query.storeTransfers.findFirst({
       where: eq(storeTransfers.shopId, shopId),
     })
-    if (!transfer) throw new Error("Transfer not persisted")
+    if (!transfer) throw new Error('Transfer not persisted')
 
     const tLines = await db.query.storeTransferLines.findMany({
       where: eq(storeTransferLines.storeTransferId, transfer.id),
@@ -281,9 +276,7 @@ describe("Plan 2a E2E — unresolved chain", () => {
       confirmTransferReceipt({
         data: {
           transferId: transfer.id,
-          items: [
-            { transferItemId: tLines[0].id, quantityReceived: 6 },
-          ],
+          items: [{ transferItemId: tLines[0].id, quantityReceived: 6 }],
         },
       }),
     )
@@ -308,7 +301,7 @@ describe("Plan 2a E2E — unresolved chain", () => {
       specifyShopStock({
         data: {
           shopStockId: shopRowId,
-          lines: [{ colorId: burgundyId, size: "M", quantity: 4 }],
+          lines: [{ colorId: burgundyId, size: 'M', quantity: 4 }],
         },
       }),
     )
@@ -330,7 +323,7 @@ describe("Plan 2a E2E — unresolved chain", () => {
     // ---- 6. Stock-take at the shop captures both lines with denorms ----
     await callServerFn(() =>
       startStockTake({
-        data: { locationType: "shop", locationId: shopId },
+        data: { locationType: 'shop', locationId: shopId },
       }),
     )
 
@@ -341,7 +334,7 @@ describe("Plan 2a E2E — unresolved chain", () => {
       // placeholder; system + physical default to matched.
       expect(l.itemId).toBe(itemId)
       expect(l.itemName).not.toMatch(/unresolved/i)
-      expect(l.itemName).not.toBe("")
+      expect(l.itemName).not.toBe('')
       expect(l.physicalQuantity).toBe(l.systemQuantity)
       expect(l.discrepancy).toBe(0)
     }
@@ -349,29 +342,29 @@ describe("Plan 2a E2E — unresolved chain", () => {
     const stkUnresolvedLine = stkLines.find((l) => l.variantId === null)
     expect(stkVariantLine).toBeDefined()
     expect(stkVariantLine?.systemQuantity).toBe(4)
-    expect(stkVariantLine?.itemName).toContain("Burgundy")
-    expect(stkVariantLine?.itemName).toContain("M")
+    expect(stkVariantLine?.itemName).toContain('Burgundy')
+    expect(stkVariantLine?.itemName).toContain('M')
     expect(stkUnresolvedLine).toBeDefined()
     expect(stkUnresolvedLine?.systemQuantity).toBe(2)
-    expect(stkUnresolvedLine?.itemName).toContain("E2E-1")
+    expect(stkUnresolvedLine?.itemName).toContain('E2E-1')
   })
 })
 
-describe("Plan 2a E2E — variant-scoped chain", () => {
-  it("specifies at the store before transfer → transfers variant-scoped → shop receives variant-keyed row", async () => {
+describe('Plan 2a E2E — variant-scoped chain', () => {
+  it('specifies at the store before transfer → transfers variant-scoped → shop receives variant-keyed row', async () => {
     // ---- 1. Catalog seed ----
     const itemId = await seedItem({
-      articleNumber: "E2E-2",
-      name: "Trouser",
-      minimumSellPriceUgx: "300.00",
+      articleNumber: 'E2E-2',
+      name: 'Trouser',
+      minimumSellPriceUgx: '300.00',
     })
     const navyId = await seedColor({
       itemId,
-      colorName: "Navy",
-      colorHex: "#0A1F44",
+      colorName: 'Navy',
+      colorHex: '#0A1F44',
     })
 
-    await seedStore({ name: "E2E Store 2" })
+    await seedStore({ name: 'E2E Store 2' })
 
     const supplierId = await seedSupplier()
     const supplyRouteId = await seedSupplyRoute()
@@ -380,7 +373,7 @@ describe("Plan 2a E2E — variant-scoped chain", () => {
       supplierId,
       itemId,
       quantity: 10,
-      totalCostUgx: "1500.00", // 150 UGX/unit
+      totalCostUgx: '1500.00', // 150 UGX/unit
     })
 
     // ---- 2. Receive 10 unresolved into the store ----
@@ -394,12 +387,9 @@ describe("Plan 2a E2E — variant-scoped chain", () => {
     )
 
     const unresolvedRow = await db.query.storeStock.findFirst({
-      where: and(
-        eq(storeStock.itemId, itemId),
-        isNull(storeStock.variantId),
-      ),
+      where: and(eq(storeStock.itemId, itemId), isNull(storeStock.variantId)),
     })
-    if (!unresolvedRow) throw new Error("Expected unresolved store row")
+    if (!unresolvedRow) throw new Error('Expected unresolved store row')
     expect(unresolvedRow.quantityOnHand).toBe(10)
 
     // ---- 3. Specify 6 → Navy/L at the store (Plan 1 specifyStock) ----
@@ -407,7 +397,7 @@ describe("Plan 2a E2E — variant-scoped chain", () => {
       specifyStock({
         data: {
           storeStockId: unresolvedRow.id,
-          lines: [{ colorId: navyId, size: "L", quantity: 6 }],
+          lines: [{ colorId: navyId, size: 'L', quantity: 6 }],
         },
       }),
     )
@@ -422,36 +412,34 @@ describe("Plan 2a E2E — variant-scoped chain", () => {
     const leftoverStoreRow = storeRowsAfterSpecify.find(
       (r) => r.variantId === null,
     )
-    assertDefined(variantStoreRow, "Expected variant-keyed store row")
-    assertDefined(leftoverStoreRow, "Expected leftover store row")
+    assertDefined(variantStoreRow, 'Expected variant-keyed store row')
+    assertDefined(leftoverStoreRow, 'Expected leftover store row')
     expect(variantStoreRow.quantityOnHand).toBe(6)
     expect(leftoverStoreRow.quantityOnHand).toBe(4)
     expect(variantStoreRow.supplyRouteLineId).toBe(supplyLineId)
     expect(variantStoreRow.costPerUnitUgx).toBe(unresolvedRow.costPerUnitUgx)
     const variantId = variantStoreRow.variantId
-    assertDefined(variantId, "Expected variant id on specified row")
+    assertDefined(variantId, 'Expected variant id on specified row')
 
     // ---- 4. Transfer 3 variant-scoped to a shop ----
-    const shopId = await seedShop({ name: "E2E Shop 2" })
+    const shopId = await seedShop({ name: 'E2E Shop 2' })
     await callServerFn(() =>
       createTransfer({
         data: {
           shopId,
-          items: [
-            { itemId, variantId, quantityDispatched: 3 },
-          ],
+          items: [{ itemId, variantId, quantityDispatched: 3 }],
         },
       }),
     )
     const transfer = await db.query.storeTransfers.findFirst({
       where: eq(storeTransfers.shopId, shopId),
     })
-    if (!transfer) throw new Error("Transfer not persisted")
+    if (!transfer) throw new Error('Transfer not persisted')
 
     const tLine = await db.query.storeTransferLines.findFirst({
       where: eq(storeTransferLines.storeTransferId, transfer.id),
     })
-    if (!tLine) throw new Error("Transfer line not persisted")
+    if (!tLine) throw new Error('Transfer line not persisted')
     expect(tLine.variantId).toBe(variantId)
     expect(tLine.itemId).toBe(itemId)
 
@@ -488,6 +476,6 @@ describe("Plan 2a E2E — variant-scoped chain", () => {
     const transferAfter = await db.query.storeTransfers.findFirst({
       where: eq(storeTransfers.id, transfer.id),
     })
-    expect(transferAfter?.status).toBe("received")
+    expect(transferAfter?.status).toBe('received')
   })
 })

@@ -7,16 +7,14 @@ import {
   supplyRouteLines,
   supplyRoutes,
 } from '#/db/schema'
-import { requireSession } from '#/server/middleware/auth'
-import { requireRole } from '#/server/middleware/rbac'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 /**
  * Plan 2c: requisitions are item-keyed. The UI renders an item label
  * (article + name); no variant breakdown.
  */
 export const listOpenRequisitions = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ['admin', 'supervisor'])
+  await requireSessionAndRole(['admin', 'supervisor'])
   const rows = await db.query.restockRequisitions.findMany({
     where: eq(restockRequisitions.status, 'open'),
     with: {
@@ -54,8 +52,7 @@ const promoteInput = z.object({
 export const promoteRequisitionsToRoute = createServerFn()
   .inputValidator(promoteInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin'])
+    await requireSessionAndRole(['admin'])
 
     return db.transaction(async (tx) => {
       const target = await tx
@@ -114,8 +111,7 @@ const dismissInput = z.object({
 export const dismissRequisition = createServerFn()
   .inputValidator(dismissInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin', 'supervisor'])
+    await requireSessionAndRole(['admin', 'supervisor'])
     await db
       .update(restockRequisitions)
       .set({

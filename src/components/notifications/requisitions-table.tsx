@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Button } from "#/components/ui/button"
+import { useState } from 'react'
+import { Button } from '#/components/ui/button'
 import {
   Table,
   TableBody,
@@ -7,7 +7,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "#/components/ui/table"
+} from '#/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -15,19 +15,20 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-} from "#/components/ui/dialog"
+} from '#/components/ui/dialog'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
-import { Textarea } from "#/components/ui/textarea"
+} from '#/components/ui/select'
+import { Textarea } from '#/components/ui/textarea'
 import {
   promoteRequisitionsToRoute,
   dismissRequisition,
-} from "#/server/functions/store/requisitions"
+} from '#/server/functions/store/requisitions'
+import { formatDate } from '#/lib/format'
 
 export interface RequisitionRow {
   id: string
@@ -96,9 +97,7 @@ export function RequisitionsTable({
               <TableCell>{r.quantityAtOpen}</TableCell>
               <TableCell>{r.baseline}</TableCell>
               <TableCell>{r.suggestedQuantity}</TableCell>
-              <TableCell>
-                {new Date(r.openedAt).toLocaleDateString("en-GB")}
-              </TableCell>
+              <TableCell>{formatDate(r.openedAt, 'en-GB')}</TableCell>
               <TableCell>
                 <DismissButton id={r.id} onDone={onChanged} />
               </TableCell>
@@ -106,7 +105,10 @@ export function RequisitionsTable({
           ))}
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="text-center text-muted-foreground">
+              <TableCell
+                colSpan={8}
+                className="text-center text-muted-foreground"
+              >
                 No open requisitions.
               </TableCell>
             </TableRow>
@@ -139,8 +141,8 @@ function PromoteDialog({
   onDone: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const [routeId, setRouteId] = useState(routes[0]?.id ?? "")
-  const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? "")
+  const [routeId, setRouteId] = useState(routes[0]?.id ?? '')
+  const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -158,7 +160,7 @@ function PromoteDialog({
       setOpen(false)
       onDone()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to promote.")
+      setError(e instanceof Error ? e.message : 'Failed to promote.')
     } finally {
       setBusy(false)
     }
@@ -168,7 +170,7 @@ function PromoteDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button disabled={selectedIds.length === 0}>
-          Add {selectedIds.length || ""} to supply route
+          Add {selectedIds.length || ''} to supply route
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -206,9 +208,7 @@ function PromoteDialog({
               </SelectContent>
             </Select>
           </div>
-          {error !== null && (
-            <p className="text-sm text-rose-700">{error}</p>
-          )}
+          {error !== null && <p className="text-sm text-rose-700">{error}</p>}
         </div>
         <DialogFooter>
           <Button
@@ -217,7 +217,7 @@ function PromoteDialog({
             }}
             disabled={busy || !routeId || !supplierId}
           >
-            {busy ? "Adding…" : "Confirm"}
+            {busy ? 'Adding…' : 'Confirm'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -227,7 +227,7 @@ function PromoteDialog({
 
 function DismissButton({ id, onDone }: { id: string; onDone: () => void }) {
   const [open, setOpen] = useState(false)
-  const [reason, setReason] = useState("")
+  const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function go() {
@@ -264,7 +264,7 @@ function DismissButton({ id, onDone }: { id: string; onDone: () => void }) {
             }}
             disabled={busy || reason.trim().length === 0}
           >
-            {busy ? "Dismissing…" : "Dismiss"}
+            {busy ? 'Dismissing…' : 'Dismiss'}
           </Button>
         </DialogFooter>
       </DialogContent>

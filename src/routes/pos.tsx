@@ -1,38 +1,40 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import * as React from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import { getShopStock } from "#/server/functions/shop/sales"
-import { getSession } from "#/server/middleware/auth"
-import { aggregateStockByArticle } from "#/lib/items"
-import { CartProvider } from "#/components/pos/cart-context"
-import { PosLayout } from "#/components/pos/pos-layout"
-import { PosHeader } from "#/components/pos/pos-header"
-import { ItemGrid } from "#/components/pos/item-grid"
-import { CartBar } from "#/components/pos/cart-bar"
-import { CartSheet } from "#/components/pos/cart-sheet"
-import { CheckoutSheet } from "#/components/pos/checkout-sheet"
-import { VariantPickerSheet } from "#/components/pos/variant-picker-sheet"
-import { QueuedSalesSheet } from "#/components/pos/queued-sales-sheet"
-import { useSyncEngine } from "#/lib/offline/sync"
-import { useOnline } from "#/lib/offline/use-online"
-import type { AggregatedItem } from "#/lib/items"
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import * as React from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import { getShopStock } from '#/server/functions/shop/sales'
+import { getSession } from '#/server/middleware/auth'
+import { aggregateStockByArticle } from '#/lib/items'
+import { CartProvider } from '#/components/pos/cart-context'
+import { PosLayout } from '#/components/pos/pos-layout'
+import { PosHeader } from '#/components/pos/pos-header'
+import { ItemGrid } from '#/components/pos/item-grid'
+import { CartBar } from '#/components/pos/cart-bar'
+import { CartSheet } from '#/components/pos/cart-sheet'
+import { CheckoutSheet } from '#/components/pos/checkout-sheet'
+import { VariantPickerSheet } from '#/components/pos/variant-picker-sheet'
+import { QueuedSalesSheet } from '#/components/pos/queued-sales-sheet'
+import { useSyncEngine } from '#/lib/offline/sync'
+import { useOnline } from '#/lib/offline/use-online'
+import type { AggregatedItem } from '#/lib/items'
 
-export const Route = createFileRoute("/pos")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "pos.view"),
+export const Route = createFileRoute('/pos')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'pos.view'),
   loader: async () => {
     const session = await getSession()
     const user = session?.user as
       | { id?: string; name?: string; email?: string; shopId?: string | null }
       | undefined
     if (!user?.shopId) {
-      throw new Error("No shop assigned to this user. Ask an admin to assign you a shop.")
+      throw new Error(
+        'No shop assigned to this user. Ask an admin to assign you a shop.',
+      )
     }
     const stock = await getShopStock({ data: { shopId: user.shopId } })
     return {
       shopId: user.shopId,
-      userId: user.id ?? "anon",
-      userName: user.name ?? "User",
-      userEmail: user.email ?? "",
+      userId: user.id ?? 'anon',
+      userName: user.name ?? 'User',
+      userEmail: user.email ?? '',
       stock,
     }
   },
@@ -51,7 +53,7 @@ function PosPage() {
 function PosInner() {
   const { shopId, userName, userEmail, stock } = Route.useLoaderData()
   const router = useRouter()
-  const [query, setQuery] = React.useState("")
+  const [query, setQuery] = React.useState('')
   const [picked, setPicked] = React.useState<AggregatedItem | null>(null)
   const [pickerOpen, setPickerOpen] = React.useState(false)
   const [cartOpen, setCartOpen] = React.useState(false)
@@ -61,16 +63,22 @@ function PosInner() {
   const isOnline = useOnline()
   const { queued, failed, refresh } = useSyncEngine()
 
-
   // Filter out unresolved (variant_id NULL) shop_stock rows for the
   // touch POS surface. The variant-picker UI is variant-scoped by
   // design; the admin-side New Sale dialog in /shop is where Plan 2b's
   // item-level recordSale handles unresolved lots directly.
   const resolved = React.useMemo(
-    () => stock.filter((s): s is typeof s & { variant: NonNullable<typeof s.variant> } => s.variant !== null),
+    () =>
+      stock.filter(
+        (s): s is typeof s & { variant: NonNullable<typeof s.variant> } =>
+          s.variant !== null,
+      ),
     [stock],
   )
-  const aggregated = React.useMemo(() => aggregateStockByArticle(resolved), [resolved])
+  const aggregated = React.useMemo(
+    () => aggregateStockByArticle(resolved),
+    [resolved],
+  )
   const stockRows = React.useMemo(
     () =>
       resolved.map((s) => ({

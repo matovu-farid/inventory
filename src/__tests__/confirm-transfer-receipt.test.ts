@@ -16,11 +16,19 @@
  * effects. The ledger lives in `transactions` joined to
  * `transaction_categories` — there is no `ledger_entries` table.
  */
-import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vitest"
-import { runWithStartContext } from "@tanstack/start-storage-context"
-import { and, eq, isNull } from "drizzle-orm"
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from 'vitest'
+import { runWithStartContext } from '@tanstack/start-storage-context'
+import { and, eq, isNull } from 'drizzle-orm'
 
-import { db } from "#/db"
+import { db } from '#/db'
 import {
   shopStock,
   storeTransfers,
@@ -29,7 +37,7 @@ import {
   transactions,
   auditLogs,
   user,
-} from "#/db/schema"
+} from '#/db/schema'
 import {
   resetTestDb,
   seedItem,
@@ -37,40 +45,42 @@ import {
   seedShop,
   seedSupplyRouteLine,
   seedStoreStockLot,
-} from "./test-helpers"
+} from './test-helpers'
 
-const TEST_USER_ID = `00000000-0000-0000-0000-${Date.now().toString().slice(-12).padStart(12, "0")}`
+const TEST_USER_ID = `00000000-0000-0000-0000-${Date.now().toString().slice(-12).padStart(12, '0')}`
 const session = {
-  user: { id: TEST_USER_ID, role: "admin" as "admin" | "supervisor" },
+  user: { id: TEST_USER_ID, role: 'admin' as 'admin' | 'supervisor' },
 }
 
-vi.mock("#/server/middleware/auth", () => ({
+vi.mock('#/server/middleware/auth', () => ({
   requireSession: () => Promise.resolve(session),
 }))
-vi.mock("#/server/middleware/rbac", () => ({
+vi.mock('#/server/middleware/rbac', () => ({
   requireRole: (sess: { user: { role: string } }, roles: string[]) => {
     if (!roles.includes(sess.user.role)) {
-      throw new Error(`Forbidden: role ${sess.user.role} not in ${roles.join(",")}`)
+      throw new Error(
+        `Forbidden: role ${sess.user.role} not in ${roles.join(',')}`,
+      )
     }
   },
   hasRole: (sess: { user: { role: string } }, roles: string[]) =>
     roles.includes(sess.user.role),
+  requireSessionAndRole: () => Promise.resolve(session),
 }))
 
 // Import after vi.mock so the mocks bind to the handler under test.
-const { createTransfer, confirmTransferReceipt } = await import(
-  "#/server/functions/store/transfers"
-)
+const { createTransfer, confirmTransferReceipt } =
+  await import('#/server/functions/store/transfers')
 
 const stubStartContext = {
   getRouter: (() => {
-    throw new Error("router not available in tests")
+    throw new Error('router not available in tests')
   }) as never,
-  request: new Request("http://localhost/test"),
+  request: new Request('http://localhost/test'),
   startOptions: { functionMiddleware: [] },
   contextAfterGlobalMiddlewares: {},
   executedRequestMiddlewares: new Set(),
-  handlerType: "serverFn" as const,
+  handlerType: 'serverFn' as const,
 }
 function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
   return runWithStartContext(stubStartContext, fn)
@@ -78,13 +88,13 @@ function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
 
 // Categories the transfer + receive flow references.
 const REQUIRED_CATEGORIES = [
-  { name: "Inventory - Store", type: "asset" as const },
-  { name: "Inventory - Shop", type: "asset" as const },
-  { name: "Store Transfer Revenue", type: "revenue" as const },
-  { name: "Store Transfer Loss", type: "expense" as const },
-  { name: "Inventory Loss", type: "expense" as const },
-  { name: "Due from Shop", type: "asset" as const },
-  { name: "Due to Store", type: "liability" as const },
+  { name: 'Inventory - Store', type: 'asset' as const },
+  { name: 'Inventory - Shop', type: 'asset' as const },
+  { name: 'Store Transfer Revenue', type: 'revenue' as const },
+  { name: 'Store Transfer Loss', type: 'expense' as const },
+  { name: 'Inventory Loss', type: 'expense' as const },
+  { name: 'Due from Shop', type: 'asset' as const },
+  { name: 'Due to Store', type: 'liability' as const },
 ]
 
 beforeAll(async () => {
@@ -98,10 +108,10 @@ beforeAll(async () => {
     .insert(user)
     .values({
       id: TEST_USER_ID,
-      name: "Test Admin",
+      name: 'Test Admin',
       email: `test-tx8-${TEST_USER_ID}@example.com`,
       emailVerified: true,
-      role: "admin",
+      role: 'admin',
     })
     .onConflictDoNothing()
 })
@@ -119,10 +129,10 @@ beforeEach(async () => {
     .insert(user)
     .values({
       id: TEST_USER_ID,
-      name: "Test Admin",
+      name: 'Test Admin',
       email: `test-tx8-${TEST_USER_ID}@example.com`,
       emailVerified: true,
-      role: "admin",
+      role: 'admin',
     })
     .onConflictDoNothing()
   for (const cat of REQUIRED_CATEGORIES) {
@@ -133,12 +143,12 @@ beforeEach(async () => {
   }
 })
 
-describe("confirmTransferReceipt — variant-flexibility", () => {
-  it("creates one shop_stock row per allocation, keyed on (shop, item, variant=NULL, supply line)", async () => {
+describe('confirmTransferReceipt — variant-flexibility', () => {
+  it('creates one shop_stock row per allocation, keyed on (shop, item, variant=NULL, supply line)', async () => {
     const itemId = await seedItem({
-      articleNumber: "RX-1",
-      name: "Polo",
-      minimumSellPriceUgx: "200.00",
+      articleNumber: 'RX-1',
+      name: 'Polo',
+      minimumSellPriceUgx: '200.00',
     })
     const storeId = await seedStore()
     const shopId = await seedShop()
@@ -146,13 +156,13 @@ describe("confirmTransferReceipt — variant-flexibility", () => {
       itemId,
       colorId: null,
       size: null,
-      createdAt: "2026-01-01",
+      createdAt: '2026-01-01',
     })
     const newerLine = await seedSupplyRouteLine({
       itemId,
       colorId: null,
       size: null,
-      createdAt: "2026-02-01",
+      createdAt: '2026-02-01',
     })
     await seedStoreStockLot({
       storeId,
@@ -160,7 +170,7 @@ describe("confirmTransferReceipt — variant-flexibility", () => {
       variantId: null,
       supplyRouteLineId: olderLine,
       quantity: 4,
-      costPerUnitUgx: "100.00",
+      costPerUnitUgx: '100.00',
     })
     await seedStoreStockLot({
       storeId,
@@ -168,7 +178,7 @@ describe("confirmTransferReceipt — variant-flexibility", () => {
       variantId: null,
       supplyRouteLineId: newerLine,
       quantity: 6,
-      costPerUnitUgx: "120.00",
+      costPerUnitUgx: '120.00',
     })
 
     await callServerFn(() =>
@@ -180,7 +190,7 @@ describe("confirmTransferReceipt — variant-flexibility", () => {
     const transfer = await db.query.storeTransfers.findFirst({
       where: eq(storeTransfers.shopId, shopId),
     })
-    if (!transfer) throw new Error("Transfer not persisted")
+    if (!transfer) throw new Error('Transfer not persisted')
     const lines = await db.query.storeTransferLines.findMany({
       where: eq(storeTransferLines.storeTransferId, transfer.id),
     })
@@ -204,20 +214,18 @@ describe("confirmTransferReceipt — variant-flexibility", () => {
     })
     // One row per supply line, costs preserved
     expect(rows).toHaveLength(2)
-    const byLine = Object.fromEntries(
-      rows.map((r) => [r.supplyRouteLineId, r]),
-    )
+    const byLine = Object.fromEntries(rows.map((r) => [r.supplyRouteLineId, r]))
     expect(byLine[olderLine].quantityOnHand).toBe(4)
-    expect(byLine[olderLine].costPerUnitUgx).toBe("100.00")
+    expect(byLine[olderLine].costPerUnitUgx).toBe('100.00')
     expect(byLine[newerLine].quantityOnHand).toBe(3)
-    expect(byLine[newerLine].costPerUnitUgx).toBe("120.00")
+    expect(byLine[newerLine].costPerUnitUgx).toBe('120.00')
   })
 
-  it("partial receipt records distribution loss based on the dispatched mix", async () => {
+  it('partial receipt records distribution loss based on the dispatched mix', async () => {
     const itemId = await seedItem({
-      articleNumber: "RX-2",
-      name: "Polo",
-      minimumSellPriceUgx: "200.00",
+      articleNumber: 'RX-2',
+      name: 'Polo',
+      minimumSellPriceUgx: '200.00',
     })
     const storeId = await seedStore()
     const shopId = await seedShop()
@@ -225,13 +233,13 @@ describe("confirmTransferReceipt — variant-flexibility", () => {
       itemId,
       colorId: null,
       size: null,
-      createdAt: "2026-01-01",
+      createdAt: '2026-01-01',
     })
     const newerLine = await seedSupplyRouteLine({
       itemId,
       colorId: null,
       size: null,
-      createdAt: "2026-02-01",
+      createdAt: '2026-02-01',
     })
     await seedStoreStockLot({
       storeId,
@@ -239,7 +247,7 @@ describe("confirmTransferReceipt — variant-flexibility", () => {
       variantId: null,
       supplyRouteLineId: olderLine,
       quantity: 4,
-      costPerUnitUgx: "100.00",
+      costPerUnitUgx: '100.00',
     })
     await seedStoreStockLot({
       storeId,
@@ -247,7 +255,7 @@ describe("confirmTransferReceipt — variant-flexibility", () => {
       variantId: null,
       supplyRouteLineId: newerLine,
       quantity: 6,
-      costPerUnitUgx: "120.00",
+      costPerUnitUgx: '120.00',
     })
 
     await callServerFn(() =>
@@ -258,7 +266,7 @@ describe("confirmTransferReceipt — variant-flexibility", () => {
     const transfer = await db.query.storeTransfers.findFirst({
       where: eq(storeTransfers.shopId, shopId),
     })
-    if (!transfer) throw new Error("Transfer not persisted")
+    if (!transfer) throw new Error('Transfer not persisted')
     const lines = await db.query.storeTransferLines.findMany({
       where: eq(storeTransferLines.storeTransferId, transfer.id),
     })
@@ -271,7 +279,7 @@ describe("confirmTransferReceipt — variant-flexibility", () => {
             {
               transferItemId: lines[0].id,
               quantityReceived: 5,
-              discrepancyNotes: "2 units missing in transit",
+              discrepancyNotes: '2 units missing in transit',
             },
           ],
         },
@@ -288,19 +296,19 @@ describe("confirmTransferReceipt — variant-flexibility", () => {
     // of 2 × 200 = 400.00 UGX. Ledger lives in `transactions` joined to
     // `transaction_categories` — no `ledger_entries` table here.
     const lossCat = await db.query.transactionCategories.findFirst({
-      where: eq(transactionCategories.name, "Inventory Loss"),
+      where: eq(transactionCategories.name, 'Inventory Loss'),
     })
-    if (!lossCat) throw new Error("Inventory Loss category not seeded")
+    if (!lossCat) throw new Error('Inventory Loss category not seeded')
 
     const lossRows = await db.query.transactions.findMany({
       where: and(
-        eq(transactions.referenceType, "distribution_loss"),
+        eq(transactions.referenceType, 'distribution_loss'),
         eq(transactions.referenceId, lines[0].id),
         eq(transactions.categoryId, lossCat.id),
-        eq(transactions.type, "debit"),
+        eq(transactions.type, 'debit'),
       ),
     })
     expect(lossRows).toHaveLength(1)
-    expect(lossRows[0].amount).toBe("400.00")
+    expect(lossRows[0].amount).toBe('400.00')
   })
 })

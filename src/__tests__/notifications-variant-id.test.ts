@@ -163,16 +163,12 @@ async function cleanup() {
   await db
     .delete(notificationThresholdOverrides)
     .where(eq(notificationThresholdOverrides.itemId, itemId()))
-  await db
-    .delete(lowStockAlerts)
-    .where(eq(lowStockAlerts.itemId, itemId()))
+  await db.delete(lowStockAlerts).where(eq(lowStockAlerts.itemId, itemId()))
   await db
     .delete(restockRequisitions)
     .where(eq(restockRequisitions.itemId, itemId()))
   await db.delete(storeReceivings).where(eq(storeReceivings.storeId, storeId()))
-  await db
-    .delete(supplyRouteLines)
-    .where(eq(supplyRouteLines.colorId, pcId()))
+  await db.delete(supplyRouteLines).where(eq(supplyRouteLines.colorId, pcId()))
   for (const qty of [50, 80, 200]) {
     await db
       .delete(supplyRoutes)
@@ -191,9 +187,7 @@ beforeAll(seed)
 afterAll(cleanup)
 
 beforeEach(async () => {
-  await db
-    .delete(lowStockAlerts)
-    .where(eq(lowStockAlerts.itemId, itemId()))
+  await db.delete(lowStockAlerts).where(eq(lowStockAlerts.itemId, itemId()))
   await db
     .delete(restockRequisitions)
     .where(eq(restockRequisitions.itemId, itemId()))
@@ -232,7 +226,7 @@ describe('notification tables keyed by variant_id', () => {
       .insert(notificationThresholdOverrides)
       .values({
         scope: 'store',
-      itemId: itemId(),
+        itemId: itemId(),
         variantId: variantId(),
         shopId: null,
         mode: 'units',

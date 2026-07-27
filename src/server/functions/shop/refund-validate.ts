@@ -1,5 +1,5 @@
-import BigNumber from "bignumber.js"
-import { formatUgxTotal } from "#/lib/format"
+import BigNumber from 'bignumber.js'
+import { formatUgxTotal } from '#/lib/format'
 
 export interface ValidateCreditAdjustmentRefundInput {
   totalRefund: string

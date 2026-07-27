@@ -1,33 +1,33 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
-import * as React from "react"
-import { useState } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import { deriveSizes } from "#/lib/variants"
-import BigNumber from "bignumber.js"
-import { Button } from "#/components/ui/button"
-import { Textarea } from "#/components/ui/textarea"
-import { MoneyInput, RateInput } from "#/components/ui/money-input"
-import { FieldLabel } from "#/components/ui/field-label"
-import { InfoTip } from "#/components/ui/info-tip"
-import { Badge } from "#/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
-import { Separator } from "#/components/ui/separator"
-import { Combobox } from "#/components/ui/combobox"
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import * as React from 'react'
+import { useState } from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import { deriveSizes } from '#/lib/variants'
+import BigNumber from 'bignumber.js'
+import { Button } from '#/components/ui/button'
+import { Textarea } from '#/components/ui/textarea'
+import { MoneyInput, RateInput } from '#/components/ui/money-input'
+import { FieldLabel } from '#/components/ui/field-label'
+import { InfoTip } from '#/components/ui/info-tip'
+import { Badge } from '#/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { Separator } from '#/components/ui/separator'
+import { Combobox } from '#/components/ui/combobox'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
+} from '#/components/ui/select'
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
   ResponsiveDialogHeader as DialogHeader,
   ResponsiveDialogTitle as DialogTitle,
-} from "#/components/ui/responsive-dialog"
-import { DialogTrigger } from "#/components/ui/dialog"
-import { ResponsiveTable } from "#/components/ui/responsive-table"
+} from '#/components/ui/responsive-dialog'
+import { DialogTrigger } from '#/components/ui/dialog'
+import { ResponsiveTable } from '#/components/ui/responsive-table'
 import {
   Table,
   TableBody,
@@ -35,42 +35,52 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "#/components/ui/table"
-import { Plus, Trash2, ArrowRight, Split, ChevronDown, ChevronRight } from "lucide-react"
+} from '#/components/ui/table'
+import {
+  Plus,
+  Trash2,
+  ArrowRight,
+  Split,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react'
 import {
   getSupplyRoute,
   updateSupplyRoute,
   listSuppliersForSelect,
-} from "#/server/functions/supply/routes"
+} from '#/server/functions/supply/routes'
 import {
   addSupplyRouteVariants,
   deleteSupplyRouteItem,
-} from "#/server/functions/supply/items"
-import {
-  ItemPicker
-
-} from "#/components/items/item-picker"
-import type {ItemSummary} from "#/components/items/item-picker";
-import { ItemEditor } from "#/components/items/item-editor"
-import { ColorEditor } from "#/components/items/color-editor"
-import { VariantGrid } from "#/components/items/variant-grid"
+} from '#/server/functions/supply/items'
+import { ItemPicker } from '#/components/items/item-picker'
+import type { ItemSummary } from '#/components/items/item-picker'
+import { ItemEditor } from '#/components/items/item-editor'
+import { ColorEditor } from '#/components/items/color-editor'
+import { VariantGrid } from '#/components/items/variant-grid'
 import {
   SplitItemForm,
   ColorQuantityList,
-} from "#/components/supply/split-item-form"
-import { getItemByArticle, listItemCategories } from "#/server/functions/items/items"
-import { deleteItemColor } from "#/server/functions/items/colors"
+} from '#/components/supply/split-item-form'
+import {
+  getItemByArticle,
+  listItemCategories,
+} from '#/server/functions/items/items'
+import { deleteItemColor } from '#/server/functions/items/colors'
 import {
   addSupplyRouteExpense,
   deleteSupplyRouteExpense,
-} from "#/server/functions/supply/expenses"
-import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
-import { getSupplyRouteDetailPrereqs } from "#/server/functions/prereqs/supply"
-import { roundUgxFloor50, roundUgxBankers50, formatUgxTotal } from "#/lib/format"
+} from '#/server/functions/supply/expenses'
+import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
+import { getSupplyRouteDetailPrereqs } from '#/server/functions/prereqs/supply'
+import {
+  roundUgxFloor50,
+  roundUgxBankers50,
+  formatUgxTotal,
+} from '#/lib/format'
 
-export const Route = createFileRoute("/supply/$routeId")({
-  beforeLoad: ({ context }) =>
-    requireUiPermission(context, "procurement.view"),
+export const Route = createFileRoute('/supply/$routeId')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
   loader: async ({ params }) => {
     const [route, suppliers, prerequisites, categories] = await Promise.all([
       getSupplyRoute({ data: { id: params.routeId } }),
@@ -83,23 +93,19 @@ export const Route = createFileRoute("/supply/$routeId")({
   component: RouteDetailPage,
 })
 
-const STATUSES = [
-  "planning",
-  "in_transit",
-  "received",
-] as const
+const STATUSES = ['planning', 'in_transit', 'received'] as const
 
 const EXPENSE_CATEGORIES = [
-  "freight",
-  "shipping",
-  "customs",
-  "ticket",
-  "transportation",
-  "insurance",
-  "rent",
-  "salary",
-  "tax",
-  "miscellaneous",
+  'freight',
+  'shipping',
+  'customs',
+  'ticket',
+  'transportation',
+  'insurance',
+  'rent',
+  'salary',
+  'tax',
+  'miscellaneous',
 ] as const
 
 function expenseAmountUgx(exp: {
@@ -108,8 +114,8 @@ function expenseAmountUgx(exp: {
   exchangeRate?: string | null
 }): BigNumber {
   const amount = new BigNumber(exp.amount)
-  const currency = exp.currency ?? "UGX"
-  if (currency === "UGX") return amount
+  const currency = exp.currency ?? 'UGX'
+  if (currency === 'UGX') return amount
   if (!exp.exchangeRate) return amount
   return amount.times(new BigNumber(exp.exchangeRate))
 }
@@ -123,7 +129,8 @@ function RouteDetailPage() {
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(
     new Set(),
   )
-  const splittingItem = route.items.find((i) => i.id === splittingItemId) ?? null
+  const splittingItem =
+    route.items.find((i) => i.id === splittingItemId) ?? null
 
   type RouteItem = (typeof route.items)[number]
   const groupedItems = React.useMemo(() => {
@@ -199,20 +206,25 @@ function RouteDetailPage() {
         <div>
           <h1 className="text-2xl font-bold">{route.name}</h1>
           <p className="text-muted-foreground text-sm">
-            {route.suppliers.map((s) => s.supplier.name).join(", ") ||
-              "No suppliers linked"}
+            {route.suppliers.map((s) => s.supplier.name).join(', ') ||
+              'No suppliers linked'}
             {route.departureDate && ` | Departed: ${route.departureDate}`}
             {route.returnDate && ` | Returned: ${route.returnDate}`}
           </p>
         </div>
-        <Select value={route.status} onValueChange={(v) => { void handleStatusChange(v) }}>
+        <Select
+          value={route.status}
+          onValueChange={(v) => {
+            void handleStatusChange(v)
+          }}
+        >
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {STATUSES.map((s) => (
               <SelectItem key={s} value={s}>
-                {s.replace("_", " ")}
+                {s.replace('_', ' ')}
               </SelectItem>
             ))}
           </SelectContent>
@@ -220,7 +232,6 @@ function RouteDetailPage() {
       </div>
 
       <PagePrerequisites result={prerequisites}>
-
         <TripRatesSection route={route} />
 
         {/* Summary Cards */}
@@ -351,9 +362,7 @@ function RouteDetailPage() {
                     )
                     const totalUsd = group.items.reduce(
                       (s, i) =>
-                        i.totalAmountUsd
-                          ? s.plus(i.totalAmountUsd)
-                          : s,
+                        i.totalAmountUsd ? s.plus(i.totalAmountUsd) : s,
                       new BigNumber(0),
                     )
                     const totalUgx = group.items.reduce(
@@ -384,7 +393,7 @@ function RouteDetailPage() {
                           </TableCell>
                           <TableCell className="text-muted-foreground text-xs">
                             {group.items.length} variant
-                            {group.items.length === 1 ? "" : "s"}
+                            {group.items.length === 1 ? '' : 's'}
                           </TableCell>
                           <TableCell className="hidden md:table-cell" />
                           <TableCell className="text-right font-mono">
@@ -400,7 +409,7 @@ function RouteDetailPage() {
                             )}
                           </TableCell>
                           <TableCell className="hidden text-right font-mono md:table-cell">
-                            {totalUsd.gt(0) ? totalUsd.toFormat(2) : "-"}
+                            {totalUsd.gt(0) ? totalUsd.toFormat(2) : '-'}
                           </TableCell>
                           <TableCell className="text-right font-mono font-semibold">
                             {roundUgxBankers50(totalUgx).toFormat(0)}
@@ -427,13 +436,10 @@ function RouteDetailPage() {
                                       aria-hidden
                                     />
                                     {item.itemColor.colorName}
-                                    {item.size ? ` · ${item.size}` : ""}
+                                    {item.size ? ` · ${item.size}` : ''}
                                   </span>
                                 ) : (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
+                                  <Badge variant="outline" className="text-xs">
                                     All variants
                                   </Badge>
                                 )}
@@ -447,7 +453,7 @@ function RouteDetailPage() {
                               <TableCell className="hidden text-right font-mono md:table-cell">
                                 {new BigNumber(item.unitPriceForeign).toFormat(
                                   2,
-                                )}{" "}
+                                )}{' '}
                                 <span className="text-muted-foreground text-xs">
                                   {item.foreignCurrency}
                                 </span>
@@ -462,7 +468,7 @@ function RouteDetailPage() {
                                   ? new BigNumber(item.totalAmountUsd).toFormat(
                                       2,
                                     )
-                                  : "-"}
+                                  : '-'}
                               </TableCell>
                               <TableCell className="text-right font-mono">
                                 {roundUgxBankers50(item.totalCostUgx).toFormat(
@@ -565,36 +571,34 @@ function RouteDetailPage() {
             emptyMessage="No expenses recorded yet."
             columns={[
               {
-                header: "Category",
-                cell: (exp) => (
-                  <Badge variant="outline">{exp.category}</Badge>
-                ),
+                header: 'Category',
+                cell: (exp) => <Badge variant="outline">{exp.category}</Badge>,
               },
               {
-                header: "Description",
-                cell: (exp) => exp.description || "-",
+                header: 'Description',
+                cell: (exp) => exp.description || '-',
               },
               {
-                header: "Amount",
-                align: "right",
+                header: 'Amount',
+                align: 'right',
                 hideOnMobile: true,
                 cell: (exp) => (
                   <span className="font-mono">
-                    {exp.currency === "UGX"
+                    {exp.currency === 'UGX'
                       ? roundUgxFloor50(exp.amount).toFormat(0)
-                      : new BigNumber(exp.amount).toFormat(2)}{" "}
+                      : new BigNumber(exp.amount).toFormat(2)}{' '}
                     <span className="text-muted-foreground text-xs">
-                      {exp.currency ?? "UGX"}
+                      {exp.currency ?? 'UGX'}
                     </span>
                   </span>
                 ),
               },
               {
-                header: "Rate",
-                align: "right",
+                header: 'Rate',
+                align: 'right',
                 hideOnMobile: true,
                 cell: (exp) =>
-                  exp.currency && exp.currency !== "UGX" && exp.exchangeRate ? (
+                  exp.currency && exp.currency !== 'UGX' && exp.exchangeRate ? (
                     <span className="font-mono text-xs text-muted-foreground">
                       {new BigNumber(exp.exchangeRate).toFormat(2)}
                     </span>
@@ -603,22 +607,26 @@ function RouteDetailPage() {
                   ),
               },
               {
-                header: "Total (UGX)",
-                align: "right",
+                header: 'Total (UGX)',
+                align: 'right',
                 cell: (exp) => (
                   <span className="font-mono font-semibold">
-                    {roundUgxFloor50(expenseAmountUgx(exp).toString()).toFormat(0)}
+                    {roundUgxFloor50(expenseAmountUgx(exp).toString()).toFormat(
+                      0,
+                    )}
                   </span>
                 ),
               },
               {
-                header: "",
+                header: '',
                 cell: (exp) => (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-destructive"
-                    onClick={() => { void handleDeleteExpense(exp.id) }}
+                    onClick={() => {
+                      void handleDeleteExpense(exp.id)
+                    }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -653,31 +661,31 @@ function AddItemForm({
 }) {
   const [pending, setPending] = useState(false)
   const [supplierId, setSupplierId] = useState(
-    suppliers.length === 1 ? suppliers[0].id : "",
+    suppliers.length === 1 ? suppliers[0].id : '',
   )
   const [product, setProduct] = useState<ItemSummary | undefined>()
   const [productEditorOpen, setProductEditorOpen] = useState(false)
   const [colorEditorOpen, setColorEditorOpen] = useState(false)
   // Procurement detail level. Aggregate = total qty only; colors = qty per
   // color; variants = qty per color × size (the existing behaviour).
-  const [detailMode, setDetailMode] = useState<"aggregate" | "colors" | "variants">(
-    "variants",
-  )
-  const [aggregateQty, setAggregateQty] = useState("")
+  const [detailMode, setDetailMode] = useState<
+    'aggregate' | 'colors' | 'variants'
+  >('variants')
+  const [aggregateQty, setAggregateQty] = useState('')
   const [colorQtys, setColorQtys] = useState<Record<string, number>>({})
   const [quantities, setQuantities] = useState<Record<string, number>>({})
-  const [unitPrice, setUnitPrice] = useState("")
-  const initialCurrency = "RMB"
-  const initialFxToUsd = rateRmbPerUsd ?? ""
+  const [unitPrice, setUnitPrice] = useState('')
+  const initialCurrency = 'RMB'
+  const initialFxToUsd = rateRmbPerUsd ?? ''
   const [currency, setCurrency] = useState<string>(initialCurrency)
   const [fxToUsd, setFxToUsd] = useState(initialFxToUsd)
-  const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? "")
+  const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? '')
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   function handleCurrencyChange(next: string) {
     setCurrency(next)
-    if (next === "RMB") setFxToUsd(rateRmbPerUsd ?? "")
-    else setFxToUsd("")
+    if (next === 'RMB') setFxToUsd(rateRmbPerUsd ?? '')
+    else setFxToUsd('')
   }
 
   async function refreshProduct(articleNumber: string) {
@@ -688,7 +696,8 @@ function AddItemForm({
   async function handleRemoveColor(itemColorId: string) {
     if (!product) return
     const colorName =
-      product.colors.find((c) => c.id === itemColorId)?.colorName ?? "this color"
+      product.colors.find((c) => c.id === itemColorId)?.colorName ??
+      'this color'
     if (!confirm(`Remove "${colorName}" from this product?`)) return
     try {
       await deleteItemColor({ data: { id: itemColorId } })
@@ -729,11 +738,11 @@ function AddItemForm({
       size?: string
       quantity: number
     }> =
-      detailMode === "aggregate"
+      detailMode === 'aggregate'
         ? aggregateQty && Number(aggregateQty) > 0
           ? [{ quantity: Number(aggregateQty) }]
           : []
-        : detailMode === "colors"
+        : detailMode === 'colors'
           ? Object.entries(colorQtys)
               .filter(([, q]) => q > 0)
               .map(([itemColorId, q]) => ({
@@ -743,20 +752,23 @@ function AddItemForm({
           : Object.entries(quantities)
               .filter(([, q]) => q > 0)
               .map(([key, q]) => {
-                const [itemColorId, size] = key.split("|")
+                const [itemColorId, size] = key.split('|')
                 return { itemColorId, size, quantity: q }
               })
 
     const errs: Record<string, string> = {}
-    if (!supplierId) errs.supplierId = "Select a supplier"
-    if (!product) errs.product = "Pick a product"
-    if (cells.length === 0) errs.quantities = "Enter at least one quantity"
-    if (!unitPrice || Number(unitPrice) <= 0) errs.unitPrice = "Enter a valid price"
-    if (currency !== "UGX") {
-      if (currency !== "USD") {
-        if (!fxToUsd || Number(fxToUsd) <= 0) errs.fxToUsd = "Enter a valid rate"
+    if (!supplierId) errs.supplierId = 'Select a supplier'
+    if (!product) errs.product = 'Pick a product'
+    if (cells.length === 0) errs.quantities = 'Enter at least one quantity'
+    if (!unitPrice || Number(unitPrice) <= 0)
+      errs.unitPrice = 'Enter a valid price'
+    if (currency !== 'UGX') {
+      if (currency !== 'USD') {
+        if (!fxToUsd || Number(fxToUsd) <= 0)
+          errs.fxToUsd = 'Enter a valid rate'
       }
-      if (!usdToUgx || Number(usdToUgx) <= 0) errs.usdToUgx = "Enter a valid rate"
+      if (!usdToUgx || Number(usdToUgx) <= 0)
+        errs.usdToUgx = 'Enter a valid rate'
     }
     setFormErrors(errs)
     if (Object.keys(errs).length > 0 || !product) return
@@ -771,18 +783,18 @@ function AddItemForm({
           unitPriceForeign: unitPrice,
           foreignCurrency: currency,
           exchangeRateForeignToUsd:
-            currency !== "UGX" && currency !== "USD"
+            currency !== 'UGX' && currency !== 'USD'
               ? fxToUsd || undefined
               : undefined,
           exchangeRateUsdToUgx:
-            currency !== "UGX" ? usdToUgx || undefined : undefined,
+            currency !== 'UGX' ? usdToUgx || undefined : undefined,
           cells,
         },
       })
       onSuccess()
     } catch (err) {
       setFormErrors({
-        form: err instanceof Error ? err.message : "Failed to save",
+        form: err instanceof Error ? err.message : 'Failed to save',
       })
     } finally {
       setPending(false)
@@ -790,9 +802,16 @@ function AddItemForm({
   }
 
   return (
-    <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
+    <form
+      onSubmit={(e) => {
+        void handleSubmit(e)
+      }}
+      className="space-y-4"
+    >
       <div className="space-y-2">
-        <FieldLabel htmlFor="supplierId" help="item.supplierId">Supplier *</FieldLabel>
+        <FieldLabel htmlFor="supplierId" help="item.supplierId">
+          Supplier *
+        </FieldLabel>
         <Combobox
           id="supplierId"
           options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
@@ -855,9 +874,9 @@ function AddItemForm({
             <div className="inline-flex rounded-md border p-0.5 text-xs">
               {(
                 [
-                  { value: "aggregate", label: "Total only" },
-                  { value: "colors", label: "Per color" },
-                  { value: "variants", label: "Per color × size" },
+                  { value: 'aggregate', label: 'Total only' },
+                  { value: 'colors', label: 'Per color' },
+                  { value: 'variants', label: 'Per color × size' },
                 ] as const
               ).map((opt) => (
                 <button
@@ -865,10 +884,10 @@ function AddItemForm({
                   type="button"
                   onClick={() => setDetailMode(opt.value)}
                   className={
-                    "px-3 py-1.5 rounded transition-colors " +
+                    'px-3 py-1.5 rounded transition-colors ' +
                     (detailMode === opt.value
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted")
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted')
                   }
                 >
                   {opt.label}
@@ -876,15 +895,15 @@ function AddItemForm({
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              {detailMode === "aggregate"
+              {detailMode === 'aggregate'
                 ? "Just record how many units you're buying. An admin can split into colors/sizes later before receiving."
-                : detailMode === "colors"
-                  ? "Record quantity per color. Sizes can be filled in later."
-                  : "Full breakdown by color and size."}
+                : detailMode === 'colors'
+                  ? 'Record quantity per color. Sizes can be filled in later.'
+                  : 'Full breakdown by color and size.'}
             </p>
           </div>
 
-          {detailMode === "aggregate" && (
+          {detailMode === 'aggregate' && (
             <div className="space-y-2">
               <FieldLabel help="item.aggregateQty">Total quantity *</FieldLabel>
               <MoneyInput
@@ -897,24 +916,28 @@ function AddItemForm({
             </div>
           )}
 
-          {detailMode === "colors" && (
+          {detailMode === 'colors' && (
             <ColorQuantityList
               colors={product.colors}
               values={colorQtys}
               onChange={setColorQtys}
-              onRemoveColor={(id) => { void handleRemoveColor(id) }}
+              onRemoveColor={(id) => {
+                void handleRemoveColor(id)
+              }}
               error={formErrors.quantities}
             />
           )}
 
-          {detailMode === "variants" && (
+          {detailMode === 'variants' && (
             <>
               <VariantGrid
                 sizes={deriveSizes(product.variants ?? [])}
                 colors={product.colors}
                 quantities={quantities}
                 onChange={setQuantities}
-                onRemoveColor={(id) => { void handleRemoveColor(id) }}
+                onRemoveColor={(id) => {
+                  void handleRemoveColor(id)
+                }}
               />
               {formErrors.quantities && (
                 <p className="text-xs text-destructive">
@@ -955,11 +978,13 @@ function AddItemForm({
         </div>
       </div>
 
-      {currency !== "UGX" && (
+      {currency !== 'UGX' && (
         <div className="grid grid-cols-2 gap-4">
-          {currency !== "USD" && (
+          {currency !== 'USD' && (
             <div className="space-y-2">
-              <FieldLabel help="item.sourceRate">{currency} per 1 USD *</FieldLabel>
+              <FieldLabel help="item.sourceRate">
+                {currency} per 1 USD *
+              </FieldLabel>
               <RateInput
                 label={`${currency}/USD`}
                 value={fxToUsd}
@@ -989,7 +1014,7 @@ function AddItemForm({
       )}
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Adding..." : "Add Items"}
+        {pending ? 'Adding...' : 'Add Items'}
       </Button>
 
       <Dialog open={productEditorOpen} onOpenChange={setProductEditorOpen}>
@@ -1041,10 +1066,10 @@ function AddExpenseForm({
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
-  const [category, setCategory] = useState("")
-  const [amount, setAmount] = useState("")
-  const [currency, setCurrency] = useState<string>("USD")
-  const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? "")
+  const [category, setCategory] = useState('')
+  const [amount, setAmount] = useState('')
+  const [currency, setCurrency] = useState<string>('USD')
+  const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? '')
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -1052,10 +1077,10 @@ function AddExpenseForm({
     const form = new FormData(e.currentTarget)
 
     const errs: Record<string, string> = {}
-    if (!category) errs.category = "Select a category"
-    if (!amount || Number(amount) <= 0) errs.amount = "Enter a valid amount"
-    if (currency !== "UGX" && (!usdToUgx || Number(usdToUgx) <= 0)) {
-      errs.usdToUgx = "Enter a valid rate"
+    if (!category) errs.category = 'Select a category'
+    if (!amount || Number(amount) <= 0) errs.amount = 'Enter a valid amount'
+    if (currency !== 'UGX' && (!usdToUgx || Number(usdToUgx) <= 0)) {
+      errs.usdToUgx = 'Enter a valid rate'
     }
     setFormErrors(errs)
     if (Object.keys(errs).length > 0) return
@@ -1066,17 +1091,17 @@ function AddExpenseForm({
         data: {
           supplyRouteId,
           category: category as (typeof EXPENSE_CATEGORIES)[number],
-          description: (form.get("description") as string) || undefined,
+          description: (form.get('description') as string) || undefined,
           amount,
           currency,
-          exchangeRate: currency !== "UGX" ? usdToUgx : undefined,
+          exchangeRate: currency !== 'UGX' ? usdToUgx : undefined,
         },
       })
       onSuccess()
     } catch (err) {
-      console.error("Failed to add expense:", err)
+      console.error('Failed to add expense:', err)
       setFormErrors({
-        form: err instanceof Error ? err.message : "Failed to save",
+        form: err instanceof Error ? err.message : 'Failed to save',
       })
     } finally {
       setPending(false)
@@ -1084,9 +1109,16 @@ function AddExpenseForm({
   }
 
   return (
-    <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
+    <form
+      onSubmit={(e) => {
+        void handleSubmit(e)
+      }}
+      className="space-y-4"
+    >
       <div className="space-y-2">
-        <FieldLabel htmlFor="category" help="expense.category">Category *</FieldLabel>
+        <FieldLabel htmlFor="category" help="expense.category">
+          Category *
+        </FieldLabel>
         <Select value={category} onValueChange={setCategory}>
           <SelectTrigger aria-invalid={!!formErrors.category || undefined}>
             <SelectValue placeholder="Select category" />
@@ -1105,7 +1137,9 @@ function AddExpenseForm({
       </div>
 
       <div className="space-y-2">
-        <FieldLabel htmlFor="description" help="expense.description">Description</FieldLabel>
+        <FieldLabel htmlFor="description" help="expense.description">
+          Description
+        </FieldLabel>
         <Textarea id="description" name="description" rows={3} />
       </div>
 
@@ -1114,8 +1148,8 @@ function AddExpenseForm({
           <FieldLabel help="expense.amount">Amount *</FieldLabel>
           <MoneyInput
             currency={currency}
-            decimals={currency === "UGX" ? 0 : 2}
-            roundTo={currency === "UGX" ? 50 : undefined}
+            decimals={currency === 'UGX' ? 0 : 2}
+            roundTo={currency === 'UGX' ? 50 : undefined}
             value={amount}
             onChange={setAmount}
             placeholder="0"
@@ -1136,7 +1170,7 @@ function AddExpenseForm({
         </div>
       </div>
 
-      {currency !== "UGX" && (
+      {currency !== 'UGX' && (
         <div className="space-y-2">
           <FieldLabel help="item.ugxPerUsd">UGX per 1 USD *</FieldLabel>
           <RateInput
@@ -1155,7 +1189,7 @@ function AddExpenseForm({
       )}
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Adding..." : "Add Expense"}
+        {pending ? 'Adding...' : 'Add Expense'}
       </Button>
     </form>
   )
@@ -1177,8 +1211,8 @@ function TripRatesSection({
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [pending, setPending] = useState(false)
-  const [ugxPerUsd, setUgxPerUsd] = useState(route.rateUgxPerUsd ?? "")
-  const [rmbPerUsd, setRmbPerUsd] = useState(route.rateRmbPerUsd ?? "")
+  const [ugxPerUsd, setUgxPerUsd] = useState(route.rateUgxPerUsd ?? '')
+  const [rmbPerUsd, setRmbPerUsd] = useState(route.rateRmbPerUsd ?? '')
 
   async function handleSave() {
     setPending(true)
@@ -1193,15 +1227,15 @@ function TripRatesSection({
       setEditing(false)
       void router.invalidate()
     } catch (err) {
-      console.error("Failed to update trip rates:", err)
+      console.error('Failed to update trip rates:', err)
     } finally {
       setPending(false)
     }
   }
 
   function handleCancel() {
-    setUgxPerUsd(route.rateUgxPerUsd ?? "")
-    setRmbPerUsd(route.rateRmbPerUsd ?? "")
+    setUgxPerUsd(route.rateUgxPerUsd ?? '')
+    setRmbPerUsd(route.rateRmbPerUsd ?? '')
     setEditing(false)
   }
 
@@ -1216,8 +1250,8 @@ function TripRatesSection({
           <p className="text-sm font-medium">Trip Rates</p>
           <p className="text-muted-foreground text-xs">
             {parts.length > 0
-              ? parts.join(" | ")
-              : "No trip rates set. New items will need rates entered manually."}
+              ? parts.join(' | ')
+              : 'No trip rates set. New items will need rates entered manually.'}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
@@ -1253,11 +1287,22 @@ function TripRatesSection({
         </div>
       </div>
       <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" onClick={handleCancel} disabled={pending}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleCancel}
+          disabled={pending}
+        >
           Cancel
         </Button>
-        <Button size="sm" onClick={() => { void handleSave() }} disabled={pending}>
-          {pending ? "Saving..." : "Save"}
+        <Button
+          size="sm"
+          onClick={() => {
+            void handleSave()
+          }}
+          disabled={pending}
+        >
+          {pending ? 'Saving...' : 'Save'}
         </Button>
       </div>
     </div>

@@ -1,16 +1,13 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
-import { z } from "zod"
-import { Logo } from "#/components/logo"
-import { Button } from "#/components/ui/button"
-import { PasswordInput } from "#/components/ui/password-input"
-import { Label } from "#/components/ui/label"
-import {
-  acceptInvite,
-  peekInviteServer,
-} from "#/server/functions/admin/users"
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { useState } from 'react'
+import { z } from 'zod'
+import { Logo } from '#/components/logo'
+import { Button } from '#/components/ui/button'
+import { PasswordInput } from '#/components/ui/password-input'
+import { Label } from '#/components/ui/label'
+import { acceptInvite, peekInviteServer } from '#/server/functions/admin/users'
 
-export const Route = createFileRoute("/accept-invite")({
+export const Route = createFileRoute('/accept-invite')({
   validateSearch: z.object({ token: z.string().min(1) }),
   loaderDeps: ({ search }) => ({ token: search.token }),
   loader: async ({ deps }) => {
@@ -25,9 +22,9 @@ function AcceptInvitePage() {
   const { token } = Route.useSearch()
   const router = useRouter()
 
-  const [password, setPassword] = useState("")
-  const [confirm, setConfirm] = useState("")
-  const [error, setError] = useState("")
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
 
   if (!peek.valid) {
@@ -50,9 +47,9 @@ function AcceptInvitePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError("")
+    setError('')
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.")
+      setError('Password must be at least 8 characters.')
       return
     }
     if (password !== confirm) {
@@ -62,9 +59,9 @@ function AcceptInvitePage() {
     setPending(true)
     try {
       await acceptInvite({ data: { token, password } })
-      await router.navigate({ to: "/" })
+      await router.navigate({ to: '/' })
     } catch (err) {
-      setError((err as Error).message || "Could not accept invite.")
+      setError((err as Error).message || 'Could not accept invite.')
       setPending(false)
     }
   }
@@ -80,9 +77,14 @@ function AcceptInvitePage() {
       </p>
       <div
         className="mt-6 rounded-2xl bg-white p-6 text-left"
-        style={{ boxShadow: "var(--shadow-lg)" }}
+        style={{ boxShadow: 'var(--shadow-lg)' }}
       >
-        <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            void handleSubmit(e)
+          }}
+          className="space-y-4"
+        >
           {error && (
             <div className="rounded-xl bg-destructive/8 px-4 py-3 text-[13px] text-destructive">
               {error}
@@ -119,7 +121,7 @@ function AcceptInvitePage() {
             className="h-10 w-full rounded-xl text-[13px] font-semibold"
             disabled={pending}
           >
-            {pending ? "Setting up..." : "Set password & sign in"}
+            {pending ? 'Setting up...' : 'Set password & sign in'}
           </Button>
         </form>
       </div>

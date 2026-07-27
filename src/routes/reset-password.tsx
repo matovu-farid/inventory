@@ -1,17 +1,17 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
-import type { FormEvent } from "react"
-import { z } from "zod"
-import { Logo } from "#/components/logo"
-import { Button } from "#/components/ui/button"
-import { PasswordInput } from "#/components/ui/password-input"
-import { Label } from "#/components/ui/label"
-import { authClient } from "#/lib/auth-client"
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { useState } from 'react'
+import type { FormEvent } from 'react'
+import { z } from 'zod'
+import { Logo } from '#/components/logo'
+import { Button } from '#/components/ui/button'
+import { PasswordInput } from '#/components/ui/password-input'
+import { Label } from '#/components/ui/label'
+import { authClient } from '#/lib/auth-client'
 
-export const Route = createFileRoute("/reset-password")({
+export const Route = createFileRoute('/reset-password')({
   validateSearch: z.object({
     token: z.string().optional(),
-    error: z.enum(["INVALID_TOKEN"]).optional(),
+    error: z.enum(['INVALID_TOKEN']).optional(),
   }),
   component: ResetPasswordPage,
 })
@@ -19,22 +19,22 @@ export const Route = createFileRoute("/reset-password")({
 function ResetPasswordPage() {
   const { token, error: searchError } = Route.useSearch()
   const router = useRouter()
-  const [password, setPassword] = useState("")
-  const [confirm, setConfirm] = useState("")
-  const [error, setError] = useState("")
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
 
-  const tokenInvalid = !token || searchError === "INVALID_TOKEN"
+  const tokenInvalid = !token || searchError === 'INVALID_TOKEN'
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setError("")
+    setError('')
     if (!token) {
-      setError("Reset link is missing its token. Request a new email.")
+      setError('Reset link is missing its token. Request a new email.')
       return
     }
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.")
+      setError('Password must be at least 8 characters.')
       return
     }
     if (password !== confirm) {
@@ -47,11 +47,11 @@ function ResetPasswordPage() {
       token,
     })
     if (result.error) {
-      setError(result.error.message ?? "Could not reset password.")
+      setError(result.error.message ?? 'Could not reset password.')
       setPending(false)
       return
     }
-    await router.navigate({ to: "/login", search: { reset: "success" } })
+    await router.navigate({ to: '/login', search: { reset: 'success' } })
   }
 
   return (
@@ -64,7 +64,10 @@ function ResetPasswordPage() {
           </h1>
         </div>
 
-        <div className="rounded-2xl bg-white p-6" style={{ boxShadow: "var(--shadow-lg)" }}>
+        <div
+          className="rounded-2xl bg-white p-6"
+          style={{ boxShadow: 'var(--shadow-lg)' }}
+        >
           {tokenInvalid ? (
             <div className="text-center">
               <p className="text-[14px] text-destructive">
@@ -78,7 +81,12 @@ function ResetPasswordPage() {
               </Link>
             </div>
           ) : (
-            <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
+            <form
+              onSubmit={(e) => {
+                void handleSubmit(e)
+              }}
+              className="space-y-4"
+            >
               {error && (
                 <div className="rounded-xl bg-destructive/8 px-4 py-3 text-[13px] text-destructive">
                   {error}
@@ -115,7 +123,7 @@ function ResetPasswordPage() {
                 className="h-10 w-full rounded-xl text-[13px] font-semibold"
                 disabled={pending}
               >
-                {pending ? "Updating..." : "Update password"}
+                {pending ? 'Updating...' : 'Update password'}
               </Button>
             </form>
           )}

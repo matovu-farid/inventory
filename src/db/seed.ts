@@ -1,7 +1,7 @@
-import pg from "pg"
-import { drizzle } from "drizzle-orm/node-postgres"
-import { eq, sql } from "drizzle-orm"
-import * as schema from "./schema"
+import pg from 'pg'
+import { drizzle } from 'drizzle-orm/node-postgres'
+import { eq, sql } from 'drizzle-orm'
+import * as schema from './schema'
 import {
   items,
   itemColors,
@@ -13,47 +13,47 @@ import {
   supplyRouteLines,
   storeStock,
   variants,
-} from "./schema"
+} from './schema'
 
 const DEFAULT_CATEGORIES = [
   // Assets
-  { name: "Cash", type: "asset" },
-  { name: "Bank", type: "asset" },
-  { name: "Inventory - Store", type: "asset" },
-  { name: "Inventory - Shop", type: "asset" },
-  { name: "Accounts Receivable", type: "asset" },
-  { name: "Due from Shop", type: "asset" },
+  { name: 'Cash', type: 'asset' },
+  { name: 'Bank', type: 'asset' },
+  { name: 'Inventory - Store', type: 'asset' },
+  { name: 'Inventory - Shop', type: 'asset' },
+  { name: 'Accounts Receivable', type: 'asset' },
+  { name: 'Due from Shop', type: 'asset' },
 
   // Liabilities
-  { name: "Supplier Payable", type: "liability" },
-  { name: "Due to Store", type: "liability" },
+  { name: 'Supplier Payable', type: 'liability' },
+  { name: 'Due to Store', type: 'liability' },
 
   // Equity
-  { name: "Owner's Equity", type: "equity" },
+  { name: "Owner's Equity", type: 'equity' },
 
   // Revenue
-  { name: "Sales Revenue", type: "revenue" },
-  { name: "Sales Returns", type: "revenue" },
-  { name: "Store Transfer Revenue", type: "revenue" },
+  { name: 'Sales Revenue', type: 'revenue' },
+  { name: 'Sales Returns', type: 'revenue' },
+  { name: 'Store Transfer Revenue', type: 'revenue' },
 
   // Expenses
-  { name: "Cost of Goods Sold", type: "expense" },
-  { name: "Freight Expense", type: "expense" },
-  { name: "Transportation Expense", type: "expense" },
-  { name: "Customs Expense", type: "expense" },
-  { name: "Travel Expense", type: "expense" },
-  { name: "Rent Expense", type: "expense" },
-  { name: "Salary Expense", type: "expense" },
-  { name: "Tax Expense", type: "expense" },
-  { name: "Inventory Loss", type: "expense" },
-  { name: "Bad Debt Expense", type: "expense" },
-  { name: "Miscellaneous Expense", type: "expense" },
+  { name: 'Cost of Goods Sold', type: 'expense' },
+  { name: 'Freight Expense', type: 'expense' },
+  { name: 'Transportation Expense', type: 'expense' },
+  { name: 'Customs Expense', type: 'expense' },
+  { name: 'Travel Expense', type: 'expense' },
+  { name: 'Rent Expense', type: 'expense' },
+  { name: 'Salary Expense', type: 'expense' },
+  { name: 'Tax Expense', type: 'expense' },
+  { name: 'Inventory Loss', type: 'expense' },
+  { name: 'Bad Debt Expense', type: 'expense' },
+  { name: 'Miscellaneous Expense', type: 'expense' },
 ] as const
 
 async function seed() {
   const url = process.env.DATABASE_URL
   if (!url) {
-    console.error("DATABASE_URL is not set")
+    console.error('DATABASE_URL is not set')
     process.exit(1)
   }
 
@@ -63,7 +63,7 @@ async function seed() {
 
   try {
     // ─── 1. Transaction categories (idempotent) ────────────────────────
-    console.log("Seeding transaction categories...")
+    console.log('Seeding transaction categories...')
     for (const cat of DEFAULT_CATEGORIES) {
       await client.query(
         `INSERT INTO transaction_categories (name, type, is_default)
@@ -75,14 +75,14 @@ async function seed() {
     console.log(`  ${DEFAULT_CATEGORIES.length} transaction categories.`)
 
     // ─── 2. Suppliers, stores, shops (idempotent on natural keys) ──────
-    console.log("Seeding suppliers, stores, and shops...")
+    console.log('Seeding suppliers, stores, and shops...')
     const insertedSuppliers = await db
       .insert(suppliers)
       .values({
-        name: "Guangzhou Mei Da Trading Co.",
-        type: "international",
-        country: "China",
-        contactName: "Mr. Li Wei",
+        name: 'Guangzhou Mei Da Trading Co.',
+        type: 'international',
+        country: 'China',
+        contactName: 'Mr. Li Wei',
       })
       .onConflictDoNothing({ target: suppliers.name })
       .returning()
@@ -94,47 +94,47 @@ async function seed() {
     const existingSupplier =
       inserted ??
       (await db.query.suppliers.findFirst({
-        where: eq(suppliers.name, "Guangzhou Mei Da Trading Co."),
+        where: eq(suppliers.name, 'Guangzhou Mei Da Trading Co.'),
       }))
 
     if (!existingSupplier) {
-      throw new Error("Failed to create or find seed supplier")
+      throw new Error('Failed to create or find seed supplier')
     }
 
     // Stores / shops don't have unique constraints on name, so we look first.
     let store = await db.query.stores.findFirst({
-      where: eq(stores.name, "Central Warehouse"),
+      where: eq(stores.name, 'Central Warehouse'),
     })
     if (!store) {
       ;[store] = await db
         .insert(stores)
-        .values({ name: "Central Warehouse", location: "Kampala" })
+        .values({ name: 'Central Warehouse', location: 'Kampala' })
         .returning()
     }
 
     let shopA = await db.query.shops.findFirst({
-      where: eq(shops.name, "Owino Branch"),
+      where: eq(shops.name, 'Owino Branch'),
     })
     if (!shopA) {
       ;[shopA] = await db
         .insert(shops)
-        .values({ name: "Owino Branch", location: "Kampala" })
+        .values({ name: 'Owino Branch', location: 'Kampala' })
         .returning()
     }
 
     let shopB = await db.query.shops.findFirst({
-      where: eq(shops.name, "Nakawa Branch"),
+      where: eq(shops.name, 'Nakawa Branch'),
     })
     if (!shopB) {
       ;[shopB] = await db
         .insert(shops)
-        .values({ name: "Nakawa Branch", location: "Kampala" })
+        .values({ name: 'Nakawa Branch', location: 'Kampala' })
         .returning()
     }
     console.log(`  1 supplier, 1 store, 2 shops.`)
 
     // ─── 3. Products + colors ──────────────────────────────────────────
-    console.log("Seeding products and color variants...")
+    console.log('Seeding products and color variants...')
 
     // `sizes` is no longer a column on items (issue #7 drops items.sizes
     // — the variants table is the source of truth). The seed still
@@ -154,26 +154,26 @@ async function seed() {
         .values({
           articleNumber: args.articleNumber,
           name: args.name,
-          category: "Uncategorized",
+          category: 'Uncategorized',
         })
         .returning()
       return created
     }
 
     const tshirt = await upsertProduct({
-      articleNumber: "TR-001",
-      name: "Crew-neck T-shirt",
-      sizes: ["S", "M", "L"],
+      articleNumber: 'TR-001',
+      name: 'Crew-neck T-shirt',
+      sizes: ['S', 'M', 'L'],
     })
     const jacket = await upsertProduct({
-      articleNumber: "JK-100",
-      name: "Bomber Jacket",
-      sizes: ["M", "L", "XL"],
+      articleNumber: 'JK-100',
+      name: 'Bomber Jacket',
+      sizes: ['M', 'L', 'XL'],
     })
     const trouser = await upsertProduct({
-      articleNumber: "PT-200",
-      name: "Chino Trousers",
-      sizes: ["30", "32", "34"],
+      articleNumber: 'PT-200',
+      name: 'Chino Trousers',
+      sizes: ['30', '32', '34'],
     })
 
     async function upsertColor(args: {
@@ -199,36 +199,36 @@ async function seed() {
 
     const tshirtBlack = await upsertColor({
       itemId: tshirt.id,
-      colorName: "Black",
-      colorHex: "#0a0a0a",
+      colorName: 'Black',
+      colorHex: '#0a0a0a',
     })
     const tshirtBurgundy = await upsertColor({
       itemId: tshirt.id,
-      colorName: "Burgundy",
-      colorHex: "#7b1f2b",
+      colorName: 'Burgundy',
+      colorHex: '#7b1f2b',
     })
     const jacketNavy = await upsertColor({
       itemId: jacket.id,
-      colorName: "Navy",
-      colorHex: "#0b1f44",
+      colorName: 'Navy',
+      colorHex: '#0b1f44',
     })
     const jacketOlive = await upsertColor({
       itemId: jacket.id,
-      colorName: "Olive",
-      colorHex: "#6a6a2a",
+      colorName: 'Olive',
+      colorHex: '#6a6a2a',
     })
     const trouserKhaki = await upsertColor({
       itemId: trouser.id,
-      colorName: "Khaki",
-      colorHex: "#b5a26b",
+      colorName: 'Khaki',
+      colorHex: '#b5a26b',
     })
 
     console.log(`  3 products, 5 color variants.`)
 
     // ─── 4. Supply route + variant items ───────────────────────────────
-    console.log("Seeding supply route...")
+    console.log('Seeding supply route...')
 
-    const routeName = "China Trip — Seed Demo"
+    const routeName = 'China Trip — Seed Demo'
     const existingRoute = await db.query.supplyRoutes.findFirst({
       where: eq(supplyRoutes.name, routeName),
     })
@@ -239,14 +239,14 @@ async function seed() {
           .insert(supplyRoutes)
           .values({
             name: routeName,
-            status: "received",
-            rateUgxPerUsd: "3750",
-            rateRmbPerUsd: "7.25",
-            notes: "Auto-generated by db:seed for dev/demo.",
+            status: 'received',
+            rateUgxPerUsd: '3750',
+            rateRmbPerUsd: '7.25',
+            notes: 'Auto-generated by db:seed for dev/demo.',
           })
           .returning()
       ).at(0)
-    if (!route) throw new Error("Failed to seed supply route")
+    if (!route) throw new Error('Failed to seed supply route')
 
     if (!existingRoute) {
       await db
@@ -266,22 +266,44 @@ async function seed() {
       }
       const routeItemSeeds: RouteItemSeed[] = [
         // T-shirts: 85 RMB
-        ...["S", "M", "L"].flatMap((size): RouteItemSeed[] => [
-          { itemColorId: tshirtBlack.id, size, quantity: 20, unitPriceForeign: "85.00" },
-          { itemColorId: tshirtBurgundy.id, size, quantity: 15, unitPriceForeign: "85.00" },
+        ...['S', 'M', 'L'].flatMap((size): RouteItemSeed[] => [
+          {
+            itemColorId: tshirtBlack.id,
+            size,
+            quantity: 20,
+            unitPriceForeign: '85.00',
+          },
+          {
+            itemColorId: tshirtBurgundy.id,
+            size,
+            quantity: 15,
+            unitPriceForeign: '85.00',
+          },
         ]),
         // Jackets: 320 RMB
-        ...["M", "L", "XL"].flatMap((size): RouteItemSeed[] => [
-          { itemColorId: jacketNavy.id, size, quantity: 10, unitPriceForeign: "320.00" },
-          { itemColorId: jacketOlive.id, size, quantity: 8, unitPriceForeign: "320.00" },
+        ...['M', 'L', 'XL'].flatMap((size): RouteItemSeed[] => [
+          {
+            itemColorId: jacketNavy.id,
+            size,
+            quantity: 10,
+            unitPriceForeign: '320.00',
+          },
+          {
+            itemColorId: jacketOlive.id,
+            size,
+            quantity: 8,
+            unitPriceForeign: '320.00',
+          },
         ]),
         // Trousers: 140 RMB
-        ...["30", "32", "34"].map((size): RouteItemSeed => ({
-          itemColorId: trouserKhaki.id,
-          size,
-          quantity: 12,
-          unitPriceForeign: "140.00",
-        })),
+        ...['30', '32', '34'].map(
+          (size): RouteItemSeed => ({
+            itemColorId: trouserKhaki.id,
+            size,
+            quantity: 12,
+            unitPriceForeign: '140.00',
+          }),
+        ),
       ]
 
       const rmbPerUsd = 7.25
@@ -298,7 +320,7 @@ async function seed() {
           size: s.size,
           quantity: s.quantity,
           unitPriceForeign: s.unitPriceForeign,
-          foreignCurrency: "RMB",
+          foreignCurrency: 'RMB',
           exchangeRateForeignToUsd: rmbPerUsd.toFixed(6),
           exchangeRateUsdToUgx: ugxPerUsd.toFixed(2),
           totalAmountForeign: totalForeign.toFixed(2),
@@ -313,7 +335,7 @@ async function seed() {
     }
 
     // ─── 5. Store opening stock (one row per variant) ──────────────────
-    console.log("Seeding store stock...")
+    console.log('Seeding store stock...')
     const stockSeeds: Array<{
       itemColorId: string
       size: string
@@ -321,21 +343,21 @@ async function seed() {
       costUgx: string
     }> = [
       // T-shirts ~ 44k UGX cost, sell floor 80k
-      ...["S", "M", "L"].flatMap((size) => [
-        { itemColorId: tshirtBlack.id, size, qty: 20, costUgx: "44000.00" },
-        { itemColorId: tshirtBurgundy.id, size, qty: 15, costUgx: "44000.00" },
+      ...['S', 'M', 'L'].flatMap((size) => [
+        { itemColorId: tshirtBlack.id, size, qty: 20, costUgx: '44000.00' },
+        { itemColorId: tshirtBurgundy.id, size, qty: 15, costUgx: '44000.00' },
       ]),
       // Jackets ~ 165k UGX cost
-      ...["M", "L", "XL"].flatMap((size) => [
-        { itemColorId: jacketNavy.id, size, qty: 10, costUgx: "165500.00" },
-        { itemColorId: jacketOlive.id, size, qty: 8, costUgx: "165500.00" },
+      ...['M', 'L', 'XL'].flatMap((size) => [
+        { itemColorId: jacketNavy.id, size, qty: 10, costUgx: '165500.00' },
+        { itemColorId: jacketOlive.id, size, qty: 8, costUgx: '165500.00' },
       ]),
       // Trousers ~ 72k UGX cost
-      ...["30", "32", "34"].map((size) => ({
+      ...['30', '32', '34'].map((size) => ({
         itemColorId: trouserKhaki.id,
         size,
         qty: 12,
-        costUgx: "72400.00",
+        costUgx: '72400.00',
       })),
     ]
 
@@ -353,9 +375,7 @@ async function seed() {
           .where(eq(itemColors.id, s.itemColorId))
       ).at(0)
       if (!itemRow) {
-        throw new Error(
-          `Seed: item_colors row not found for ${s.itemColorId}`,
-        )
+        throw new Error(`Seed: item_colors row not found for ${s.itemColorId}`)
       }
       await db
         .insert(variants)
@@ -411,15 +431,17 @@ async function seed() {
         .returning()
       stockInserted += result.length
     }
-    console.log(`  ${stockInserted} store stock rows inserted (others already present).`)
+    console.log(
+      `  ${stockInserted} store stock rows inserted (others already present).`,
+    )
 
-    console.log("Seed complete.")
+    console.log('Seed complete.')
   } finally {
     await client.end()
   }
 }
 
 seed().catch((err) => {
-  console.error("Seed failed:", err)
+  console.error('Seed failed:', err)
   process.exit(1)
 })

@@ -4,7 +4,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
+} from '#/components/ui/select'
 
 interface Props {
   shops: Array<{ id: string; name: string }>

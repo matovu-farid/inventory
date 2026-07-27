@@ -1,13 +1,13 @@
-import { eq, and, lte, sql } from "drizzle-orm"
-import BigNumber from "bignumber.js"
-import { transactions, transactionCategories } from "#/db/schema"
-import type { Database } from "#/db"
+import { eq, and, lte, sql } from 'drizzle-orm'
+import BigNumber from 'bignumber.js'
+import { transactions, transactionCategories } from '#/db/schema'
+import type { Database } from '#/db'
 
 /**
  * Account types whose balance increases on a debit entry. The complement —
  * liability, equity, revenue — increases on a credit entry.
  */
-export const NORMAL_DEBIT_ACCOUNT_TYPES = ["asset", "expense"] as const
+export const NORMAL_DEBIT_ACCOUNT_TYPES = ['asset', 'expense'] as const
 
 /**
  * Compute an account balance from its debit/credit totals, applying the
@@ -26,7 +26,9 @@ export function computeAccountBalance(
 ): BigNumber {
   const dr = new BigNumber(debits)
   const cr = new BigNumber(credits)
-  const isNormalDebit = (NORMAL_DEBIT_ACCOUNT_TYPES as readonly string[]).includes(accountType)
+  const isNormalDebit = (
+    NORMAL_DEBIT_ACCOUNT_TYPES as readonly string[]
+  ).includes(accountType)
   return isNormalDebit ? dr.minus(cr) : cr.minus(dr)
 }
 
@@ -39,7 +41,7 @@ export function computeAccountBalance(
 export async function getCategoryBalance(
   db: Database,
   categoryName: string,
-  locationType: "store" | "shop",
+  locationType: 'store' | 'shop',
   locationId: string,
   asOf?: Date,
 ): Promise<BigNumber> {
@@ -83,7 +85,7 @@ export async function getCategoryBalance(
     if (!row.total) continue
     const amount = new BigNumber(row.total)
     if (amount.isNaN()) continue
-    if (row.type === "debit") debits = debits.plus(amount)
+    if (row.type === 'debit') debits = debits.plus(amount)
     else credits = credits.plus(amount)
   }
 
@@ -105,7 +107,9 @@ export async function getTrialBalance(
     balance: BigNumber
   }>
 > {
-  const dateCondition = asOf ? lte(transactions.transactionDate, asOf) : undefined
+  const dateCondition = asOf
+    ? lte(transactions.transactionDate, asOf)
+    : undefined
 
   const rows = await db
     .select({
@@ -115,9 +119,16 @@ export async function getTrialBalance(
       total: sql<string>`sum(${transactions.amount})`,
     })
     .from(transactions)
-    .innerJoin(transactionCategories, eq(transactions.categoryId, transactionCategories.id))
+    .innerJoin(
+      transactionCategories,
+      eq(transactions.categoryId, transactionCategories.id),
+    )
     .where(dateCondition)
-    .groupBy(transactionCategories.name, transactionCategories.type, transactions.type)
+    .groupBy(
+      transactionCategories.name,
+      transactionCategories.type,
+      transactions.type,
+    )
 
   // Aggregate by category
   const categoryMap = new Map<
@@ -142,7 +153,7 @@ export async function getTrialBalance(
       }
       categoryMap.set(row.categoryName, entry)
     }
-    if (row.txnType === "debit") {
+    if (row.txnType === 'debit') {
       entry.debitTotal = entry.debitTotal.plus(row.total)
     } else {
       entry.creditTotal = entry.creditTotal.plus(row.total)
@@ -164,7 +175,7 @@ export async function getTrialBalance(
  */
 export async function getLocationBalances(
   db: Database,
-  locationType: "store" | "shop",
+  locationType: 'store' | 'shop',
   locationId: string,
   asOf?: Date,
 ): Promise<
@@ -190,13 +201,25 @@ export async function getLocationBalances(
       total: sql<string>`sum(${transactions.amount})`,
     })
     .from(transactions)
-    .innerJoin(transactionCategories, eq(transactions.categoryId, transactionCategories.id))
+    .innerJoin(
+      transactionCategories,
+      eq(transactions.categoryId, transactionCategories.id),
+    )
     .where(and(...conditions))
-    .groupBy(transactionCategories.name, transactionCategories.type, transactions.type)
+    .groupBy(
+      transactionCategories.name,
+      transactionCategories.type,
+      transactions.type,
+    )
 
   const categoryMap = new Map<
     string,
-    { categoryName: string; categoryType: string; debit: BigNumber; credit: BigNumber }
+    {
+      categoryName: string
+      categoryType: string
+      debit: BigNumber
+      credit: BigNumber
+    }
   >()
 
   for (const row of rows) {
@@ -211,7 +234,7 @@ export async function getLocationBalances(
       }
       categoryMap.set(row.categoryName, entry)
     }
-    if (row.txnType === "debit") {
+    if (row.txnType === 'debit') {
       entry.debit = entry.debit.plus(row.total)
     } else {
       entry.credit = entry.credit.plus(row.total)
@@ -221,6 +244,10 @@ export async function getLocationBalances(
   return Array.from(categoryMap.values()).map((entry) => ({
     categoryName: entry.categoryName,
     categoryType: entry.categoryType,
-    balance: computeAccountBalance(entry.categoryType, entry.debit, entry.credit),
+    balance: computeAccountBalance(
+      entry.categoryType,
+      entry.debit,
+      entry.credit,
+    ),
   }))
 }

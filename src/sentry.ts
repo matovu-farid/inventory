@@ -1,5 +1,5 @@
-import * as Sentry from "@sentry/tanstackstart-react"
-import { createIsomorphicFn } from "@tanstack/react-start"
+import * as Sentry from '@sentry/tanstackstart-react'
+import { createIsomorphicFn } from '@tanstack/react-start'
 
 const initSentry = createIsomorphicFn()
   .client(() => {

@@ -1,23 +1,18 @@
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
-import { z } from "zod"
-import * as XLSX from "xlsx"
-import { db } from "#/db"
-import { supplyRoutes, supplyRouteLines, suppliers } from "#/db/schema"
-import {
-  parseExcelRouteSheet,
-  computeExternalRef
+import { createServerFn } from '@tanstack/react-start'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import * as XLSX from 'xlsx'
+import { db } from '#/db'
+import { supplyRoutes, supplyRouteLines, suppliers } from '#/db/schema'
+import { parseExcelRouteSheet, computeExternalRef } from '#/lib/excel/parser'
+import type { RawRow } from '#/lib/excel/parser'
+import { recordAuditLog } from '#/server/middleware/audit-store'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { prepareImportItem } from './import-prepare'
+import { renderAuditDescription } from '#/server/audit/descriptions'
+import { getActorName } from '#/server/audit/actor'
 
-} from "#/lib/excel/parser"
-import type {RawRow} from "#/lib/excel/parser";
-import { recordAuditLog } from "#/server/middleware/audit-store"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { prepareImportItem } from "./import-prepare"
-import { renderAuditDescription } from "#/server/audit/descriptions"
-import { getActorName } from "#/server/audit/actor"
-
-const UNKNOWN_IMPORTED_SUPPLIER_NAME = "Unknown (Imported)"
+const UNKNOWN_IMPORTED_SUPPLIER_NAME = 'Unknown (Imported)'
 
 const importInput = z.object({
   filename: z.string().min(1),
@@ -42,12 +37,11 @@ interface ImportResult {
 export const importExcel = createServerFn()
   .inputValidator(importInput)
   .handler(async ({ data }): Promise<ImportResult> => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    const session = await requireSessionAndRole(['admin'])
     const userId = session.user.id
 
-    const buffer = Buffer.from(data.fileBase64, "base64")
-    const workbook = XLSX.read(buffer, { type: "buffer" })
+    const buffer = Buffer.from(data.fileBase64, 'base64')
+    const workbook = XLSX.read(buffer, { type: 'buffer' })
 
     let routesImported = 0
     let routesSkipped = 0
@@ -62,16 +56,17 @@ export const importExcel = createServerFn()
         .insert(suppliers)
         .values({
           name: UNKNOWN_IMPORTED_SUPPLIER_NAME,
-          type: "international",
-          country: "Unknown",
-          notes: "Auto-created placeholder for Excel imports without a known supplier.",
+          type: 'international',
+          country: 'Unknown',
+          notes:
+            'Auto-created placeholder for Excel imports without a known supplier.',
         })
         .onConflictDoNothing({ target: suppliers.name })
       const unknownSupplier = await tx.query.suppliers.findFirst({
         where: eq(suppliers.name, UNKNOWN_IMPORTED_SUPPLIER_NAME),
       })
       if (!unknownSupplier) {
-        throw new Error("Unknown supplier upsert failed")
+        throw new Error('Unknown supplier upsert failed')
       }
       const unknownSupplierId = unknownSupplier.id
       const actorName = await getActorName(tx, userId)
@@ -88,7 +83,9 @@ export const importExcel = createServerFn()
         }
 
         const sheet = workbook.Sheets[sheetName]
-        const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { defval: undefined })
+        const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, {
+          defval: undefined,
+        })
         let parsed
         try {
           parsed = parseExcelRouteSheet(sheetName, rows)
@@ -98,10 +95,10 @@ export const importExcel = createServerFn()
           const reason = err instanceof Error ? err.message : String(err)
           await recordAuditLog(tx, {
             actorUserId: userId,
-            action: "import.excel.skip_sheet",
-            entityType: "supply_route",
+            action: 'import.excel.skip_sheet',
+            entityType: 'supply_route',
             entityId: externalRef,
-            description: renderAuditDescription("import.excel.skip_sheet", {
+            description: renderAuditDescription('import.excel.skip_sheet', {
               actorName,
               filename: data.filename,
               sheetName,
@@ -122,7 +119,7 @@ export const importExcel = createServerFn()
           .insert(supplyRoutes)
           .values({
             name: parsed.name,
-            status: "received",
+            status: 'received',
             externalRef,
           })
           .returning()
@@ -136,10 +133,10 @@ export const importExcel = createServerFn()
 
         await recordAuditLog(tx, {
           actorUserId: userId,
-          action: "import.excel.route",
-          entityType: "supply_route",
+          action: 'import.excel.route',
+          entityType: 'supply_route',
           entityId: route.id,
-          description: renderAuditDescription("import.excel.route", {
+          description: renderAuditDescription('import.excel.route', {
             actorName,
             filename: data.filename,
             sheetName,

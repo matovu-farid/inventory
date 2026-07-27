@@ -1,28 +1,27 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import { Plus } from "lucide-react"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { FieldLabel } from "#/components/ui/field-label"
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { useState } from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import { Plus } from 'lucide-react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { FieldLabel } from '#/components/ui/field-label'
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
   ResponsiveDialogHeader as DialogHeader,
   ResponsiveDialogTitle as DialogTitle,
-} from "#/components/ui/responsive-dialog"
-import { DialogTrigger } from "#/components/ui/dialog"
-import { ResponsiveTable } from "#/components/ui/responsive-table"
-import { formatDate } from "#/lib/format"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
+} from '#/components/ui/responsive-dialog'
+import { DialogTrigger } from '#/components/ui/dialog'
+import { ResponsiveTable } from '#/components/ui/responsive-table'
+import { formatDate } from '#/lib/format'
+import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import {
   listCustomers,
   createCustomer,
-} from "#/server/functions/customers/customers"
+} from '#/server/functions/customers/customers'
 
-export const Route = createFileRoute("/customers/")({
-  beforeLoad: ({ context }) =>
-    requireUiPermission(context, "customers.view"),
+export const Route = createFileRoute('/customers/')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'customers.view'),
   loader: async () => {
     const customers = await listCustomers()
     return { customers }
@@ -35,9 +34,9 @@ function CustomersPage() {
   const router = useRouter()
 
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState("")
-  const [phone, setPhone] = useState("")
-  const [notes, setNotes] = useState("")
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -53,13 +52,13 @@ function CustomersPage() {
           notes: notes || undefined,
         },
       })
-      setName("")
-      setPhone("")
-      setNotes("")
+      setName('')
+      setPhone('')
+      setNotes('')
       setOpen(false)
       void router.invalidate()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create customer")
+      setError(err instanceof Error ? err.message : 'Failed to create customer')
     } finally {
       setSubmitting(false)
     }
@@ -86,9 +85,16 @@ function CustomersPage() {
             <DialogHeader>
               <DialogTitle>Add a customer</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => { void handleCreate(e) }} className="space-y-4">
+            <form
+              onSubmit={(e) => {
+                void handleCreate(e)
+              }}
+              className="space-y-4"
+            >
               <div className="space-y-2">
-                <FieldLabel htmlFor="name" help="customer.name">Name</FieldLabel>
+                <FieldLabel htmlFor="name" help="customer.name">
+                  Name
+                </FieldLabel>
                 <Input
                   id="name"
                   value={name}
@@ -97,7 +103,9 @@ function CustomersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <FieldLabel htmlFor="phone" help="customer.phone">Phone (optional)</FieldLabel>
+                <FieldLabel htmlFor="phone" help="customer.phone">
+                  Phone (optional)
+                </FieldLabel>
                 <Input
                   id="phone"
                   value={phone}
@@ -105,7 +113,9 @@ function CustomersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <FieldLabel htmlFor="notes" help="customer.notes">Notes (optional)</FieldLabel>
+                <FieldLabel htmlFor="notes" help="customer.notes">
+                  Notes (optional)
+                </FieldLabel>
                 <Input
                   id="notes"
                   value={notes}
@@ -126,7 +136,7 @@ function CustomersPage() {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={submitting || !name}>
-                  {submitting ? "Saving..." : "Save"}
+                  {submitting ? 'Saving...' : 'Save'}
                 </Button>
               </div>
             </form>
@@ -136,7 +146,9 @@ function CustomersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{customers.length} customer{customers.length === 1 ? "" : "s"}</CardTitle>
+          <CardTitle>
+            {customers.length} customer{customers.length === 1 ? '' : 's'}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveTable
@@ -144,22 +156,24 @@ function CustomersPage() {
             getRowKey={(c) => c.id}
             columns={[
               {
-                header: "Name",
+                header: 'Name',
                 cell: (c) => <span className="font-medium">{c.name}</span>,
               },
               {
-                header: "Phone",
-                cell: (c) => c.phone ?? "—",
+                header: 'Phone',
+                cell: (c) => c.phone ?? '—',
               },
               {
-                header: "Notes",
+                header: 'Notes',
                 cell: (c) => (
-                  <span className="text-muted-foreground">{c.notes ?? "—"}</span>
+                  <span className="text-muted-foreground">
+                    {c.notes ?? '—'}
+                  </span>
                 ),
                 hideOnMobile: true,
               },
               {
-                header: "Added",
+                header: 'Added',
                 cell: (c) => formatDate(c.createdAt),
                 hideOnMobile: true,
               },

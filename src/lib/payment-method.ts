@@ -5,11 +5,11 @@
  * these together with the helpers below so the cash/bank → ledger mapping
  * lives in one place.
  */
-export const PAYMENT_METHODS = ["cash", "bank", "credit"] as const
+export const PAYMENT_METHODS = ['cash', 'bank', 'credit'] as const
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
-export type DepositLocation = "cash" | "bank"
+export type DepositLocation = 'cash' | 'bank'
 
 /**
  * Ledger account name for a deposit by `method`.
@@ -20,9 +20,9 @@ export type DepositLocation = "cash" | "bank"
  * Accounts Receivable hit.
  */
 export function depositCategoryFor(
-  method: Extract<PaymentMethod, "cash" | "bank">,
-): "Cash" | "Bank" {
-  return method === "cash" ? "Cash" : "Bank"
+  method: Extract<PaymentMethod, 'cash' | 'bank'>,
+): 'Cash' | 'Bank' {
+  return method === 'cash' ? 'Cash' : 'Bank'
 }
 
 /**
@@ -32,7 +32,7 @@ export function depositCategoryFor(
 export function depositLocationFor(
   method: PaymentMethod,
 ): DepositLocation | undefined {
-  if (method === "cash") return "cash"
-  if (method === "bank") return "bank"
+  if (method === 'cash') return 'cash'
+  if (method === 'bank') return 'bank'
   return undefined
 }

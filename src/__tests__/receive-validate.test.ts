@@ -1,20 +1,20 @@
-import { describe, it, expect } from "vitest"
-import fc from "fast-check"
+import { describe, it, expect } from 'vitest'
+import fc from 'fast-check'
 import {
   validateDiscrepancyNotes,
   validateQuantityReceived,
-} from "#/server/functions/store/receive-validate"
+} from '#/server/functions/store/receive-validate'
 
-describe("validateQuantityReceived", () => {
-  it("throws when received is negative", () => {
+describe('validateQuantityReceived', () => {
+  it('throws when received is negative', () => {
     expect(() => validateQuantityReceived(-1)).toThrow(/non-negative/i)
   })
 
-  it("accepts zero", () => {
+  it('accepts zero', () => {
     expect(() => validateQuantityReceived(0)).not.toThrow()
   })
 
-  it("accepts positive integers", () => {
+  it('accepts positive integers', () => {
     fc.assert(
       fc.property(fc.nat({ max: 100_000 }), (received) => {
         expect(() => validateQuantityReceived(received)).not.toThrow()
@@ -23,8 +23,8 @@ describe("validateQuantityReceived", () => {
   })
 })
 
-describe("validateDiscrepancyNotes", () => {
-  it("does nothing when received >= expected", () => {
+describe('validateDiscrepancyNotes', () => {
+  it('does nothing when received >= expected', () => {
     expect(() =>
       validateDiscrepancyNotes({
         quantityExpected: 100,
@@ -39,7 +39,7 @@ describe("validateDiscrepancyNotes", () => {
     ).not.toThrow()
   })
 
-  it("throws when received < expected and notes are missing", () => {
+  it('throws when received < expected and notes are missing', () => {
     expect(() =>
       validateDiscrepancyNotes({
         quantityExpected: 100,
@@ -48,12 +48,12 @@ describe("validateDiscrepancyNotes", () => {
     ).toThrow(/discrepancy/i)
   })
 
-  it("throws when received < expected and notes are blank/whitespace", () => {
+  it('throws when received < expected and notes are blank/whitespace', () => {
     expect(() =>
       validateDiscrepancyNotes({
         quantityExpected: 100,
         quantityReceived: 90,
-        discrepancyNotes: "   ",
+        discrepancyNotes: '   ',
       }),
     ).toThrow(/discrepancy/i)
     expect(() =>
@@ -65,12 +65,12 @@ describe("validateDiscrepancyNotes", () => {
     ).toThrow(/discrepancy/i)
   })
 
-  it("passes when received < expected and notes are provided", () => {
+  it('passes when received < expected and notes are provided', () => {
     expect(() =>
       validateDiscrepancyNotes({
         quantityExpected: 100,
         quantityReceived: 90,
-        discrepancyNotes: "10 boxes held at customs",
+        discrepancyNotes: '10 boxes held at customs',
       }),
     ).not.toThrow()
   })

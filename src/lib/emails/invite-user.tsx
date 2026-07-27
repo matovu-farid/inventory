@@ -1,4 +1,4 @@
-import { EmailLayout } from "./_layout"
+import { EmailLayout } from './_layout'
 
 export type InviteUserProps = {
   name: string

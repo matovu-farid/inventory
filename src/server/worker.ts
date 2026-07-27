@@ -4,10 +4,10 @@
 // TanStack Start v1 exports a default object with a `fetch` method from
 // @tanstack/react-start/server-entry — confirmed in dist/default-entry/esm/server.js.
 
-import tanstackHandler from "@tanstack/react-start/server-entry"
-import { db } from "#/db"
-import { runThresholdChecksInternal } from "#/server/scheduled/run-threshold-checks"
-import { sendDailyLowStockDigestInternal } from "#/server/scheduled/send-low-stock-digest"
+import tanstackHandler from '@tanstack/react-start/server-entry'
+import { db, withRequestDb } from '#/db'
+import { runThresholdChecksInternal } from '#/server/scheduled/run-threshold-checks'
+import { sendDailyLowStockDigestInternal } from '#/server/scheduled/send-low-stock-digest'
 
 // Minimal Cloudflare Workers types (no @cloudflare/workers-types dep needed).
 interface ScheduledEvent {
@@ -18,8 +18,27 @@ interface ExecutionContext {
   waitUntil: (promise: Promise<unknown>) => void
 }
 
+async function runScheduledChecks(
+  now: Date,
+  waitUntil: (promise: Promise<unknown>) => void,
+): Promise<void> {
+  await withRequestDb(async () => {
+    if (now.getUTCHours() === 4) {
+      await runThresholdChecksInternal(db, now)
+      await sendDailyLowStockDigestInternal(db, now)
+    } else {
+      await runThresholdChecksInternal(db, now)
+    }
+  }, waitUntil)
+}
+
 export default {
-  fetch: tanstackHandler.fetch.bind(tanstackHandler),
+  fetch(request: Request, env: unknown, ctx: ExecutionContext): Promise<Response> {
+    return withRequestDb(
+      () => tanstackHandler.fetch(request, env, ctx),
+      ctx.waitUntil.bind(ctx),
+    )
+  },
 
   scheduled: (
     event: ScheduledEvent,
@@ -27,20 +46,6 @@ export default {
     ctx: ExecutionContext,
   ): void => {
     const now = new Date(event.scheduledTime)
-
-    // Single hourly trigger ("0 * * * *") — threshold check runs every hour;
-    // daily digest runs once per day at 04:00 UTC (07:00 EAT). Collapsed from
-    // two cron triggers to one to stay under Cloudflare's per-account 5-cron
-    // limit on Workers Free; semantics are unchanged.
-    if (now.getUTCHours() === 4) {
-      ctx.waitUntil(
-        (async () => {
-          await runThresholdChecksInternal(db, now)
-          await sendDailyLowStockDigestInternal(db, now)
-        })(),
-      )
-    } else {
-      ctx.waitUntil(runThresholdChecksInternal(db, now))
-    }
+    ctx.waitUntil(runScheduledChecks(now, ctx.waitUntil.bind(ctx)))
   },
 }

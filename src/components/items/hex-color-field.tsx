@@ -1,6 +1,10 @@
-import { HexColorPicker, HexColorInput } from "react-colorful"
-import { Popover, PopoverContent, PopoverTrigger } from "#/components/ui/popover"
-import { cn } from "#/lib/utils"
+import { HexColorPicker, HexColorInput } from 'react-colorful'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '#/components/ui/popover'
+import { cn } from '#/lib/utils'
 
 interface Props {
   value: string
@@ -13,17 +17,17 @@ export function HexColorField({
   value,
   onChange,
   className,
-  ariaLabel = "Pick color",
+  ariaLabel = 'Pick color',
 }: Props) {
-  const safe = /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#000000"
+  const safe = /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#000000'
   return (
     <Popover>
       <PopoverTrigger
         type="button"
         aria-label={ariaLabel}
         className={cn(
-          "h-10 w-12 rounded border bg-background",
-          "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          'h-10 w-12 rounded border bg-background',
+          'ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           className,
         )}
         style={{ backgroundColor: safe }}

@@ -18,7 +18,16 @@
     "app": {
       "root": ".",
       "package": "inventory",
-      "domains": ["schema", "server", "ui", "data", "auth", "errors", "performance", "tests"],
+      "domains": [
+        "schema",
+        "server",
+        "ui",
+        "data",
+        "auth",
+        "errors",
+        "performance",
+        "tests"
+      ],
       "typecheck": "pnpm typecheck",
       "test": "pnpm test"
     }

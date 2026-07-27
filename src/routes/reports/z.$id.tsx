@@ -1,16 +1,16 @@
-import { createFileRoute, useSearch } from "@tanstack/react-router"
-import * as React from "react"
-import { z } from "zod"
-import { requireUiPermission } from "#/lib/permissions"
-import { getZReportById } from "#/server/functions/accounting/shift-reports"
-import { renderShiftClosure } from "#/lib/pdf/shift-closure-html"
-import { openShiftClosurePrintWindow } from "#/lib/pos/print-shift-closure"
-import { XReportView } from "#/components/reports/x-report-view"
-import { Button } from "#/components/ui/button"
+import { createFileRoute, useSearch } from '@tanstack/react-router'
+import * as React from 'react'
+import { z } from 'zod'
+import { requireUiPermission } from '#/lib/permissions'
+import { getZReportById } from '#/server/functions/accounting/shift-reports'
+import { renderShiftClosure } from '#/lib/pdf/shift-closure-html'
+import { openShiftClosurePrintWindow } from '#/lib/pos/print-shift-closure'
+import { XReportView } from '#/components/reports/x-report-view'
+import { Button } from '#/components/ui/button'
 
-export const Route = createFileRoute("/reports/z/$id")({
+export const Route = createFileRoute('/reports/z/$id')({
   beforeLoad: ({ context }) =>
-    requireUiPermission(context, "shift.reports.view"),
+    requireUiPermission(context, 'shift.reports.view'),
   validateSearch: z.object({ print: z.string().optional() }),
   loader: async ({ params }) => getZReportById({ data: { id: params.id } }),
   component: ZDetailPage,
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/reports/z/$id")({
 
 function ZDetailPage() {
   const closure = Route.useLoaderData()
-  const search = useSearch({ from: "/reports/z/$id" })
+  const search = useSearch({ from: '/reports/z/$id' })
 
   const openPrint = React.useCallback(() => {
     const html = renderShiftClosure({
@@ -41,7 +41,7 @@ function ZDetailPage() {
   }, [closure])
 
   React.useEffect(() => {
-    if (search.print === "1") openPrint()
+    if (search.print === '1') openPrint()
   }, [search.print, openPrint])
 
   return (

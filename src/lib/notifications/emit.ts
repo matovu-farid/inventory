@@ -1,10 +1,7 @@
-import { and, inArray, isNotNull } from "drizzle-orm"
-import { notifications, user } from "#/db/schema"
-import type { Role } from "#/lib/roles"
-import type { db as defaultDb } from "#/db"
-
-type Db = typeof defaultDb
-type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0]
+import { and, inArray, isNotNull } from 'drizzle-orm'
+import { notifications, user } from '#/db/schema'
+import type { Role } from '#/lib/roles'
+import type { Tx } from '#/db'
 
 export interface EmitParams {
   kind: string

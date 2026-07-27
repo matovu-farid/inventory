@@ -12,11 +12,11 @@
 //   - src/__tests__/list-item-categories.test.ts (vitest, server-side)
 //   - other vitest tests that need to exercise data semantics directly
 
-import { asc, eq, ilike, or } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import { items, itemColors, variants } from "#/db/schema"
-import { materializeVariantsFromColorsSizes } from "./variants-materialize"
+import { asc, eq, ilike, or } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { items, itemColors, variants } from '#/db/schema'
+import { materializeVariantsFromColorsSizes } from './variants-materialize'
 
 const colorInput = z.object({
   colorName: z.string().min(1).max(40),
@@ -117,7 +117,7 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
       name: data.name,
       description: data.description,
       category: data.category,
-      minimumSellPriceUgx: data.minimumSellPriceUgx ?? "0",
+      minimumSellPriceUgx: data.minimumSellPriceUgx ?? '0',
       lowStockThreshold: data.lowStockThreshold ?? null,
     })
     .returning()
@@ -168,7 +168,11 @@ export async function updateItemQuery(data: z.infer<typeof updateInput>) {
     ...(minimumSellPriceUgx === undefined ? {} : { minimumSellPriceUgx }),
     ...(lowStockThreshold === undefined ? {} : { lowStockThreshold }),
   }
-  const [row] = await db.update(items).set(patch).where(eq(items.id, id)).returning()
+  const [row] = await db
+    .update(items)
+    .set(patch)
+    .where(eq(items.id, id))
+    .returning()
   return row
 }
 

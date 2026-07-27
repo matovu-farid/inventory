@@ -30,13 +30,13 @@ export interface AuditEntry {
 }
 
 export function buildAuditEntry(params: AuditEntryParams): AuditEntry {
-  if (!params.actorUserId) throw new Error("audit: actorUserId required")
-  if (!params.action) throw new Error("audit: action required")
-  if (!params.entityType) throw new Error("audit: entityType required")
-  if (!params.entityId) throw new Error("audit: entityId required")
-  if (!params.description) throw new Error("audit: description required")
+  if (!params.actorUserId) throw new Error('audit: actorUserId required')
+  if (!params.action) throw new Error('audit: action required')
+  if (!params.entityType) throw new Error('audit: entityType required')
+  if (!params.entityId) throw new Error('audit: entityId required')
+  if (!params.description) throw new Error('audit: description required')
   if (!Array.isArray(params.articleNumbers)) {
-    throw new Error("audit: articleNumbers must be an array")
+    throw new Error('audit: articleNumbers must be an array')
   }
 
   return {

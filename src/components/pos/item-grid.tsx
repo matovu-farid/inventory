@@ -1,7 +1,7 @@
-import * as React from "react"
-import { ShoppingBag } from "lucide-react"
-import { itemImageUrl } from "#/lib/items"
-import type { AggregatedItem } from "#/lib/items"
+import * as React from 'react'
+import { ShoppingBag } from 'lucide-react'
+import { itemImageUrl } from '#/lib/items'
+import type { AggregatedItem } from '#/lib/items'
 
 type Props = {
   items: AggregatedItem[]
@@ -24,7 +24,9 @@ export function ItemGrid({ items, query, onPick }: Props) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
         <ShoppingBag className="size-8" strokeWidth={1.5} />
-        <p className="text-sm">{query ? "No items match." : "No stock in this shop."}</p>
+        <p className="text-sm">
+          {query ? 'No items match.' : 'No stock in this shop.'}
+        </p>
       </div>
     )
   }
@@ -32,7 +34,7 @@ export function ItemGrid({ items, query, onPick }: Props) {
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {filtered.map((p) => {
-        const colorsArr: AggregatedItem["colors"] = p.colors
+        const colorsArr: AggregatedItem['colors'] = p.colors
         const firstColor = colorsArr.length > 0 ? colorsArr[0] : undefined
         const imgKey = firstColor?.imageS3Key ?? null
         const imgUrl = imgKey ? itemImageUrl(imgKey) : null
@@ -56,7 +58,7 @@ export function ItemGrid({ items, query, onPick }: Props) {
                   <div
                     className="size-full"
                     style={{
-                      background: `linear-gradient(135deg, ${firstColor?.colorHex ?? "#e5e7eb"}, #f5f5f5)`,
+                      background: `linear-gradient(135deg, ${firstColor?.colorHex ?? '#e5e7eb'}, #f5f5f5)`,
                     }}
                   />
                 )}
@@ -66,7 +68,9 @@ export function ItemGrid({ items, query, onPick }: Props) {
               </div>
               <div className="space-y-1 px-3 py-2">
                 <p className="truncate text-sm font-semibold">{p.item.name}</p>
-                <p className="text-xs text-muted-foreground">{p.item.articleNumber}</p>
+                <p className="text-xs text-muted-foreground">
+                  {p.item.articleNumber}
+                </p>
                 <div className="flex gap-1">
                   {p.colors.slice(0, 6).map((c) => (
                     <span

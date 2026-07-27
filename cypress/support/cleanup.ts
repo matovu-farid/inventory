@@ -15,7 +15,7 @@
  * blocking concurrent inserts from being visible.
  */
 
-import type { Client, PoolClient } from "pg"
+import type { Client, PoolClient } from 'pg'
 
 export async function cleanupAllTestData(
   client: Client | PoolClient,

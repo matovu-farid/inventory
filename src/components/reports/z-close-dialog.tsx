@@ -1,19 +1,19 @@
-import * as React from "react"
-import BigNumber from "bignumber.js"
-import { useRouter } from "@tanstack/react-router"
-import { Button } from "#/components/ui/button"
+import * as React from 'react'
+import BigNumber from 'bignumber.js'
+import { useRouter } from '@tanstack/react-router'
+import { Button } from '#/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "#/components/ui/dialog"
-import { Input } from "#/components/ui/input"
-import { Label } from "#/components/ui/label"
-import { Textarea } from "#/components/ui/textarea"
-import { formatUgxTotal } from "#/lib/format"
-import { closeZReport } from "#/server/functions/accounting/shift-reports"
+} from '#/components/ui/dialog'
+import { Input } from '#/components/ui/input'
+import { Label } from '#/components/ui/label'
+import { Textarea } from '#/components/ui/textarea'
+import { formatUgxTotal } from '#/lib/format'
+import { closeZReport } from '#/server/functions/accounting/shift-reports'
 
 interface Props {
   open: boolean
@@ -28,8 +28,8 @@ export function ZCloseDialog({
   shopId,
   expectedCashUgx,
 }: Props) {
-  const [declared, setDeclared] = React.useState("")
-  const [notes, setNotes] = React.useState("")
+  const [declared, setDeclared] = React.useState('')
+  const [notes, setNotes] = React.useState('')
   const [idemKey, setIdemKey] = React.useState(() => crypto.randomUUID())
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -37,18 +37,18 @@ export function ZCloseDialog({
 
   React.useEffect(() => {
     if (open) {
-      setDeclared("")
-      setNotes("")
+      setDeclared('')
+      setNotes('')
       setIdemKey(crypto.randomUUID())
       setError(null)
     }
   }, [open])
 
   const variance =
-    declared === "" ? null : new BigNumber(declared).minus(expectedCashUgx)
+    declared === '' ? null : new BigNumber(declared).minus(expectedCashUgx)
 
   async function submit() {
-    if (declared === "") return
+    if (declared === '') return
     setSubmitting(true)
     setError(null)
     try {
@@ -61,7 +61,7 @@ export function ZCloseDialog({
         },
       })
       onOpenChange(false)
-      window.open(`/reports/z/${row.id}?print=1`, "_blank")
+      window.open(`/reports/z/${row.id}?print=1`, '_blank')
       void router.invalidate()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -87,7 +87,9 @@ export function ZCloseDialog({
               id="declared"
               inputMode="numeric"
               value={declared}
-              onChange={(e) => setDeclared(e.target.value.replace(/[^0-9.]/g, ""))}
+              onChange={(e) =>
+                setDeclared(e.target.value.replace(/[^0-9.]/g, ''))
+              }
               placeholder="0"
             />
           </div>
@@ -97,10 +99,10 @@ export function ZCloseDialog({
               <span
                 className={`font-mono ${
                   variance.isZero()
-                    ? ""
+                    ? ''
                     : variance.isNegative()
-                      ? "text-red-600"
-                      : "text-amber-600"
+                      ? 'text-red-600'
+                      : 'text-amber-600'
                 }`}
               >
                 {formatUgxTotal(variance.toFixed(2))}
@@ -126,8 +128,11 @@ export function ZCloseDialog({
           >
             Cancel
           </Button>
-          <Button onClick={() => void submit()} disabled={declared === "" || submitting}>
-            {submitting ? "Closing…" : "Close shift"}
+          <Button
+            onClick={() => void submit()}
+            disabled={declared === '' || submitting}
+          >
+            {submitting ? 'Closing…' : 'Close shift'}
           </Button>
         </DialogFooter>
       </DialogContent>

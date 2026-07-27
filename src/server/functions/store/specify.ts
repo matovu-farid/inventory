@@ -1,18 +1,17 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, eq, isNull, sql } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
+import { createServerFn } from '@tanstack/react-start'
+import { and, eq, isNull, sql } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
 import {
   storeStock,
   variants,
   items as itemsTable,
   itemColors,
-} from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { recordAuditLog } from "#/server/middleware/audit-store"
-import { renderAuditDescription } from "#/server/audit/descriptions"
-import { getActorName } from "#/server/audit/actor"
+} from '#/db/schema'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { recordAuditLog } from '#/server/middleware/audit-store'
+import { renderAuditDescription } from '#/server/audit/descriptions'
+import { getActorName } from '#/server/audit/actor'
 
 const specifyLineInput = z.object({
   colorId: z.uuid(),
@@ -38,24 +37,20 @@ const specifyStockInput = z.object({
 export const specifyStock = createServerFn()
   .inputValidator(specifyStockInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    const session = await requireSessionAndRole(['admin'])
 
     return db.transaction(async (tx) => {
       const source = await tx.query.storeStock.findFirst({
         where: eq(storeStock.id, data.storeStockId),
       })
-      if (!source) throw new Error("Stock row not found")
+      if (!source) throw new Error('Stock row not found')
       if (source.variantId !== null) {
         throw new Error(
-          "Stock row is already specified to a variant — cannot specify again",
+          'Stock row is already specified to a variant — cannot specify again',
         )
       }
 
-      const totalSpecified = data.lines.reduce(
-        (s, l) => s + l.quantity,
-        0,
-      )
+      const totalSpecified = data.lines.reduce((s, l) => s + l.quantity, 0)
       if (totalSpecified > source.quantityOnHand) {
         throw new Error(
           `Specified total (${totalSpecified}) exceeds available (${source.quantityOnHand})`,
@@ -78,7 +73,7 @@ export const specifyStock = createServerFn()
       const item = await tx.query.items.findFirst({
         where: eq(itemsTable.id, source.itemId),
       })
-      if (!item) throw new Error("Item not found")
+      if (!item) throw new Error('Item not found')
 
       // For each requested (colorId, size): resolve-or-create variant via
       // upsert (matches the Task 7 follow-up race-safety pattern in
@@ -140,10 +135,10 @@ export const specifyStock = createServerFn()
       const actorName = await getActorName(tx, session.user.id)
       await recordAuditLog(tx, {
         actorUserId: session.user.id,
-        action: "stock.specify",
-        entityType: "store_stock",
+        action: 'stock.specify',
+        entityType: 'store_stock',
         entityId: source.id,
-        description: renderAuditDescription("stock.specify", {
+        description: renderAuditDescription('stock.specify', {
           actorName,
           articleNumber: item.articleNumber,
           itemName: item.name,

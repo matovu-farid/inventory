@@ -1,5 +1,5 @@
-const REGION = "eu-west-1"
-const BUCKET = "fidexa-inventory-images"
+const REGION = 'eu-west-1'
+const BUCKET = 'fidexa-inventory-images'
 
 /**
  * Canonical "ARTICLE COLOR/SIZE" label for a stocked SKU. Used in error

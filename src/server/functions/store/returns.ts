@@ -1,8 +1,8 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, eq, sql } from "drizzle-orm"
-import { z } from "zod"
-import BigNumber from "bignumber.js"
-import { db } from "#/db"
+import { createServerFn } from '@tanstack/react-start'
+import { and, eq, sql } from 'drizzle-orm'
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
+import { db } from '#/db'
 import {
   items,
   storeReturns,
@@ -11,18 +11,17 @@ import {
   shopStock,
   storeStock,
   shops,
-} from "#/db/schema"
-import { postJournalEntry } from "#/lib/accounting/ledger"
-import { nextDocumentNumber } from "#/lib/document-numbers-db"
-import { recordAuditLog } from "#/server/middleware/audit-store"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { formatItemLabel, formatItemLabelUnresolved } from "#/lib/items"
-import { pickShopStockFifo } from "#/server/functions/shop/fifo"
-import { buildStoreReturnReceiveEntries } from "./return-entries"
-import { renderAuditDescription } from "#/server/audit/descriptions"
-import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
-import { getActorName } from "#/server/audit/actor"
+} from '#/db/schema'
+import { postJournalEntry } from '#/lib/accounting/ledger'
+import { nextDocumentNumber } from '#/lib/document-numbers-db'
+import { recordAuditLog } from '#/server/middleware/audit-store'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { formatItemLabel, formatItemLabelUnresolved } from '#/lib/items'
+import { pickShopStockFifo } from '#/server/functions/shop/fifo'
+import { buildStoreReturnReceiveEntries } from './return-entries'
+import { renderAuditDescription } from '#/server/audit/descriptions'
+import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
+import { getActorName } from '#/server/audit/actor'
 
 const returnItemInput = z.object({
   itemId: z.uuid(),
@@ -49,8 +48,7 @@ const dispatchStoreReturnInput = z.object({
 export const dispatchStoreReturn = createServerFn()
   .inputValidator(dispatchStoreReturnInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    const session = await requireSessionAndRole(['admin', 'supervisor'])
     const userId = session.user.id
 
     return db.transaction(async (tx) => {
@@ -83,7 +81,7 @@ export const dispatchStoreReturn = createServerFn()
         })
         if (plan.shortfall > 0) {
           const label = input.variantId
-            ? formatItemLabel(item.articleNumber, item.name, "")
+            ? formatItemLabel(item.articleNumber, item.name, '')
             : formatItemLabelUnresolved(item.articleNumber, item.name)
           throw new Error(
             `Insufficient stock for ${label}: short by ${plan.shortfall}`,
@@ -106,7 +104,7 @@ export const dispatchStoreReturn = createServerFn()
         })
       }
 
-      const docNumber = await nextDocumentNumber(tx, "STR-RET")
+      const docNumber = await nextDocumentNumber(tx, 'STR-RET')
       const [storeReturn] = await tx
         .insert(storeReturns)
         .values({
@@ -115,7 +113,7 @@ export const dispatchStoreReturn = createServerFn()
           originalTransferId: data.originalTransferId,
           returnDate: new Date(),
           reason: data.reason,
-          status: "dispatched",
+          status: 'dispatched',
           dispatchedBy: userId,
           approvedBy: userId,
           documentNumber: docNumber.formatted,
@@ -159,25 +157,25 @@ export const dispatchStoreReturn = createServerFn()
       })
       const actorName = await getActorName(tx, userId)
       const articleNumbers = await resolveArticleNumbersForAudit(tx, {
-        action: "storeReturn.dispatch",
-        entityType: "store_return",
+        action: 'storeReturn.dispatch',
+        entityType: 'store_return',
         entityId: storeReturn.id,
         metadata: null,
       })
 
       await recordAuditLog(tx, {
         actorUserId: userId,
-        action: "storeReturn.dispatch",
-        entityType: "store_return",
+        action: 'storeReturn.dispatch',
+        entityType: 'store_return',
         entityId: storeReturn.id,
-        description: renderAuditDescription("storeReturn.dispatch", {
+        description: renderAuditDescription('storeReturn.dispatch', {
           actorName,
           shopName: shop?.name,
           itemCount: data.items.length,
         }),
         articleNumbers,
         after: {
-          status: "dispatched",
+          status: 'dispatched',
           shopId: data.shopId,
           storeId: data.storeId,
           documentNumber: docNumber.formatted,
@@ -213,8 +211,7 @@ const receiveStoreReturnInput = z.object({
 export const receiveStoreReturn = createServerFn()
   .inputValidator(receiveStoreReturnInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    const session = await requireSessionAndRole(['admin', 'supervisor'])
     const userId = session.user.id
 
     return db.transaction(async (tx) => {
@@ -233,7 +230,7 @@ export const receiveStoreReturn = createServerFn()
       if (!storeReturn) {
         throw new Error(`Store return not found: ${data.storeReturnId}`)
       }
-      if (storeReturn.status !== "dispatched") {
+      if (storeReturn.status !== 'dispatched') {
         throw new Error(
           `Store return ${storeReturn.documentNumber} is ${storeReturn.status}, expected "dispatched"`,
         )
@@ -249,7 +246,9 @@ export const receiveStoreReturn = createServerFn()
           new BigNumber(line.unitCostUgx).times(line.quantityDispatched),
         )
         totalTransferDispatched = totalTransferDispatched.plus(
-          new BigNumber(line.unitTransferPriceUgx).times(line.quantityDispatched),
+          new BigNumber(line.unitTransferPriceUgx).times(
+            line.quantityDispatched,
+          ),
         )
       }
 
@@ -353,9 +352,9 @@ export const receiveStoreReturn = createServerFn()
       if (entries.length > 0) {
         await postJournalEntry(tx, {
           entries,
-          referenceType: "store_return",
+          referenceType: 'store_return',
           referenceId: storeReturn.id,
-          locationType: "store",
+          locationType: 'store',
           locationId: storeReturn.storeId,
           recordedBy: userId,
           description: `Store return ${storeReturn.documentNumber} received`,
@@ -364,7 +363,7 @@ export const receiveStoreReturn = createServerFn()
 
       await tx
         .update(storeReturns)
-        .set({ status: "received", receivedBy: userId })
+        .set({ status: 'received', receivedBy: userId })
         .where(eq(storeReturns.id, data.storeReturnId))
 
       const shop = await tx.query.shops.findFirst({
@@ -372,25 +371,25 @@ export const receiveStoreReturn = createServerFn()
       })
       const actorName = await getActorName(tx, userId)
       const articleNumbers = await resolveArticleNumbersForAudit(tx, {
-        action: "storeReturn.receive",
-        entityType: "store_return",
+        action: 'storeReturn.receive',
+        entityType: 'store_return',
         entityId: storeReturn.id,
         metadata: null,
       })
 
       await recordAuditLog(tx, {
         actorUserId: userId,
-        action: "storeReturn.receive",
-        entityType: "store_return",
+        action: 'storeReturn.receive',
+        entityType: 'store_return',
         entityId: storeReturn.id,
-        description: renderAuditDescription("storeReturn.receive", {
+        description: renderAuditDescription('storeReturn.receive', {
           actorName,
           shopName: shop?.name,
           itemCount: data.itemReceipts.length,
         }),
         articleNumbers,
-        before: { status: "dispatched" },
-        after: { status: "received" },
+        before: { status: 'dispatched' },
+        after: { status: 'received' },
         metadata: {
           itemCount: data.itemReceipts.length,
           documentNumber: storeReturn.documentNumber,

@@ -1,4 +1,4 @@
-import { formatUgx } from "#/lib/format"
+import { formatUgx } from '#/lib/format'
 
 interface ClerkRow {
   userId: string
@@ -30,7 +30,7 @@ interface ShiftClosureForPrint {
  */
 export function renderShiftClosure(c: ShiftClosureForPrint): string {
   const fmt = (d: Date) =>
-    d.toLocaleString("en-UG", { timeZone: "Africa/Kampala" })
+    d.toLocaleString('en-UG', { timeZone: 'Africa/Kampala' })
   const clerkRows = c.byClerk
     .map(
       (r) => `
@@ -40,7 +40,7 @@ export function renderShiftClosure(c: ShiftClosureForPrint): string {
           <td class="num">${formatUgx(r.totalUgx)}</td>
         </tr>`,
     )
-    .join("")
+    .join('')
 
   return `<!doctype html>
 <html lang="en">
@@ -77,7 +77,7 @@ export function renderShiftClosure(c: ShiftClosureForPrint): string {
     <h1>${escapeHtml(c.shopName)} — Z #${c.closureNumber}</h1>
     <div class="meta">
       <div><strong>Period:</strong> ${fmt(c.periodStart)} → ${fmt(c.closedAt)}</div>
-      <div><strong>Closed by:</strong> ${escapeHtml(c.closedByName ?? "—")}</div>
+      <div><strong>Closed by:</strong> ${escapeHtml(c.closedByName ?? '—')}</div>
       <div><strong>Sales count:</strong> ${c.salesCount}</div>
     </div>
 
@@ -114,11 +114,11 @@ export function renderShiftClosure(c: ShiftClosureForPrint): string {
 }
 
 const HTML_ESCAPE_MAP: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
 }
 
 function escapeHtml(s: string): string {

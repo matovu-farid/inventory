@@ -1,40 +1,40 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
-import { useState, useEffect, useCallback } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import { z } from "zod"
-import BigNumber from "bignumber.js"
-import { formatUgx, formatUgxTotal } from "#/lib/format"
-import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
-import { getShopPrereqs } from "#/server/functions/prereqs/shop"
-import { SATISFIED } from "#/lib/prerequisites/types"
-import type { PrerequisiteResult } from "#/lib/prerequisites/types"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { MoneyInput } from "#/components/ui/money-input"
-import { Label } from "#/components/ui/label"
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { useState, useEffect, useCallback } from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
+import { formatUgx, formatUgxTotal } from '#/lib/format'
+import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
+import { getShopPrereqs } from '#/server/functions/prereqs/shop'
+import { SATISFIED } from '#/lib/prerequisites/types'
+import type { PrerequisiteResult } from '#/lib/prerequisites/types'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { MoneyInput } from '#/components/ui/money-input'
+import { Label } from '#/components/ui/label'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
+} from '#/components/ui/select'
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
   ResponsiveDialogHeader as DialogHeader,
   ResponsiveDialogTitle as DialogTitle,
-} from "#/components/ui/responsive-dialog"
-import { DialogTrigger } from "#/components/ui/dialog"
+} from '#/components/ui/responsive-dialog'
+import { DialogTrigger } from '#/components/ui/dialog'
 import {
   Command,
   CommandEmpty,
   CommandInput,
   CommandItem,
   CommandList,
-} from "#/components/ui/command"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
-import { InfoTip } from "#/components/ui/info-tip"
+} from '#/components/ui/command'
+import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { InfoTip } from '#/components/ui/info-tip'
 import {
   ArrowLeft,
   Check,
@@ -43,16 +43,16 @@ import {
   ShoppingCart,
   PackageCheck,
   Trash2,
-} from "lucide-react"
-import { ItemCard } from "#/components/items/item-card"
-import { aggregateStockByArticle } from "#/lib/items"
-import { AddShopDialog } from "#/components/shops/add-shop-dialog"
-import { ReceiveTransferForm } from "#/components/transfers/receive-transfer-form"
-import { SpecifyStockDialog } from "#/components/stock/specify-stock-dialog"
-import { listShops } from "#/server/functions/admin/locations"
-import { getShopStock, recordSale } from "#/server/functions/shop/sales"
-import { listTransfers } from "#/server/functions/store/transfers"
-import { getSession } from "#/server/middleware/auth"
+} from 'lucide-react'
+import { ItemCard } from '#/components/items/item-card'
+import { aggregateStockByArticle } from '#/lib/items'
+import { AddShopDialog } from '#/components/shops/add-shop-dialog'
+import { ReceiveTransferForm } from '#/components/transfers/receive-transfer-form'
+import { SpecifyStockDialog } from '#/components/stock/specify-stock-dialog'
+import { listShops } from '#/server/functions/admin/locations'
+import { getShopStock, recordSale } from '#/server/functions/shop/sales'
+import { listTransfers } from '#/server/functions/store/transfers'
+import { getSession } from '#/server/middleware/auth'
 
 // Plan 2b: getShopStock returns rows with optional variant. The shop
 // list and the New Sale picker both consume RawShopStockItem directly;
@@ -65,13 +65,13 @@ const searchSchema = z.object({
   shopId: z.uuid().optional(),
 })
 
-export const Route = createFileRoute("/shop/")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "shop.view"),
+export const Route = createFileRoute('/shop/')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'shop.view'),
   validateSearch: searchSchema,
   loader: async () => {
     const session = await getSession()
     const role = (session?.user as { role?: string } | undefined)?.role ?? null
-    const canManage = role === "admin" || role === "supervisor"
+    const canManage = role === 'admin' || role === 'supervisor'
     const [shops, transfers] = await Promise.all([
       listShops(),
       canManage ? listTransfers() : Promise.resolve([]),
@@ -85,21 +85,22 @@ function ShopPage() {
   const { shops, role, transfers } = Route.useLoaderData()
   const { shopId: shopIdFromSearch } = Route.useSearch()
   const router = useRouter()
-  const canManage = role === "admin" || role === "supervisor"
+  const canManage = role === 'admin' || role === 'supervisor'
   const [shopId, setShopId] = useState(
     shopIdFromSearch && shops.some((s) => s.id === shopIdFromSearch)
       ? shopIdFromSearch
-      : shops[0]?.id ?? "",
+      : (shops[0]?.id ?? ''),
   )
   const [receiveOpen, setReceiveOpen] = useState(false)
 
   const pendingTransfers = transfers.filter(
-    (t) => t.status === "dispatched" && t.shopId === shopId,
+    (t) => t.status === 'dispatched' && t.shopId === shopId,
   )
   const [stock, setStock] = useState<RawShopStockItem[]>([])
   const [specifying, setSpecifying] = useState<RawShopStockItem | null>(null)
   const [saleOpen, setSaleOpen] = useState(false)
-  const [prerequisites, setPrerequisites] = useState<PrerequisiteResult>(SATISFIED)
+  const [prerequisites, setPrerequisites] =
+    useState<PrerequisiteResult>(SATISFIED)
 
   // Unresolved rows still need their own admin-only "Specify" callout.
   const unresolved = stock.filter((r) => !r.variant)
@@ -117,7 +118,7 @@ function ShopPage() {
   const shopsLength = shops.length
   useEffect(() => {
     if (shopsLength === 0) {
-      if (shopId) setShopId("")
+      if (shopId) setShopId('')
       return
     }
     if (!shops.some((s) => s.id === shopId)) {
@@ -141,13 +142,11 @@ function ShopPage() {
 
   const totalItems = stock.reduce((s, i) => s + i.quantityOnHand, 0)
   const totalValue = stock.reduce(
-    (s, i) =>
-      s.plus(new BigNumber(i.costPerUnitUgx).times(i.quantityOnHand)),
+    (s, i) => s.plus(new BigNumber(i.costPerUnitUgx).times(i.quantityOnHand)),
     new BigNumber(0),
   )
   const aggregated = aggregateStockByArticle(stock)
-  const currentShopName =
-    shops.find((s) => s.id === shopId)?.name ?? "Shop"
+  const currentShopName = shops.find((s) => s.id === shopId)?.name ?? 'Shop'
 
   return (
     <div className="space-y-6">
@@ -159,7 +158,12 @@ function ShopPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={shopId} onValueChange={(v) => { void loadStock(v) }}>
+        <Select
+          value={shopId}
+          onValueChange={(v) => {
+            void loadStock(v)
+          }}
+        >
           <SelectTrigger className="h-11 w-48">
             <SelectValue placeholder="Select shop" />
           </SelectTrigger>
@@ -171,8 +175,12 @@ function ShopPage() {
             ))}
           </SelectContent>
         </Select>
-        {role === "admin" && (
-          <AddShopDialog onCreated={() => { void router.invalidate() }} />
+        {role === 'admin' && (
+          <AddShopDialog
+            onCreated={() => {
+              void router.invalidate()
+            }}
+          />
         )}
         {canManage &&
           (shopId ? (
@@ -217,9 +225,9 @@ function ShopPage() {
         {shops.length === 0 ? (
           <p className="text-muted-foreground py-8 text-center">
             No shops configured yet.
-            {role === "admin"
-              ? " Use the Add Shop button above to create one."
-              : ""}
+            {role === 'admin'
+              ? ' Use the Add Shop button above to create one.'
+              : ''}
           </p>
         ) : (
           <>
@@ -227,15 +235,20 @@ function ShopPage() {
               <div className="rounded-md border border-amber-300/60 bg-amber-50/80 p-4 text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-100">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <PackageCheck className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
+                    <PackageCheck
+                      className="mt-0.5 size-4 shrink-0"
+                      strokeWidth={1.75}
+                    />
                     <div>
                       <p className="text-sm font-medium leading-tight">
                         {pendingTransfers.length} transfer
-                        {pendingTransfers.length === 1 ? "" : "s"} awaiting receipt
+                        {pendingTransfers.length === 1 ? '' : 's'} awaiting
+                        receipt
                       </p>
                       <p className="text-[13px] opacity-90">
-                        Goods have been dispatched from the warehouse. Count them
-                        and confirm receipt to add them to this shop's stock.
+                        Goods have been dispatched from the warehouse. Count
+                        them and confirm receipt to add them to this shop's
+                        stock.
                       </p>
                     </div>
                   </div>
@@ -261,7 +274,7 @@ function ShopPage() {
               </div>
             )}
 
-            {role === "admin" && (
+            {role === 'admin' && (
               <div className="grid grid-cols-2 gap-4 max-w-md">
                 <Card>
                   <CardHeader className="pb-2">
@@ -290,12 +303,12 @@ function ShopPage() {
               </div>
             )}
 
-            {role === "admin" && unresolved.length > 0 && (
+            {role === 'admin' && unresolved.length > 0 && (
               <div className="rounded-md border border-amber-300/60 bg-amber-50/80 p-4 text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-100">
                 <p className="text-sm font-medium leading-tight">
                   {unresolved.length} unresolved lot
-                  {unresolved.length === 1 ? "" : "s"} need
-                  {unresolved.length === 1 ? "s" : ""} variants assigned
+                  {unresolved.length === 1 ? '' : 's'} need
+                  {unresolved.length === 1 ? 's' : ''} variants assigned
                 </p>
                 <p className="text-[13px] opacity-90">
                   These rows arrived without color/size details. Specify them
@@ -310,10 +323,10 @@ function ShopPage() {
                       <div className="min-w-0 text-sm">
                         <span className="font-medium">
                           {r.item.articleNumber}
-                        </span>{" "}
+                        </span>{' '}
                         <span className="text-muted-foreground">
                           {r.item.name}
-                        </span>{" "}
+                        </span>{' '}
                         <span className="ml-1 font-mono text-xs">
                           · {r.quantityOnHand} units
                         </span>
@@ -340,7 +353,7 @@ function ShopPage() {
                 <div className="flex items-baseline justify-between">
                   <p className="text-sm text-muted-foreground">
                     {aggregated.length} product
-                    {aggregated.length === 1 ? "" : "s"} ·{" "}
+                    {aggregated.length === 1 ? '' : 's'} ·{' '}
                     {aggregated.reduce((s, a) => s + a.total, 0)} units
                   </p>
                 </div>
@@ -413,7 +426,7 @@ function NewSaleForm({
   onSuccess: () => void
 }) {
   const [pending, setPending] = useState(false)
-  const [stage, setStage] = useState<"select" | "configure">("select")
+  const [stage, setStage] = useState<'select' | 'configure'>('select')
   const [cart, setCart] = useState<
     Array<{
       stockId: string
@@ -422,7 +435,7 @@ function NewSaleForm({
       belowMinimumReason: string
     }>
   >([])
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "bank">("cash")
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank'>('cash')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   function toggleSelection(stockId: string) {
@@ -437,7 +450,7 @@ function NewSaleForm({
           stockId,
           qty: 1,
           price: item.item.minimumSellPriceUgx,
-          belowMinimumReason: "",
+          belowMinimumReason: '',
         },
       ]
     })
@@ -445,13 +458,13 @@ function NewSaleForm({
 
   function updateCart(
     stockId: string,
-    field: "qty" | "price" | "belowMinimumReason",
+    field: 'qty' | 'price' | 'belowMinimumReason',
     value: string,
   ) {
     setCart((c) =>
       c.map((i) =>
         i.stockId === stockId
-          ? { ...i, [field]: field === "qty" ? Number(value) : value }
+          ? { ...i, [field]: field === 'qty' ? Number(value) : value }
           : i,
       ),
     )
@@ -469,14 +482,14 @@ function NewSaleForm({
   function validate(): boolean {
     const newErrors: Record<string, string> = {}
     if (cart.length === 0) {
-      newErrors.cart = "Add at least one item"
+      newErrors.cart = 'Add at least one item'
     }
     for (const item of cart) {
       if (!item.price || new BigNumber(item.price).lte(0)) {
-        newErrors[`price_${item.stockId}`] = "Price is required"
+        newErrors[`price_${item.stockId}`] = 'Price is required'
       }
       if (item.qty < 1) {
-        newErrors[`qty_${item.stockId}`] = "Quantity must be at least 1"
+        newErrors[`qty_${item.stockId}`] = 'Quantity must be at least 1'
       }
       const s = stock.find((x) => x.id === item.stockId)
       if (s && item.qty > s.quantityOnHand) {
@@ -484,11 +497,12 @@ function NewSaleForm({
       }
       if (
         s &&
-        item.price !== "" &&
+        item.price !== '' &&
         new BigNumber(item.price || 0).lt(s.item.minimumSellPriceUgx) &&
         item.belowMinimumReason.trim().length === 0
       ) {
-        newErrors[`reason_${item.stockId}`] = "Reason required for below-minimum sale"
+        newErrors[`reason_${item.stockId}`] =
+          'Reason required for below-minimum sale'
       }
     }
     setErrors(newErrors)
@@ -505,7 +519,8 @@ function NewSaleForm({
           paymentMethod,
           items: cart.map((c) => {
             const s = stock.find((x) => x.id === c.stockId)
-            if (!s) throw new Error(`Cart row references missing stock ${c.stockId}`)
+            if (!s)
+              throw new Error(`Cart row references missing stock ${c.stockId}`)
             return {
               itemId: s.item.id,
               variantId: s.variant?.id ?? undefined,
@@ -518,14 +533,14 @@ function NewSaleForm({
       })
       onSuccess()
     } catch (err) {
-      console.error("Failed to record sale:", err)
-      alert(err instanceof Error ? err.message : "Sale failed")
+      console.error('Failed to record sale:', err)
+      alert(err instanceof Error ? err.message : 'Sale failed')
     } finally {
       setPending(false)
     }
   }
 
-  if (stage === "select") {
+  if (stage === 'select') {
     const selectedIds = new Set(cart.map((c) => c.stockId))
     return (
       <div className="space-y-4">
@@ -554,8 +569,8 @@ function NewSaleForm({
                     <span
                       className={`flex size-5 shrink-0 items-center justify-center rounded border ${
                         isSelected
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-input"
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-input'
                       }`}
                     >
                       {isSelected && <Check className="size-3.5" />}
@@ -579,11 +594,11 @@ function NewSaleForm({
 
         <div className="sticky bottom-0 -mx-6 -mb-6 flex items-center justify-between border-t bg-background px-6 py-4">
           <p className="text-sm text-muted-foreground">
-            {cart.length} item{cart.length === 1 ? "" : "s"} selected
+            {cart.length} item{cart.length === 1 ? '' : 's'} selected
           </p>
           <Button
             className="h-11"
-            onClick={() => setStage("configure")}
+            onClick={() => setStage('configure')}
             disabled={cart.length === 0}
           >
             Continue
@@ -598,7 +613,7 @@ function NewSaleForm({
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => setStage("select")}
+        onClick={() => setStage('select')}
         className="-ml-2 h-9 text-muted-foreground"
       >
         <ArrowLeft className="mr-1 h-4 w-4" />
@@ -611,18 +626,14 @@ function NewSaleForm({
             const s = stock.find((x) => x.id === item.stockId)
             if (!s) return null
             const isBelowMin =
-              item.price !== "" &&
+              item.price !== '' &&
               new BigNumber(item.price || 0).lt(s.item.minimumSellPriceUgx)
             const decQty = () =>
-              updateCart(
-                item.stockId,
-                "qty",
-                String(Math.max(1, item.qty - 1)),
-              )
+              updateCart(item.stockId, 'qty', String(Math.max(1, item.qty - 1)))
             const incQty = () =>
               updateCart(
                 item.stockId,
-                "qty",
+                'qty',
                 String(Math.min(s.quantityOnHand, item.qty + 1)),
               )
             return (
@@ -631,9 +642,7 @@ function NewSaleForm({
                 className="space-y-3 rounded-lg border p-3"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-sm font-medium">
-                    {itemLabel(s)}
-                  </p>
+                  <p className="truncate text-sm font-medium">{itemLabel(s)}</p>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -667,7 +676,7 @@ function NewSaleForm({
                         className="h-11 w-16 rounded-none border-x-0 text-center text-base"
                         value={item.qty}
                         onChange={(e) =>
-                          updateCart(item.stockId, "qty", e.target.value)
+                          updateCart(item.stockId, 'qty', e.target.value)
                         }
                       />
                       <Button
@@ -692,9 +701,7 @@ function NewSaleForm({
                       roundTo={50}
                       className="h-11 text-base"
                       value={item.price}
-                      onChange={(val) =>
-                        updateCart(item.stockId, "price", val)
-                      }
+                      onChange={(val) => updateCart(item.stockId, 'price', val)}
                       placeholder="0"
                     />
                   </div>
@@ -702,7 +709,7 @@ function NewSaleForm({
                 {isBelowMin && (
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
-                      Reason for selling below{" "}
+                      Reason for selling below{' '}
                       {formatUgx(s.item.minimumSellPriceUgx)}
                     </Label>
                     <Input
@@ -711,7 +718,7 @@ function NewSaleForm({
                       onChange={(e) =>
                         updateCart(
                           item.stockId,
-                          "belowMinimumReason",
+                          'belowMinimumReason',
                           e.target.value,
                         )
                       }
@@ -737,7 +744,7 @@ function NewSaleForm({
             <Label>Payment</Label>
             <Select
               value={paymentMethod}
-              onValueChange={(v) => setPaymentMethod(v as "cash" | "bank")}
+              onValueChange={(v) => setPaymentMethod(v as 'cash' | 'bank')}
             >
               <SelectTrigger className="h-11 w-32">
                 <SelectValue />
@@ -762,10 +769,12 @@ function NewSaleForm({
 
         <Button
           className="h-12 w-full text-base"
-          onClick={() => { void handleSubmit() }}
+          onClick={() => {
+            void handleSubmit()
+          }}
           disabled={pending || cart.length === 0}
         >
-          {pending ? "Recording..." : "Record Sale"}
+          {pending ? 'Recording...' : 'Record Sale'}
         </Button>
       </div>
     </div>

@@ -1,30 +1,27 @@
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import { stores, shops } from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { stores, shops } from '#/db/schema'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 // ── Store (single warehouse) ──────────────────────────────────────
 
 export const getStore = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  await requireSessionAndRole(['admin', 'supervisor'])
 
   const store = await db.query.stores.findFirst()
   return store ?? null
 })
 
 export const ensureStore = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin"])
+  await requireSessionAndRole(['admin'])
 
   let store = await db.query.stores.findFirst()
   if (!store) {
     ;[store] = await db
       .insert(stores)
-      .values({ name: "Main Warehouse" })
+      .values({ name: 'Main Warehouse' })
       .returning()
   }
   return store
@@ -39,25 +36,21 @@ const updateStoreInput = z.object({
 export const updateStore = createServerFn()
   .inputValidator(updateStoreInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const { id, ...fields } = data
-    const store = (await db
-      .update(stores)
-      .set(fields)
-      .where(eq(stores.id, id))
-      .returning()).at(0)
-    if (!store) throw new Error("Store not found")
+    const store = (
+      await db.update(stores).set(fields).where(eq(stores.id, id)).returning()
+    ).at(0)
+    if (!store) throw new Error('Store not found')
     return store
   })
 
 // ── Shops (multiple retail locations) ─────────────────────────────
 
 export const listShops = createServerFn().handler(async () => {
-  const session = await requireSession()
   // Sales reps need the shop list to record sales / view their sales history.
-  requireRole(session, ["admin", "supervisor", "sales"])
+  await requireSessionAndRole(['admin', 'supervisor', 'sales'])
 
   return db.select().from(shops).orderBy(shops.name)
 })
@@ -71,8 +64,7 @@ const createShopInput = z.object({
 export const createShop = createServerFn()
   .inputValidator(createShopInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const [shop] = await db.insert(shops).values(data).returning()
     return shop
@@ -88,15 +80,12 @@ const updateShopInput = z.object({
 export const updateShop = createServerFn()
   .inputValidator(updateShopInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const { id, ...fields } = data
-    const shop = (await db
-      .update(shops)
-      .set(fields)
-      .where(eq(shops.id, id))
-      .returning()).at(0)
-    if (!shop) throw new Error("Shop not found")
+    const shop = (
+      await db.update(shops).set(fields).where(eq(shops.id, id)).returning()
+    ).at(0)
+    if (!shop) throw new Error('Shop not found')
     return shop
   })

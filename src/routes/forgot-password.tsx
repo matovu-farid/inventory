@@ -1,17 +1,17 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
-import { useState } from "react"
-import { Logo } from "#/components/logo"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { Label } from "#/components/ui/label"
-import { authClient } from "#/lib/auth-client"
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { useState } from 'react'
+import { Logo } from '#/components/logo'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { Label } from '#/components/ui/label'
+import { authClient } from '#/lib/auth-client'
 
-export const Route = createFileRoute("/forgot-password")({
+export const Route = createFileRoute('/forgot-password')({
   component: ForgotPasswordPage,
 })
 
 function ForgotPasswordPage() {
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [pending, setPending] = useState(false)
 
@@ -46,11 +46,15 @@ function ForgotPasswordPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl bg-white p-6" style={{ boxShadow: "var(--shadow-lg)" }}>
+        <div
+          className="rounded-2xl bg-white p-6"
+          style={{ boxShadow: 'var(--shadow-lg)' }}
+        >
           {submitted ? (
             <div className="text-center">
               <p className="text-[14px] text-foreground">
-                If an account exists for that email, we've sent reset instructions.
+                If an account exists for that email, we've sent reset
+                instructions.
               </p>
               <Link
                 to="/login"
@@ -60,7 +64,12 @@ function ForgotPasswordPage() {
               </Link>
             </div>
           ) : (
-            <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
+            <form
+              onSubmit={(e) => {
+                void handleSubmit(e)
+              }}
+              className="space-y-4"
+            >
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-[13px]">
                   Email
@@ -80,7 +89,7 @@ function ForgotPasswordPage() {
                 className="h-10 w-full rounded-xl text-[13px] font-semibold"
                 disabled={pending}
               >
-                {pending ? "Sending..." : "Send reset link"}
+                {pending ? 'Sending...' : 'Send reset link'}
               </Button>
             </form>
           )}
@@ -88,8 +97,11 @@ function ForgotPasswordPage() {
 
         {!submitted && (
           <p className="mt-6 text-center text-[13px] text-muted-foreground">
-            Remembered it?{" "}
-            <Link to="/login" className="font-medium text-primary hover:underline">
+            Remembered it?{' '}
+            <Link
+              to="/login"
+              className="font-medium text-primary hover:underline"
+            >
               Sign in
             </Link>
           </p>

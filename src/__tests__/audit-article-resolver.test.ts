@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest"
-import { db } from "#/db"
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { db } from '#/db'
 import {
   items,
   itemColors,
@@ -7,78 +7,95 @@ import {
   supplyRoutes,
   supplyRouteLines,
   user,
-} from "#/db/schema"
-import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
-import { eq } from "drizzle-orm"
+} from '#/db/schema'
+import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
+import { eq } from 'drizzle-orm'
 
-const USER_ID = "00000000-0000-0000-0000-0000000000ac"
-const ART_A = "ART-RES-A"
-const ART_B = "ART-RES-B"
+const USER_ID = '00000000-0000-0000-0000-0000000000ac'
+const ART_A = 'ART-RES-A'
+const ART_B = 'ART-RES-B'
 
 const ids: Record<string, string> = {}
 
 beforeAll(async () => {
-  await db.insert(user).values({
-    id: USER_ID,
-    name: "Article Resolver Test",
-    email: `${USER_ID}@test.local`,
-    emailVerified: true,
-    role: "admin",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }).onConflictDoNothing()
+  await db
+    .insert(user)
+    .values({
+      id: USER_ID,
+      name: 'Article Resolver Test',
+      email: `${USER_ID}@test.local`,
+      emailVerified: true,
+      role: 'admin',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .onConflictDoNothing()
 
   const [pa] = await db
     .insert(items)
-    .values({ articleNumber: ART_A, name: "A", category: "Test" })
+    .values({ articleNumber: ART_A, name: 'A', category: 'Test' })
     .returning()
   const [pb] = await db
     .insert(items)
-    .values({ articleNumber: ART_B, name: "B", category: "Test" })
+    .values({ articleNumber: ART_B, name: 'B', category: 'Test' })
     .returning()
   ids.productA = pa.id
   ids.productB = pb.id
 
   const [pca] = await db
     .insert(itemColors)
-    .values({ itemId: pa.id, colorName: "Red", colorHex: "#f00" })
+    .values({ itemId: pa.id, colorName: 'Red', colorHex: '#f00' })
     .returning()
   ids.pcA = pca.id
 
-  const [sup] = await db.insert(suppliers).values({ name: "Resolver Test Supplier", type: "local" }).returning()
+  const [sup] = await db
+    .insert(suppliers)
+    .values({ name: 'Resolver Test Supplier', type: 'local' })
+    .returning()
   ids.supplierId = sup.id
-  const [route] = await db.insert(supplyRoutes).values({ name: "Resolver Route" }).returning()
+  const [route] = await db
+    .insert(supplyRoutes)
+    .values({ name: 'Resolver Route' })
+    .returning()
   ids.routeId = route.id
 
-  const [sriA] = await db.insert(supplyRouteLines).values({
-    supplyRouteId: route.id,
-    supplierId: sup.id,
-    itemId: pa.id,
-    colorId: pca.id,
-    size: "M",
-    quantity: 10,
-    unitPriceForeign: "10",
-    totalAmountForeign: "100",
-    totalCostUgx: "1000",
-  }).returning()
+  const [sriA] = await db
+    .insert(supplyRouteLines)
+    .values({
+      supplyRouteId: route.id,
+      supplierId: sup.id,
+      itemId: pa.id,
+      colorId: pca.id,
+      size: 'M',
+      quantity: 10,
+      unitPriceForeign: '10',
+      totalAmountForeign: '100',
+      totalCostUgx: '1000',
+    })
+    .returning()
   ids.sriA = sriA.id
 
-  const [sriA2] = await db.insert(supplyRouteLines).values({
-    supplyRouteId: route.id,
-    supplierId: sup.id,
-    itemId: pa.id,
-    colorId: pca.id,
-    size: "L",
-    quantity: 5,
-    unitPriceForeign: "10",
-    totalAmountForeign: "50",
-    totalCostUgx: "500",
-  }).returning()
+  const [sriA2] = await db
+    .insert(supplyRouteLines)
+    .values({
+      supplyRouteId: route.id,
+      supplierId: sup.id,
+      itemId: pa.id,
+      colorId: pca.id,
+      size: 'L',
+      quantity: 5,
+      unitPriceForeign: '10',
+      totalAmountForeign: '50',
+      totalCostUgx: '500',
+    })
+    .returning()
   ids.sriA2 = sriA2.id
 })
 
 afterAll(async () => {
-  await db.delete(supplyRouteLines).where(eq(supplyRouteLines.supplyRouteId, ids.routeId))
+  await db
+    .delete(supplyRouteLines)
+    .where(eq(supplyRouteLines.supplyRouteId, ids.routeId))
   await db.delete(supplyRoutes).where(eq(supplyRoutes.id, ids.routeId))
   await db.delete(suppliers).where(eq(suppliers.id, ids.supplierId))
   await db.delete(itemColors).where(eq(itemColors.itemId, ids.productA))
@@ -87,12 +104,12 @@ afterAll(async () => {
   await db.delete(user).where(eq(user.id, USER_ID))
 })
 
-describe("resolveArticleNumbersForAudit", () => {
-  it("resolves store.receiveGoods → article numbers of all route items", async () => {
+describe('resolveArticleNumbersForAudit', () => {
+  it('resolves store.receiveGoods → article numbers of all route items', async () => {
     const out = await db.transaction(async (tx) =>
       resolveArticleNumbersForAudit(tx, {
-        action: "store.receiveGoods",
-        entityType: "supply_route",
+        action: 'store.receiveGoods',
+        entityType: 'supply_route',
         entityId: ids.routeId,
         metadata: null,
       }),
@@ -100,23 +117,23 @@ describe("resolveArticleNumbersForAudit", () => {
     expect(out).toContain(ART_A)
   })
 
-  it("returns empty array for unknown actions", async () => {
+  it('returns empty array for unknown actions', async () => {
     const out = await db.transaction(async (tx) =>
       resolveArticleNumbersForAudit(tx, {
-        action: "unknown.action",
-        entityType: "x",
-        entityId: "y",
+        action: 'unknown.action',
+        entityType: 'x',
+        entityId: 'y',
         metadata: null,
       }),
     )
     expect(out).toEqual([])
   })
 
-  it("dedupes article numbers", async () => {
+  it('dedupes article numbers', async () => {
     const out = await db.transaction(async (tx) =>
       resolveArticleNumbersForAudit(tx, {
-        action: "store.receiveGoods",
-        entityType: "supply_route",
+        action: 'store.receiveGoods',
+        entityType: 'supply_route',
         entityId: ids.routeId,
         metadata: null,
       }),
@@ -129,11 +146,11 @@ describe("resolveArticleNumbersForAudit", () => {
     expect(out).toEqual([ART_A])
   })
 
-  it("excludes articles not on this route", async () => {
+  it('excludes articles not on this route', async () => {
     const out = await db.transaction(async (tx) =>
       resolveArticleNumbersForAudit(tx, {
-        action: "store.receiveGoods",
-        entityType: "supply_route",
+        action: 'store.receiveGoods',
+        entityType: 'supply_route',
         entityId: ids.routeId,
         metadata: null,
       }),

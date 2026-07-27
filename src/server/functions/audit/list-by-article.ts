@@ -10,8 +10,7 @@
 // server-fn handlers.
 
 import { createServerFn } from '@tanstack/react-start'
-import { requireSession } from '#/server/middleware/auth'
-import { requireRole } from '#/server/middleware/rbac'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 import {
   listAuditLogByArticleInputSchema,
   queryAuditLogByArticle,
@@ -20,7 +19,6 @@ import {
 export const listAuditLogByArticle = createServerFn()
   .inputValidator(listAuditLogByArticleInputSchema)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin', 'supervisor'])
+    await requireSessionAndRole(['admin', 'supervisor'])
     return queryAuditLogByArticle(data)
   })

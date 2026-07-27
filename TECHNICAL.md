@@ -51,53 +51,53 @@ A single unified web application with role-based views, backed by a real-time sy
 
 ### 2.1 Application Layer
 
-| Concern | Technology | Package |
-|---------|-----------|---------|
-| Framework | TanStack Start | `@tanstack/react-start` |
-| Routing | TanStack Router (file-based) | `@tanstack/react-router` |
-| Server functions | TanStack Start server fns | Built-in |
-| UI components | shadcn/ui + Radix UI | `@radix-ui/*` |
-| Styling | Tailwind CSS v4 | `tailwindcss` |
-| Icons | Lucide React | `lucide-react` |
-| Forms | TanStack Form | `@tanstack/react-form` |
-| Tables | TanStack Table | `@tanstack/react-table` |
-| Validation | Zod | `zod` |
-| Env vars | T3 Env | `@t3-oss/env-core` |
-| PDF generation | React-PDF | `@react-pdf/renderer` |
-| Excel parsing (import) | SheetJS | `xlsx` |
-| Time-zone helpers | date-fns-tz | `date-fns-tz` |
-| Email (notifications) | Resend | `resend` |
+| Concern                | Technology                   | Package                  |
+| ---------------------- | ---------------------------- | ------------------------ |
+| Framework              | TanStack Start               | `@tanstack/react-start`  |
+| Routing                | TanStack Router (file-based) | `@tanstack/react-router` |
+| Server functions       | TanStack Start server fns    | Built-in                 |
+| UI components          | shadcn/ui + Radix UI         | `@radix-ui/*`            |
+| Styling                | Tailwind CSS v4              | `tailwindcss`            |
+| Icons                  | Lucide React                 | `lucide-react`           |
+| Forms                  | TanStack Form                | `@tanstack/react-form`   |
+| Tables                 | TanStack Table               | `@tanstack/react-table`  |
+| Validation             | Zod                          | `zod`                    |
+| Env vars               | T3 Env                       | `@t3-oss/env-core`       |
+| PDF generation         | React-PDF                    | `@react-pdf/renderer`    |
+| Excel parsing (import) | SheetJS                      | `xlsx`                   |
+| Time-zone helpers      | date-fns-tz                  | `date-fns-tz`            |
+| Email (notifications)  | Resend                       | `resend`                 |
 
 ### 2.2 Data Layer
 
-| Concern | Technology | Package |
-|---------|-----------|---------|
-| Database | Neon Postgres | `@neondatabase/serverless` |
-| ORM | Drizzle ORM | `drizzle-orm` |
-| Migrations | Drizzle Kit | `drizzle-kit` |
-| Client state | TanStack DB | `@tanstack/react-db` |
-| Real-time sync | ElectricSQL | `@electric-sql/client`, `@electric-sql/react` |
-| Electric adapter | TanStack Electric collection | `@tanstack/electric-db-collection` |
-| Precision math | BigNumber.js | `bignumber.js` |
+| Concern          | Technology                   | Package                                       |
+| ---------------- | ---------------------------- | --------------------------------------------- |
+| Database         | Neon Postgres                | `@neondatabase/serverless`                    |
+| ORM              | Drizzle ORM                  | `drizzle-orm`                                 |
+| Migrations       | Drizzle Kit                  | `drizzle-kit`                                 |
+| Client state     | TanStack DB                  | `@tanstack/react-db`                          |
+| Real-time sync   | ElectricSQL                  | `@electric-sql/client`, `@electric-sql/react` |
+| Electric adapter | TanStack Electric collection | `@tanstack/electric-db-collection`            |
+| Precision math   | BigNumber.js                 | `bignumber.js`                                |
 
 ### 2.3 Auth
 
-| Concern | Technology | Package |
-|---------|-----------|---------|
-| Authentication | Better Auth | `better-auth` |
-| Session format | JWT | Built into Better Auth |
-| Auth method | Email/password (invite-only) | Built-in |
+| Concern        | Technology                   | Package                |
+| -------------- | ---------------------------- | ---------------------- |
+| Authentication | Better Auth                  | `better-auth`          |
+| Session format | JWT                          | Built into Better Auth |
+| Auth method    | Email/password (invite-only) | Built-in               |
 
 ### 2.4 Infrastructure
 
-| Concern | Technology | Notes |
-|---------|-----------|-------|
-| App hosting | Cloudflare Workers | Via `@cloudflare/vite-plugin` + Wrangler |
-| Database | Neon Postgres | Free tier, managed backups |
-| Sync engine | ElectricSQL (self-hosted) | Docker on Hetzner VPS (`ssh node1`) |
-| Monitoring | Sentry | `@sentry/tanstackstart-react` |
-| CI/CD (app) | GitHub Actions | Deploy to Cloudflare on push |
-| CI/CD (Electric) | GitHub Actions | SSH deploy to node1, triggers only on compose file change |
+| Concern          | Technology                | Notes                                                     |
+| ---------------- | ------------------------- | --------------------------------------------------------- |
+| App hosting      | Cloudflare Workers        | Via `@cloudflare/vite-plugin` + Wrangler                  |
+| Database         | Neon Postgres             | Free tier, managed backups                                |
+| Sync engine      | ElectricSQL (self-hosted) | Docker on Hetzner VPS (`ssh node1`)                       |
+| Monitoring       | Sentry                    | `@sentry/tanstackstart-react`                             |
+| CI/CD (app)      | GitHub Actions            | Deploy to Cloudflare on push                              |
+| CI/CD (Electric) | GitHub Actions            | SSH deploy to node1, triggers only on compose file change |
 
 ---
 
@@ -150,33 +150,36 @@ User action (e.g., record a sale)
 ### 3.3 Optimistic Update Pattern
 
 ```typescript
-import { createCollection, createOptimisticAction } from "@tanstack/react-db"
-import { electricCollectionOptions, isChangeMessage } from "@tanstack/electric-db-collection"
+import { createCollection, createOptimisticAction } from '@tanstack/react-db'
+import {
+  electricCollectionOptions,
+  isChangeMessage,
+} from '@tanstack/electric-db-collection'
 
 // Define a collection synced via ElectricSQL
 const shopSalesCollection = createCollection(
   electricCollectionOptions({
-    id: "shop-sales",
+    id: 'shop-sales',
     schema: shopSaleSchema,
     shapeOptions: {
-      url: "/api/electric-proxy/shop_sales",
+      url: '/api/electric-proxy/shop_sales',
       params: {
-        where: `shop_id = '${userShopId}'`  // shape filter by user's shop
-      }
+        where: `shop_id = '${userShopId}'`, // shape filter by user's shop
+      },
     },
     getKey: (item) => item.id,
 
     onInsert: async ({ transaction }) => {
       const newSale = transaction.mutations[0].modified
-      const response = await fetch("/api/sales", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newSale)
+      const response = await fetch('/api/sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSale),
       })
       const { txid } = await response.json()
       return { txid }
-    }
-  })
+    },
+  }),
 )
 
 // Optimistic action — UI updates instantly, server confirms async
@@ -185,17 +188,17 @@ const recordSale = createOptimisticAction({
     shopSalesCollection.insert({
       id: crypto.randomUUID(),
       ...saleData,
-      saleDate: new Date()
+      saleDate: new Date(),
     })
   },
   mutationFn: async (saleData) => {
-    const response = await fetch("/api/sales", {
-      method: "POST",
-      body: JSON.stringify(saleData)
+    const response = await fetch('/api/sales', {
+      method: 'POST',
+      body: JSON.stringify(saleData),
     })
     const { txid } = await response.json()
     await shopSalesCollection.utils.awaitTxId(txid)
-  }
+  },
 })
 ```
 
@@ -207,20 +210,20 @@ Shapes define what data syncs to each client. Filtered by user role and location
 
 ### 4.1 Shape Definitions
 
-| Shape | Table | Filter | Synced To |
-|-------|-------|--------|-----------|
-| Store stock | `store_stock` | `store_id = ?` | Admin, Supervisor |
-| Shop stock | `shop_stock` | `shop_id = ?` | Admin, Supervisor, Sales (own shop) |
-| Shop sales | `shop_sales` | `shop_id = ?` | Admin, Supervisor, Sales (own shop) |
-| Shop sale items | `shop_sale_items` | via join to shop_sales | Same as shop sales |
-| Store transfers | `store_transfers` | `shop_id = ?` or all | Admin, Supervisor |
-| Transfer items | `store_transfer_items` | via join to transfers | Same as transfers |
-| Suppliers | `suppliers` | none (all) | Admin, Supervisor |
-| Supply routes | `supply_routes` | none (all) | Admin, Supervisor |
-| Supply route items | `supply_route_items` | `supply_route_id = ?` | Admin, Supervisor |
-| Shops | `shops` | none (all) | All roles |
-| Bank accounts | `bank_accounts` | none (all) | Admin, Supervisor |
-| Stock takes | `stock_takes` | `location_id = ?` | Admin, Supervisor |
+| Shape              | Table                  | Filter                 | Synced To                           |
+| ------------------ | ---------------------- | ---------------------- | ----------------------------------- |
+| Store stock        | `store_stock`          | `store_id = ?`         | Admin, Supervisor                   |
+| Shop stock         | `shop_stock`           | `shop_id = ?`          | Admin, Supervisor, Sales (own shop) |
+| Shop sales         | `shop_sales`           | `shop_id = ?`          | Admin, Supervisor, Sales (own shop) |
+| Shop sale items    | `shop_sale_items`      | via join to shop_sales | Same as shop sales                  |
+| Store transfers    | `store_transfers`      | `shop_id = ?` or all   | Admin, Supervisor                   |
+| Transfer items     | `store_transfer_items` | via join to transfers  | Same as transfers                   |
+| Suppliers          | `suppliers`            | none (all)             | Admin, Supervisor                   |
+| Supply routes      | `supply_routes`        | none (all)             | Admin, Supervisor                   |
+| Supply route items | `supply_route_items`   | `supply_route_id = ?`  | Admin, Supervisor                   |
+| Shops              | `shops`                | none (all)             | All roles                           |
+| Bank accounts      | `bank_accounts`        | none (all)             | Admin, Supervisor                   |
+| Stock takes        | `stock_takes`          | `location_id = ?`      | Admin, Supervisor                   |
 
 ### 4.2 Data NOT Synced (Server-Side Only)
 
@@ -239,23 +242,22 @@ The app proxies ElectricSQL requests to inject auth and filter shapes:
 // src/routes/api/electric-proxy/[table].ts
 import { createServerFn } from '@tanstack/react-start'
 
-export const GET = createServerFn()
-  .handler(async ({ request }) => {
-    const jwt = await verifyJWT(request)
-    const table = getParam('table')
+export const GET = createServerFn().handler(async ({ request }) => {
+  const jwt = await verifyJWT(request)
+  const table = getParam('table')
 
-    // Add role-based where clause to shape request
-    const shapeFilter = getShapeFilter(table, jwt.role, jwt.shopId)
+  // Add role-based where clause to shape request
+  const shapeFilter = getShapeFilter(table, jwt.role, jwt.shopId)
 
-    // Proxy to ElectricSQL with filter
-    const electricUrl = `${ELECTRIC_URL}/v1/shape`
-    const response = await fetch(electricUrl, {
-      headers: { ...request.headers },
-      params: { table, where: shapeFilter }
-    })
-
-    return response
+  // Proxy to ElectricSQL with filter
+  const electricUrl = `${ELECTRIC_URL}/v1/shape`
+  const response = await fetch(electricUrl, {
+    headers: { ...request.headers },
+    params: { table, where: shapeFilter },
   })
+
+  return response
+})
 ```
 
 ---
@@ -431,8 +433,8 @@ Adapted from the money-lending project's `postJournalEntry()`:
 interface JournalEntryParams {
   entries: Array<{
     type: 'debit' | 'credit'
-    category: string        // category name
-    amount: string          // BigNumber string
+    category: string // category name
+    amount: string // BigNumber string
   }>
   referenceType: string
   referenceId: string
@@ -445,20 +447,25 @@ interface JournalEntryParams {
   description?: string
 }
 
-export async function postJournalEntry(tx: Transaction, params: JournalEntryParams) {
+export async function postJournalEntry(
+  tx: Transaction,
+  params: JournalEntryParams,
+) {
   const journalGroupId = crypto.randomUUID()
 
   // Validate: total debits must equal total credits
   const totalDebits = params.entries
-    .filter(e => e.type === 'debit')
+    .filter((e) => e.type === 'debit')
     .reduce((sum, e) => sum.plus(e.amount), BigNumber(0))
 
   const totalCredits = params.entries
-    .filter(e => e.type === 'credit')
+    .filter((e) => e.type === 'credit')
     .reduce((sum, e) => sum.plus(e.amount), BigNumber(0))
 
   if (!totalDebits.eq(totalCredits)) {
-    throw new Error(`Journal entry unbalanced: DR ${totalDebits} != CR ${totalCredits}`)
+    throw new Error(
+      `Journal entry unbalanced: DR ${totalDebits} != CR ${totalCredits}`,
+    )
   }
 
   // Insert all entries with the same journalGroupId
@@ -501,7 +508,7 @@ export async function reverseJournalEntry(
   recordedBy: string,
 ) {
   const original = await tx.query.transactions.findMany({
-    where: eq(transactions.journalGroupId, originalJournalGroupId)
+    where: eq(transactions.journalGroupId, originalJournalGroupId),
   })
   if (original.length === 0) throw new Error('Journal group not found')
   if (original[0].reversedByJournalGroupId) {
@@ -524,7 +531,8 @@ export async function reverseJournalEntry(
     })
   }
 
-  await tx.update(transactions)
+  await tx
+    .update(transactions)
     .set({ reversedByJournalGroupId: reversalGroupId })
     .where(eq(transactions.journalGroupId, originalJournalGroupId))
 
@@ -547,21 +555,24 @@ export async function getCategoryBalance(
   categoryName: string,
   locationType: 'store' | 'shop',
   locationId: string,
-  asOf?: Date
+  asOf?: Date,
 ): Promise<BigNumber> {
   const category = await getCategoryByName(db, categoryName)
 
-  const rows = await db.select({
-    type: transactions.type,
-    total: sql<string>`sum(${transactions.amount})`
-  })
+  const rows = await db
+    .select({
+      type: transactions.type,
+      total: sql<string>`sum(${transactions.amount})`,
+    })
     .from(transactions)
-    .where(and(
-      eq(transactions.categoryId, category.id),
-      eq(transactions.locationType, locationType),
-      eq(transactions.locationId, locationId),
-      asOf ? lte(transactions.transactionDate, asOf) : undefined
-    ))
+    .where(
+      and(
+        eq(transactions.categoryId, category.id),
+        eq(transactions.locationType, locationType),
+        eq(transactions.locationId, locationId),
+        asOf ? lte(transactions.transactionDate, asOf) : undefined,
+      ),
+    )
     .groupBy(transactions.type)
 
   // Apply account type rules:
@@ -598,13 +609,16 @@ export const recordPayment = createServerFn()
       const openSales = await tx.query.shopSales.findMany({
         where: and(
           eq(shopSales.customerId, data.customerId),
-          inArray(shopSales.paymentStatus, ['open', 'partially_paid'])
+          inArray(shopSales.paymentStatus, ['open', 'partially_paid']),
         ),
         orderBy: asc(shopSales.saleDate),
       })
 
       let remaining = BigNumber(data.amount)
-      const [payment] = await tx.insert(customerPayments).values({ ...data }).returning()
+      const [payment] = await tx
+        .insert(customerPayments)
+        .values({ ...data })
+        .returning()
 
       for (const sale of openSales) {
         if (remaining.lte(0)) break
@@ -617,7 +631,8 @@ export const recordPayment = createServerFn()
         })
 
         const newBalance = BigNumber(sale.outstandingBalance).minus(apply)
-        await tx.update(shopSales)
+        await tx
+          .update(shopSales)
           .set({
             outstandingBalance: newBalance.toString(),
             paymentStatus: newBalance.eq(0) ? 'settled' : 'partially_paid',
@@ -634,8 +649,16 @@ export const recordPayment = createServerFn()
       // Single ledger entry for the whole payment: DR Cash/Bank / CR A/R
       await postJournalEntry(tx, {
         entries: [
-          { type: 'debit',  category: data.paymentMethod === 'bank' ? 'Bank' : 'Cash', amount: data.amount },
-          { type: 'credit', category: 'Accounts Receivable',                            amount: data.amount },
+          {
+            type: 'debit',
+            category: data.paymentMethod === 'bank' ? 'Bank' : 'Cash',
+            amount: data.amount,
+          },
+          {
+            type: 'credit',
+            category: 'Accounts Receivable',
+            amount: data.amount,
+          },
         ],
         referenceType: 'customer_payment',
         referenceId: payment.id,
@@ -657,26 +680,34 @@ Sensitive operations (price changes, role changes, credit-sale authorizations, w
 
 ```typescript
 // src/server/middleware/audit.ts
-export const withAudit = (action: string) => async (
-  tx: Transaction,
-  ctx: { actorUserId: string; entityType: string; entityId: string;
-         before?: unknown; after?: unknown; metadata?: unknown;
-         request: Request },
-) => {
-  await tx.insert(auditLogs).values({
-    id: crypto.randomUUID(),
-    actorUserId: ctx.actorUserId,
-    action,
-    entityType: ctx.entityType,
-    entityId: ctx.entityId,
-    before: ctx.before ?? null,
-    after: ctx.after ?? null,
-    metadata: ctx.metadata ?? null,
-    ipAddress: ctx.request.headers.get('CF-Connecting-IP') ?? null,
-    userAgent: ctx.request.headers.get('User-Agent') ?? null,
-    createdAt: new Date(),
-  })
-}
+export const withAudit =
+  (action: string) =>
+  async (
+    tx: Transaction,
+    ctx: {
+      actorUserId: string
+      entityType: string
+      entityId: string
+      before?: unknown
+      after?: unknown
+      metadata?: unknown
+      request: Request
+    },
+  ) => {
+    await tx.insert(auditLogs).values({
+      id: crypto.randomUUID(),
+      actorUserId: ctx.actorUserId,
+      action,
+      entityType: ctx.entityType,
+      entityId: ctx.entityId,
+      before: ctx.before ?? null,
+      after: ctx.after ?? null,
+      metadata: ctx.metadata ?? null,
+      ipAddress: ctx.request.headers.get('CF-Connecting-IP') ?? null,
+      userAgent: ctx.request.headers.get('User-Agent') ?? null,
+      createdAt: new Date(),
+    })
+  }
 ```
 
 The `audit_logs` table has no UPDATE or DELETE permissions granted at the database role level — append-only is enforced by the database, not just the application.
@@ -724,6 +755,7 @@ const stock = await tx.execute(sql`
 ```
 
 This applies to:
+
 - `recordSale`, `sellDamagedGoods` (decrement)
 - `confirmTransferReceipt`, `receiveReturnFromShop` (increment)
 - `markGoodsDamaged`, `writeOffDamagedGoods` (move/decrement)
@@ -850,8 +882,8 @@ A shared helper produces consistent cursor-paginated responses. Cursors are opaq
 // src/lib/pagination.ts
 export interface PaginationOptions {
   cursor?: string
-  limit?: number    // default 50, max 200
-  sort?: string     // "field:asc" | "field:desc"
+  limit?: number // default 50, max 200
+  sort?: string // "field:asc" | "field:desc"
 }
 
 export interface PaginatedResult<T> {
@@ -875,7 +907,10 @@ export async function paginate<T>(
   const hasMore = rows.length > limit
   const items = hasMore ? rows.slice(0, limit) : rows
   const nextCursor = hasMore
-    ? encodeCursor({ id: items.at(-1)!.id, sortValue: items.at(-1)![cursorColumn.name] })
+    ? encodeCursor({
+        id: items.at(-1)!.id,
+        sortValue: items.at(-1)![cursorColumn.name],
+      })
     : null
 
   return { items: items as T[], nextCursor }
@@ -902,6 +937,7 @@ Notification
 ```
 
 Triggers fire via:
+
 - **Inline emit** at the end of the originating server function (e.g., `recordSale` checks low-stock threshold after decrementing)
 - **Scheduled cron** (Cloudflare Workers cron triggers, every 15 min) for time-based checks: overdue credit sales, replication slot lag
 
@@ -911,7 +947,12 @@ export async function emitNotification(
   tx: Transaction,
   kind: string,
   audience: { roles?: Role[]; userIds?: string[] },
-  payload: { title: string; body: string; entityType?: string; entityId?: string },
+  payload: {
+    title: string
+    body: string
+    entityType?: string
+    entityId?: string
+  },
 ) {
   const recipients = await resolveAudience(tx, audience)
   for (const userId of recipients) {
@@ -974,9 +1015,9 @@ The import server function is **not exposed via Electric sync** and lives behind
 
 ```typescript
 interface JWTPayload {
-  sub: string          // userId
+  sub: string // userId
   role: 'admin' | 'supervisor' | 'sales'
-  shopId?: string      // only for sales personnel
+  shopId?: string // only for sales personnel
   email: string
   iat: number
   exp: number
@@ -989,11 +1030,11 @@ interface JWTPayload {
 // src/server/middleware/rbac.ts
 
 const ROUTE_PERMISSIONS: Record<string, Role[]> = {
-  '/supply/*':    ['admin', 'supervisor'],
-  '/store/*':     ['admin', 'supervisor'],
-  '/shop/*':      ['admin', 'supervisor', 'sales'],
-  '/reports/*':   ['admin', 'supervisor'],
-  '/settings/*':  ['admin'],
+  '/supply/*': ['admin', 'supervisor'],
+  '/store/*': ['admin', 'supervisor'],
+  '/shop/*': ['admin', 'supervisor', 'sales'],
+  '/reports/*': ['admin', 'supervisor'],
+  '/settings/*': ['admin'],
 }
 
 export async function requireRole(request: Request, roles: Role[]) {
@@ -1012,19 +1053,20 @@ export async function requireRole(request: Request, roles: Role[]) {
 // User clicks link → sets password → account confirmed
 // No self-registration
 
-export const inviteUser = createServerFn()
-  .handler(async ({ data, request }) => {
+export const inviteUser = createServerFn().handler(
+  async ({ data, request }) => {
     await requireRole(request, ['admin'])
 
     const invite = await auth.admin.createUser({
       email: data.email,
       role: data.role,
-      shopId: data.shopId,  // required for sales role
+      shopId: data.shopId, // required for sales role
       sendInviteEmail: true,
     })
 
     return invite
-  })
+  },
+)
 ```
 
 ---
@@ -1160,12 +1202,12 @@ src/
 
 ### 8.1 Infrastructure
 
-| Component | Host | Access |
-|-----------|------|--------|
-| **App** | Cloudflare Workers | Public URL |
-| **Database** | Neon Postgres | `DATABASE_URL` env var |
-| **ElectricSQL** | Hetzner VPS | `ssh node1`, Docker Compose |
-| **DNS / CDN** | Cloudflare | Manages domain + SSL |
+| Component       | Host               | Access                      |
+| --------------- | ------------------ | --------------------------- |
+| **App**         | Cloudflare Workers | Public URL                  |
+| **Database**    | Neon Postgres      | `DATABASE_URL` env var      |
+| **ElectricSQL** | Hetzner VPS        | `ssh node1`, Docker Compose |
+| **DNS / CDN**   | Cloudflare         | Manages domain + SSL        |
 
 ### 8.2 ElectricSQL Docker Compose
 
@@ -1177,12 +1219,12 @@ services:
     image: electricsql/electric:latest
     restart: always
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       DATABASE_URL: ${DATABASE_URL}
-      ELECTRIC_INSECURE: "false"
+      ELECTRIC_INSECURE: 'false'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/v1/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/v1/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1282,8 +1324,8 @@ npx drizzle-kit migrate    # apply to Neon
 {
   "vars": {
     "ELECTRIC_URL": "https://electric.yourdomain.com",
-    "BETTER_AUTH_URL": "https://app.yourdomain.com"
-  }
+    "BETTER_AUTH_URL": "https://app.yourdomain.com",
+  },
   // Secrets set via: wrangler secret put <NAME>
   // DATABASE_URL, BETTER_AUTH_SECRET, SENTRY_DSN
 }
@@ -1303,14 +1345,15 @@ Not committed to git. Managed manually on the server or via CI secrets.
 
 The app serves all three modules (Supply, Store, Shop) from a single responsive UI:
 
-| Route Group | Primary Device | Layout Strategy |
-|-------------|---------------|-----------------|
-| `/supply/*` | Desktop | Full-width tables, multi-column forms |
-| `/store/*` | Desktop | Data tables, transfer workflows |
-| `/shop/*` | Desktop + Tablet | Responsive — optimized for tablet POS use |
-| `/reports/*` | Desktop | Wide charts, full tables |
+| Route Group  | Primary Device   | Layout Strategy                           |
+| ------------ | ---------------- | ----------------------------------------- |
+| `/supply/*`  | Desktop          | Full-width tables, multi-column forms     |
+| `/store/*`   | Desktop          | Data tables, transfer workflows           |
+| `/shop/*`    | Desktop + Tablet | Responsive — optimized for tablet POS use |
+| `/reports/*` | Desktop          | Wide charts, full tables                  |
 
 Implementation approach:
+
 - Tailwind responsive utilities (`sm:`, `md:`, `lg:`)
 - Flexbox + CSS Grid for layout
 - Conditional component rendering based on screen size where needed
@@ -1351,13 +1394,13 @@ Implementation approach:
 
 ## 13. Backup & Disaster Recovery
 
-| Concern | Approach | Target |
-|---------|----------|--------|
-| Database backup | Neon PITR (built-in) | RPO ≤ 5 min |
-| Off-site export | Weekly `pg_dump` to Cloudflare R2 | Belt & braces |
-| App recovery | Re-deploy from CI on push | RTO ≤ 1 hour |
-| Sync recovery | `docker compose up -d` on `node1` (stateless) | RTO ≤ 15 min |
-| Replication slot health | Monitor Neon WAL slot lag; alert > 1 GB | Prevent WAL bloat |
+| Concern                 | Approach                                      | Target            |
+| ----------------------- | --------------------------------------------- | ----------------- |
+| Database backup         | Neon PITR (built-in)                          | RPO ≤ 5 min       |
+| Off-site export         | Weekly `pg_dump` to Cloudflare R2             | Belt & braces     |
+| App recovery            | Re-deploy from CI on push                     | RTO ≤ 1 hour      |
+| Sync recovery           | `docker compose up -d` on `node1` (stateless) | RTO ≤ 15 min      |
+| Replication slot health | Monitor Neon WAL slot lag; alert > 1 GB       | Prevent WAL bloat |
 
 The ledger and `audit_logs` are the system of record — both are retained indefinitely. Reference-entity soft deletes are also retained; physical deletion is never performed.
 

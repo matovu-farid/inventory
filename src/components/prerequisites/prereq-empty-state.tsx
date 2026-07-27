@@ -1,10 +1,10 @@
 // src/components/prerequisites/prereq-empty-state.tsx
-import { ClipboardList, ArrowRight } from "lucide-react"
-import { Link } from "@tanstack/react-router"
-import { Button } from "#/components/ui/button"
-import { Card, CardContent } from "#/components/ui/card"
-import { cn } from "#/lib/utils"
-import type { MissingPrereq } from "#/lib/prerequisites/types"
+import { ClipboardList, ArrowRight } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Button } from '#/components/ui/button'
+import { Card, CardContent } from '#/components/ui/card'
+import { cn } from '#/lib/utils'
+import type { MissingPrereq } from '#/lib/prerequisites/types'
 
 interface PrereqEmptyStateProps {
   items: MissingPrereq[]
@@ -28,7 +28,7 @@ type ItemWithMaybePageRef = MissingPrereq & {
 
 export function PrereqEmptyState({
   items,
-  heading = "Set up required",
+  heading = 'Set up required',
   subtitle,
   showPageLinks = false,
   className,
@@ -36,11 +36,11 @@ export function PrereqEmptyState({
   const sub =
     subtitle ??
     (items.length === 1
-      ? "One thing needs to be in place before you can use this page."
+      ? 'One thing needs to be in place before you can use this page.'
       : `${items.length} things need to be in place before you can use this page.`)
 
   return (
-    <Card className={cn("max-w-2xl", className)}>
+    <Card className={cn('max-w-2xl', className)}>
       <CardContent className="space-y-6 p-6">
         <div className="flex items-start gap-3">
           <div className="rounded-lg bg-primary/10 p-2 text-primary">
@@ -55,7 +55,7 @@ export function PrereqEmptyState({
         <ul className="space-y-3">
           {(items as ItemWithMaybePageRef[]).map((item) => (
             <li
-              key={`${item.id}-${item.pageHref ?? ""}`}
+              key={`${item.id}-${item.pageHref ?? ''}`}
               className="rounded-md border border-border/60 bg-muted/30 p-4"
             >
               <div className="flex items-start justify-between gap-4">
@@ -72,7 +72,7 @@ export function PrereqEmptyState({
                     to={item.pageHref}
                     className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-medium text-muted-foreground hover:text-foreground"
                   >
-                    Open {item.pageLabel ?? "page"}
+                    Open {item.pageLabel ?? 'page'}
                     <ArrowRight className="size-3" strokeWidth={1.75} />
                   </Link>
                 )}

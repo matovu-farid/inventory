@@ -1,12 +1,12 @@
-import "dotenv/config"
-import { db } from "../src/db"
-import { auditLogs, user } from "../src/db/schema"
-import { renderAuditDescription } from "../src/server/audit/descriptions"
-import { resolveArticleNumbersForAudit } from "../src/server/audit/article-numbers"
-import { eq, isNull, sql } from "drizzle-orm"
+import 'dotenv/config'
+import { db } from '../src/db'
+import { auditLogs, user } from '../src/db/schema'
+import { renderAuditDescription } from '../src/server/audit/descriptions'
+import { resolveArticleNumbersForAudit } from '../src/server/audit/article-numbers'
+import { eq, isNull, sql } from 'drizzle-orm'
 
 async function main() {
-  console.log("Backfilling audit logs...")
+  console.log('Backfilling audit logs...')
 
   const PAGE = 200
   let totalProcessed = 0
@@ -27,7 +27,7 @@ async function main() {
           .from(user)
           .where(eq(user.id, row.actorUserId))
           .limit(1)
-        const actorName = actorRow[0]?.name ?? "(unknown user)"
+        const actorName = actorRow[0]?.name ?? '(unknown user)'
 
         const articleNumbers = await resolveArticleNumbersForAudit(tx, {
           action: row.action,
@@ -66,7 +66,7 @@ async function main() {
 
 void main()
   .catch((err: unknown) => {
-    console.error("Backfill failed:", err)
+    console.error('Backfill failed:', err)
     process.exit(1)
   })
   .then(() => process.exit(0))

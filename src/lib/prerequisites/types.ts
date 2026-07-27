@@ -1,5 +1,5 @@
 // src/lib/prerequisites/types.ts
-export type PrereqSeverity = "hard" | "soft"
+export type PrereqSeverity = 'hard' | 'soft'
 
 export interface PrereqAction {
   /** Button label, e.g. "Go to Supply Routes" */

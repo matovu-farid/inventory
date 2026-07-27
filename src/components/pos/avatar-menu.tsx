@@ -1,5 +1,5 @@
-import { Link, useRouter } from "@tanstack/react-router"
-import { Receipt, PackageCheck, LogOut, User } from "lucide-react"
+import { Link, useRouter } from '@tanstack/react-router'
+import { Receipt, PackageCheck, LogOut, User } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,22 +7,28 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "#/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "#/components/ui/avatar"
-import { authClient } from "#/lib/auth-client"
+} from '#/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback } from '#/components/ui/avatar'
+import { authClient } from '#/lib/auth-client'
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/)
-  if (parts.length === 0) return "?"
+  if (parts.length === 0) return '?'
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-export function AvatarMenu({ userName, userEmail }: { userName: string; userEmail: string }) {
+export function AvatarMenu({
+  userName,
+  userEmail,
+}: {
+  userName: string
+  userEmail: string
+}) {
   const router = useRouter()
   async function handleLogout() {
     await authClient.signOut()
-    await router.navigate({ to: "/login" })
+    await router.navigate({ to: '/login' })
   }
   return (
     <DropdownMenu>
@@ -43,22 +49,24 @@ export function AvatarMenu({ userName, userEmail }: { userName: string; userEmai
         <DropdownMenuLabel>
           <div className="flex flex-col">
             <span className="truncate text-sm font-medium">{userName}</span>
-            <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {userEmail}
+            </span>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link to={"/shop/sales"}>
+          <Link to={'/shop/sales'}>
             <Receipt className="mr-2 size-4" /> Sales history
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to={"/shop"}>
+          <Link to={'/shop'}>
             <PackageCheck className="mr-2 size-4" /> Receive transfers
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to={"/settings"}>
+          <Link to={'/settings'}>
             <User className="mr-2 size-4" /> Account
           </Link>
         </DropdownMenuItem>

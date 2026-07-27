@@ -1,34 +1,33 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
-import { z } from "zod"
-import BigNumber from "bignumber.js"
-import { db } from "#/db"
+import { createServerFn } from '@tanstack/react-start'
+import { and, eq, inArray } from 'drizzle-orm'
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
+import { db } from '#/db'
 import {
   customerPayments,
   customerPaymentApplications,
   customers,
   shopSales,
-} from "#/db/schema"
+} from '#/db/schema'
 import {
   allocatePaymentFifo,
   computeNewSaleStatus,
-} from "#/lib/credit/payment-allocation"
-import { postJournalEntry } from "#/lib/accounting/ledger"
-import { nextDocumentNumber } from "#/lib/document-numbers-db"
-import { recordAuditLog } from "#/server/middleware/audit-store"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { OPEN_PAYMENT_STATUSES } from "#/lib/payment-status"
-import { depositCategoryFor } from "#/lib/payment-method"
-import { formatUgxTotal } from "#/lib/format"
-import { renderAuditDescription } from "#/server/audit/descriptions"
-import { getActorName } from "#/server/audit/actor"
+} from '#/lib/credit/payment-allocation'
+import { postJournalEntry } from '#/lib/accounting/ledger'
+import { nextDocumentNumber } from '#/lib/document-numbers-db'
+import { recordAuditLog } from '#/server/middleware/audit-store'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { OPEN_PAYMENT_STATUSES } from '#/lib/payment-status'
+import { depositCategoryFor } from '#/lib/payment-method'
+import { formatUgxTotal } from '#/lib/format'
+import { renderAuditDescription } from '#/server/audit/descriptions'
+import { getActorName } from '#/server/audit/actor'
 
 const recordPaymentInput = z.object({
   customerId: z.uuid(),
   shopId: z.uuid(),
   amount: z.string(),
-  paymentMethod: z.enum(["cash", "bank"]),
+  paymentMethod: z.enum(['cash', 'bank']),
   bankAccountId: z.uuid().optional(),
   notes: z.string().optional(),
 })
@@ -43,12 +42,15 @@ const recordPaymentInput = z.object({
 export const recordPayment = createServerFn()
   .inputValidator(recordPaymentInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor", "sales"])
+    const session = await requireSessionAndRole([
+      'admin',
+      'supervisor',
+      'sales',
+    ])
     const userId = session.user.id
 
     const amount = new BigNumber(data.amount)
-    if (amount.lte(0)) throw new Error("Payment amount must be positive")
+    if (amount.lte(0)) throw new Error('Payment amount must be positive')
 
     return db.transaction(async (tx) => {
       const customer = await tx.query.customers.findFirst({
@@ -81,7 +83,7 @@ export const recordPayment = createServerFn()
         )
       }
 
-      const docNumber = await nextDocumentNumber(tx, "PAY")
+      const docNumber = await nextDocumentNumber(tx, 'PAY')
       const [payment] = await tx
         .insert(customerPayments)
         .values({
@@ -123,19 +125,19 @@ export const recordPayment = createServerFn()
       await postJournalEntry(tx, {
         entries: [
           {
-            type: "debit",
+            type: 'debit',
             category: depositCategoryFor(data.paymentMethod),
             amount: amount.toFixed(2),
           },
           {
-            type: "credit",
-            category: "Accounts Receivable",
+            type: 'credit',
+            category: 'Accounts Receivable',
             amount: amount.toFixed(2),
           },
         ],
-        referenceType: "customer_payment",
+        referenceType: 'customer_payment',
         referenceId: payment.id,
-        locationType: "shop",
+        locationType: 'shop',
         locationId: data.shopId,
         depositLocation: data.paymentMethod,
         bankAccountId: data.bankAccountId,
@@ -147,10 +149,10 @@ export const recordPayment = createServerFn()
 
       await recordAuditLog(tx, {
         actorUserId: userId,
-        action: "customerPayment.record",
-        entityType: "customer_payment",
+        action: 'customerPayment.record',
+        entityType: 'customer_payment',
         entityId: payment.id,
-        description: renderAuditDescription("customerPayment.record", {
+        description: renderAuditDescription('customerPayment.record', {
           actorName,
           totalAmount: amount.toFixed(2),
           documentNumber: docNumber.formatted,
@@ -187,8 +189,7 @@ const writeOffBadDebtInput = z.object({
 export const writeOffBadDebt = createServerFn()
   .inputValidator(writeOffBadDebtInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    const session = await requireSessionAndRole(['admin'])
     const userId = session.user.id
 
     return db.transaction(async (tx) => {
@@ -196,10 +197,13 @@ export const writeOffBadDebt = createServerFn()
         where: eq(shopSales.id, data.saleId),
       })
       if (!sale) throw new Error(`Sale not found: ${data.saleId}`)
-      if (sale.paymentMethod !== "credit") {
-        throw new Error("Only credit sales can be written off as bad debt")
+      if (sale.paymentMethod !== 'credit') {
+        throw new Error('Only credit sales can be written off as bad debt')
       }
-      if (sale.paymentStatus === "settled" || sale.paymentStatus === "written_off") {
+      if (
+        sale.paymentStatus === 'settled' ||
+        sale.paymentStatus === 'written_off'
+      ) {
         throw new Error(
           `Sale ${sale.documentNumber ?? sale.id} is ${sale.paymentStatus}; cannot write off`,
         )
@@ -207,25 +211,33 @@ export const writeOffBadDebt = createServerFn()
 
       const remaining = new BigNumber(sale.outstandingBalance)
       if (remaining.lte(0)) {
-        throw new Error("No outstanding balance to write off")
+        throw new Error('No outstanding balance to write off')
       }
 
       await tx
         .update(shopSales)
         .set({
-          outstandingBalance: "0",
-          paymentStatus: "written_off",
+          outstandingBalance: '0',
+          paymentStatus: 'written_off',
         })
         .where(eq(shopSales.id, data.saleId))
 
       await postJournalEntry(tx, {
         entries: [
-          { type: "debit", category: "Bad Debt Expense", amount: remaining.toFixed(2) },
-          { type: "credit", category: "Accounts Receivable", amount: remaining.toFixed(2) },
+          {
+            type: 'debit',
+            category: 'Bad Debt Expense',
+            amount: remaining.toFixed(2),
+          },
+          {
+            type: 'credit',
+            category: 'Accounts Receivable',
+            amount: remaining.toFixed(2),
+          },
         ],
-        referenceType: "bad_debt_writeoff",
+        referenceType: 'bad_debt_writeoff',
         referenceId: data.saleId,
-        locationType: "shop",
+        locationType: 'shop',
         locationId: sale.shopId,
         recordedBy: userId,
         description: `Bad debt write-off: ${data.reason}`,
@@ -235,10 +247,10 @@ export const writeOffBadDebt = createServerFn()
 
       await recordAuditLog(tx, {
         actorUserId: userId,
-        action: "customerPayment.writeOff",
-        entityType: "shop_sale",
+        action: 'customerPayment.writeOff',
+        entityType: 'shop_sale',
         entityId: data.saleId,
-        description: renderAuditDescription("customerPayment.writeOff", {
+        description: renderAuditDescription('customerPayment.writeOff', {
           actorName,
           totalAmount: remaining.toFixed(2),
         }),
@@ -248,8 +260,8 @@ export const writeOffBadDebt = createServerFn()
           outstandingBalance: sale.outstandingBalance,
         },
         after: {
-          paymentStatus: "written_off",
-          outstandingBalance: "0",
+          paymentStatus: 'written_off',
+          outstandingBalance: '0',
         },
         metadata: {
           customerId: sale.customerId,

@@ -12,7 +12,7 @@ import {
   Section,
   Tailwind,
   Text,
-} from "@react-email/components"
+} from '@react-email/components'
 
 export type EmailLayoutProps = {
   preview: string
@@ -23,7 +23,7 @@ export type EmailLayoutProps = {
   ctaLabel: string
   ctaUrl: string
   note?: string
-  noteTone?: "info" | "warning"
+  noteTone?: 'info' | 'warning'
   footer?: string
 }
 
@@ -36,8 +36,8 @@ export function EmailLayout({
   ctaLabel,
   ctaUrl,
   note,
-  noteTone = "info",
-  footer = "If you did not request this, you can safely ignore this email.",
+  noteTone = 'info',
+  footer = 'If you did not request this, you can safely ignore this email.',
 }: EmailLayoutProps) {
   return (
     <Html>
@@ -58,7 +58,7 @@ export function EmailLayout({
                       className="rounded-[12px] block"
                     />
                   </td>
-                  <td valign="middle" style={{ paddingLeft: "16px" }}>
+                  <td valign="middle" style={{ paddingLeft: '16px' }}>
                     <Text className="text-white text-[18px] font-bold m-0 tracking-[-0.3px]">
                       Inventory Management
                     </Text>
@@ -92,9 +92,9 @@ export function EmailLayout({
               {note && (
                 <Text
                   className={
-                    noteTone === "warning"
-                      ? "text-amber-600 text-[13px] font-medium mb-4 mt-0"
-                      : "text-slate-500 text-[13px] mb-4 mt-0"
+                    noteTone === 'warning'
+                      ? 'text-amber-600 text-[13px] font-medium mb-4 mt-0'
+                      : 'text-slate-500 text-[13px] mb-4 mt-0'
                   }
                 >
                   {note}

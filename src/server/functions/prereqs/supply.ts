@@ -1,8 +1,8 @@
-import { createServerFn } from "@tanstack/react-start"
-import { sql } from "drizzle-orm"
-import { db } from "#/db"
-import { suppliers } from "#/db/schema"
-import { deriveSupplyPrereqs } from "#/lib/prerequisites/derive"
+import { createServerFn } from '@tanstack/react-start'
+import { sql } from 'drizzle-orm'
+import { db } from '#/db'
+import { suppliers } from '#/db/schema'
+import { deriveSupplyPrereqs } from '#/lib/prerequisites/derive'
 
 const supplierCountQuery = async () => {
   const row = await db

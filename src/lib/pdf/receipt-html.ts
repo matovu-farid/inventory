@@ -1,4 +1,4 @@
-import { formatUgx, formatUgxTotal } from "#/lib/format"
+import { formatUgx, formatUgxTotal } from '#/lib/format'
 
 interface SaleItemForReceipt {
   itemName: string
@@ -12,7 +12,7 @@ interface SaleForReceipt {
   saleDate: Date
   shopName: string
   totalAmount: string
-  paymentMethod: "cash" | "bank" | "credit"
+  paymentMethod: 'cash' | 'bank' | 'credit'
   customerName?: string | null
   clerkName?: string | null
   items: SaleItemForReceipt[]
@@ -24,8 +24,8 @@ interface SaleForReceipt {
  * Cloudflare Workers without bundle bloat.
  */
 export function renderSaleReceipt(sale: SaleForReceipt): string {
-  const dateStr = sale.saleDate.toLocaleString("en-UG", {
-    timeZone: "Africa/Kampala",
+  const dateStr = sale.saleDate.toLocaleString('en-UG', {
+    timeZone: 'Africa/Kampala',
   })
   const itemRows = sale.items
     .map(
@@ -38,21 +38,21 @@ export function renderSaleReceipt(sale: SaleForReceipt): string {
         </tr>
       `,
     )
-    .join("")
+    .join('')
 
   const customerLine = sale.customerName
     ? `<div><strong>Customer:</strong> ${escapeHtml(sale.customerName)}</div>`
-    : ""
+    : ''
 
   const clerkLine = sale.clerkName
     ? `<div><strong>Clerk:</strong> ${escapeHtml(sale.clerkName)}</div>`
-    : ""
+    : ''
 
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>${escapeHtml(sale.documentNumber ?? "Receipt")}</title>
+    <title>${escapeHtml(sale.documentNumber ?? 'Receipt')}</title>
     <style>
       /* Screen: A4-friendly preview */
       body { font-family: system-ui, sans-serif; margin: 24px; color: #111; max-width: 720px; }
@@ -92,7 +92,7 @@ export function renderSaleReceipt(sale: SaleForReceipt): string {
   <body>
     <h1>${escapeHtml(sale.shopName)}</h1>
     <div class="meta">
-      <div><strong>Receipt:</strong> ${escapeHtml(sale.documentNumber ?? "—")}</div>
+      <div><strong>Receipt:</strong> ${escapeHtml(sale.documentNumber ?? '—')}</div>
       <div><strong>Date:</strong> ${dateStr}</div>
       ${clerkLine}
       ${customerLine}
@@ -122,9 +122,9 @@ export function renderSaleReceipt(sale: SaleForReceipt): string {
 
 function escapeHtml(s: string): string {
   return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }

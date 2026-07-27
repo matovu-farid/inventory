@@ -10,8 +10,7 @@ import {
   storeStock,
   variants,
 } from '#/db/schema'
-import { requireSession } from '#/server/middleware/auth'
-import { requireRole } from '#/server/middleware/rbac'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { formatItemLabel } from '#/lib/items'
 
 const input = z.object({ shopId: z.uuid() })
@@ -19,8 +18,7 @@ const input = z.object({ shopId: z.uuid() })
 export const listShopRestockSuggestions = createServerFn()
   .inputValidator(input)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin', 'supervisor'])
+    await requireSessionAndRole(['admin', 'supervisor'])
 
     // Join open alerts (variant-keyed per #5) with the live shop_stock row
     // and the matching store_stock row (same variant in warehouse) so the

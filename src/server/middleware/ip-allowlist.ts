@@ -1,9 +1,9 @@
-import type { AppSession } from "#/lib/auth"
+import type { AppSession } from '#/lib/auth'
 import {
   isIpAllowlistEnabled,
   isIpAllowed,
   logBlockedAttempt,
-} from "#/lib/ip-allowlist"
+} from '#/lib/ip-allowlist'
 
 /**
  * Enforces the IP allowlist for non-admin roles.
@@ -22,16 +22,16 @@ export async function enforceIpAllowlist(
   path: string,
 ): Promise<void> {
   const role = session.user.role
-  if (role === "admin") return
+  if (role === 'admin') return
 
-  if (role !== "supervisor" && role !== "sales") return
+  if (role !== 'supervisor' && role !== 'sales') return
 
   const enabled = await isIpAllowlistEnabled()
   if (!enabled) return
 
   const allowed = ip ? await isIpAllowed(ip) : false
   if (!allowed) {
-    void logBlockedAttempt(session.user.id, ip ?? "unknown", path)
+    void logBlockedAttempt(session.user.id, ip ?? 'unknown', path)
     throw new Error(
       "Access blocked: this device or network isn't recognised. Contact your administrator.",
     )

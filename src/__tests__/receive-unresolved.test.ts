@@ -7,11 +7,11 @@
  * Pattern follows receiving-backdate.test.ts: mock auth/rbac, wrap calls
  * in runWithStartContext, read the DB to verify side effects.
  */
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest"
-import { runWithStartContext } from "@tanstack/start-storage-context"
-import { and, eq, isNull } from "drizzle-orm"
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
+import { runWithStartContext } from '@tanstack/start-storage-context'
+import { and, eq, isNull } from 'drizzle-orm'
 
-import { db } from "#/db"
+import { db } from '#/db'
 import {
   items,
   itemColors,
@@ -26,45 +26,48 @@ import {
   auditLogs,
   user,
   variants,
-} from "#/db/schema"
-import { receiveGoods } from "#/server/functions/store/receiving"
+} from '#/db/schema'
+import { receiveGoods } from '#/server/functions/store/receiving'
 
-const TEST_USER_ID = `00000000-0000-0000-0000-${Date.now().toString().slice(-12).padStart(12, "0")}`
+const TEST_USER_ID = `00000000-0000-0000-0000-${Date.now().toString().slice(-12).padStart(12, '0')}`
 const session = {
-  user: { id: TEST_USER_ID, role: "admin" as "admin" | "supervisor" },
+  user: { id: TEST_USER_ID, role: 'admin' as 'admin' | 'supervisor' },
 }
 
-vi.mock("#/server/middleware/auth", () => ({
+vi.mock('#/server/middleware/auth', () => ({
   requireSession: () => Promise.resolve(session),
 }))
-vi.mock("#/server/middleware/rbac", () => ({
+vi.mock('#/server/middleware/rbac', () => ({
   requireRole: (sess: { user: { role: string } }, roles: string[]) => {
     if (!roles.includes(sess.user.role)) {
-      throw new Error(`Forbidden: role ${sess.user.role} not in ${roles.join(",")}`)
+      throw new Error(
+        `Forbidden: role ${sess.user.role} not in ${roles.join(',')}`,
+      )
     }
   },
   hasRole: (sess: { user: { role: string } }, roles: string[]) =>
     roles.includes(sess.user.role),
+  requireSessionAndRole: () => Promise.resolve(session),
 }))
 
 const stubStartContext = {
   getRouter: (() => {
-    throw new Error("router not available in tests")
+    throw new Error('router not available in tests')
   }) as never,
-  request: new Request("http://localhost/test"),
+  request: new Request('http://localhost/test'),
   startOptions: { functionMiddleware: [] },
   contextAfterGlobalMiddlewares: {},
   executedRequestMiddlewares: new Set(),
-  handlerType: "serverFn" as const,
+  handlerType: 'serverFn' as const,
 }
 function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
   return runWithStartContext(stubStartContext, fn)
 }
 
 const REQUIRED_CATEGORIES = [
-  { name: "Inventory - Store", type: "asset" as const },
-  { name: "Cash", type: "asset" as const },
-  { name: "Inventory Loss", type: "expense" as const },
+  { name: 'Inventory - Store', type: 'asset' as const },
+  { name: 'Cash', type: 'asset' as const },
+  { name: 'Inventory Loss', type: 'expense' as const },
 ]
 
 const SUFFIX = `ur-${Date.now()}`
@@ -93,10 +96,10 @@ beforeAll(async () => {
     .insert(user)
     .values({
       id: TEST_USER_ID,
-      name: "Test Admin",
+      name: 'Test Admin',
       email: `test-ur-${TEST_USER_ID}@example.com`,
       emailVerified: true,
-      role: "admin",
+      role: 'admin',
     })
     .onConflictDoNothing()
 
@@ -108,7 +111,7 @@ beforeAll(async () => {
 
   const [sup] = await db
     .insert(suppliers)
-    .values({ name: `Supplier ${SUFFIX}`, type: "international" })
+    .values({ name: `Supplier ${SUFFIX}`, type: 'international' })
     .returning()
   supplierId = sup.id
 
@@ -117,8 +120,8 @@ beforeAll(async () => {
     .insert(items)
     .values({
       articleNumber: `AGG-A-${SUFFIX}`,
-      name: "Unresolved Polo",
-      category: "Test",
+      name: 'Unresolved Polo',
+      category: 'Test',
     })
     .returning()
   aggItemId = aggItem.id
@@ -127,8 +130,8 @@ beforeAll(async () => {
     .insert(supplyRoutes)
     .values({
       name: `Route Agg ${SUFFIX}`,
-      status: "in_transit",
-      departureDate: "2026-04-01",
+      status: 'in_transit',
+      departureDate: '2026-04-01',
     })
     .returning()
   aggRouteId = aggRoute.id
@@ -141,10 +144,10 @@ beforeAll(async () => {
       itemId: aggItemId,
       // colorId NULL, size NULL — aggregate procurement row
       quantity: 9,
-      unitPriceForeign: "49.00",
-      foreignCurrency: "RMB",
-      totalAmountForeign: "441.00",
-      totalCostUgx: "90000.00",
+      unitPriceForeign: '49.00',
+      foreignCurrency: 'RMB',
+      totalAmountForeign: '441.00',
+      totalCostUgx: '90000.00',
     })
     .returning()
   aggLineId = aggLine.id
@@ -154,29 +157,29 @@ beforeAll(async () => {
     .insert(items)
     .values({
       articleNumber: `RES-A-${SUFFIX}`,
-      name: "Resolved Polo",
-      category: "Test",
+      name: 'Resolved Polo',
+      category: 'Test',
     })
     .returning()
   resItemId = resItem.id
 
   const [resColor] = await db
     .insert(itemColors)
-    .values({ itemId: resItemId, colorName: "Red", colorHex: "#cf1a1a" })
+    .values({ itemId: resItemId, colorName: 'Red', colorHex: '#cf1a1a' })
     .returning()
   resColorId = resColor.id
 
   await db
     .insert(variants)
-    .values({ itemId: resItemId, colorId: resColorId, size: "L" })
+    .values({ itemId: resItemId, colorId: resColorId, size: 'L' })
     .onConflictDoNothing()
 
   const [resRoute] = await db
     .insert(supplyRoutes)
     .values({
       name: `Route Res ${SUFFIX}`,
-      status: "in_transit",
-      departureDate: "2026-04-01",
+      status: 'in_transit',
+      departureDate: '2026-04-01',
     })
     .returning()
   resRouteId = resRoute.id
@@ -188,12 +191,12 @@ beforeAll(async () => {
       supplierId,
       itemId: resItemId,
       colorId: resColorId,
-      size: "L",
+      size: 'L',
       quantity: 5,
-      unitPriceForeign: "30.00",
-      foreignCurrency: "RMB",
-      totalAmountForeign: "150.00",
-      totalCostUgx: "60000.00",
+      unitPriceForeign: '30.00',
+      foreignCurrency: 'RMB',
+      totalAmountForeign: '150.00',
+      totalCostUgx: '60000.00',
     })
     .returning()
   resLineId = resLine.id
@@ -201,8 +204,12 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // Tear down FK-safe order.
-  await db.delete(storeReceivings).where(eq(storeReceivings.supplyRouteLineId, aggLineId))
-  await db.delete(storeReceivings).where(eq(storeReceivings.supplyRouteLineId, resLineId))
+  await db
+    .delete(storeReceivings)
+    .where(eq(storeReceivings.supplyRouteLineId, aggLineId))
+  await db
+    .delete(storeReceivings)
+    .where(eq(storeReceivings.supplyRouteLineId, resLineId))
 
   await db.delete(storeStock).where(eq(storeStock.itemId, aggItemId))
   await db.delete(storeStock).where(eq(storeStock.itemId, resItemId))
@@ -223,8 +230,8 @@ afterAll(async () => {
   await db.delete(user).where(eq(user.id, TEST_USER_ID))
 })
 
-describe("receiveGoods — unresolved lines", () => {
-  it("creates a store_stock row with variant_id NULL and itemId set", async () => {
+describe('receiveGoods — unresolved lines', () => {
+  it('creates a store_stock row with variant_id NULL and itemId set', async () => {
     await callServerFn(() =>
       receiveGoods({
         data: {
@@ -245,7 +252,7 @@ describe("receiveGoods — unresolved lines", () => {
     expect(rows[0].supplyRouteLineId).toBe(aggLineId)
   })
 
-  it("creates a variant-keyed store_stock row when color and size present", async () => {
+  it('creates a variant-keyed store_stock row when color and size present', async () => {
     await callServerFn(() =>
       receiveGoods({
         data: {
@@ -261,7 +268,7 @@ describe("receiveGoods — unresolved lines", () => {
     expect(rows).toHaveLength(1)
     const variantId = rows[0].variantId
     if (variantId === null) {
-      throw new Error("expected variantId to be non-null")
+      throw new Error('expected variantId to be non-null')
     }
     expect(rows[0].quantityOnHand).toBe(5)
     expect(rows[0].supplyRouteLineId).toBe(resLineId)
@@ -271,6 +278,6 @@ describe("receiveGoods — unresolved lines", () => {
       where: eq(variants.id, variantId),
     })
     expect(v?.colorId).toBe(resColorId)
-    expect(v?.size).toBe("L")
+    expect(v?.size).toBe('L')
   })
 })

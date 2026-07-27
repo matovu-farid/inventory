@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { eq } from 'drizzle-orm'
 import {
   items,
   itemColors,
@@ -11,10 +11,8 @@ import {
   storeReturnLines,
   stockTakeLines,
   variants,
-} from "#/db/schema"
-import type { Database } from "#/db"
-
-type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0]
+} from '#/db/schema'
+import type { Tx } from '#/db'
 
 interface ResolverInput {
   action: string
@@ -36,7 +34,7 @@ export async function resolveArticleNumbersForAudit(
 type Resolver = (tx: Tx, input: ResolverInput) => Promise<string[]>
 
 const RESOLVERS: Partial<Record<string, Resolver>> = {
-  "store.receiveGoods": async (tx, { entityId }) => {
+  'store.receiveGoods': async (tx, { entityId }) => {
     const rows = await tx
       .select({ articleNumber: items.articleNumber })
       .from(supplyRouteLines)
@@ -45,20 +43,23 @@ const RESOLVERS: Partial<Record<string, Resolver>> = {
       .where(eq(supplyRouteLines.supplyRouteId, entityId))
     return rows.map((r) => r.articleNumber)
   },
-  "transfer.create": resolveByTransferId,
-  "transfer.receive": resolveByTransferId,
-  "sale.create": resolveBySaleId,
-  "shopReturn.create": resolveByShopReturnId,
-  "storeReturn.dispatch": resolveByStoreReturnId,
-  "storeReturn.receive": resolveByStoreReturnId,
-  "stockTake.reconcile": resolveByStockTakeId,
-  "stockTake.start": resolveByStockTakeId,
-  "stock.specify": resolveBySpecifyStock,
+  'transfer.create': resolveByTransferId,
+  'transfer.receive': resolveByTransferId,
+  'sale.create': resolveBySaleId,
+  'shopReturn.create': resolveByShopReturnId,
+  'storeReturn.dispatch': resolveByStoreReturnId,
+  'storeReturn.receive': resolveByStoreReturnId,
+  'stockTake.reconcile': resolveByStockTakeId,
+  'stockTake.start': resolveByStockTakeId,
+  'stock.specify': resolveBySpecifyStock,
 }
 
 // Stock tables now address inventory via `variant_id` (issue #4), so we
 // hop stock → variants → item_colors → items instead of stock → item_colors.
-async function resolveByTransferId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
+async function resolveByTransferId(
+  tx: Tx,
+  { entityId }: ResolverInput,
+): Promise<string[]> {
   const rows = await tx
     .select({ articleNumber: items.articleNumber })
     .from(storeTransferLines)
@@ -70,7 +71,10 @@ async function resolveByTransferId(tx: Tx, { entityId }: ResolverInput): Promise
   return rows.map((r) => r.articleNumber)
 }
 
-async function resolveBySaleId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
+async function resolveBySaleId(
+  tx: Tx,
+  { entityId }: ResolverInput,
+): Promise<string[]> {
   const rows = await tx
     .select({ articleNumber: items.articleNumber })
     .from(shopSaleLines)
@@ -82,7 +86,10 @@ async function resolveBySaleId(tx: Tx, { entityId }: ResolverInput): Promise<str
   return rows.map((r) => r.articleNumber)
 }
 
-async function resolveByShopReturnId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
+async function resolveByShopReturnId(
+  tx: Tx,
+  { entityId }: ResolverInput,
+): Promise<string[]> {
   const rows = await tx
     .select({ articleNumber: items.articleNumber })
     .from(shopReturnLines)
@@ -96,7 +103,10 @@ async function resolveByShopReturnId(tx: Tx, { entityId }: ResolverInput): Promi
 
 // storeReturnLines references shopStock (not storeStock) via shopStockId.
 // See src/db/schema/returns.ts:150 — storeReturnLines.shopStockId references shopStock.id.
-async function resolveByStoreReturnId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
+async function resolveByStoreReturnId(
+  tx: Tx,
+  { entityId }: ResolverInput,
+): Promise<string[]> {
   const rows = await tx
     .select({ articleNumber: items.articleNumber })
     .from(storeReturnLines)
@@ -135,7 +145,10 @@ async function resolveBySpecifyStock(
 // stockTakeLines has nullable storeStockId and shopStockId (no direct variantId).
 // Resolve by joining through either storeStock or shopStock, depending on which column is set.
 // Two queries unioned in JS — simpler than a CASE/COALESCE join. innerJoin skips NULL rows.
-async function resolveByStockTakeId(tx: Tx, { entityId }: ResolverInput): Promise<string[]> {
+async function resolveByStockTakeId(
+  tx: Tx,
+  { entityId }: ResolverInput,
+): Promise<string[]> {
   const storeRows = await tx
     .select({ articleNumber: items.articleNumber })
     .from(stockTakeLines)

@@ -1,4 +1,4 @@
-import { getSaleReceiptHtml } from "#/server/functions/shop/receipt"
+import { getSaleReceiptHtml } from '#/server/functions/shop/receipt'
 
 /**
  * Fetch a printable HTML receipt for the given sale and open the
@@ -15,9 +15,9 @@ import { getSaleReceiptHtml } from "#/server/functions/shop/receipt"
  */
 export async function printSaleReceipt(saleId: string): Promise<void> {
   const html = await getSaleReceiptHtml({ data: { saleId } })
-  const blob = new Blob([html], { type: "text/html" })
+  const blob = new Blob([html], { type: 'text/html' })
   const url = URL.createObjectURL(blob)
-  const win = window.open(url, "_blank", "width=400,height=640")
+  const win = window.open(url, '_blank', 'width=400,height=640')
   if (!win) {
     URL.revokeObjectURL(url)
     throw new Error(
@@ -25,7 +25,7 @@ export async function printSaleReceipt(saleId: string): Promise<void> {
     )
   }
   // Trigger print once the receipt window finishes loading.
-  win.addEventListener("load", () => {
+  win.addEventListener('load', () => {
     try {
       win.focus()
       win.print()
@@ -33,6 +33,6 @@ export async function printSaleReceipt(saleId: string): Promise<void> {
       // ignore — the receipt template renders its own Print button
     }
     // Release the Blob URL when the window is closed.
-    win.addEventListener("beforeunload", () => URL.revokeObjectURL(url))
+    win.addEventListener('beforeunload', () => URL.revokeObjectURL(url))
   })
 }

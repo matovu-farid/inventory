@@ -7,52 +7,56 @@ import {
   timestamp,
   index,
   unique,
-} from "drizzle-orm/pg-core"
-import { relations } from "drizzle-orm"
-import { user } from "./auth"
-import { items } from "./items"
-import { supplyRouteLines } from "./supply-routes"
-import { variants } from "./variants"
+} from 'drizzle-orm/pg-core'
+import { relations } from 'drizzle-orm'
+import { user } from './auth'
+import { items } from './items'
+import { supplyRouteLines } from './supply-routes'
+import { variants } from './variants'
 
-export const stores = pgTable("stores", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  location: text("location"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
+export const stores = pgTable('stores', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  location: text('location'),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
 })
 
 export const storeReceivings = pgTable(
-  "store_receivings",
+  'store_receivings',
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    storeId: uuid("store_id")
+    id: uuid('id').primaryKey().defaultRandom(),
+    storeId: uuid('store_id')
       .notNull()
-      .references(() => stores.id, { onDelete: "restrict" }),
+      .references(() => stores.id, { onDelete: 'restrict' }),
     // Renamed from `supply_route_item_id` in Phase 2 (#8) when the source
     // table was renamed `supply_route_items` → `supply_route_lines`.
-    supplyRouteLineId: uuid("supply_route_line_id")
+    supplyRouteLineId: uuid('supply_route_line_id')
       .notNull()
-      .references(() => supplyRouteLines.id, { onDelete: "restrict" }),
-    receivedDate: timestamp("received_date", { withTimezone: true }).notNull(),
-    quantityExpected: integer("quantity_expected").notNull(),
-    quantityReceived: integer("quantity_received").notNull(),
-    discrepancyNotes: text("discrepancy_notes"),
-    receivedBy: text("received_by")
+      .references(() => supplyRouteLines.id, { onDelete: 'restrict' }),
+    receivedDate: timestamp('received_date', { withTimezone: true }).notNull(),
+    quantityExpected: integer('quantity_expected').notNull(),
+    quantityReceived: integer('quantity_received').notNull(),
+    discrepancyNotes: text('discrepancy_notes'),
+    receivedBy: text('received_by')
       .notNull()
-      .references(() => user.id, { onDelete: "restrict" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .references(() => user.id, { onDelete: 'restrict' }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [
-    index("idx_sr_store").on(table.storeId),
-    index("idx_sr_line").on(table.supplyRouteLineId),
+    index('idx_sr_store').on(table.storeId),
+    index('idx_sr_line').on(table.supplyRouteLineId),
   ],
 )
 
@@ -71,40 +75,45 @@ export const storeReceivings = pgTable(
  * per-lot setting.
  */
 export const storeStock = pgTable(
-  "store_stock",
+  'store_stock',
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    storeId: uuid("store_id")
+    id: uuid('id').primaryKey().defaultRandom(),
+    storeId: uuid('store_id')
       .notNull()
-      .references(() => stores.id, { onDelete: "restrict" }),
-    itemId: uuid("item_id")
+      .references(() => stores.id, { onDelete: 'restrict' }),
+    itemId: uuid('item_id')
       .notNull()
-      .references(() => items.id, { onDelete: "restrict" }),
-    variantId: uuid("variant_id").references(() => variants.id, {
-      onDelete: "restrict",
+      .references(() => items.id, { onDelete: 'restrict' }),
+    variantId: uuid('variant_id').references(() => variants.id, {
+      onDelete: 'restrict',
     }),
     // Renamed from `supply_route_item_id` in Phase 2 (#8) when the source
     // table was renamed `supply_route_items` → `supply_route_lines`.
-    supplyRouteLineId: uuid("supply_route_line_id").references(
+    supplyRouteLineId: uuid('supply_route_line_id').references(
       () => supplyRouteLines.id,
-      { onDelete: "restrict" },
+      { onDelete: 'restrict' },
     ),
-    quantityOnHand: integer("quantity_on_hand").notNull().default(0),
-    costPerUnitUgx: numeric("cost_per_unit_ugx", { precision: 15, scale: 2 }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+    quantityOnHand: integer('quantity_on_hand').notNull().default(0),
+    costPerUnitUgx: numeric('cost_per_unit_ugx', {
+      precision: 15,
+      scale: 2,
+    }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [
-    index("idx_ss_store").on(table.storeId),
-    index("idx_ss_item").on(table.itemId),
-    index("idx_ss_line").on(table.supplyRouteLineId),
-    index("idx_ss_variant").on(table.variantId),
+    index('idx_ss_store').on(table.storeId),
+    index('idx_ss_item').on(table.itemId),
+    index('idx_ss_line').on(table.supplyRouteLineId),
+    index('idx_ss_variant').on(table.variantId),
     // Replaces the old uq_ss_variant. Postgres 15+ NULLS NOT DISTINCT
     // means at most one (store, item, NULL variant, line) row.
-    unique("uq_ss_store_item_variant_line")
+    unique('uq_ss_store_item_variant_line')
       .on(table.storeId, table.itemId, table.variantId, table.supplyRouteLineId)
       .nullsNotDistinct(),
   ],
@@ -116,20 +125,23 @@ export const storeRelations = relations(stores, ({ many }) => ({
   stock: many(storeStock),
 }))
 
-export const storeReceivingRelations = relations(storeReceivings, ({ one }) => ({
-  store: one(stores, {
-    fields: [storeReceivings.storeId],
-    references: [stores.id],
+export const storeReceivingRelations = relations(
+  storeReceivings,
+  ({ one }) => ({
+    store: one(stores, {
+      fields: [storeReceivings.storeId],
+      references: [stores.id],
+    }),
+    supplyRouteLine: one(supplyRouteLines, {
+      fields: [storeReceivings.supplyRouteLineId],
+      references: [supplyRouteLines.id],
+    }),
+    receivedByUser: one(user, {
+      fields: [storeReceivings.receivedBy],
+      references: [user.id],
+    }),
   }),
-  supplyRouteLine: one(supplyRouteLines, {
-    fields: [storeReceivings.supplyRouteLineId],
-    references: [supplyRouteLines.id],
-  }),
-  receivedByUser: one(user, {
-    fields: [storeReceivings.receivedBy],
-    references: [user.id],
-  }),
-}))
+)
 
 export const storeStockRelations = relations(storeStock, ({ one }) => ({
   store: one(stores, {

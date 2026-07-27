@@ -1,33 +1,35 @@
-import type { MissingPrereq, PrerequisiteResult } from "./types"
-import { SATISFIED } from "./types"
+import type { MissingPrereq, PrerequisiteResult } from './types'
+import { SATISFIED } from './types'
 
 // ---------- shared prereq builders ------------------------------------------
 
 const noShopsPrereq: MissingPrereq = Object.freeze({
-  id: "no-shops",
-  severity: "hard",
-  title: "No shops configured",
-  why: "Create at least one shop before you can use this page.",
-  actions: Object.freeze([{ label: "Go to Shop", href: "/shop" }] as const),
+  id: 'no-shops',
+  severity: 'hard',
+  title: 'No shops configured',
+  why: 'Create at least one shop before you can use this page.',
+  actions: Object.freeze([{ label: 'Go to Shop', href: '/shop' }] as const),
 })
 
 const noStoreStockPrereq: MissingPrereq = Object.freeze({
-  id: "no-store-stock",
-  severity: "hard",
-  title: "Warehouse has no stock",
-  why: "Receive goods from a supply route or set a warehouse opening balance first.",
+  id: 'no-store-stock',
+  severity: 'hard',
+  title: 'Warehouse has no stock',
+  why: 'Receive goods from a supply route or set a warehouse opening balance first.',
   actions: Object.freeze([
-    { label: "Receive Goods", href: "/store/receiving" },
-    { label: "Set Opening Balance", href: "/store/opening-balance" },
+    { label: 'Receive Goods', href: '/store/receiving' },
+    { label: 'Set Opening Balance', href: '/store/opening-balance' },
   ] as const),
 })
 
 const noSuppliersPrereq: MissingPrereq = Object.freeze({
-  id: "no-suppliers",
-  severity: "soft",
-  title: "No suppliers yet",
+  id: 'no-suppliers',
+  severity: 'soft',
+  title: 'No suppliers yet',
   why: "You'll need at least one supplier before you can add items to a route.",
-  actions: Object.freeze([{ label: "Go to Suppliers", href: "/supply/suppliers" }] as const),
+  actions: Object.freeze([
+    { label: 'Go to Suppliers', href: '/supply/suppliers' },
+  ] as const),
 })
 
 // ---------- per-page derive functions ---------------------------------------
@@ -45,11 +47,11 @@ export function deriveReceivingPrereqs(
     satisfied: true,
     missing: [
       {
-        id: "no-receivable-routes",
-        severity: "soft",
-        title: "No supply routes ready to receive",
+        id: 'no-receivable-routes',
+        severity: 'soft',
+        title: 'No supply routes ready to receive',
         why: "Nothing is in transit right now. When you mark a supply route 'in transit' or 'received', it will show up here for receiving.",
-        actions: [{ label: "Go to Supply Routes", href: "/supply" }],
+        actions: [{ label: 'Go to Supply Routes', href: '/supply' }],
       },
     ],
   }
@@ -88,11 +90,11 @@ export function deriveShopSalesPrereqs(
       satisfied: true,
       missing: [
         {
-          id: "no-sales-yet",
-          severity: "soft",
-          title: "No sales recorded yet",
-          why: "Record a sale at any shop and it will appear here.",
-          actions: [{ label: "Record a Sale", href: "/shop" }],
+          id: 'no-sales-yet',
+          severity: 'soft',
+          title: 'No sales recorded yet',
+          why: 'Record a sale at any shop and it will appear here.',
+          actions: [{ label: 'Record a Sale', href: '/shop' }],
         },
       ],
     }
@@ -124,13 +126,13 @@ export function deriveShopPrereqs(input: ShopPrereqInput): PrerequisiteResult {
       satisfied: true,
       missing: [
         {
-          id: "shop-empty",
-          severity: "soft",
-          title: "This shop has no stock yet",
-          why: "Transfer items from the warehouse or set a shop opening balance.",
+          id: 'shop-empty',
+          severity: 'soft',
+          title: 'This shop has no stock yet',
+          why: 'Transfer items from the warehouse or set a shop opening balance.',
           actions: [
-            { label: "Transfer from Warehouse", href: "/store/transfers" },
-            { label: "Set Opening Balance", href: "/shop/opening-balance" },
+            { label: 'Transfer from Warehouse', href: '/store/transfers' },
+            { label: 'Set Opening Balance', href: '/shop/opening-balance' },
           ],
         },
       ],
@@ -143,19 +145,21 @@ export interface StorePrereqInput {
   stockRowCount: number
 }
 
-export function deriveStorePrereqs(input: StorePrereqInput): PrerequisiteResult {
+export function deriveStorePrereqs(
+  input: StorePrereqInput,
+): PrerequisiteResult {
   if (input.stockRowCount === 0) {
     return {
       satisfied: true,
       missing: [
         {
-          id: "warehouse-empty",
-          severity: "soft",
-          title: "Warehouse is empty",
-          why: "Receive goods from a supply route or set an opening balance to seed stock.",
+          id: 'warehouse-empty',
+          severity: 'soft',
+          title: 'Warehouse is empty',
+          why: 'Receive goods from a supply route or set an opening balance to seed stock.',
           actions: [
-            { label: "Receive Goods", href: "/store/receiving" },
-            { label: "Set Opening Balance", href: "/store/opening-balance" },
+            { label: 'Receive Goods', href: '/store/receiving' },
+            { label: 'Set Opening Balance', href: '/store/opening-balance' },
           ],
         },
       ],

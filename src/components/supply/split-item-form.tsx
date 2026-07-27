@@ -1,14 +1,14 @@
-import * as React from "react"
-import { useState } from "react"
-import { X } from "lucide-react"
-import { Button } from "#/components/ui/button"
-import { FieldLabel } from "#/components/ui/field-label"
-import { MoneyInput } from "#/components/ui/money-input"
-import { VariantGrid } from "#/components/items/variant-grid"
-import { deriveSizes } from "#/lib/variants"
-import { getItemByArticle } from "#/server/functions/items/items"
-import { splitSupplyRouteItem } from "#/server/functions/supply/items"
-import type { ItemSummary } from "#/components/items/item-picker"
+import * as React from 'react'
+import { useState } from 'react'
+import { X } from 'lucide-react'
+import { Button } from '#/components/ui/button'
+import { FieldLabel } from '#/components/ui/field-label'
+import { MoneyInput } from '#/components/ui/money-input'
+import { VariantGrid } from '#/components/items/variant-grid'
+import { deriveSizes } from '#/lib/variants'
+import { getItemByArticle } from '#/server/functions/items/items'
+import { splitSupplyRouteItem } from '#/server/functions/supply/items'
+import type { ItemSummary } from '#/components/items/item-picker'
 
 export interface SplittableItem {
   id: string
@@ -34,8 +34,8 @@ export function SplitItemForm({
     item.itemColor?.item.articleNumber ?? item.product?.articleNumber
   const [product, setProduct] = useState<ItemSummary | undefined>()
   const [loading, setLoading] = useState(true)
-  const [mode, setMode] = useState<"colors" | "variants">(
-    item.itemColor ? "variants" : "variants",
+  const [mode, setMode] = useState<'colors' | 'variants'>(
+    item.itemColor ? 'variants' : 'variants',
   )
   const [colorQtys, setColorQtys] = useState<Record<string, number>>({})
   const [cellQtys, setCellQtys] = useState<Record<string, number>>({})
@@ -57,14 +57,10 @@ export function SplitItemForm({
   }, [articleNumber])
 
   if (loading) {
-    return (
-      <p className="text-sm text-muted-foreground">Loading product…</p>
-    )
+    return <p className="text-sm text-muted-foreground">Loading product…</p>
   }
   if (!product) {
-    return (
-      <p className="text-sm text-destructive">Could not load product</p>
-    )
+    return <p className="text-sm text-destructive">Could not load product</p>
   }
 
   // For color-only items, the color is already fixed.
@@ -76,14 +72,14 @@ export function SplitItemForm({
     size?: string
     quantity: number
   }> =
-    mode === "colors"
+    mode === 'colors'
       ? Object.entries(colorQtys)
           .filter(([, q]) => q > 0)
           .map(([colorId, q]) => ({ itemColorId: colorId, quantity: q }))
       : Object.entries(cellQtys)
           .filter(([, q]) => q > 0)
           .map(([key, q]) => {
-            const [itemColorId, size] = key.split("|")
+            const [itemColorId, size] = key.split('|')
             return { itemColorId, size, quantity: q }
           })
 
@@ -100,7 +96,7 @@ export function SplitItemForm({
       })
       onSuccess()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to split")
+      setError(e instanceof Error ? e.message : 'Failed to split')
     } finally {
       setPending(false)
     }
@@ -110,14 +106,14 @@ export function SplitItemForm({
     <div className="space-y-4">
       <div className="rounded-md bg-muted/40 p-3 text-sm">
         <p>
-          <span className="font-medium">{product.articleNumber}</span> —{" "}
+          <span className="font-medium">{product.articleNumber}</span> —{' '}
           {product.name}
         </p>
         <p className="text-muted-foreground">
           Original quantity: <span className="font-mono">{item.quantity}</span>
           {lockedColor ? (
             <>
-              {" · Color locked to "}
+              {' · Color locked to '}
               <span className="font-medium">{lockedColor.colorName}</span>
             </>
           ) : null}
@@ -130,24 +126,24 @@ export function SplitItemForm({
           <div className="inline-flex rounded-md border p-0.5 text-xs">
             <button
               type="button"
-              onClick={() => setMode("colors")}
+              onClick={() => setMode('colors')}
               className={
-                "px-3 py-1.5 rounded transition-colors " +
-                (mode === "colors"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted")
+                'px-3 py-1.5 rounded transition-colors ' +
+                (mode === 'colors'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted')
               }
             >
               Colors only
             </button>
             <button
               type="button"
-              onClick={() => setMode("variants")}
+              onClick={() => setMode('variants')}
               className={
-                "px-3 py-1.5 rounded transition-colors " +
-                (mode === "variants"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted")
+                'px-3 py-1.5 rounded transition-colors ' +
+                (mode === 'variants'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted')
               }
             >
               Colors × sizes
@@ -156,7 +152,7 @@ export function SplitItemForm({
         </div>
       )}
 
-      {mode === "colors" && !lockedColor && (
+      {mode === 'colors' && !lockedColor && (
         <ColorQuantityList
           colors={product.colors}
           values={colorQtys}
@@ -164,7 +160,7 @@ export function SplitItemForm({
         />
       )}
 
-      {(mode === "variants" || lockedColor) && (
+      {(mode === 'variants' || lockedColor) && (
         <VariantGrid
           sizes={deriveSizes(product.variants ?? [])}
           colors={colorsToUse}
@@ -175,24 +171,24 @@ export function SplitItemForm({
 
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">
-          Allocated: <span className="font-mono">{total}</span> of{" "}
+          Allocated: <span className="font-mono">{total}</span> of{' '}
           <span className="font-mono">{item.quantity}</span>
         </span>
         {mismatch && (
-          <span className="text-destructive">
-            Must equal {item.quantity}
-          </span>
+          <span className="text-destructive">Must equal {item.quantity}</span>
         )}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Button
-        onClick={() => { void submit() }}
+        onClick={() => {
+          void submit()
+        }}
         disabled={pending || mismatch || allCells.length === 0}
         className="w-full"
       >
-        {pending ? "Splitting…" : "Save split"}
+        {pending ? 'Splitting…' : 'Save split'}
       </Button>
     </div>
   )
@@ -248,7 +244,7 @@ export function ColorQuantityList({
                 </td>
                 <td className="p-1.5 w-32">
                   <MoneyInput
-                    value={c.id in values ? values[c.id].toString() : ""}
+                    value={c.id in values ? values[c.id].toString() : ''}
                     onChange={(v) => set(c.id, v)}
                     decimals={0}
                     placeholder="0"

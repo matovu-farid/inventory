@@ -57,7 +57,10 @@ import {
   user as userTable,
   variants,
 } from '#/db/schema'
-import { addShopOpeningBalance, addStoreOpeningBalance } from '#/server/functions/admin/opening-balance'
+import {
+  addShopOpeningBalance,
+  addStoreOpeningBalance,
+} from '#/server/functions/admin/opening-balance'
 import { receiveGoods } from '#/server/functions/store/receiving'
 import { assertDefined } from './test-helpers'
 
@@ -74,6 +77,9 @@ vi.mock('#/server/middleware/auth', () => ({
 vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
+  requireSessionAndRole: () => Promise.resolve({
+    user: { id: TEST_USER_ID, role: 'admin' },
+  }),
 }))
 
 const stubStartContext = {
@@ -217,8 +223,12 @@ afterAll(async () => {
         WHERE ${supplyRouteLines.supplierId} = ${supplierId()}::uuid
     )`,
   )
-  await db.delete(supplyRouteLines).where(eq(supplyRouteLines.supplierId, supplierId()))
-  await db.delete(supplyRoutes).where(sql`${supplyRoutes.name} LIKE 'SV-Route-%'`)
+  await db
+    .delete(supplyRouteLines)
+    .where(eq(supplyRouteLines.supplierId, supplierId()))
+  await db
+    .delete(supplyRoutes)
+    .where(sql`${supplyRoutes.name} LIKE 'SV-Route-%'`)
   await db.delete(variants).where(eq(variants.itemId, itemId()))
   await db.delete(itemColors).where(eq(itemColors.id, colorId()))
   await db.delete(items).where(eq(items.id, itemId()))
@@ -245,8 +255,12 @@ async function clearTestRows(): Promise<void> {
         WHERE ${supplyRouteLines.supplierId} = ${supplierId()}::uuid
     )`,
   )
-  await db.delete(supplyRouteLines).where(eq(supplyRouteLines.supplierId, supplierId()))
-  await db.delete(supplyRoutes).where(sql`${supplyRoutes.name} LIKE 'SV-Route-%'`)
+  await db
+    .delete(supplyRouteLines)
+    .where(eq(supplyRouteLines.supplierId, supplierId()))
+  await db
+    .delete(supplyRoutes)
+    .where(sql`${supplyRoutes.name} LIKE 'SV-Route-%'`)
   await db.delete(auditLogs).where(eq(auditLogs.actorUserId, TEST_USER_ID))
   // Re-seed the canonical (Slate, M) variant for each test — earlier tests
   // exercise the "auto-create variant on receive" path that may have left
@@ -376,12 +390,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
     const existing = await db
       .select()
       .from(variants)
-      .where(
-        and(
-          eq(variants.colorId, colorId()),
-          eq(variants.size, 'L'),
-        ),
-      )
+      .where(and(eq(variants.colorId, colorId()), eq(variants.size, 'L')))
     expect(existing).toHaveLength(0)
 
     await callServerFn(() =>
@@ -397,12 +406,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
     const created = await db
       .select()
       .from(variants)
-      .where(
-        and(
-          eq(variants.colorId, colorId()),
-          eq(variants.size, 'L'),
-        ),
-      )
+      .where(and(eq(variants.colorId, colorId()), eq(variants.size, 'L')))
     expect(created).toHaveLength(1)
 
     const stock = await db
@@ -504,7 +508,9 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
         ),
       )
     expect(logs).toHaveLength(1)
-    const meta = logs[0].metadata as { lines?: Array<{ colorName: string; size: string }> }
+    const meta = logs[0].metadata as {
+      lines?: Array<{ colorName: string; size: string }>
+    }
     expect(meta.lines).toBeDefined()
     expect(meta.lines).toContainEqual(
       expect.objectContaining({ colorName: 'Slate', size: 'M' }),
@@ -514,4 +520,3 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
     expect(logs[0].articleNumbers.length).toBeGreaterThan(0)
   })
 })
-

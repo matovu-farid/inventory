@@ -21,16 +21,19 @@ aws s3api put-public-access-block --bucket "$BUCKET" \
   --public-access-block-configuration \
   "BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false"
 
-echo "→ Applying public-read policy on products/* prefix"
+echo "→ Applying public-read policy on products/* and items/* prefixes"
 POLICY=$(cat <<JSON
 {
   "Version": "2012-10-17",
   "Statement": [{
-    "Sid": "PublicReadProducts",
+    "Sid": "PublicReadProductImages",
     "Effect": "Allow",
     "Principal": "*",
     "Action": "s3:GetObject",
-    "Resource": "arn:aws:s3:::$BUCKET/products/*"
+    "Resource": [
+      "arn:aws:s3:::$BUCKET/products/*",
+      "arn:aws:s3:::$BUCKET/items/*"
+    ]
   }]
 }
 JSON
@@ -62,7 +65,10 @@ INLINE=$(cat <<JSON
   "Statement": [{
     "Effect": "Allow",
     "Action": ["s3:PutObject","s3:GetObject","s3:DeleteObject"],
-    "Resource": "arn:aws:s3:::$BUCKET/products/*"
+    "Resource": [
+      "arn:aws:s3:::$BUCKET/products/*",
+      "arn:aws:s3:::$BUCKET/items/*"
+    ]
   }]
 }
 JSON

@@ -1,13 +1,13 @@
-import * as React from "react"
-import { Info } from "lucide-react"
+import * as React from 'react'
+import { Info } from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "#/components/ui/tooltip"
-import { helpDict } from "#/lib/help-dictionary"
-import type { HelpEntry, HelpKey } from "#/lib/help-dictionary"
-import { cn } from "#/lib/utils"
+} from '#/components/ui/tooltip'
+import { helpDict } from '#/lib/help-dictionary'
+import type { HelpEntry, HelpKey } from '#/lib/help-dictionary'
+import { cn } from '#/lib/utils'
 
 interface InfoTipProps {
   /** Key into the help dictionary. */
@@ -17,7 +17,7 @@ interface InfoTipProps {
   /** Additional classes for the icon button. */
   className?: string
   /** Tooltip side. Defaults to "top". */
-  side?: React.ComponentProps<typeof TooltipContent>["side"]
+  side?: React.ComponentProps<typeof TooltipContent>['side']
 }
 
 /**
@@ -26,7 +26,7 @@ interface InfoTipProps {
  *
  * For form-field labels, prefer `<FieldLabel help="…">` which composes this.
  */
-function InfoTip({ term, ariaLabel, className, side = "top" }: InfoTipProps) {
+function InfoTip({ term, ariaLabel, className, side = 'top' }: InfoTipProps) {
   const entry: HelpEntry = helpDict[term]
 
   return (
@@ -36,7 +36,7 @@ function InfoTip({ term, ariaLabel, className, side = "top" }: InfoTipProps) {
           type="button"
           aria-label={ariaLabel ?? `Help: ${term}`}
           className={cn(
-            "inline-flex size-3.5 items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none",
+            'inline-flex size-3.5 items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none',
             className,
           )}
         >

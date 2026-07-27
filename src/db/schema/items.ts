@@ -6,13 +6,13 @@ import {
   index,
   numeric,
   integer,
-} from "drizzle-orm/pg-core"
-import { relations } from "drizzle-orm"
+} from 'drizzle-orm/pg-core'
+import { relations } from 'drizzle-orm'
 // `variants` and `storeStock` are imported only as relation targets — the
 // cyclical pairings (variants ↔ items, storeStock ↔ items) are harmless
 // because Drizzle's `relations()` helper resolves lazily at first query.
-import { variants } from "./variants"
-import { storeStock } from "./store"
+import { variants } from './variants'
+import { storeStock } from './store'
 
 /**
  * Catalog: items and item_colors. After the items-free-text-category change
@@ -21,61 +21,61 @@ import { storeStock } from "./store"
  * item-editor.tsx autocompletes from existing values.
  */
 export const items = pgTable(
-  "items",
+  'items',
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    articleNumber: text("article_number").notNull().unique(),
-    name: text("name").notNull(),
-    description: text("description"),
+    id: uuid('id').primaryKey().defaultRandom(),
+    articleNumber: text('article_number').notNull().unique(),
+    name: text('name').notNull(),
+    description: text('description'),
     /**
      * Free-text catalog grouping. NOT NULL — every item has a category.
      * The set of categories on the system is implicit in the distinct
      * values of this column; the UI combobox sources its options from
      * `listItemCategories()`.
      */
-    category: text("category").notNull(),
-    minimumSellPriceUgx: numeric("minimum_sell_price_ugx", {
+    category: text('category').notNull(),
+    minimumSellPriceUgx: numeric('minimum_sell_price_ugx', {
       precision: 15,
       scale: 2,
     })
       .notNull()
-      .default("0"),
-    lowStockThreshold: integer("low_stock_threshold"),
-    createdAt: timestamp("created_at", { withTimezone: true })
+      .default('0'),
+    lowStockThreshold: integer('low_stock_threshold'),
+    createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+    updatedAt: timestamp('updated_at', { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [
-    index("idx_items_article").on(table.articleNumber),
-    index("idx_items_category").on(table.category),
+    index('idx_items_article').on(table.articleNumber),
+    index('idx_items_category').on(table.category),
   ],
 )
 
 export const itemColors = pgTable(
-  "item_colors",
+  'item_colors',
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    itemId: uuid("item_id")
+    id: uuid('id').primaryKey().defaultRandom(),
+    itemId: uuid('item_id')
       .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
-    colorName: text("color_name").notNull(),
-    colorHex: text("color_hex").notNull(),
-    imageS3Key: text("image_s3_key"),
-    createdAt: timestamp("created_at", { withTimezone: true })
+      .references(() => items.id, { onDelete: 'cascade' }),
+    colorName: text('color_name').notNull(),
+    colorHex: text('color_hex').notNull(),
+    imageS3Key: text('image_s3_key'),
+    createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+    updatedAt: timestamp('updated_at', { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [
-    index("idx_ic_item").on(table.itemId),
-    index("idx_ic_unique").on(table.itemId, table.colorName),
+    index('idx_ic_item').on(table.itemId),
+    index('idx_ic_unique').on(table.itemId, table.colorName),
   ],
 )
 

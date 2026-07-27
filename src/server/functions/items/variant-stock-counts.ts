@@ -3,8 +3,7 @@ import { eq, sql, inArray, and, gt } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
 import { variants, storeStock, shopStock } from '#/db/schema'
-import { requireSession } from '#/server/middleware/auth'
-import { requireRole } from '#/server/middleware/rbac'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 /**
  * Per-variant rollup used by the item-detail "Variants" subsection.
@@ -18,8 +17,7 @@ import { requireRole } from '#/server/middleware/rbac'
 export const countVariantStockLocations = createServerFn()
   .inputValidator(z.object({ itemId: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin', 'supervisor', 'sales'])
+    await requireSessionAndRole(['admin', 'supervisor', 'sales'])
 
     const variantRows = await db
       .select({ id: variants.id })

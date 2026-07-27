@@ -1,41 +1,41 @@
-import { roundUgxBankers50, formatDate } from "#/lib/format"
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useMemo, useState } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import BigNumber from "bignumber.js"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { Label } from "#/components/ui/label"
-import { Badge } from "#/components/ui/badge"
-import { PrereqBanner } from "#/components/prerequisites/prereq-banner"
-import { getTransfersPrereqs } from "#/server/functions/prereqs/transfers"
+import { roundUgxBankers50, formatDate } from '#/lib/format'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { useMemo, useState } from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import BigNumber from 'bignumber.js'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { Label } from '#/components/ui/label'
+import { Badge } from '#/components/ui/badge'
+import { PrereqBanner } from '#/components/prerequisites/prereq-banner'
+import { getTransfersPrereqs } from '#/server/functions/prereqs/transfers'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
+} from '#/components/ui/select'
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
   ResponsiveDialogHeader as DialogHeader,
   ResponsiveDialogTitle as DialogTitle,
-} from "#/components/ui/responsive-dialog"
-import { DialogTrigger } from "#/components/ui/dialog"
-import { ResponsiveTable } from "#/components/ui/responsive-table"
-import { Plus, PackageCheck } from "lucide-react"
+} from '#/components/ui/responsive-dialog'
+import { DialogTrigger } from '#/components/ui/dialog'
+import { ResponsiveTable } from '#/components/ui/responsive-table'
+import { Plus, PackageCheck } from 'lucide-react'
 import {
   listTransfers,
   createTransfer,
-} from "#/server/functions/store/transfers"
-import { ReceiveTransferForm } from "#/components/transfers/receive-transfer-form"
-import { getStoreStock } from "#/server/functions/store/receiving"
-import { listShops } from "#/server/functions/admin/locations"
+} from '#/server/functions/store/transfers'
+import { ReceiveTransferForm } from '#/components/transfers/receive-transfer-form'
+import { getStoreStock } from '#/server/functions/store/receiving'
+import { listShops } from '#/server/functions/admin/locations'
 
-export const Route = createFileRoute("/store/transfers")({
+export const Route = createFileRoute('/store/transfers')({
   beforeLoad: ({ context }) =>
-    requireUiPermission(context, "warehouse.transfers"),
+    requireUiPermission(context, 'warehouse.transfers'),
   loader: async () => {
     const [transfers, stock, shops, prerequisites] = await Promise.all([
       listTransfers(),
@@ -48,11 +48,14 @@ export const Route = createFileRoute("/store/transfers")({
   component: TransfersPage,
 })
 
-const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  pending: "outline",
-  dispatched: "default",
-  received: "secondary",
-  reconciled: "secondary",
+const STATUS_COLORS: Record<
+  string,
+  'default' | 'secondary' | 'destructive' | 'outline'
+> = {
+  pending: 'outline',
+  dispatched: 'default',
+  received: 'secondary',
+  reconciled: 'secondary',
 }
 
 function TransfersPage() {
@@ -61,7 +64,7 @@ function TransfersPage() {
   const [receiveOpen, setReceiveOpen] = useState(false)
   const router = useRouter()
 
-  const dispatchedTransfers = transfers.filter((t) => t.status === "dispatched")
+  const dispatchedTransfers = transfers.filter((t) => t.status === 'dispatched')
 
   return (
     <div className="space-y-6">
@@ -113,7 +116,7 @@ function TransfersPage() {
                 onSuccess={(shopId) => {
                   setCreateOpen(false)
                   void router.invalidate()
-                  void router.navigate({ to: "/shop", search: { shopId } })
+                  void router.navigate({ to: '/shop', search: { shopId } })
                 }}
               />
             </DialogContent>
@@ -131,31 +134,29 @@ function TransfersPage() {
         emptyMessage="No transfers yet. Create one to move goods from the warehouse to a shop."
         columns={[
           {
-            header: "Date",
+            header: 'Date',
             cell: (t) => formatDate(t.transferDate),
           },
           {
-            header: "Shop",
-            cell: (t) => (
-              <span className="font-medium">{t.shop.name}</span>
-            ),
+            header: 'Shop',
+            cell: (t) => <span className="font-medium">{t.shop.name}</span>,
           },
           {
-            header: "Status",
+            header: 'Status',
             cell: (t) => (
-              <Badge variant={STATUS_COLORS[t.status] ?? "outline"}>
+              <Badge variant={STATUS_COLORS[t.status] ?? 'outline'}>
                 {t.status}
               </Badge>
             ),
           },
           {
-            header: "Items",
-            align: "right",
+            header: 'Items',
+            align: 'right',
             cell: (t) => t.items.length,
           },
           {
-            header: "Total (UGX)",
-            align: "right",
+            header: 'Total (UGX)',
+            align: 'right',
             cell: (t) => (
               <span className="font-mono">
                 {roundUgxBankers50(
@@ -217,7 +218,7 @@ function CreateTransferForm({
 }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [shopId, setShopId] = useState(shops[0]?.id ?? "")
+  const [shopId, setShopId] = useState(shops[0]?.id ?? '')
   const [lines, setLines] = useState<LineDraft[]>([])
 
   // Only show item buckets with at least one unit on hand.
@@ -329,8 +330,10 @@ function CreateTransferForm({
       })
       onSuccess(shopId)
     } catch (err) {
-      console.error("Failed to create transfer:", err)
-      setError(err instanceof Error ? err.message : "Failed to create transfer.")
+      console.error('Failed to create transfer:', err)
+      setError(
+        err instanceof Error ? err.message : 'Failed to create transfer.',
+      )
     } finally {
       setPending(false)
     }
@@ -385,8 +388,10 @@ function CreateTransferForm({
                         {g.item.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        <span className="font-mono">{g.item.articleNumber}</span>
-                        {" · Available: "}
+                        <span className="font-mono">
+                          {g.item.articleNumber}
+                        </span>
+                        {' · Available: '}
                         {g.totalQty}
                         {unresolvedQty > 0 && (
                           <span className="ml-1 italic">
@@ -409,8 +414,8 @@ function CreateTransferForm({
                           <Badge
                             variant={
                               line.variantId === undefined
-                                ? "default"
-                                : "outline"
+                                ? 'default'
+                                : 'outline'
                             }
                             className="italic cursor-pointer"
                           >
@@ -431,7 +436,7 @@ function CreateTransferForm({
                               title={`${v.colorName} ${v.size} — ${v.qty} on hand`}
                             >
                               <Badge
-                                variant={active ? "default" : "outline"}
+                                variant={active ? 'default' : 'outline'}
                                 className="cursor-pointer inline-flex items-center gap-1.5"
                               >
                                 <span
@@ -470,8 +475,8 @@ function CreateTransferForm({
                         <span className="text-xs text-muted-foreground">
                           of {availabilityFor(line)} available
                           {line.variantId === undefined && variants.length > 0
-                            ? " (across all variants)"
-                            : ""}
+                            ? ' (across all variants)'
+                            : ''}
                         </span>
                       </div>
                       {line.qty > availabilityFor(line) && (
@@ -499,16 +504,11 @@ function CreateTransferForm({
         onClick={() => {
           void handleSubmit()
         }}
-        disabled={
-          pending ||
-          !shopId ||
-          lines.length === 0 ||
-          !allLinesValid
-        }
+        disabled={pending || !shopId || lines.length === 0 || !allLinesValid}
       >
         {pending
-          ? "Creating..."
-          : `Dispatch ${lines.length} ${lines.length === 1 ? "item" : "items"}`}
+          ? 'Creating...'
+          : `Dispatch ${lines.length} ${lines.length === 1 ? 'item' : 'items'}`}
       </Button>
     </div>
   )

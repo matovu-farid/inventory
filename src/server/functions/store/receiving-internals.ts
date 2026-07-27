@@ -8,7 +8,6 @@ export function filterRoutesWithUnreceivedItems<
 >(routes: TRoute[], receivedItemIds: ReadonlySet<string>): TRoute[] {
   return routes.filter(
     (r) =>
-      r.items.length > 0 &&
-      r.items.some((it) => !receivedItemIds.has(it.id)),
+      r.items.length > 0 && r.items.some((it) => !receivedItemIds.has(it.id)),
   )
 }

@@ -1,8 +1,8 @@
-import * as React from "react"
-import { CheckIcon, ChevronsUpDownIcon } from "lucide-react"
+import * as React from 'react'
+import { CheckIcon, ChevronsUpDownIcon } from 'lucide-react'
 
-import { cn } from "#/lib/utils"
-import { Button } from "#/components/ui/button"
+import { cn } from '#/lib/utils'
+import { Button } from '#/components/ui/button'
 import {
   Command,
   CommandEmpty,
@@ -10,12 +10,12 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "#/components/ui/command"
+} from '#/components/ui/command'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "#/components/ui/popover"
+} from '#/components/ui/popover'
 
 export type ComboboxOption = {
   value: string
@@ -33,21 +33,21 @@ interface ComboboxProps {
   triggerClassName?: string
   disabled?: boolean
   id?: string
-  "aria-invalid"?: boolean
+  'aria-invalid'?: boolean
 }
 
 function Combobox({
   options,
   value,
   onChange,
-  placeholder = "Select...",
-  searchPlaceholder = "Search...",
-  emptyMessage = "No results found.",
+  placeholder = 'Select...',
+  searchPlaceholder = 'Search...',
+  emptyMessage = 'No results found.',
   className,
   triggerClassName,
   disabled,
   id,
-  "aria-invalid": ariaInvalid,
+  'aria-invalid': ariaInvalid,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const selected = options.find((o) => o.value === value)
@@ -64,8 +64,8 @@ function Combobox({
           aria-invalid={ariaInvalid || undefined}
           disabled={disabled}
           className={cn(
-            "w-full justify-between font-normal",
-            !selected && "text-muted-foreground",
+            'w-full justify-between font-normal',
+            !selected && 'text-muted-foreground',
             triggerClassName,
           )}
         >
@@ -74,7 +74,7 @@ function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className={cn("w-(--radix-popover-trigger-width) p-0", className)}
+        className={cn('w-(--radix-popover-trigger-width) p-0', className)}
         align="start"
       >
         <Command>
@@ -93,8 +93,8 @@ function Combobox({
                 >
                   <CheckIcon
                     className={cn(
-                      "mr-2 size-4",
-                      value === option.value ? "opacity-100" : "opacity-0",
+                      'mr-2 size-4',
+                      value === option.value ? 'opacity-100' : 'opacity-0',
                     )}
                   />
                   {option.label}

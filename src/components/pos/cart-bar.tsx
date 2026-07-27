@@ -1,8 +1,8 @@
-import { ShoppingCart } from "lucide-react"
-import { InfoTip } from "#/components/ui/info-tip"
-import { useCart } from "#/components/pos/cart-context"
-import { computeTotal } from "#/lib/pos/cart-reducer"
-import { formatUgxTotal } from "#/lib/format"
+import { ShoppingCart } from 'lucide-react'
+import { InfoTip } from '#/components/ui/info-tip'
+import { useCart } from '#/components/pos/cart-context'
+import { computeTotal } from '#/lib/pos/cart-reducer'
+import { formatUgxTotal } from '#/lib/format'
 
 type Props = {
   onOpenCart: () => void
@@ -28,7 +28,9 @@ export function CartBar({ onOpenCart }: Props) {
           <span className="text-sm font-medium">View cart</span>
           <InfoTip term="pos.cart" />
         </span>
-        <span className="font-mono text-base font-bold">{formatUgxTotal(total)}</span>
+        <span className="font-mono text-base font-bold">
+          {formatUgxTotal(total)}
+        </span>
       </button>
     </div>
   )

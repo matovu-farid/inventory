@@ -14,11 +14,19 @@
  * mock auth/rbac, wrap calls in `runWithStartContext`, read the DB to
  * verify side effects.
  */
-import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vitest"
-import { runWithStartContext } from "@tanstack/start-storage-context"
-import { and, eq } from "drizzle-orm"
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from 'vitest'
+import { runWithStartContext } from '@tanstack/start-storage-context'
+import { and, eq } from 'drizzle-orm'
 
-import { db } from "#/db"
+import { db } from '#/db'
 import {
   storeTransfers,
   storeTransferLines,
@@ -28,7 +36,7 @@ import {
   transactions,
   auditLogs,
   user,
-} from "#/db/schema"
+} from '#/db/schema'
 import {
   resetTestDb,
   seedItem,
@@ -37,38 +45,41 @@ import {
   seedShop,
   seedSupplyRouteLine,
   seedStoreStockLot,
-} from "./test-helpers"
+} from './test-helpers'
 
-const TEST_USER_ID = `00000000-0000-0000-0000-${Date.now().toString().slice(-12).padStart(12, "0")}`
+const TEST_USER_ID = `00000000-0000-0000-0000-${Date.now().toString().slice(-12).padStart(12, '0')}`
 const session = {
-  user: { id: TEST_USER_ID, role: "admin" as "admin" | "supervisor" },
+  user: { id: TEST_USER_ID, role: 'admin' as 'admin' | 'supervisor' },
 }
 
-vi.mock("#/server/middleware/auth", () => ({
+vi.mock('#/server/middleware/auth', () => ({
   requireSession: () => Promise.resolve(session),
 }))
-vi.mock("#/server/middleware/rbac", () => ({
+vi.mock('#/server/middleware/rbac', () => ({
   requireRole: (sess: { user: { role: string } }, roles: string[]) => {
     if (!roles.includes(sess.user.role)) {
-      throw new Error(`Forbidden: role ${sess.user.role} not in ${roles.join(",")}`)
+      throw new Error(
+        `Forbidden: role ${sess.user.role} not in ${roles.join(',')}`,
+      )
     }
   },
   hasRole: (sess: { user: { role: string } }, roles: string[]) =>
     roles.includes(sess.user.role),
+  requireSessionAndRole: () => Promise.resolve(session),
 }))
 
 // Import after vi.mock so the mocks bind to the handler under test.
-const { createTransfer } = await import("#/server/functions/store/transfers")
+const { createTransfer } = await import('#/server/functions/store/transfers')
 
 const stubStartContext = {
   getRouter: (() => {
-    throw new Error("router not available in tests")
+    throw new Error('router not available in tests')
   }) as never,
-  request: new Request("http://localhost/test"),
+  request: new Request('http://localhost/test'),
   startOptions: { functionMiddleware: [] },
   contextAfterGlobalMiddlewares: {},
   executedRequestMiddlewares: new Set(),
-  handlerType: "serverFn" as const,
+  handlerType: 'serverFn' as const,
 }
 function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
   return runWithStartContext(stubStartContext, fn)
@@ -76,12 +87,12 @@ function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
 
 // Ledger categories the inventory + inter-branch journals reference.
 const REQUIRED_CATEGORIES = [
-  { name: "Inventory - Store", type: "asset" as const },
-  { name: "Inventory - Shop", type: "asset" as const },
-  { name: "Store Transfer Revenue", type: "revenue" as const },
-  { name: "Store Transfer Loss", type: "expense" as const },
-  { name: "Due from Shop", type: "asset" as const },
-  { name: "Due to Store", type: "liability" as const },
+  { name: 'Inventory - Store', type: 'asset' as const },
+  { name: 'Inventory - Shop', type: 'asset' as const },
+  { name: 'Store Transfer Revenue', type: 'revenue' as const },
+  { name: 'Store Transfer Loss', type: 'expense' as const },
+  { name: 'Due from Shop', type: 'asset' as const },
+  { name: 'Due to Store', type: 'liability' as const },
 ]
 
 beforeAll(async () => {
@@ -95,10 +106,10 @@ beforeAll(async () => {
     .insert(user)
     .values({
       id: TEST_USER_ID,
-      name: "Test Admin",
+      name: 'Test Admin',
       email: `test-tx7-${TEST_USER_ID}@example.com`,
       emailVerified: true,
-      role: "admin",
+      role: 'admin',
     })
     .onConflictDoNothing()
 })
@@ -123,10 +134,10 @@ beforeEach(async () => {
     .insert(user)
     .values({
       id: TEST_USER_ID,
-      name: "Test Admin",
+      name: 'Test Admin',
       email: `test-tx7-${TEST_USER_ID}@example.com`,
       emailVerified: true,
-      role: "admin",
+      role: 'admin',
     })
     .onConflictDoNothing()
   // resetTestDb also wipes transaction_categories — re-seed.
@@ -138,30 +149,44 @@ beforeEach(async () => {
   }
 })
 
-describe("createTransfer — item-level FIFO", () => {
-  it("dispatches an unresolved item across multiple source lots oldest-first", async () => {
+describe('createTransfer — item-level FIFO', () => {
+  it('dispatches an unresolved item across multiple source lots oldest-first', async () => {
     const itemId = await seedItem({
-      articleNumber: "TX-1",
-      name: "Polo",
+      articleNumber: 'TX-1',
+      name: 'Polo',
       // Non-zero floor so the transfer-value ledger leg is non-zero
       // (postJournalEntry refuses zero-amount journals).
-      minimumSellPriceUgx: "200.00",
+      minimumSellPriceUgx: '200.00',
     })
     const storeId = await seedStore()
     const shopId = await seedShop()
     const olderLine = await seedSupplyRouteLine({
-      itemId, colorId: null, size: null, createdAt: "2026-01-01",
+      itemId,
+      colorId: null,
+      size: null,
+      createdAt: '2026-01-01',
     })
     const newerLine = await seedSupplyRouteLine({
-      itemId, colorId: null, size: null, createdAt: "2026-02-01",
+      itemId,
+      colorId: null,
+      size: null,
+      createdAt: '2026-02-01',
     })
     await seedStoreStockLot({
-      storeId, itemId, variantId: null,
-      supplyRouteLineId: olderLine, quantity: 4, costPerUnitUgx: "100.00",
+      storeId,
+      itemId,
+      variantId: null,
+      supplyRouteLineId: olderLine,
+      quantity: 4,
+      costPerUnitUgx: '100.00',
     })
     await seedStoreStockLot({
-      storeId, itemId, variantId: null,
-      supplyRouteLineId: newerLine, quantity: 6, costPerUnitUgx: "120.00",
+      storeId,
+      itemId,
+      variantId: null,
+      supplyRouteLineId: newerLine,
+      quantity: 6,
+      costPerUnitUgx: '120.00',
     })
 
     await callServerFn(() =>
@@ -179,7 +204,7 @@ describe("createTransfer — item-level FIFO", () => {
     const transfer = await db.query.storeTransfers.findFirst({
       where: eq(storeTransfers.shopId, shopId),
     })
-    if (!transfer) throw new Error("Transfer not persisted")
+    if (!transfer) throw new Error('Transfer not persisted')
 
     // One transfer line was created — item-level (storeStockId NULL).
     const lines = await db.query.storeTransferLines.findMany({
@@ -202,24 +227,35 @@ describe("createTransfer — item-level FIFO", () => {
 
     // Source store_stock decremented from 10 → 3.
     const lots = await db.query.storeStock.findMany({
-      where: and(eq(storeStock.storeId, storeId), eq(storeStock.itemId, itemId)),
+      where: and(
+        eq(storeStock.storeId, storeId),
+        eq(storeStock.itemId, itemId),
+      ),
     })
     const total = lots.reduce((s, l) => s + l.quantityOnHand, 0)
     expect(total).toBe(3)
   })
 
-  it("throws with a clear message when total on-hand < requested", async () => {
+  it('throws with a clear message when total on-hand < requested', async () => {
     const itemId = await seedItem({
-      articleNumber: "TX-2",
-      name: "Polo",
-      minimumSellPriceUgx: "200.00",
+      articleNumber: 'TX-2',
+      name: 'Polo',
+      minimumSellPriceUgx: '200.00',
     })
     const storeId = await seedStore()
     const shopId = await seedShop()
-    const lineId = await seedSupplyRouteLine({ itemId, colorId: null, size: null })
+    const lineId = await seedSupplyRouteLine({
+      itemId,
+      colorId: null,
+      size: null,
+    })
     await seedStoreStockLot({
-      storeId, itemId, variantId: null,
-      supplyRouteLineId: lineId, quantity: 2, costPerUnitUgx: "100.00",
+      storeId,
+      itemId,
+      variantId: null,
+      supplyRouteLineId: lineId,
+      quantity: 2,
+      costPerUnitUgx: '100.00',
     })
 
     await expect(
@@ -233,25 +269,42 @@ describe("createTransfer — item-level FIFO", () => {
 
   it("variantId-scoped dispatch only draws from that variant's lots", async () => {
     const itemId = await seedItem({
-      articleNumber: "TX-3",
-      name: "Polo",
-      minimumSellPriceUgx: "200.00",
+      articleNumber: 'TX-3',
+      name: 'Polo',
+      minimumSellPriceUgx: '200.00',
     })
-    const colorId = await seedColor({ itemId, colorName: "Red", colorHex: "#f00" })
+    const colorId = await seedColor({
+      itemId,
+      colorName: 'Red',
+      colorHex: '#f00',
+    })
     const storeId = await seedStore()
     const shopId = await seedShop()
-    const vLine = await seedSupplyRouteLine({ itemId, colorId, size: "M" })
-    const uLine = await seedSupplyRouteLine({ itemId, colorId: null, size: null })
+    const vLine = await seedSupplyRouteLine({ itemId, colorId, size: 'M' })
+    const uLine = await seedSupplyRouteLine({
+      itemId,
+      colorId: null,
+      size: null,
+    })
     const { variantId } = await seedStoreStockLot({
-      storeId, itemId, colorId, size: "M",
-      supplyRouteLineId: vLine, quantity: 5, costPerUnitUgx: "100.00",
+      storeId,
+      itemId,
+      colorId,
+      size: 'M',
+      supplyRouteLineId: vLine,
+      quantity: 5,
+      costPerUnitUgx: '100.00',
     })
     await seedStoreStockLot({
-      storeId, itemId, variantId: null,
-      supplyRouteLineId: uLine, quantity: 10, costPerUnitUgx: "120.00",
+      storeId,
+      itemId,
+      variantId: null,
+      supplyRouteLineId: uLine,
+      quantity: 10,
+      costPerUnitUgx: '120.00',
     })
 
-    if (!variantId) throw new Error("seedStoreStockLot returned null variantId")
+    if (!variantId) throw new Error('seedStoreStockLot returned null variantId')
 
     await callServerFn(() =>
       createTransfer({
@@ -265,7 +318,7 @@ describe("createTransfer — item-level FIFO", () => {
     const transfer = await db.query.storeTransfers.findFirst({
       where: eq(storeTransfers.shopId, shopId),
     })
-    if (!transfer) throw new Error("Transfer not persisted")
+    if (!transfer) throw new Error('Transfer not persisted')
 
     const lines = await db.query.storeTransferLines.findMany({
       where: eq(storeTransferLines.storeTransferId, transfer.id),
@@ -279,7 +332,10 @@ describe("createTransfer — item-level FIFO", () => {
     expect(allocs[0].quantity).toBe(3)
     // The unresolved lot is untouched (10 remaining).
     const unresolvedLots = await db.query.storeStock.findMany({
-      where: and(eq(storeStock.storeId, storeId), eq(storeStock.itemId, itemId)),
+      where: and(
+        eq(storeStock.storeId, storeId),
+        eq(storeStock.itemId, itemId),
+      ),
     })
     const unresolvedTotal = unresolvedLots
       .filter((l) => l.variantId === null)

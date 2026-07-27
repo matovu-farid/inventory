@@ -1,23 +1,23 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { FieldLabel } from "#/components/ui/field-label"
+import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { FieldLabel } from '#/components/ui/field-label'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
-import { AuditLogTable } from "#/components/audit/audit-log-table"
-import { listAuditLog } from "#/server/functions/audit/list"
-import type { AuditLogRow } from "#/server/functions/audit/list"
-import { AUDIT_ACTION_LABELS } from "#/server/audit/descriptions"
+} from '#/components/ui/select'
+import { AuditLogTable } from '#/components/audit/audit-log-table'
+import { listAuditLog } from '#/server/functions/audit/list'
+import type { AuditLogRow } from '#/server/functions/audit/list'
+import { AUDIT_ACTION_LABELS } from '#/server/audit/descriptions'
 
-export const Route = createFileRoute("/settings/audit-log")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "audit.view"),
+export const Route = createFileRoute('/settings/audit-log')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'audit.view'),
   loader: async () => {
     const initial = await listAuditLog({ data: { pageSize: 50 } })
     return { initial }
@@ -32,10 +32,10 @@ function AuditLogPage() {
   const [rows, setRows] = useState<AuditLogRow[]>(initial.rows)
   const [cursor, setCursor] = useState<Cursor>(initial.nextCursor)
   const [filters, setFilters] = useState({
-    articleNumber: "",
-    action: "",
-    from: "",
-    to: "",
+    articleNumber: '',
+    action: '',
+    from: '',
+    to: '',
   })
   const [loading, setLoading] = useState(false)
 
@@ -75,7 +75,7 @@ function AuditLogPage() {
   }
 
   function clearFilters() {
-    setFilters({ articleNumber: "", action: "", from: "", to: "" })
+    setFilters({ articleNumber: '', action: '', from: '', to: '' })
     void applyFilters()
   }
 
@@ -102,9 +102,9 @@ function AuditLogPage() {
         <div className="space-y-1.5">
           <FieldLabel help="col.filterAction">Action</FieldLabel>
           <Select
-            value={filters.action || "all"}
+            value={filters.action || 'all'}
             onValueChange={(v) =>
-              setFilters((f) => ({ ...f, action: v === "all" ? "" : v }))
+              setFilters((f) => ({ ...f, action: v === 'all' ? '' : v }))
             }
           >
             <SelectTrigger>
@@ -157,7 +157,7 @@ function AuditLogPage() {
           onClick={() => void loadMore()}
           disabled={loading}
         >
-          {loading ? "Loading…" : "Load more"}
+          {loading ? 'Loading…' : 'Load more'}
         </Button>
       )}
     </div>

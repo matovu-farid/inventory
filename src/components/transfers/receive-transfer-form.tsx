@@ -1,19 +1,19 @@
-import { useEffect, useState } from "react"
-import { Badge } from "#/components/ui/badge"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { Label } from "#/components/ui/label"
-import { Textarea } from "#/components/ui/textarea"
+import { useEffect, useState } from 'react'
+import { Badge } from '#/components/ui/badge'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { Label } from '#/components/ui/label'
+import { Textarea } from '#/components/ui/textarea'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
-import { ResponsiveTable } from "#/components/ui/responsive-table"
-import { confirmTransferReceipt } from "#/server/functions/store/transfers"
-import { formatDate } from "#/lib/format"
+} from '#/components/ui/select'
+import { ResponsiveTable } from '#/components/ui/responsive-table'
+import { confirmTransferReceipt } from '#/server/functions/store/transfers'
+import { formatDate } from '#/lib/format'
 
 export interface ReceivableTransfer {
   id: string
@@ -46,7 +46,7 @@ export function ReceiveTransferForm({
   onSuccess,
 }: ReceiveTransferFormProps) {
   const [pending, setPending] = useState(false)
-  const [transferId, setTransferId] = useState(transfers[0]?.id ?? "")
+  const [transferId, setTransferId] = useState(transfers[0]?.id ?? '')
   const [receivedQtys, setReceivedQtys] = useState<Record<string, number>>({})
   const [discrepancyNotes, setDiscrepancyNotes] = useState<
     Record<string, string>
@@ -80,12 +80,13 @@ export function ReceiveTransferForm({
 
   const discrepantItems = transfer
     ? transfer.items.filter(
-        (i) => (receivedQtys[i.id] ?? i.quantityDispatched) < i.quantityDispatched,
+        (i) =>
+          (receivedQtys[i.id] ?? i.quantityDispatched) < i.quantityDispatched,
       )
     : []
 
   const allDiscrepancyNotesFilled = discrepantItems.every(
-    (i) => (discrepancyNotes[i.id] ?? "").trim().length > 0,
+    (i) => (discrepancyNotes[i.id] ?? '').trim().length > 0,
   )
 
   async function handleConfirm() {
@@ -98,7 +99,7 @@ export function ReceiveTransferForm({
           transferId: transfer.id,
           items: transfer.items.map((i) => {
             const raw = discrepancyNotes[i.id]
-            const trimmed = typeof raw === "string" ? raw.trim() : ""
+            const trimmed = typeof raw === 'string' ? raw.trim() : ''
             return {
               transferItemId: i.id,
               quantityReceived: receivedQtys[i.id] ?? i.quantityDispatched,
@@ -109,7 +110,7 @@ export function ReceiveTransferForm({
       })
       onSuccess()
     } catch (err) {
-      console.error("Failed to confirm receipt:", err)
+      console.error('Failed to confirm receipt:', err)
     } finally {
       setPending(false)
     }
@@ -127,8 +128,7 @@ export function ReceiveTransferForm({
             <SelectContent>
               {transfers.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
-                  {t.shop.name} —{" "}
-                  {formatDate(t.transferDate)}
+                  {t.shop.name} — {formatDate(t.transferDate)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -143,7 +143,7 @@ export function ReceiveTransferForm({
             getRowKey={(item) => item.id}
             columns={[
               {
-                header: "Item",
+                header: 'Item',
                 cell: (line) => {
                   const v = line.variant
                   return (
@@ -166,13 +166,13 @@ export function ReceiveTransferForm({
                 },
               },
               {
-                header: "Dispatched",
-                align: "right",
+                header: 'Dispatched',
+                align: 'right',
                 cell: (item) => item.quantityDispatched,
               },
               {
-                header: "Received",
-                align: "right",
+                header: 'Received',
+                align: 'right',
                 cell: (item) => {
                   const received =
                     receivedQtys[item.id] ?? item.quantityDispatched
@@ -202,7 +202,8 @@ export function ReceiveTransferForm({
                 Fewer items received than dispatched. Explain why for each item.
               </p>
               {discrepantItems.map((line) => {
-                const received = receivedQtys[line.id] ?? line.quantityDispatched
+                const received =
+                  receivedQtys[line.id] ?? line.quantityDispatched
                 const missing = line.quantityDispatched - received
                 const v = line.variant
                 const label = v
@@ -217,7 +218,7 @@ export function ReceiveTransferForm({
                     <Textarea
                       rows={2}
                       placeholder="e.g. lost during delivery, broken on the way"
-                      value={discrepancyNotes[line.id] ?? ""}
+                      value={discrepancyNotes[line.id] ?? ''}
                       onChange={(e) =>
                         setDiscrepancyNotes((n) => ({
                           ...n,
@@ -237,7 +238,7 @@ export function ReceiveTransferForm({
               onClick={() => void handleConfirm()}
               disabled={pending || !allDiscrepancyNotesFilled}
             >
-              {pending ? "Confirming..." : "Confirm Receipt at Shop"}
+              {pending ? 'Confirming...' : 'Confirm Receipt at Shop'}
             </Button>
           </div>
         </>

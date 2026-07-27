@@ -1,9 +1,9 @@
-import { db } from "#/db"
-import { adminIpAllowlist, ipBlockLog } from "#/db/schema"
-import { systemSettings } from "#/db/schema/notifications"
-import { eq, sql } from "drizzle-orm"
+import { db } from '#/db'
+import { adminIpAllowlist, ipBlockLog } from '#/db/schema'
+import { systemSettings } from '#/db/schema/notifications'
+import { eq, sql } from 'drizzle-orm'
 
-const TOGGLE_KEY = "ip_allowlist_enabled"
+const TOGGLE_KEY = 'ip_allowlist_enabled'
 const TOGGLE_TTL_MS = 30_000
 const IP_TTL_MS = 30_000
 const IP_CACHE_MAX = 1000
@@ -31,8 +31,8 @@ const defaultDeps: Deps = {
     const raw = rows[0]?.value
     if (raw === null || raw === undefined) return null
     // value is stored as jsonb; may be a boolean, string, or wrapped string
-    if (typeof raw === "boolean") return raw ? "true" : "false"
-    if (typeof raw === "string") return raw
+    if (typeof raw === 'boolean') return raw ? 'true' : 'false'
+    if (typeof raw === 'string') return raw
     return String(raw)
   },
 
@@ -105,13 +105,13 @@ function ipCacheSet(ip: string, value: boolean): void {
  * Strips IPv6-mapped IPv4 prefix `::ffff:` if present.
  */
 export function getClientIp(headers: Headers): string | null {
-  const fwd = headers.get("x-forwarded-for")
+  const fwd = headers.get('x-forwarded-for')
   if (fwd) {
-    const first = fwd.split(",")[0]?.trim()
-    if (first) return first.replace(/^::ffff:/, "")
+    const first = fwd.split(',')[0]?.trim()
+    if (first) return first.replace(/^::ffff:/, '')
   }
-  const real = headers.get("x-real-ip")
-  if (real) return real.trim().replace(/^::ffff:/, "") || null
+  const real = headers.get('x-real-ip')
+  if (real) return real.trim().replace(/^::ffff:/, '') || null
   return null
 }
 
@@ -120,14 +120,15 @@ export function getClientIp(headers: Headers): string | null {
  * 30-second in-memory TTL. Fails open (returns false) on DB error.
  */
 export async function isIpAllowlistEnabled(): Promise<boolean> {
-  if (toggleCache && toggleCache.expiresAt > Date.now()) return toggleCache.value
+  if (toggleCache && toggleCache.expiresAt > Date.now())
+    return toggleCache.value
   try {
     const raw = await deps.readSetting(TOGGLE_KEY)
-    const value = raw === "true"
+    const value = raw === 'true'
     toggleCache = { value, expiresAt: Date.now() + TOGGLE_TTL_MS }
     return value
   } catch (err) {
-    console.warn("[ip-allowlist] toggle read failed; failing open", err)
+    console.warn('[ip-allowlist] toggle read failed; failing open', err)
     return false
   }
 }
@@ -144,7 +145,7 @@ export async function isIpAllowed(ip: string): Promise<boolean> {
     ipCacheSet(ip, value)
     return value
   } catch (err) {
-    console.warn("[ip-allowlist] ip lookup failed; failing closed", err)
+    console.warn('[ip-allowlist] ip lookup failed; failing closed', err)
     return false
   }
 }
@@ -164,7 +165,7 @@ export async function recordAdminLoginIp(
       await deps.trimAllowlist(userId, 100)
     }
   } catch (err) {
-    console.warn("[ip-allowlist] record login ip failed", { userId, ip, err })
+    console.warn('[ip-allowlist] record login ip failed', { userId, ip, err })
   }
 }
 
@@ -179,6 +180,6 @@ export async function logBlockedAttempt(
   try {
     await deps.insertBlock(userId, ip, path)
   } catch (err) {
-    console.warn("[ip-allowlist] block log insert failed", err)
+    console.warn('[ip-allowlist] block log insert failed', err)
   }
 }

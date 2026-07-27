@@ -1,112 +1,112 @@
-import { describe, it, expect } from "vitest"
-import { validateBelowMinimumSale } from "#/server/functions/shop/sale-validate"
+import { describe, it, expect } from 'vitest'
+import { validateBelowMinimumSale } from '#/server/functions/shop/sale-validate'
 
-describe("validateBelowMinimumSale — at or above minimum", () => {
-  it("returns isBelowMinimum=false with null reason when price equals minimum", () => {
+describe('validateBelowMinimumSale — at or above minimum', () => {
+  it('returns isBelowMinimum=false with null reason when price equals minimum', () => {
     const r = validateBelowMinimumSale({
-      unitPriceUgx: "10000",
-      minimumSellPriceUgx: "10000",
-      userRole: "sales",
-      reason: "",
-      itemName: "shirt",
+      unitPriceUgx: '10000',
+      minimumSellPriceUgx: '10000',
+      userRole: 'sales',
+      reason: '',
+      itemName: 'shirt',
     })
     expect(r).toEqual({ isBelowMinimum: false, reason: null })
   })
 
-  it("returns isBelowMinimum=false with null reason when price is above minimum", () => {
+  it('returns isBelowMinimum=false with null reason when price is above minimum', () => {
     const r = validateBelowMinimumSale({
-      unitPriceUgx: "12000",
-      minimumSellPriceUgx: "10000",
-      userRole: "sales",
-      reason: "",
-      itemName: "shirt",
+      unitPriceUgx: '12000',
+      minimumSellPriceUgx: '10000',
+      userRole: 'sales',
+      reason: '',
+      itemName: 'shirt',
     })
     expect(r).toEqual({ isBelowMinimum: false, reason: null })
   })
 
-  it("does not require a reason when price is at-or-above minimum, regardless of role", () => {
+  it('does not require a reason when price is at-or-above minimum, regardless of role', () => {
     const r = validateBelowMinimumSale({
-      unitPriceUgx: "12000",
-      minimumSellPriceUgx: "10000",
-      userRole: "admin",
-      reason: "",
-      itemName: "shirt",
+      unitPriceUgx: '12000',
+      minimumSellPriceUgx: '10000',
+      userRole: 'admin',
+      reason: '',
+      itemName: 'shirt',
     })
     expect(r.isBelowMinimum).toBe(false)
   })
 })
 
-describe("validateBelowMinimumSale — below minimum (approval gate)", () => {
-  it("throws for sales role even with a reason", () => {
+describe('validateBelowMinimumSale — below minimum (approval gate)', () => {
+  it('throws for sales role even with a reason', () => {
     expect(() =>
       validateBelowMinimumSale({
-        unitPriceUgx: "8000",
-        minimumSellPriceUgx: "10000",
-        userRole: "sales",
-        reason: "customer haggled",
-        itemName: "shirt",
+        unitPriceUgx: '8000',
+        minimumSellPriceUgx: '10000',
+        userRole: 'sales',
+        reason: 'customer haggled',
+        itemName: 'shirt',
       }),
     ).toThrow(/supervisor approval/i)
   })
 
-  it("throws for sales role with empty reason (approval gate trips first)", () => {
+  it('throws for sales role with empty reason (approval gate trips first)', () => {
     expect(() =>
       validateBelowMinimumSale({
-        unitPriceUgx: "8000",
-        minimumSellPriceUgx: "10000",
-        userRole: "sales",
-        reason: "",
-        itemName: "shirt",
+        unitPriceUgx: '8000',
+        minimumSellPriceUgx: '10000',
+        userRole: 'sales',
+        reason: '',
+        itemName: 'shirt',
       }),
     ).toThrow(/supervisor approval/i)
   })
 })
 
-describe("validateBelowMinimumSale — below minimum (reason required)", () => {
-  it("throws for admin without reason", () => {
+describe('validateBelowMinimumSale — below minimum (reason required)', () => {
+  it('throws for admin without reason', () => {
     expect(() =>
       validateBelowMinimumSale({
-        unitPriceUgx: "8000",
-        minimumSellPriceUgx: "10000",
-        userRole: "admin",
-        reason: "",
-        itemName: "shirt",
+        unitPriceUgx: '8000',
+        minimumSellPriceUgx: '10000',
+        userRole: 'admin',
+        reason: '',
+        itemName: 'shirt',
       }),
     ).toThrow(/reason required/i)
   })
 
-  it("throws for supervisor with whitespace-only reason", () => {
+  it('throws for supervisor with whitespace-only reason', () => {
     expect(() =>
       validateBelowMinimumSale({
-        unitPriceUgx: "8000",
-        minimumSellPriceUgx: "10000",
-        userRole: "supervisor",
-        reason: "   ",
-        itemName: "shirt",
+        unitPriceUgx: '8000',
+        minimumSellPriceUgx: '10000',
+        userRole: 'supervisor',
+        reason: '   ',
+        itemName: 'shirt',
       }),
     ).toThrow(/reason required/i)
   })
 
-  it("returns isBelowMinimum=true and trims the reason for admin with valid reason", () => {
+  it('returns isBelowMinimum=true and trims the reason for admin with valid reason', () => {
     const r = validateBelowMinimumSale({
-      unitPriceUgx: "8000",
-      minimumSellPriceUgx: "10000",
-      userRole: "admin",
-      reason: "  damaged  ",
-      itemName: "shirt",
+      unitPriceUgx: '8000',
+      minimumSellPriceUgx: '10000',
+      userRole: 'admin',
+      reason: '  damaged  ',
+      itemName: 'shirt',
     })
-    expect(r).toEqual({ isBelowMinimum: true, reason: "damaged" })
+    expect(r).toEqual({ isBelowMinimum: true, reason: 'damaged' })
   })
 
-  it("returns isBelowMinimum=true for supervisor with valid reason", () => {
+  it('returns isBelowMinimum=true for supervisor with valid reason', () => {
     const r = validateBelowMinimumSale({
-      unitPriceUgx: "8000",
-      minimumSellPriceUgx: "10000",
-      userRole: "supervisor",
-      reason: "clearance",
-      itemName: "shirt",
+      unitPriceUgx: '8000',
+      minimumSellPriceUgx: '10000',
+      userRole: 'supervisor',
+      reason: 'clearance',
+      itemName: 'shirt',
     })
     expect(r.isBelowMinimum).toBe(true)
-    expect(r.reason).toBe("clearance")
+    expect(r.reason).toBe('clearance')
   })
 })

@@ -1,41 +1,39 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { Fragment, useState } from "react"
-import { Plus, Pencil, Trash2, ChevronRight } from "lucide-react"
-import { requireUiPermission, useCan } from "#/lib/permissions"
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { Fragment, useState } from 'react'
+import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react'
+import { requireUiPermission, useCan } from '#/lib/permissions'
 import {
   getItemByArticle,
   listItemCategories,
-} from "#/server/functions/items/items"
+} from '#/server/functions/items/items'
 import {
   listItemStockPrices,
   // Plan 2b removed setShopStockMinimumPrice — shop floors are item-wide now.
   setItemMinimumSellPrice,
-} from "#/server/functions/items/prices"
-import { countVariantStockLocations } from "#/server/functions/items/variant-stock-counts"
-import {
-  createVariant,
-  deleteVariant,
-} from "#/server/functions/items/variants"
-import { ColorEditor } from "#/components/items/color-editor"
-import { CategoryEditPopover } from "#/components/items/category-edit-popover"
-import { PhotoHandoffQR } from "#/components/items/photo-handoff-qr"
-import { AuditActivityPanel } from "#/components/audit/audit-activity-panel"
-import { itemImageUrl } from "#/lib/items"
-import { deriveSizes } from "#/lib/variants"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { MoneyInput } from "#/components/ui/money-input"
-import { Badge } from "#/components/ui/badge"
-import { InfoTip } from "#/components/ui/info-tip"
+} from '#/server/functions/items/prices'
+import { countVariantStockLocations } from '#/server/functions/items/variant-stock-counts'
+import { createVariant, deleteVariant } from '#/server/functions/items/variants'
+import { ColorEditor } from '#/components/items/color-editor'
+import { CategoryEditPopover } from '#/components/items/category-edit-popover'
+import { PhotoHandoffQR } from '#/components/items/photo-handoff-qr'
+import { AuditActivityPanel } from '#/components/audit/audit-activity-panel'
+import { itemImageUrl } from '#/lib/items'
+import { deriveSizes } from '#/lib/variants'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { MoneyInput } from '#/components/ui/money-input'
+import { Badge } from '#/components/ui/badge'
+import { InfoTip } from '#/components/ui/info-tip'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "#/components/ui/dialog"
+} from '#/components/ui/dialog'
 
-export const Route = createFileRoute("/items/$articleNumber")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "items.view"),
+export const Route = createFileRoute('/items/$articleNumber')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'items.view'),
   loader: async ({ params }) => {
     const product = await getItemByArticle({
       data: { articleNumber: params.articleNumber },
@@ -52,10 +50,11 @@ export const Route = createFileRoute("/items/$articleNumber")({
 })
 
 function ProductDetailPage() {
-  const { product, prices, variantStockCounts, categories } = Route.useLoaderData()
+  const { product, prices, variantStockCounts, categories } =
+    Route.useLoaderData()
   const router = useRouter()
-  const canManage = useCan("items.manage")
-  const canSeeActivity = useCan("audit.viewArticleActivity")
+  const canManage = useCan('items.manage')
+  const canSeeActivity = useCan('audit.viewArticleActivity')
   const [colorDialogOpen, setColorDialogOpen] = useState(false)
   const [priceDialogOpen, setPriceDialogOpen] = useState(false)
   const [activeColorId, setActiveColorId] = useState<string | undefined>(
@@ -63,6 +62,7 @@ function ProductDetailPage() {
   )
   const active =
     product.colors.find((c) => c.id === activeColorId) ?? product.colors[0]
+  const hasColors = product.colors.length > 0
   const sizes = deriveSizes(product.variants)
 
   return (
@@ -88,14 +88,16 @@ function ProductDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <div className="aspect-square rounded border bg-muted flex items-center justify-center overflow-hidden">
-            {active.imageS3Key ? (
+            {active?.imageS3Key ? (
               <img
                 src={itemImageUrl(active.imageS3Key)}
                 alt=""
                 className="size-full object-cover"
               />
             ) : (
-              <span className="text-sm text-muted-foreground">no image</span>
+              <span className="text-sm text-muted-foreground">
+                {hasColors ? 'no image' : 'add a color to upload an image'}
+              </span>
             )}
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -124,11 +126,13 @@ function ProductDetailPage() {
               </Button>
             )}
           </div>
-          {canManage && (
+          {canManage && active && (
             <div className="pt-3 border-t mt-3">
               <PhotoHandoffQR
                 itemColorId={active.id}
-                onUploaded={() => { void router.invalidate() }}
+                onUploaded={() => {
+                  void router.invalidate()
+                }}
               />
             </div>
           )}
@@ -137,7 +141,7 @@ function ProductDetailPage() {
         <div className="space-y-3">
           <div>
             <h2 className="font-medium">Sizes</h2>
-            <p className="text-sm">{sizes.join(", ") || "—"}</p>
+            <p className="text-sm">{sizes.join(', ') || '—'}</p>
           </div>
           {product.description && (
             <div>
@@ -178,7 +182,7 @@ function ProductDetailPage() {
       )}
 
       <Dialog open={colorDialogOpen} onOpenChange={setColorDialogOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Add color</DialogTitle>
           </DialogHeader>
@@ -193,9 +197,12 @@ function ProductDetailPage() {
       </Dialog>
 
       <Dialog open={priceDialogOpen} onOpenChange={setPriceDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Edit prices</DialogTitle>
+            <DialogDescription className="sr-only">
+              Set the item-wide minimum sell price for store and shop stock.
+            </DialogDescription>
           </DialogHeader>
           <PriceEditor
             prices={prices}
@@ -207,7 +214,9 @@ function ProductDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {canSeeActivity && <AuditActivityPanel articleNumber={product.articleNumber} />}
+      {canSeeActivity && (
+        <AuditActivityPanel articleNumber={product.articleNumber} />
+      )}
     </div>
   )
 }
@@ -242,7 +251,7 @@ type StockPrices = {
 }
 
 function PriceSummary({ prices }: { prices: StockPrices }) {
-  const itemFloor = prices.item?.minimumSellPriceUgx ?? "0"
+  const itemFloor = prices.item?.minimumSellPriceUgx ?? '0'
   const rows = [
     // Store rows now inherit their min sell price from the item itself —
     // each row shows the item-wide floor in the "Min sell" column. Rows
@@ -322,7 +331,7 @@ function PriceEditor({
   // Plan 2b: a single item-wide minimum sell price applies to every
   // store + shop lot. The editor has one row.
   type DraftRow = {
-    key: "item"
+    key: 'item'
     itemId: string
     location: string
     original: string
@@ -333,16 +342,16 @@ function PriceEditor({
   const totalQty =
     prices.store.reduce((s, r) => s + r.quantityOnHand, 0) +
     prices.shop.reduce((s, r) => s + r.quantityOnHand, 0)
-  const itemFloor = prices.item?.minimumSellPriceUgx ?? "0"
+  const itemFloor = prices.item?.minimumSellPriceUgx ?? '0'
   const itemId = prices.item?.id
 
   const [rows, setRows] = useState<DraftRow[]>(() => {
     if (!itemId) return []
     return [
       {
-        key: "item",
+        key: 'item',
         itemId,
-        location: "Item-wide floor (store + shop)",
+        location: 'Item-wide floor (store + shop)',
         original: itemFloor,
         value: itemFloor,
         qty: totalQty,
@@ -374,7 +383,7 @@ function PriceEditor({
       }
       onSaved()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save")
+      setError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
       setPending(false)
     }
@@ -427,13 +436,18 @@ function PriceEditor({
           {dirty.length > 0 ? (
             <Badge variant="outline">{dirty.length} pending</Badge>
           ) : (
-            "No changes"
+            'No changes'
           )}
         </div>
         <div className="flex items-center gap-2">
           {error && <span className="text-xs text-destructive">{error}</span>}
-          <Button onClick={() => { void save() }} disabled={pending || dirty.length === 0}>
-            {pending ? "Saving…" : "Save changes"}
+          <Button
+            onClick={() => {
+              void save()
+            }}
+            disabled={pending || dirty.length === 0}
+          >
+            {pending ? 'Saving…' : 'Save changes'}
           </Button>
         </div>
       </div>
@@ -470,19 +484,17 @@ function VariantsSection({
   canManage,
   onChanged,
 }: VariantsSectionProps) {
-  const [newColorId, setNewColorId] = useState<string>(colors[0]?.id ?? "")
-  const [newSize, setNewSize] = useState("")
+  const [newColorId, setNewColorId] = useState<string>(colors[0]?.id ?? '')
+  const [newSize, setNewSize] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
-  const stockByVariant = new Map(
-    stockCounts.map((c) => [c.variantId, c]),
-  )
+  const stockByVariant = new Map(stockCounts.map((c) => [c.variantId, c]))
 
   const sorted = [...variants].sort((a, b) => {
-    const ac = colors.find((c) => c.id === a.colorId)?.colorName ?? ""
-    const bc = colors.find((c) => c.id === b.colorId)?.colorName ?? ""
+    const ac = colors.find((c) => c.id === a.colorId)?.colorName ?? ''
+    const bc = colors.find((c) => c.id === b.colorId)?.colorName ?? ''
     return ac === bc ? a.size.localeCompare(b.size) : ac.localeCompare(bc)
   })
 
@@ -530,24 +542,24 @@ function VariantsSection({
       await createVariant({
         data: { itemId, colorId: newColorId, size: newSize.trim() },
       })
-      setNewSize("")
+      setNewSize('')
       onChanged()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to add variant")
+      setError(e instanceof Error ? e.message : 'Failed to add variant')
     } finally {
       setPending(false)
     }
   }
 
   async function removeVariant(variantId: string) {
-    if (!confirm("Remove this variant?")) return
+    if (!confirm('Remove this variant?')) return
     setPending(true)
     setError(null)
     try {
       await deleteVariant({ data: { variantId } })
       onChanged()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to delete variant")
+      setError(e instanceof Error ? e.message : 'Failed to delete variant')
     } finally {
       setPending(false)
     }
@@ -562,8 +574,8 @@ function VariantsSection({
 
       {sorted.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No variants yet. Add a color and a size to start tracking stock
-          for this item.
+          No variants yet. Add a color and a size to start tracking stock for
+          this item.
         </p>
       ) : (
         <div className="overflow-x-auto rounded border">
@@ -586,46 +598,46 @@ function VariantsSection({
                       className="border-t bg-muted/20 hover:bg-muted/40 cursor-pointer"
                       data-cy="variant-group"
                       data-color-id={g.colorId}
-                      data-expanded={isOpen ? "true" : "false"}
+                      data-expanded={isOpen ? 'true' : 'false'}
                     >
                       <td colSpan={colCount} className="p-0">
                         <button
                           type="button"
                           onClick={() => toggleGroup(g.colorId)}
                           aria-expanded={isOpen}
-                          aria-label={`${isOpen ? "Collapse" : "Expand"} ${g.color?.colorName ?? "color"} variants`}
+                          aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${g.color?.colorName ?? 'color'} variants`}
                           className="grid w-full items-center gap-2 p-2 text-left"
                           style={{
                             gridTemplateColumns: canManage
-                              ? "1fr 1fr 1fr 2.5rem"
-                              : "1fr 1fr 1fr",
+                              ? '1fr 1fr 1fr 2.5rem'
+                              : '1fr 1fr 1fr',
                           }}
                         >
                           <span className="inline-flex items-center gap-1.5">
                             <ChevronRight
-                              className={`size-4 shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`}
+                              className={`size-4 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
                               aria-hidden
                             />
                             <span
                               className="inline-block size-3 rounded-full border"
                               style={{
-                                backgroundColor: g.color?.colorHex ?? "#888",
+                                backgroundColor: g.color?.colorHex ?? '#888',
                               }}
                               aria-hidden
                             />
                             <span className="font-medium">
-                              {g.color?.colorName ?? "—"}
+                              {g.color?.colorName ?? '—'}
                             </span>
                           </span>
                           <span className="text-sm text-muted-foreground">
                             {g.variants.length} size
-                            {g.variants.length === 1 ? "" : "s"}
+                            {g.variants.length === 1 ? '' : 's'}
                           </span>
                           <span>
                             {g.totalQty > 0 ? (
                               <Badge variant="secondary">
-                                {g.totalQty} in stock at {g.maxLocations}{" "}
-                                location{g.maxLocations === 1 ? "" : "s"}
+                                {g.totalQty} in stock at {g.maxLocations}{' '}
+                                location{g.maxLocations === 1 ? '' : 's'}
                               </Badge>
                             ) : (
                               <span className="text-xs text-muted-foreground">
@@ -651,19 +663,19 @@ function VariantsSection({
                               <span
                                 className="inline-block size-3 rounded-full border"
                                 style={{
-                                  backgroundColor: g.color?.colorHex ?? "#888",
+                                  backgroundColor: g.color?.colorHex ?? '#888',
                                 }}
                                 aria-hidden
                               />
-                              {g.color?.colorName ?? "—"}
+                              {g.color?.colorName ?? '—'}
                             </span>
                           </td>
                           <td className="p-2 font-medium">{v.size}</td>
                           <td className="p-2">
                             {stock && stock.qty > 0 ? (
                               <Badge variant="secondary">
-                                {stock.qty} in stock at {stock.locations}{" "}
-                                location{stock.locations === 1 ? "" : "s"}
+                                {stock.qty} in stock at {stock.locations}{' '}
+                                location{stock.locations === 1 ? '' : 's'}
                               </Badge>
                             ) : (
                               <span className="text-xs text-muted-foreground">
@@ -677,7 +689,7 @@ function VariantsSection({
                                 type="button"
                                 size="icon"
                                 variant="ghost"
-                                aria-label={`Remove variant ${g.color?.colorName ?? ""} ${v.size}`}
+                                aria-label={`Remove variant ${g.color?.colorName ?? ''} ${v.size}`}
                                 disabled={pending}
                                 onClick={() => {
                                   void removeVariant(v.id)
@@ -704,7 +716,10 @@ function VariantsSection({
           data-cy="add-variant-form"
         >
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground" htmlFor="new-variant-color">
+            <label
+              className="text-xs text-muted-foreground"
+              htmlFor="new-variant-color"
+            >
               Color
             </label>
             <select
@@ -721,7 +736,10 @@ function VariantsSection({
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground" htmlFor="new-variant-size">
+            <label
+              className="text-xs text-muted-foreground"
+              htmlFor="new-variant-size"
+            >
               Size
             </label>
             <Input

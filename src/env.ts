@@ -1,5 +1,5 @@
-import { createEnv } from "@t3-oss/env-core"
-import { z } from "zod"
+import { createEnv } from '@t3-oss/env-core'
+import { z } from 'zod'
 
 export const env = createEnv({
   server: {
@@ -17,7 +17,7 @@ export const env = createEnv({
     S3_PRODUCT_BUCKET: z.string().min(1),
     MOCK_EMAILS: z.string().optional(),
   },
-  clientPrefix: "VITE_",
+  clientPrefix: 'VITE_',
   client: {
     VITE_APP_TITLE: z.string().min(1).optional(),
   },

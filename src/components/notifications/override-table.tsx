@@ -91,7 +91,9 @@ export function OverrideTable({
           {rows.map((r) => (
             <TableRow key={r.id}>
               <TableCell className="capitalize">{r.scope}</TableCell>
-              <TableCell>{r.item.articleNumber} {r.item.name}</TableCell>
+              <TableCell>
+                {r.item.articleNumber} {r.item.name}
+              </TableCell>
               {showShopColumn && (
                 <TableCell>{r.shop?.name ?? '(all shops)'}</TableCell>
               )}

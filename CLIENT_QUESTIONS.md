@@ -34,12 +34,14 @@ Can goods flow backwards in the system?
 Customers can take goods on credit (deferred payment).
 
 **Decisions:**
+
 - **Credit limits:** None — trust-based. No per-customer limits enforced by the system.
 - **Payment terms:** Not tracked.
 - **Approval:** Only Admin or Supervisor can grant credit. Sales personnel cannot.
 - **Partial payments:** Assumed allowed (standard A/R behavior).
 
 **Design implications:**
+
 - Customer/debtor entity with outstanding balance tracking (only created when needed for credit)
 - Sales transaction supports "credit" as a payment method alongside cash/bank
 - Ledger on credit sale: DR Accounts Receivable / CR Sales Revenue (+ DR COGS / CR Inventory)

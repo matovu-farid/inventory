@@ -1,24 +1,25 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { requireUiPermission } from "#/lib/permissions"
-import { useState } from "react"
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { requireUiPermission } from '#/lib/permissions'
+import { useState } from 'react'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "#/components/ui/card"
-import { listShopRestockSuggestions } from "#/server/functions/shop/restock-suggestions"
-import { getShop } from "#/server/functions/shop/list-shops"
-import { createTransfer } from "#/server/functions/store/transfers"
-import { RestockSuggestionsTable } from "#/components/notifications/restock-suggestions-table"
-import type { SuggestionSelection } from "#/components/notifications/restock-suggestions-table"
-import { z } from "zod"
+} from '#/components/ui/card'
+import { listShopRestockSuggestions } from '#/server/functions/shop/restock-suggestions'
+import { getShop } from '#/server/functions/shop/list-shops'
+import { createTransfer } from '#/server/functions/store/transfers'
+import { RestockSuggestionsTable } from '#/components/notifications/restock-suggestions-table'
+import type { SuggestionSelection } from '#/components/notifications/restock-suggestions-table'
+import { z } from 'zod'
 
 const search = z.object({ variant: z.string().optional() })
 
-export const Route = createFileRoute("/shop/$shopId/restock")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "notifications.manage"),
+export const Route = createFileRoute('/shop/$shopId/restock')({
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, 'notifications.manage'),
   validateSearch: search,
   loaderDeps: ({ search: deps }) => ({ variant: deps.variant }),
   loader: async ({ params }) => {
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/shop/$shopId/restock")({
   component: ShopRestockPage,
 })
 
-type Banner = { kind: "success" | "error"; text: string }
+type Banner = { kind: 'success' | 'error'; text: string }
 
 function ShopRestockPage() {
   const { shop, suggestions } = Route.useLoaderData()
@@ -42,7 +43,7 @@ function ShopRestockPage() {
 
   async function onSubmit(selections: SuggestionSelection[]) {
     if (selections.length === 0) {
-      setBanner({ kind: "error", text: "Select at least one item." })
+      setBanner({ kind: 'error', text: 'Select at least one item.' })
       return
     }
     setBanner(null)
@@ -58,15 +59,15 @@ function ShopRestockPage() {
         },
       })
       setBanner({
-        kind: "success",
-        text: `Transfer dispatched with ${selections.length} item${selections.length === 1 ? "" : "s"}.`,
+        kind: 'success',
+        text: `Transfer dispatched with ${selections.length} item${selections.length === 1 ? '' : 's'}.`,
       })
       await router.invalidate()
-      await router.navigate({ to: "/store/transfers" })
+      await router.navigate({ to: '/store/transfers' })
     } catch (e) {
       setBanner({
-        kind: "error",
-        text: e instanceof Error ? e.message : "Failed to create transfer.",
+        kind: 'error',
+        text: e instanceof Error ? e.message : 'Failed to create transfer.',
       })
     }
   }
@@ -77,9 +78,9 @@ function ShopRestockPage() {
       {banner && (
         <div
           className={
-            banner.kind === "success"
-              ? "rounded-md border border-emerald-300 bg-emerald-50 text-emerald-800 text-sm px-3 py-2"
-              : "rounded-md border border-rose-300 bg-rose-50 text-rose-800 text-sm px-3 py-2"
+            banner.kind === 'success'
+              ? 'rounded-md border border-emerald-300 bg-emerald-50 text-emerald-800 text-sm px-3 py-2'
+              : 'rounded-md border border-rose-300 bg-rose-50 text-rose-800 text-sm px-3 py-2'
           }
         >
           {banner.text}

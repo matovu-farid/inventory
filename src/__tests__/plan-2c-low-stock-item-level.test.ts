@@ -50,11 +50,18 @@ async function seed() {
     .values({ articleNumber: 'P2C-1', name: 'Polo', category: 'Test' })
     .returning()
   itemId = item.id
-  const [store] = await db.insert(stores).values({ name: 'P2C Store' }).returning()
+  const [store] = await db
+    .insert(stores)
+    .values({ name: 'P2C Store' })
+    .returning()
   storeId = store.id
 
   // Three historical receivings → baseline avg 100
-  const dates = [new Date(2026, 0, 1), new Date(2026, 0, 2), new Date(2026, 0, 3)]
+  const dates = [
+    new Date(2026, 0, 1),
+    new Date(2026, 0, 2),
+    new Date(2026, 0, 3),
+  ]
   let idx = 0
   for (const qty of [80, 100, 120]) {
     const [route] = await db
@@ -89,13 +96,19 @@ async function seed() {
 async function cleanup() {
   if (!itemId) return
   await db.delete(storeStock).where(eq(storeStock.storeId, storeId))
-  await db.delete(notificationThresholdOverrides).where(eq(notificationThresholdOverrides.itemId, itemId))
+  await db
+    .delete(notificationThresholdOverrides)
+    .where(eq(notificationThresholdOverrides.itemId, itemId))
   await db.delete(lowStockAlerts).where(eq(lowStockAlerts.itemId, itemId))
-  await db.delete(restockRequisitions).where(eq(restockRequisitions.itemId, itemId))
+  await db
+    .delete(restockRequisitions)
+    .where(eq(restockRequisitions.itemId, itemId))
   await db.delete(storeReceivings).where(eq(storeReceivings.storeId, storeId))
   await db.delete(supplyRouteLines).where(eq(supplyRouteLines.itemId, itemId))
   for (const qty of [80, 100, 120]) {
-    await db.delete(supplyRoutes).where(eq(supplyRoutes.name, `P2C Route ${qty}`))
+    await db
+      .delete(supplyRoutes)
+      .where(eq(supplyRoutes.name, `P2C Route ${qty}`))
   }
   await db.delete(variants).where(eq(variants.itemId, itemId))
   await db.delete(itemColors).where(eq(itemColors.itemId, itemId))
@@ -109,7 +122,9 @@ beforeAll(seed)
 afterAll(cleanup)
 beforeEach(async () => {
   await db.delete(lowStockAlerts).where(eq(lowStockAlerts.itemId, itemId))
-  await db.delete(restockRequisitions).where(eq(restockRequisitions.itemId, itemId))
+  await db
+    .delete(restockRequisitions)
+    .where(eq(restockRequisitions.itemId, itemId))
   await db.delete(storeStock).where(eq(storeStock.storeId, storeId))
 })
 
@@ -117,16 +132,30 @@ describe('Plan 2c low-stock alerts — item-level', () => {
   it('aggregates unresolved + variant lots into a single item-level total', async () => {
     // Add an unresolved lot (10) and a variant lot (5) — total 15, well
     // below baseline 100 × 30% = 30 → should trip the percent rule.
-    const [color] = await db.insert(itemColors)
+    const [color] = await db
+      .insert(itemColors)
       .values({ itemId, colorName: 'Red', colorHex: '#f00' })
       .returning()
-    const [variant] = await db.insert(variants)
+    const [variant] = await db
+      .insert(variants)
       .values({ itemId, colorId: color.id, size: 'M' })
       .returning()
 
     await db.insert(storeStock).values([
-      { storeId, itemId, variantId: null, quantityOnHand: 10, costPerUnitUgx: '100' },
-      { storeId, itemId, variantId: variant.id, quantityOnHand: 5, costPerUnitUgx: '100' },
+      {
+        storeId,
+        itemId,
+        variantId: null,
+        quantityOnHand: 10,
+        costPerUnitUgx: '100',
+      },
+      {
+        storeId,
+        itemId,
+        variantId: variant.id,
+        quantityOnHand: 5,
+        costPerUnitUgx: '100',
+      },
     ])
 
     await runThresholdChecksInternal(db, new Date())
@@ -152,7 +181,11 @@ describe('Plan 2c low-stock alerts — item-level', () => {
 
   it('resolves alert when item total recovers above threshold', async () => {
     await db.insert(storeStock).values({
-      storeId, itemId, variantId: null, quantityOnHand: 5, costPerUnitUgx: '100',
+      storeId,
+      itemId,
+      variantId: null,
+      quantityOnHand: 5,
+      costPerUnitUgx: '100',
     })
     await runThresholdChecksInternal(db, new Date())
     let alerts = await db.query.lowStockAlerts.findMany({
@@ -165,7 +198,8 @@ describe('Plan 2c low-stock alerts — item-level', () => {
     expect(alerts[0].status).toBe('open')
 
     // Refill above threshold (100 × 30% = 30; set to 150 → safe).
-    await db.update(storeStock)
+    await db
+      .update(storeStock)
       .set({ quantityOnHand: 150 })
       .where(eq(storeStock.storeId, storeId))
     await runThresholdChecksInternal(db, new Date())

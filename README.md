@@ -1,265 +1,69 @@
-Welcome to your new TanStack Start app! 
+# Inventory and Trade Management System
 
-# Getting Started
+A multi-module inventory and trade management platform for a clothing import / retail business. Tracks the full lifecycle of goods, from international or local procurement, through warehousing, to retail sales across multiple shops. Double-entry bookkeeping with a shared ledger keeps the books honest and surfaces loss at every stage.
 
-To run this application:
+The system is one codebase serving three role-based front ends that share a common database and accounting engine.
 
-```bash
-npm install
-npm run dev
-```
+## Modules
 
-# Building For Production
+| Module | Primary users | Core responsibility |
+| --- | --- | --- |
+| **Supply** | Admin, Supervisor | Procurement, supplier management, import-cost tracking (RMB to USD to UGX) |
+| **Store** | Admin, Supervisor | Warehouse management, stock control, distribution to shops |
+| **Shop** | Sales personnel, Supervisor | Retail point of sale, pricing, daily accounts |
 
-To build this application for production:
+## What it does
 
-```bash
-npm run build
-```
+- **Supply chain visibility.** From a buying trip in China (item-level purchases, freight, customs, insurance) to warehouse receipt to shop sale, every movement creates a journal entry. Loss is detectable at any point in the chain.
+- **Point of sale.** A `/pos` route for fast retail checkout with minimum-price enforcement and daily X / Z reports.
+- **Stock control.** Stock-in, stock-out, restock workflows, stock-takes, audit-logged variants by article number.
+- **Multi-currency procurement.** Records purchases in RMB, converts to USD then UGX with the trip's actual rates, so cost-of-goods reflects reality and not an averaged guess.
+- **Audit trail.** Every mutation goes through the server, gets validated, and is logged. Settings has a viewer.
+- **User management.** Email-invite onboarding, photo upload via signed token URL, role-based access.
 
-## Testing
+## Tech stack
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+- **Framework.** TanStack Start (full-stack React) with TanStack Router (file-based) and TanStack Start server functions.
+- **Frontend state.** TanStack Query and TanStack DB collections for reactive, real-time data. TanStack Form for input.
+- **UI.** Tailwind CSS v4 with shadcn/ui and Radix UI primitives.
+- **Database.** Neon Postgres with Drizzle ORM. Migrations checked into `drizzle/`.
+- **Deployment.** Cloudflare Workers via Wrangler. A scheduled worker runs hourly cron jobs (email digests, reminders).
+- **Auth.** Better Auth with role-based access control and email-verified sign up.
+- **Emails.** Resend with React Email templates. Calls can be gated with `MOCK_EMAILS` env in dev.
+- **Observability.** Sentry on the TanStack Start server.
+- **Testing.** Vitest unit tests, Cypress E2E with seeded fixtures.
 
-```bash
-npm run test
-```
+See [`TECHNICAL.md`](./TECHNICAL.md) for the architecture diagram and [`REQUIREMENTS.md`](./REQUIREMENTS.md) for the business model and accounting rules.
 
-## Styling
+## Origin
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+The business currently tracks operations in `gross_profit.xlsx`, a spreadsheet spanning 47 buying-trip routes from 2011 to 2026. The schema and accounting rules in this codebase are derived directly from that spreadsheet, so the system can be adopted without losing prior history.
 
-### Removing Tailwind CSS
-
-If you prefer not to use Tailwind CSS:
-
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `npm install @tailwindcss/vite tailwindcss -D`
-
-## Linting & Formatting
-
-
-This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.io/) for linting and formatting. Eslint is configured using [tanstack/eslint-config](https://tanstack.com/config/latest/docs/eslint). The following scripts are available:
+## Getting started
 
 ```bash
-npm run lint
-npm run format
-npm run check
+pnpm install
+pnpm db:push       # apply Drizzle schema to your dev DB
+pnpm db:seed       # optional: seed dev data
+pnpm dev           # start the TanStack Start dev server on :3000
 ```
 
-
-## Setting up Better Auth
-
-1. Generate and set the `BETTER_AUTH_SECRET` environment variable in your `.env.local`:
-
-   ```bash
-   npx -y @better-auth/cli secret
-   ```
-
-2. Visit the [Better Auth documentation](https://www.better-auth.com) to unlock the full potential of authentication in your app.
-
-### Adding a Database (Optional)
-
-Better Auth can work in stateless mode, but to persist user data, add a database:
-
-```typescript
-// src/lib/auth.ts
-import { betterAuth } from "better-auth";
-import { Pool } from "pg";
-
-export const auth = betterAuth({
-  database: new Pool({
-    connectionString: process.env.DATABASE_URL,
-  }),
-  // ... rest of config
-});
-```
-
-Then run migrations:
-
-```bash
-npx -y @better-auth/cli migrate
-```
-
-
-## T3Env
-
-- You can use T3Env to add type safety to your environment variables.
-- Add Environment variables to the `src/env.mjs` file.
-- Use the environment variables in your code.
-
-### Usage
-
-```ts
-import { env } from "#/env";
-
-console.log(env.VITE_APP_TITLE);
-```
-
-
-
-
-
-## Shadcn
-
-Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
-
-```bash
-pnpm dlx shadcn@latest add button
-```
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+## Scripts
+
+| Script | What it does |
+| --- | --- |
+| `pnpm dev` | Vite + TanStack Start dev server, Sentry instrumented |
+| `pnpm build` | Production build for Cloudflare Workers |
+| `pnpm deploy` | Build and deploy to Cloudflare with Wrangler |
+| `pnpm test` | Vitest unit tests |
+| `pnpm test:e2e` | Cypress E2E suite |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm format` | Prettier check |
+| `pnpm check` | Prettier write plus eslint fix |
+| `pnpm db:studio` | Drizzle Studio for browsing data |
+| `pnpm backfill:audit` | One-off script to backfill audit logs |
+| `pnpm backfill:variants` | One-off script to backfill item variants |
+
+## Status
+
+Active development. Supply, Store, and Shop modules are functional. Currently hardening the audit / restock flows and email-notification cadence.

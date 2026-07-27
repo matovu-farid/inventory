@@ -8,12 +8,12 @@
 export interface ShrinkOptions {
   maxDim?: number
   quality?: number
-  mimeType?: "image/jpeg" | "image/webp"
+  mimeType?: 'image/jpeg' | 'image/webp'
 }
 
 const DEFAULT_MAX_DIM = 1600
 const DEFAULT_QUALITY = 0.85
-const DEFAULT_MIME: ShrinkOptions["mimeType"] = "image/jpeg"
+const DEFAULT_MIME: ShrinkOptions['mimeType'] = 'image/jpeg'
 
 export async function shrinkImage(
   file: Blob,
@@ -25,17 +25,17 @@ export async function shrinkImage(
 
   const img = await loadImage(file)
   const { w, h } = fitWithin(img.naturalWidth, img.naturalHeight, maxDim)
-  const canvas = document.createElement("canvas")
+  const canvas = document.createElement('canvas')
   canvas.width = w
   canvas.height = h
-  const ctx = canvas.getContext("2d")
-  if (!ctx) throw new Error("Canvas 2D context unavailable")
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas 2D context unavailable')
   ctx.drawImage(img, 0, 0, w, h)
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, mimeType, quality),
   )
-  if (!blob) throw new Error("Failed to encode shrunk image")
+  if (!blob) throw new Error('Failed to encode shrunk image')
   return blob
 }
 
@@ -55,7 +55,11 @@ function loadImage(file: Blob): Promise<HTMLImageElement> {
   })
 }
 
-function fitWithin(w: number, h: number, max: number): { w: number; h: number } {
+function fitWithin(
+  w: number,
+  h: number,
+  max: number,
+): { w: number; h: number } {
   if (w <= max && h <= max) return { w, h }
   const ratio = w > h ? max / w : max / h
   return { w: Math.round(w * ratio), h: Math.round(h * ratio) }

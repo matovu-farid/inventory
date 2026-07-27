@@ -7,7 +7,7 @@ import { shouldNotifyOverdueCredit } from '#/lib/notifications/thresholds'
 import { emitToRoles } from '#/lib/notifications/emit'
 import { formatUgxTotal } from '#/lib/format'
 import { requireSession } from '#/server/middleware/auth'
-import { requireRole } from '#/server/middleware/rbac'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { OPEN_PAYMENT_STATUSES } from '#/lib/payment-status'
 import { runThresholdChecksInternal } from '#/server/scheduled/run-threshold-checks'
 
@@ -116,8 +116,7 @@ async function runOverdueCreditChecks(
  * low-stock threshold engine and the legacy overdue-credit check.
  */
 export const runThresholdChecksNow = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ['admin'])
+  await requireSessionAndRole(['admin'])
 
   const now = new Date()
   const [stockSummary, creditSummary] = await Promise.all([

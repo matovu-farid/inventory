@@ -1,4 +1,10 @@
-import { createFileRoute, Link, redirect, useLoaderData, useRouteContext } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useLoaderData,
+  useRouteContext,
+} from '@tanstack/react-router'
 import {
   Package,
   ShoppingCart,
@@ -8,17 +14,17 @@ import {
   ArrowLeftRight,
   AlertTriangle,
   ArrowRight,
-} from "lucide-react"
-import { getSystemPrereqs } from "#/server/functions/prereqs/system"
-import { can  } from "#/lib/permissions"
-import type {Permission} from "#/lib/permissions";
+} from 'lucide-react'
+import { getSystemPrereqs } from '#/server/functions/prereqs/system'
+import { can } from '#/lib/permissions'
+import type { Permission } from '#/lib/permissions'
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute('/')({
   beforeLoad: ({ context }) => {
     // Sales reps land directly on the shop floor — there's no dashboard
     // content meaningful to them.
     const role = (context.session?.user as { role?: string } | undefined)?.role
-    if (role === "sales") throw redirect({ to: "/shop" })
+    if (role === 'sales') throw redirect({ to: '/shop' })
   },
   loader: async () => {
     const summary = await getSystemPrereqs()
@@ -39,64 +45,64 @@ type QuickAction = {
 
 const quickActions: QuickAction[] = [
   {
-    to: "/supply",
+    to: '/supply',
     icon: Truck,
-    title: "Supply Routes",
-    description: "Manage buying trips and track procurement costs",
-    color: "from-blue-500/10 to-blue-600/5",
-    iconColor: "text-blue-600",
-    permission: "procurement.view",
+    title: 'Supply Routes',
+    description: 'Manage buying trips and track procurement costs',
+    color: 'from-blue-500/10 to-blue-600/5',
+    iconColor: 'text-blue-600',
+    permission: 'procurement.view',
   },
   {
-    to: "/supply/suppliers",
+    to: '/supply/suppliers',
     icon: Users,
-    title: "Suppliers",
-    description: "Manage local and international suppliers",
-    color: "from-violet-500/10 to-violet-600/5",
-    iconColor: "text-violet-600",
-    permission: "procurement.view",
+    title: 'Suppliers',
+    description: 'Manage local and international suppliers',
+    color: 'from-violet-500/10 to-violet-600/5',
+    iconColor: 'text-violet-600',
+    permission: 'procurement.view',
   },
   {
-    to: "/store",
+    to: '/store',
     icon: Package,
-    title: "Store Stock",
-    description: "View warehouse inventory and stock levels",
-    color: "from-emerald-500/10 to-emerald-600/5",
-    iconColor: "text-emerald-600",
-    permission: "warehouse.stock",
+    title: 'Store Stock',
+    description: 'View warehouse inventory and stock levels',
+    color: 'from-emerald-500/10 to-emerald-600/5',
+    iconColor: 'text-emerald-600',
+    permission: 'warehouse.stock',
   },
   {
-    to: "/store/transfers",
+    to: '/store/transfers',
     icon: ArrowLeftRight,
-    title: "Transfers",
-    description: "Transfer goods between locations",
-    color: "from-amber-500/10 to-amber-600/5",
-    iconColor: "text-amber-600",
-    permission: "warehouse.transfers",
+    title: 'Transfers',
+    description: 'Transfer goods between locations',
+    color: 'from-amber-500/10 to-amber-600/5',
+    iconColor: 'text-amber-600',
+    permission: 'warehouse.transfers',
   },
   {
-    to: "/shop",
+    to: '/shop',
     icon: ShoppingCart,
-    title: "Shop & Sales",
-    description: "View shop inventory and record retail sales",
-    color: "from-rose-500/10 to-rose-600/5",
-    iconColor: "text-rose-600",
-    permission: "shop.view",
+    title: 'Shop & Sales',
+    description: 'View shop inventory and record retail sales',
+    color: 'from-rose-500/10 to-rose-600/5',
+    iconColor: 'text-rose-600',
+    permission: 'shop.view',
   },
   {
-    to: "/reports",
+    to: '/reports',
     icon: BarChart3,
-    title: "Reports",
-    description: "P&L, balance sheet, and cash position",
-    color: "from-cyan-500/10 to-cyan-600/5",
-    iconColor: "text-cyan-600",
-    permission: "reports.view",
+    title: 'Reports',
+    description: 'P&L, balance sheet, and cash position',
+    color: 'from-cyan-500/10 to-cyan-600/5',
+    iconColor: 'text-cyan-600',
+    permission: 'reports.view',
   },
 ]
 
 function Home() {
-  const { summary } = useLoaderData({ from: "/" })
-  const { session } = useRouteContext({ from: "__root__" })
+  const { summary } = useLoaderData({ from: '/' })
+  const { session } = useRouteContext({ from: '__root__' })
   const role = (session?.user as { role?: string } | undefined)?.role
   const visibleActions = quickActions.filter((a) => can(role, a.permission))
 
@@ -111,8 +117,8 @@ function Home() {
             <AlertTriangle className="size-4" strokeWidth={1.75} />
             <div className="flex-1">
               <p className="text-sm font-medium leading-tight">
-                {summary.failingHard} setup{" "}
-                {summary.failingHard === 1 ? "step needs" : "steps need"}{" "}
+                {summary.failingHard} setup{' '}
+                {summary.failingHard === 1 ? 'step needs' : 'steps need'}{' '}
                 attention
               </p>
               <p className="text-[13px] opacity-90">
@@ -146,13 +152,13 @@ function Home() {
               to={action.to}
               className="group relative rounded-2xl bg-card p-5 transition-all duration-200 hover:-translate-y-0.5"
               style={{
-                boxShadow: "var(--shadow-card)",
+                boxShadow: 'var(--shadow-card)',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = "var(--shadow-card-hover)"
+                e.currentTarget.style.boxShadow = 'var(--shadow-card-hover)'
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = "var(--shadow-card)"
+                e.currentTarget.style.boxShadow = 'var(--shadow-card)'
               }}
             >
               {/* Icon */}

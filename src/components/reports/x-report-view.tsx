@@ -1,6 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
-import { ResponsiveTable } from "#/components/ui/responsive-table"
-import { formatUgxTotal } from "#/lib/format"
+import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { ResponsiveTable } from '#/components/ui/responsive-table'
+import { formatDateTime, formatUgxTotal } from '#/lib/format'
 
 interface Row {
   userId: string
@@ -23,15 +23,15 @@ interface Props {
 
 export function XReportView(p: Props) {
   const kpis: Array<[string, string]> = [
-    ["Gross", formatUgxTotal(p.gross)],
-    ["Cash", formatUgxTotal(p.cash)],
-    ["Bank", formatUgxTotal(p.bank)],
-    ["Credit", formatUgxTotal(p.credit)],
+    ['Gross', formatUgxTotal(p.gross)],
+    ['Cash', formatUgxTotal(p.cash)],
+    ['Bank', formatUgxTotal(p.bank)],
+    ['Credit', formatUgxTotal(p.credit)],
   ]
   const sinceLabel =
     p.periodStart.getTime() === 0
-      ? "the beginning"
-      : `Z #${p.previousClosureNumber} (${p.periodStart.toLocaleString("en-UG")})`
+      ? 'the beginning'
+      : `Z #${p.previousClosureNumber} (${formatDateTime(p.periodStart)})`
 
   return (
     <div className="space-y-6">
@@ -61,13 +61,15 @@ export function XReportView(p: Props) {
             data={p.byClerk}
             getRowKey={(r) => r.userId}
             columns={[
-              { header: "Clerk", cell: (r) => r.userName ?? r.userId },
-              { header: "Sales", align: "right", cell: (r) => r.count },
+              { header: 'Clerk', cell: (r) => r.userName ?? r.userId },
+              { header: 'Sales', align: 'right', cell: (r) => r.count },
               {
-                header: "Total",
-                align: "right",
+                header: 'Total',
+                align: 'right',
                 cell: (r) => (
-                  <span className="font-mono">{formatUgxTotal(r.totalUgx)}</span>
+                  <span className="font-mono">
+                    {formatUgxTotal(r.totalUgx)}
+                  </span>
                 ),
               },
             ]}

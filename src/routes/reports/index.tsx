@@ -1,19 +1,23 @@
-import { createFileRoute } from "@tanstack/react-router"
-import BigNumber from "bignumber.js"
-import { requireUiPermission } from "#/lib/permissions"
-import { roundUgxFloor50, roundUgxBankers50, formatUgxTotal } from "#/lib/format"
-import { ResponsiveTable } from "#/components/ui/responsive-table"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
-import { Separator } from "#/components/ui/separator"
-import { InfoTip } from "#/components/ui/info-tip"
+import { createFileRoute } from '@tanstack/react-router'
+import BigNumber from 'bignumber.js'
+import { requireUiPermission } from '#/lib/permissions'
+import {
+  roundUgxFloor50,
+  roundUgxBankers50,
+  formatUgxTotal,
+} from '#/lib/format'
+import { ResponsiveTable } from '#/components/ui/responsive-table'
+import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { Separator } from '#/components/ui/separator'
+import { InfoTip } from '#/components/ui/info-tip'
 import {
   getProfitAndLoss,
   getBalanceSheet,
   getCashPosition,
-} from "#/server/functions/accounting/reports"
+} from '#/server/functions/accounting/reports'
 
-export const Route = createFileRoute("/reports/")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "reports.view"),
+export const Route = createFileRoute('/reports/')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'reports.view'),
   loader: async () => {
     const [pnl, bs, cash] = await Promise.all([
       getProfitAndLoss({ data: {} }),
@@ -90,10 +94,10 @@ function ReportsDashboard() {
                 data={pnl.revenueItems}
                 getRowKey={(r) => r.name}
                 columns={[
-                  { header: "Category", cell: (r) => r.name },
+                  { header: 'Category', cell: (r) => r.name },
                   {
-                    header: "Amount",
-                    align: "right",
+                    header: 'Amount',
+                    align: 'right',
                     cell: (r) => (
                       <span className="font-mono">
                         {roundUgxFloor50(r.amount).toFormat(0)}
@@ -120,10 +124,10 @@ function ReportsDashboard() {
                 data={pnl.expenseItems}
                 getRowKey={(e) => e.name}
                 columns={[
-                  { header: "Category", cell: (e) => e.name },
+                  { header: 'Category', cell: (e) => e.name },
                   {
-                    header: "Amount",
-                    align: "right",
+                    header: 'Amount',
+                    align: 'right',
                     cell: (e) => (
                       <span className="font-mono">
                         {roundUgxFloor50(e.amount).toFormat(0)}
@@ -149,8 +153,8 @@ function ReportsDashboard() {
               <span
                 className={`text-2xl font-bold font-mono ${
                   new BigNumber(pnl.netIncome).gte(0)
-                    ? "text-green-600"
-                    : "text-red-600"
+                    ? 'text-green-600'
+                    : 'text-red-600'
                 }`}
               >
                 {formatUgxTotal(pnl.netIncome)}
@@ -175,10 +179,10 @@ function ReportsDashboard() {
                 data={bs.assets}
                 getRowKey={(a) => a.name}
                 columns={[
-                  { header: "Account", cell: (a) => a.name },
+                  { header: 'Account', cell: (a) => a.name },
                   {
-                    header: "Balance",
-                    align: "right",
+                    header: 'Balance',
+                    align: 'right',
                     cell: (a) => (
                       <span className="font-mono">
                         {roundUgxFloor50(a.balance).toFormat(0)}
@@ -205,10 +209,10 @@ function ReportsDashboard() {
                 data={bs.liabilities}
                 getRowKey={(l) => l.name}
                 columns={[
-                  { header: "Account", cell: (l) => l.name },
+                  { header: 'Account', cell: (l) => l.name },
                   {
-                    header: "Balance",
-                    align: "right",
+                    header: 'Balance',
+                    align: 'right',
                     cell: (l) => (
                       <span className="font-mono">
                         {roundUgxFloor50(l.balance).toFormat(0)}
@@ -235,10 +239,10 @@ function ReportsDashboard() {
                 data={bs.equity}
                 getRowKey={(e) => e.name}
                 columns={[
-                  { header: "Account", cell: (e) => e.name },
+                  { header: 'Account', cell: (e) => e.name },
                   {
-                    header: "Balance",
-                    align: "right",
+                    header: 'Balance',
+                    align: 'right',
                     cell: (e) => (
                       <span className="font-mono">
                         {roundUgxFloor50(e.balance).toFormat(0)}

@@ -1,5 +1,5 @@
-import BigNumber from "bignumber.js"
-import type { PaymentStatus } from "#/lib/payment-status"
+import BigNumber from 'bignumber.js'
+import type { PaymentStatus } from '#/lib/payment-status'
 
 export type { PaymentStatus }
 
@@ -34,7 +34,7 @@ export function allocatePaymentFifo(
 ): AllocationResult {
   const payment = new BigNumber(paymentAmount)
   if (payment.lte(0)) {
-    throw new Error("payment-allocation: amount must be positive")
+    throw new Error('payment-allocation: amount must be positive')
   }
 
   const sorted = [...openSales]
@@ -75,7 +75,7 @@ export function computeNewSaleStatus(
 ): PaymentStatus {
   const balance = new BigNumber(postAllocationBalance)
   if (balance.lt(0)) {
-    throw new Error("payment-allocation: balance cannot be negative")
+    throw new Error('payment-allocation: balance cannot be negative')
   }
-  return balance.isZero() ? "settled" : "partially_paid"
+  return balance.isZero() ? 'settled' : 'partially_paid'
 }

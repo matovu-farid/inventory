@@ -1,16 +1,16 @@
-import { createHash } from "node:crypto"
+import { createHash } from 'node:crypto'
 
 export interface RawRow {
   DATE?: string | number | Date
   DETAILS?: string
-  "ART NO"?: string
-  "EX.RATE"?: string | number
+  'ART NO'?: string
+  'EX.RATE'?: string | number
   QTY?: string | number
-  "RATE(rmb)"?: string | number
-  "AMOUNT(rmb)"?: string | number
-  "USD($)"?: string | number
-  "USD RATE(Shs)"?: string | number
-  "T.COST(shs)"?: string | number
+  'RATE(rmb)'?: string | number
+  'AMOUNT(rmb)'?: string | number
+  'USD($)'?: string | number
+  'USD RATE(Shs)'?: string | number
+  'T.COST(shs)'?: string | number
 }
 
 export interface ParsedRouteItem {
@@ -18,7 +18,7 @@ export interface ParsedRouteItem {
   articleNumber: string | null
   quantity: number
   unitPriceForeign: string
-  foreignCurrency: "RMB" | "UGX"
+  foreignCurrency: 'RMB' | 'UGX'
   exchangeRateForeignToUsd: string | null
   exchangeRateUsdToUgx: string | null
 }
@@ -29,24 +29,34 @@ export interface ParsedRoute {
 }
 
 function isBlank(row: RawRow): boolean {
-  return !row.DETAILS && !row.QTY && !row["RATE(rmb)"]
+  return !row.DETAILS && !row.QTY && !row['RATE(rmb)']
 }
 
 function asNumString(v: string | number | undefined): string | null {
-  if (v === undefined || v === "") return null
+  if (v === undefined || v === '') return null
   return String(v)
 }
 
-export function parseExcelRouteSheet(name: string, rows: RawRow[]): ParsedRoute {
+export function parseExcelRouteSheet(
+  name: string,
+  rows: RawRow[],
+): ParsedRoute {
   const items: ParsedRouteItem[] = []
   for (const row of rows) {
     if (isBlank(row)) continue
 
     const itemName = row.DETAILS?.trim()
     const qty = row.QTY === undefined ? null : Number(row.QTY)
-    const rate = row["RATE(rmb)"] === undefined ? null : Number(row["RATE(rmb)"])
+    const rate =
+      row['RATE(rmb)'] === undefined ? null : Number(row['RATE(rmb)'])
 
-    if (!itemName || qty === null || rate === null || isNaN(qty) || isNaN(rate)) {
+    if (
+      !itemName ||
+      qty === null ||
+      rate === null ||
+      isNaN(qty) ||
+      isNaN(rate)
+    ) {
       throw new Error(
         `parseExcelRouteSheet: row in "${name}" is missing required fields (DETAILS, QTY, RATE(rmb))`,
       )
@@ -54,20 +64,21 @@ export function parseExcelRouteSheet(name: string, rows: RawRow[]): ParsedRoute 
 
     items.push({
       itemName,
-      articleNumber: row["ART NO"] ? String(row["ART NO"]) : null,
+      articleNumber: row['ART NO'] ? String(row['ART NO']) : null,
       quantity: qty,
       unitPriceForeign: String(rate),
-      foreignCurrency: "RMB",
-      exchangeRateForeignToUsd: asNumString(row["EX.RATE"]),
-      exchangeRateUsdToUgx: asNumString(row["USD RATE(Shs)"]),
+      foreignCurrency: 'RMB',
+      exchangeRateForeignToUsd: asNumString(row['EX.RATE']),
+      exchangeRateUsdToUgx: asNumString(row['USD RATE(Shs)']),
     })
   }
 
   return { name, items }
 }
 
-export function computeExternalRef(filename: string, sheetName: string): string {
-  return createHash("sha256")
-    .update(`${filename}|${sheetName}`)
-    .digest("hex")
+export function computeExternalRef(
+  filename: string,
+  sheetName: string,
+): string {
+  return createHash('sha256').update(`${filename}|${sheetName}`).digest('hex')
 }

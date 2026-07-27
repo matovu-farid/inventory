@@ -1,7 +1,7 @@
-import BigNumber from "bignumber.js"
-import { and, desc, eq, gt, lte } from "drizzle-orm"
-import { db } from "#/db"
-import { shopSales, shiftClosures, user as userTable } from "#/db/schema"
+import BigNumber from 'bignumber.js'
+import { and, desc, eq, gt, lte } from 'drizzle-orm'
+import { db } from '#/db'
+import { shopSales, shiftClosures, user as userTable } from '#/db/schema'
 
 export interface ShiftAggregates {
   grossSalesUgx: string
@@ -49,17 +49,16 @@ export async function computeShiftAggregates(
 
   for (const r of rows) {
     const amt = new BigNumber(r.totalAmount)
-    if (r.paymentMethod === "cash") cash = cash.plus(amt)
-    else if (r.paymentMethod === "bank") bank = bank.plus(amt)
+    if (r.paymentMethod === 'cash') cash = cash.plus(amt)
+    else if (r.paymentMethod === 'bank') bank = bank.plus(amt)
     else credit = credit.plus(amt)
 
-    const existing =
-      byClerkMap.get(r.soldBy) ?? {
-        userId: r.soldBy,
-        userName: r.userName,
-        total: new BigNumber(0),
-        count: 0,
-      }
+    const existing = byClerkMap.get(r.soldBy) ?? {
+      userId: r.soldBy,
+      userName: r.userName,
+      total: new BigNumber(0),
+      count: 0,
+    }
     existing.total = existing.total.plus(amt)
     existing.count += 1
     byClerkMap.set(r.soldBy, existing)

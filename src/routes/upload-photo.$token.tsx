@@ -1,45 +1,45 @@
-import { createFileRoute } from "@tanstack/react-router"
-import * as React from "react"
+import { createFileRoute } from '@tanstack/react-router'
+import * as React from 'react'
 import {
   redeemPhotoUploadToken,
   confirmPhotoUpload,
-} from "#/server/functions/items/photo-handoff"
-import { shrinkImage } from "#/lib/images/shrink-image"
-import { Button } from "#/components/ui/button"
+} from '#/server/functions/items/photo-handoff'
+import { shrinkImage } from '#/lib/images/shrink-image'
+import { Button } from '#/components/ui/button'
 
-export const Route = createFileRoute("/upload-photo/$token")({
+export const Route = createFileRoute('/upload-photo/$token')({
   loader: ({ params }) => ({ token: params.token }),
   component: UploadPhotoPage,
 })
 
-type UiState = "idle" | "shrinking" | "uploading" | "done" | "error"
+type UiState = 'idle' | 'shrinking' | 'uploading' | 'done' | 'error'
 
 function UploadPhotoPage() {
   const { token } = Route.useLoaderData()
   const inputRef = React.useRef<HTMLInputElement>(null)
-  const [state, setState] = React.useState<UiState>("idle")
+  const [state, setState] = React.useState<UiState>('idle')
   const [error, setError] = React.useState<string | null>(null)
 
   async function onFile(file: File) {
     setError(null)
     try {
-      setState("shrinking")
+      setState('shrinking')
       const blob = await shrinkImage(file)
 
-      setState("uploading")
+      setState('uploading')
       const { uploadUrl } = await redeemPhotoUploadToken({
-        data: { token, contentType: "image/jpeg" },
+        data: { token, contentType: 'image/jpeg' },
       })
       const put = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "image/jpeg" },
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/jpeg' },
         body: blob,
       })
       if (!put.ok) throw new Error(`Upload failed (${put.status})`)
       await confirmPhotoUpload({ data: { token } })
-      setState("done")
+      setState('done')
     } catch (e) {
-      setState("error")
+      setState('error')
       setError(e instanceof Error ? e.message : String(e))
     }
   }
@@ -59,29 +59,26 @@ function UploadPhotoPage() {
             if (f) void onFile(f)
           }}
         />
-        {state === "idle" && (
+        {state === 'idle' && (
           <Button size="lg" onClick={() => inputRef.current?.click()}>
             Take photo
           </Button>
         )}
-        {state === "shrinking" && (
+        {state === 'shrinking' && (
           <div className="text-muted-foreground">Preparing photo…</div>
         )}
-        {state === "uploading" && (
+        {state === 'uploading' && (
           <div className="text-muted-foreground">Uploading…</div>
         )}
-        {state === "done" && (
+        {state === 'done' && (
           <div className="text-green-700 font-medium">
             Done — return to your computer.
           </div>
         )}
-        {state === "error" && (
+        {state === 'error' && (
           <div className="space-y-2">
             <div className="text-red-600 text-sm">{error}</div>
-            <Button
-              variant="outline"
-              onClick={() => inputRef.current?.click()}
-            >
+            <Button variant="outline" onClick={() => inputRef.current?.click()}>
               Try again
             </Button>
           </div>

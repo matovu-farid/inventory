@@ -1,17 +1,14 @@
-import { betterAuth, APIError } from "better-auth"
-import { drizzleAdapter } from "better-auth/adapters/drizzle"
-import { admin } from "better-auth/plugins"
-import { defaultStatements, adminAc } from "better-auth/plugins/admin/access"
-import { createAccessControl } from "better-auth/plugins/access"
-import { tanstackStartCookies } from "better-auth/tanstack-start"
-import { sql } from "drizzle-orm"
-import { db } from "#/db"
-import * as schema from "#/db/schema"
-import {
-  sendPasswordResetEmail,
-  sendVerificationEmail,
-} from "#/lib/email"
-import type { Role } from "#/lib/roles"
+import { betterAuth, APIError } from 'better-auth'
+import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { admin } from 'better-auth/plugins'
+import { defaultStatements, adminAc } from 'better-auth/plugins/admin/access'
+import { createAccessControl } from 'better-auth/plugins/access'
+import { tanstackStartCookies } from 'better-auth/tanstack-start'
+import { sql } from 'drizzle-orm'
+import { db } from '#/db'
+import * as schema from '#/db/schema'
+import { sendPasswordResetEmail, sendVerificationEmail } from '#/lib/email'
+import type { Role } from '#/lib/roles'
 
 /**
  * Roles recognised by this application. The admin plugin's API typings derive
@@ -33,7 +30,7 @@ const appRoles = {
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
-    provider: "pg",
+    provider: 'pg',
     schema: {
       user: schema.user,
       session: schema.session,
@@ -42,10 +39,10 @@ export const auth = betterAuth({
     },
   }),
   trustedOrigins: [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://tanstack-start-app.faridmato90.workers.dev",
-    "https://inventory.fidexa.org",
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://tanstack-start-app.faridmato90.workers.dev',
+    'https://inventory.fidexa.org',
   ],
   emailAndPassword: {
     enabled: true,
@@ -72,13 +69,13 @@ export const auth = betterAuth({
   user: {
     additionalFields: {
       role: {
-        type: "string",
+        type: 'string',
         required: false,
-        defaultValue: "sales",
+        defaultValue: 'sales',
         input: true,
       },
       shopId: {
-        type: "string",
+        type: 'string',
         required: false,
         input: true,
       },
@@ -95,23 +92,23 @@ export const auth = betterAuth({
 
           // Bootstrap: first user becomes admin
           if (userCount === 0) {
-            return { data: { ...userData, role: "admin" } }
+            return { data: { ...userData, role: 'admin' } }
           }
 
           // Allow admin-created users (admin plugin path) — the resolved
           // session of the caller is exposed on ctx.context.session.
           const role = ctx?.context.session?.user.role as AppRole | undefined
-          if (role === "admin") {
-            if (!userData.role || userData.role === "user") {
-              return { data: { ...userData, role: "sales" } }
+          if (role === 'admin') {
+            if (!userData.role || userData.role === 'user') {
+              return { data: { ...userData, role: 'sales' } }
             }
             return { data: userData }
           }
 
           // Block self-signup once an admin exists
-          throw new APIError("FORBIDDEN", {
+          throw new APIError('FORBIDDEN', {
             message:
-              "Sign-up is disabled. Ask your administrator for an invite.",
+              'Sign-up is disabled. Ask your administrator for an invite.',
           })
         },
       },
@@ -122,8 +119,8 @@ export const auth = betterAuth({
     admin({
       ac,
       roles: appRoles,
-      defaultRole: "sales",
-      adminRoles: ["admin"],
+      defaultRole: 'sales',
+      adminRoles: ['admin'],
     }),
   ],
 })
@@ -135,8 +132,8 @@ export type Session = typeof auth.$Infer.Session
  * better-auth's inferred user type, so we widen it here. Server code reads
  * `session.user.role` / `session.user.shopId` directly off `AppSession`.
  */
-export type AppUser = Session["user"] & {
+export type AppUser = Session['user'] & {
   role?: string | null
   shopId?: string | null
 }
-export type AppSession = Omit<Session, "user"> & { user: AppUser }
+export type AppSession = Omit<Session, 'user'> & { user: AppUser }

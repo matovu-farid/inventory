@@ -27,6 +27,9 @@ vi.mock('#/server/middleware/auth', () => ({
 vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
+  requireSessionAndRole: () => Promise.resolve({
+    user: { id: TEST_USER_ID, role: 'admin' },
+  }),
 }))
 
 const stubStartContext = {

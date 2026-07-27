@@ -1,8 +1,8 @@
 // src/components/prerequisites/page-prerequisites.tsx
-import type { ReactNode } from "react"
-import type { PrerequisiteResult } from "#/lib/prerequisites/types"
-import { PrereqBanner } from "./prereq-banner"
-import { PrereqEmptyState } from "./prereq-empty-state"
+import type { ReactNode } from 'react'
+import type { PrerequisiteResult } from '#/lib/prerequisites/types'
+import { PrereqBanner } from './prereq-banner'
+import { PrereqEmptyState } from './prereq-empty-state'
 
 interface PagePrerequisitesProps {
   result: PrerequisiteResult
@@ -25,7 +25,7 @@ export function PagePrerequisites({
     return <PrereqEmptyState items={result.missing} />
   }
 
-  const softMissing = result.missing.filter((m) => m.severity === "soft")
+  const softMissing = result.missing.filter((m) => m.severity === 'soft')
   if (softMissing.length === 0) return <>{children}</>
 
   return (

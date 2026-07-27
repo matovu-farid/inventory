@@ -192,11 +192,7 @@ async function processStoreStock(
 
   for (const row of rows) {
     try {
-      const rule = resolveStoreRule(
-        { itemId: row.itemId },
-        maps,
-        defaults,
-      )
+      const rule = resolveStoreRule({ itemId: row.itemId }, maps, defaults)
       const baseline = await computeStoreBaseline(db, {
         storeId: row.storeId,
         itemId: row.itemId,

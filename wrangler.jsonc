@@ -5,10 +5,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server/worker.ts",
   "workers_dev": true,
-  "routes": [
-    { "pattern": "inventory.fidexa.org", "custom_domain": true }
-  ],
+  "routes": [{ "pattern": "inventory.fidexa.org", "custom_domain": true }],
   "triggers": {
-    "crons": ["0 * * * *"]
-  }
+    "crons": ["0 * * * *"],
+  },
 }

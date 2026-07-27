@@ -1,13 +1,13 @@
-import { createServerFn } from "@tanstack/react-start"
-import { z } from "zod"
-import { sql } from "drizzle-orm"
-import { db } from "#/db"
-import { shops, shopSales, shopStock } from "#/db/schema"
+import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
+import { sql } from 'drizzle-orm'
+import { db } from '#/db'
+import { shops, shopSales, shopStock } from '#/db/schema'
 import {
   deriveShopSalesPrereqs,
   deriveShopOpeningPrereqs,
   deriveShopPrereqs,
-} from "#/lib/prerequisites/derive"
+} from '#/lib/prerequisites/derive'
 
 export const getShopSalesPrereqs = createServerFn().handler(async () => {
   const [shopRow, saleRow] = await Promise.all([

@@ -1,90 +1,90 @@
-import { describe, it, expect } from "vitest"
-import { materializeVariantRows } from "#/server/functions/supply/items-internals"
+import { describe, it, expect } from 'vitest'
+import { materializeVariantRows } from '#/server/functions/supply/items-internals'
 
-describe("materializeVariantRows", () => {
-  it("creates one row per non-zero cell", () => {
+describe('materializeVariantRows', () => {
+  it('creates one row per non-zero cell', () => {
     const rows = materializeVariantRows({
-      supplyRouteId: "r1",
-      supplierId: "s1",
-      itemId: "p1",
-      unitPriceForeign: "10",
-      foreignCurrency: "RMB",
-      exchangeRateForeignToUsd: "7.2",
-      exchangeRateUsdToUgx: "3700",
+      supplyRouteId: 'r1',
+      supplierId: 's1',
+      itemId: 'p1',
+      unitPriceForeign: '10',
+      foreignCurrency: 'RMB',
+      exchangeRateForeignToUsd: '7.2',
+      exchangeRateUsdToUgx: '3700',
       cells: [
-        { itemColorId: "c-red", size: "S", quantity: 3 },
-        { itemColorId: "c-blue", size: "L", quantity: 2 },
+        { itemColorId: 'c-red', size: 'S', quantity: 3 },
+        { itemColorId: 'c-blue', size: 'L', quantity: 2 },
       ],
     })
     expect(rows).toHaveLength(2)
-    expect(rows[0].size).toBe("S")
-    expect(rows[0].colorId).toBe("c-red")
+    expect(rows[0].size).toBe('S')
+    expect(rows[0].colorId).toBe('c-red')
     expect(rows[0].quantity).toBe(3)
-    expect(rows[1].colorId).toBe("c-blue")
+    expect(rows[1].colorId).toBe('c-blue')
     expect(rows[1].quantity).toBe(2)
   })
 
-  it("computes per-row totals", () => {
+  it('computes per-row totals', () => {
     const rows = materializeVariantRows({
-      supplyRouteId: "r1",
-      supplierId: "s1",
-      itemId: "p1",
-      unitPriceForeign: "45",
-      foreignCurrency: "RMB",
-      exchangeRateForeignToUsd: "7.2",
-      exchangeRateUsdToUgx: "3700",
-      cells: [{ itemColorId: "c1", size: "M", quantity: 20 }],
+      supplyRouteId: 'r1',
+      supplierId: 's1',
+      itemId: 'p1',
+      unitPriceForeign: '45',
+      foreignCurrency: 'RMB',
+      exchangeRateForeignToUsd: '7.2',
+      exchangeRateUsdToUgx: '3700',
+      cells: [{ itemColorId: 'c1', size: 'M', quantity: 20 }],
     })
-    expect(rows[0].totalAmountForeign).toBe("900.00")
-    expect(rows[0].totalAmountUsd).toBe("125.00")
-    expect(rows[0].totalCostUgx).toBe("462500.00")
+    expect(rows[0].totalAmountForeign).toBe('900.00')
+    expect(rows[0].totalAmountUsd).toBe('125.00')
+    expect(rows[0].totalCostUgx).toBe('462500.00')
   })
 
-  it("handles local UGX purchase", () => {
+  it('handles local UGX purchase', () => {
     const rows = materializeVariantRows({
-      supplyRouteId: "r1",
-      supplierId: "s1",
-      itemId: "p1",
-      unitPriceForeign: "15000",
-      foreignCurrency: "UGX",
-      cells: [{ itemColorId: "c1", size: "S", quantity: 10 }],
+      supplyRouteId: 'r1',
+      supplierId: 's1',
+      itemId: 'p1',
+      unitPriceForeign: '15000',
+      foreignCurrency: 'UGX',
+      cells: [{ itemColorId: 'c1', size: 'S', quantity: 10 }],
     })
-    expect(rows[0].totalCostUgx).toBe("150000.00")
+    expect(rows[0].totalCostUgx).toBe('150000.00')
     expect(rows[0].totalAmountUsd).toBeNull()
   })
 
-  it("supports aggregate cells (no color, no size)", () => {
+  it('supports aggregate cells (no color, no size)', () => {
     const rows = materializeVariantRows({
-      supplyRouteId: "r1",
-      supplierId: "s1",
-      itemId: "p1",
-      unitPriceForeign: "10",
-      foreignCurrency: "UGX",
+      supplyRouteId: 'r1',
+      supplierId: 's1',
+      itemId: 'p1',
+      unitPriceForeign: '10',
+      foreignCurrency: 'UGX',
       cells: [{ quantity: 12 }],
     })
     expect(rows).toHaveLength(1)
     expect(rows[0].colorId).toBeNull()
     expect(rows[0].size).toBeNull()
-    expect(rows[0].itemId).toBe("p1")
+    expect(rows[0].itemId).toBe('p1')
     expect(rows[0].quantity).toBe(12)
-    expect(rows[0].totalCostUgx).toBe("120.00")
+    expect(rows[0].totalCostUgx).toBe('120.00')
   })
 
-  it("supports color-only cells (no size)", () => {
+  it('supports color-only cells (no size)', () => {
     const rows = materializeVariantRows({
-      supplyRouteId: "r1",
-      supplierId: "s1",
-      itemId: "p1",
-      unitPriceForeign: "10",
-      foreignCurrency: "UGX",
+      supplyRouteId: 'r1',
+      supplierId: 's1',
+      itemId: 'p1',
+      unitPriceForeign: '10',
+      foreignCurrency: 'UGX',
       cells: [
-        { itemColorId: "c-red", quantity: 5 },
-        { itemColorId: "c-blue", quantity: 3 },
+        { itemColorId: 'c-red', quantity: 5 },
+        { itemColorId: 'c-blue', quantity: 3 },
       ],
     })
     expect(rows).toHaveLength(2)
     expect(rows[0].size).toBeNull()
-    expect(rows[0].colorId).toBe("c-red")
-    expect(rows[1].colorId).toBe("c-blue")
+    expect(rows[0].colorId).toBe('c-red')
+    expect(rows[1].colorId).toBe('c-blue')
   })
 })

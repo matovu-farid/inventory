@@ -1,29 +1,28 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, eq, isNull, sql } from "drizzle-orm"
-import { z } from "zod"
-import BigNumber from "bignumber.js"
-import { db } from "#/db"
+import { createServerFn } from '@tanstack/react-start'
+import { and, eq, isNull, sql } from 'drizzle-orm'
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
+import { db } from '#/db'
 import {
   storeReceivings,
   storeStock,
   supplyRoutes,
   supplyRouteLines,
   variants,
-} from "#/db/schema"
-import { postJournalEntry } from "#/lib/accounting/ledger"
-import { recordAuditLog } from "#/server/middleware/audit-store"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { formatItemLabel } from "#/lib/items"
-import { renderAuditDescription } from "#/server/audit/descriptions"
-import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
-import { getActorName } from "#/server/audit/actor"
-import { isSameDayKampala, formatDayKampala } from "#/lib/business-date"
+} from '#/db/schema'
+import { postJournalEntry } from '#/lib/accounting/ledger'
+import { recordAuditLog } from '#/server/middleware/audit-store'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { formatItemLabel } from '#/lib/items'
+import { renderAuditDescription } from '#/server/audit/descriptions'
+import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
+import { getActorName } from '#/server/audit/actor'
+import { isSameDayKampala, formatDayKampala } from '#/lib/business-date'
 import {
   validateDiscrepancyNotes,
   validateQuantityReceived,
-} from "./receive-validate"
-import { filterRoutesWithUnreceivedItems } from "./receiving-internals"
+} from './receive-validate'
+import { filterRoutesWithUnreceivedItems } from './receiving-internals'
 
 /**
  * List supply routes that still have items waiting to be received at the
@@ -31,11 +30,10 @@ import { filterRoutesWithUnreceivedItems } from "./receiving-internals"
  * "received" AND at least one of its items has no StoreReceiving record yet.
  */
 export const listReceivableRoutes = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin"])
+  await requireSessionAndRole(['admin'])
 
   const routes = await db.query.supplyRoutes.findMany({
-    where: (r, { inArray }) => inArray(r.status, ["in_transit", "received"]),
+    where: (r, { inArray }) => inArray(r.status, ['in_transit', 'received']),
     with: {
       items: {
         with: {
@@ -78,8 +76,7 @@ export const listReceivableRoutes = createServerFn().handler(async () => {
 export const getUnreceivedItems = createServerFn()
   .inputValidator(z.object({ supplyRouteId: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const items = await db.query.supplyRouteLines.findMany({
       where: eq(supplyRouteLines.supplyRouteId, data.supplyRouteId),
@@ -136,11 +133,10 @@ const receiveGoodsInput = z.object({
 export const receiveGoods = createServerFn()
   .inputValidator(receiveGoodsInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    const session = await requireSessionAndRole(['admin'])
 
     const store = await db.query.stores.findFirst()
-    if (!store) throw new Error("Store not configured")
+    if (!store) throw new Error('Store not configured')
 
     const now = new Date()
     const receivedDate = data.receivedDate ?? now
@@ -152,7 +148,7 @@ export const receiveGoods = createServerFn()
     const route = await db.query.supplyRoutes.findFirst({
       where: eq(supplyRoutes.id, data.supplyRouteId),
     })
-    if (!route) throw new Error("Supply route not found.")
+    if (!route) throw new Error('Supply route not found.')
     if (route.departureDate) {
       const departure = new Date(route.departureDate)
       if (receivedDate.getTime() < departure.getTime()) {
@@ -163,8 +159,8 @@ export const receiveGoods = createServerFn()
     }
 
     if (!isSameDayKampala(receivedDate, now)) {
-      if (session.user.role !== "admin") {
-        throw new Error("Only admins can change the receipt date.")
+      if (session.user.role !== 'admin') {
+        throw new Error('Only admins can change the receipt date.')
       }
     }
 
@@ -198,7 +194,10 @@ export const receiveGoods = createServerFn()
             itemColor: { with: { item: true } },
           },
         })
-        if (!sri) throw new Error(`Supply route item not found: ${item.supplyRouteLineId}`)
+        if (!sri)
+          throw new Error(
+            `Supply route item not found: ${item.supplyRouteLineId}`,
+          )
 
         // Receiving now accepts unresolved supply lines: aggregate
         // (itemId only) and color-only rows land in store_stock with a
@@ -224,9 +223,7 @@ export const receiveGoods = createServerFn()
         // to the item reachable through itemColor for older rows.
         const itemId = sri.itemId ?? sri.itemColor?.itemId
         if (!itemId) {
-          throw new Error(
-            `Supply line ${sri.id} has no item — cannot receive`,
-          )
+          throw new Error(`Supply line ${sri.id} has no item — cannot receive`)
         }
 
         // Resolve / materialise the variant only for fully-resolved
@@ -256,9 +253,7 @@ export const receiveGoods = createServerFn()
         // Resolve a display article number that works whether the line
         // arrived via the direct item FK or via itemColor only.
         const articleNumber =
-          sri.item?.articleNumber ??
-          sri.itemColor?.item.articleNumber ??
-          "?"
+          sri.item?.articleNumber ?? sri.itemColor?.item.articleNumber ?? '?'
         const itemLabel = resolved
           ? formatItemLabel(
               resolved.itemColor.item.articleNumber,
@@ -297,7 +292,8 @@ export const receiveGoods = createServerFn()
         })
 
         // 2. Upsert StoreStock — merge into existing (storeId, variantId) row
-        if (sri.quantity <= 0) throw new Error("Invalid supply route item quantity")
+        if (sri.quantity <= 0)
+          throw new Error('Invalid supply route item quantity')
         const costPerUnit = new BigNumber(sri.totalCostUgx)
           .div(sri.quantity)
           .dp(2, BigNumber.ROUND_HALF_UP)
@@ -344,14 +340,22 @@ export const receiveGoods = createServerFn()
         if (receivedValue.gt(0)) {
           await postJournalEntry(tx, {
             entries: [
-              { type: "debit", category: "Inventory - Store", amount: receivedValue.toFixed(2) },
-              { type: "credit", category: "Cash", amount: receivedValue.toFixed(2) },
+              {
+                type: 'debit',
+                category: 'Inventory - Store',
+                amount: receivedValue.toFixed(2),
+              },
+              {
+                type: 'credit',
+                category: 'Cash',
+                amount: receivedValue.toFixed(2),
+              },
             ],
-            referenceType: "store_receiving",
+            referenceType: 'store_receiving',
             referenceId: sri.id,
-            locationType: "store",
+            locationType: 'store',
             locationId: store.id,
-            depositLocation: "cash",
+            depositLocation: 'cash',
             recordedBy: session.user.id,
             transactionDate: receivedDate,
             description: `Received ${item.quantityReceived}× ${itemLabel} from route`,
@@ -363,12 +367,20 @@ export const receiveGoods = createServerFn()
           const lossValue = costPerUnit.times(transitLoss)
           await postJournalEntry(tx, {
             entries: [
-              { type: "debit", category: "Inventory Loss", amount: lossValue.toFixed(2) },
-              { type: "credit", category: "Inventory - Store", amount: lossValue.toFixed(2) },
+              {
+                type: 'debit',
+                category: 'Inventory Loss',
+                amount: lossValue.toFixed(2),
+              },
+              {
+                type: 'credit',
+                category: 'Inventory - Store',
+                amount: lossValue.toFixed(2),
+              },
             ],
-            referenceType: "transit_loss",
+            referenceType: 'transit_loss',
             referenceId: sri.id,
-            locationType: "store",
+            locationType: 'store',
             locationId: store.id,
             recordedBy: session.user.id,
             transactionDate: receivedDate,
@@ -396,7 +408,7 @@ export const receiveGoods = createServerFn()
       // Update route status to "received" if not already
       await tx
         .update(supplyRoutes)
-        .set({ status: "received" })
+        .set({ status: 'received' })
         .where(eq(supplyRoutes.id, data.supplyRouteId))
 
       const totalReceived = results.reduce((sum, r) => sum + r.received, 0)
@@ -407,8 +419,8 @@ export const receiveGoods = createServerFn()
 
       const actorName = await getActorName(tx, session.user.id)
       const articleNumbers = await resolveArticleNumbersForAudit(tx, {
-        action: "store.receiveGoods",
-        entityType: "supply_route",
+        action: 'store.receiveGoods',
+        entityType: 'supply_route',
         entityId: data.supplyRouteId,
         metadata: null,
       })
@@ -419,10 +431,10 @@ export const receiveGoods = createServerFn()
 
       await recordAuditLog(tx, {
         actorUserId: session.user.id,
-        action: "store.receiveGoods",
-        entityType: "supply_route",
+        action: 'store.receiveGoods',
+        entityType: 'supply_route',
         entityId: data.supplyRouteId,
-        description: renderAuditDescription("store.receiveGoods", {
+        description: renderAuditDescription('store.receiveGoods', {
           actorName,
           routeName: route.name,
           itemCount: data.items.length,
@@ -462,8 +474,7 @@ export const receiveGoods = createServerFn()
  * (color, size) lines via `specifyStock`.
  */
 export const getStoreStock = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  await requireSessionAndRole(['admin', 'supervisor'])
 
   const store = await db.query.stores.findFirst()
   if (!store) return []
@@ -481,7 +492,7 @@ export const getStoreStock = createServerFn().handler(async () => {
   const byItem = new Map<
     string,
     {
-      item: Row["item"]
+      item: Row['item']
       totalQty: number
       rows: Row[]
     }
@@ -502,4 +513,3 @@ export const getStoreStock = createServerFn().handler(async () => {
     a.item.articleNumber.localeCompare(b.item.articleNumber),
   )
 })
-

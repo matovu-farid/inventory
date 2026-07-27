@@ -1,20 +1,20 @@
-import { useCallback, useMemo, useState } from "react"
-import { Plus, Trash2 } from "lucide-react"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { FieldLabel } from "#/components/ui/field-label"
+import { useCallback, useMemo, useState } from 'react'
+import { Plus, Trash2 } from 'lucide-react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { FieldLabel } from '#/components/ui/field-label'
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "#/components/ui/dialog"
-import { CreatableCombobox } from "#/components/ui/creatable-combobox"
-import { HexColorField } from "#/components/items/hex-color-field"
-import { addItemColor } from "#/server/functions/items/colors"
-import { specifyStock } from "#/server/functions/store/specify"
-import { specifyShopStock } from "#/server/functions/shop/specify"
+} from '#/components/ui/dialog'
+import { CreatableCombobox } from '#/components/ui/creatable-combobox'
+import { HexColorField } from '#/components/items/hex-color-field'
+import { addItemColor } from '#/server/functions/items/colors'
+import { specifyStock } from '#/server/functions/store/specify'
+import { specifyShopStock } from '#/server/functions/shop/specify'
 
 interface ItemColor {
   id: string
@@ -34,7 +34,7 @@ interface DraftLine {
   quantity: number
 }
 
-const DEFAULT_NEW_COLOR_HEX = "#888888"
+const DEFAULT_NEW_COLOR_HEX = '#888888'
 
 /**
  * Dialog for splitting an unresolved store_stock row into one or more
@@ -62,7 +62,7 @@ export function SpecifyStockDialog({
    * Which stock domain we're specifying against. Drives whether we call
    * {@link specifyStock} (warehouse) or {@link specifyShopStock} (shop).
    */
-  target: "store" | "shop"
+  target: 'store' | 'shop'
   /** Source store_stock.id or shop_stock.id depending on `target`. */
   stockId: string
   itemId: string
@@ -77,9 +77,9 @@ export function SpecifyStockDialog({
     (): DraftLine => ({
       key: crypto.randomUUID(),
       colorId: fixedColor?.id ?? null,
-      colorName: fixedColor?.colorName ?? "",
+      colorName: fixedColor?.colorName ?? '',
       colorHex: fixedColor?.colorHex ?? DEFAULT_NEW_COLOR_HEX,
-      size: "",
+      size: '',
       quantity: 0,
     }),
     [fixedColor?.id, fixedColor?.colorName, fixedColor?.colorHex],
@@ -111,9 +111,7 @@ export function SpecifyStockDialog({
     specified > 0
 
   function updateLine(key: string, patch: Partial<DraftLine>) {
-    setLines((ls) =>
-      ls.map((x) => (x.key === key ? { ...x, ...patch } : x)),
-    )
+    setLines((ls) => ls.map((x) => (x.key === key ? { ...x, ...patch } : x)))
   }
 
   function setColorName(line: DraftLine, nextName: string) {
@@ -184,7 +182,7 @@ export function SpecifyStockDialog({
         })
       }
 
-      if (target === "shop") {
+      if (target === 'shop') {
         await specifyShopStock({
           data: {
             shopStockId: stockId,
@@ -203,7 +201,7 @@ export function SpecifyStockDialog({
       onOpenChange(false)
       resetForm()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to specify")
+      setError(e instanceof Error ? e.message : 'Failed to specify')
     } finally {
       setPending(false)
     }
@@ -237,11 +235,15 @@ export function SpecifyStockDialog({
                 />
                 {fixedColor.colorName}
               </span>
-              <span>· Add one row per size you want to label. You can label part of the quantity now and leave the rest for later.</span>
+              <span>
+                · Add one row per size you want to label. You can label part of
+                the quantity now and leave the rest for later.
+              </span>
             </>
           ) : (
             <span>
-              {itemName}. Add one row per (color, size) you want to label. You can label part of the quantity now and leave the rest for later.
+              {itemName}. Add one row per (color, size) you want to label. You
+              can label part of the quantity now and leave the rest for later.
             </span>
           )}
         </p>
@@ -250,10 +252,7 @@ export function SpecifyStockDialog({
           {lines.map((l) => {
             const isNewColor = l.colorName.trim().length > 0 && !l.colorId
             return (
-              <div
-                key={l.key}
-                className="grid grid-cols-12 gap-2 items-end"
-              >
+              <div key={l.key} className="grid grid-cols-12 gap-2 items-end">
                 {!fixedColor && (
                   <div className="col-span-5">
                     <FieldLabel>Color</FieldLabel>
@@ -268,7 +267,9 @@ export function SpecifyStockDialog({
                       {isNewColor && (
                         <HexColorField
                           value={l.colorHex}
-                          onChange={(hex) => updateLine(l.key, { colorHex: hex })}
+                          onChange={(hex) =>
+                            updateLine(l.key, { colorHex: hex })
+                          }
                           ariaLabel={`Pick hex for new color ${l.colorName}`}
                           className="h-9 w-10 shrink-0"
                         />
@@ -276,7 +277,7 @@ export function SpecifyStockDialog({
                     </div>
                   </div>
                 )}
-                <div className={fixedColor ? "col-span-7" : "col-span-4"}>
+                <div className={fixedColor ? 'col-span-7' : 'col-span-4'}>
                   <FieldLabel>Size</FieldLabel>
                   <Input
                     value={l.size}
@@ -286,13 +287,13 @@ export function SpecifyStockDialog({
                     placeholder="e.g. M"
                   />
                 </div>
-                <div className={fixedColor ? "col-span-4" : "col-span-2"}>
+                <div className={fixedColor ? 'col-span-4' : 'col-span-2'}>
                   <FieldLabel>Qty</FieldLabel>
                   <Input
                     type="number"
                     min={0}
                     max={available}
-                    value={l.quantity || ""}
+                    value={l.quantity || ''}
                     onChange={(e) =>
                       updateLine(l.key, {
                         quantity: Math.max(
@@ -320,21 +321,20 @@ export function SpecifyStockDialog({
           })}
           <Button variant="outline" size="sm" onClick={addLine}>
             <Plus className="mr-1 h-3.5 w-3.5" />
-            {fixedColor ? "Add size" : "Add variant"}
+            {fixedColor ? 'Add size' : 'Add variant'}
           </Button>
         </div>
 
         <p className="text-sm">
-          <span className="font-mono">{specified}</span> of{" "}
-          <span className="font-mono">{available}</span> specified —{" "}
+          <span className="font-mono">{specified}</span> of{' '}
+          <span className="font-mono">{available}</span> specified —{' '}
           {overAllocated ? (
             <span className="text-destructive">
               {Math.abs(remaining)} over the available qty
             </span>
           ) : (
             <span className="text-muted-foreground">
-              <span className="font-mono">{remaining}</span> will stay
-              as-is
+              <span className="font-mono">{remaining}</span> will stay as-is
             </span>
           )}
         </p>
@@ -350,7 +350,7 @@ export function SpecifyStockDialog({
             Cancel
           </Button>
           <Button onClick={() => void submit()} disabled={!valid || pending}>
-            {pending ? "Specifying…" : "Specify"}
+            {pending ? 'Specifying…' : 'Specify'}
           </Button>
         </DialogFooter>
       </DialogContent>

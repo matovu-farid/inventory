@@ -1,26 +1,29 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { useState, useEffect, useCallback } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import BigNumber from "bignumber.js"
-import { roundUgxFloor50, formatUgxTotal, formatDateTime } from "#/lib/format"
-import { Badge } from "#/components/ui/badge"
-import { Button } from "#/components/ui/button"
-import { Printer } from "lucide-react"
+import { createFileRoute } from '@tanstack/react-router'
+import { useState, useEffect, useCallback } from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import BigNumber from 'bignumber.js'
+import { roundUgxFloor50, formatUgxTotal, formatDateTime } from '#/lib/format'
+import { Badge } from '#/components/ui/badge'
+import { Button } from '#/components/ui/button'
+import { Printer } from 'lucide-react'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
-import { ResponsiveTable } from "#/components/ui/responsive-table"
-import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
-import { listShopsWithSales, listShopSales } from "#/server/functions/shop/sales"
-import { getShopSalesPrereqs } from "#/server/functions/prereqs/shop"
-import { printSaleReceipt } from "#/lib/pos/print-receipt"
+} from '#/components/ui/select'
+import { ResponsiveTable } from '#/components/ui/responsive-table'
+import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
+import {
+  listShopsWithSales,
+  listShopSales,
+} from '#/server/functions/shop/sales'
+import { getShopSalesPrereqs } from '#/server/functions/prereqs/shop'
+import { printSaleReceipt } from '#/lib/pos/print-receipt'
 
-export const Route = createFileRoute("/shop/sales")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "sales.view"),
+export const Route = createFileRoute('/shop/sales')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'sales.view'),
   loader: async () => {
     const [shops, prerequisites] = await Promise.all([
       listShopsWithSales(),
@@ -33,7 +36,7 @@ export const Route = createFileRoute("/shop/sales")({
 
 function SalesPage() {
   const { shops, prerequisites } = Route.useLoaderData()
-  const [shopId, setShopId] = useState(shops[0]?.id ?? "")
+  const [shopId, setShopId] = useState(shops[0]?.id ?? '')
   const [sales, setSales] = useState<
     Array<{
       id: string
@@ -56,7 +59,10 @@ function SalesPage() {
 
   const loadSales = useCallback(async (id: string) => {
     setShopId(id)
-    if (!id) { setSales([]); return }
+    if (!id) {
+      setSales([])
+      return
+    }
     const s = await listShopSales({ data: { shopId: id } })
     setSales(s)
   }, [])
@@ -64,7 +70,7 @@ function SalesPage() {
   const shopsLength = shops.length
   useEffect(() => {
     if (shopsLength === 0) {
-      if (shopId) setShopId("")
+      if (shopId) setShopId('')
       return
     }
     if (!shops.some((s) => s.id === shopId)) {
@@ -85,15 +91,18 @@ function SalesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Sales</h1>
-        <p className="text-muted-foreground">
-          View past sales by shop.
-        </p>
+        <p className="text-muted-foreground">View past sales by shop.</p>
       </div>
       <PagePrerequisites result={prerequisites}>
         {shops.length > 1 && (
           <div className="flex items-center justify-between">
             <div />
-            <Select value={shopId} onValueChange={(v) => { void loadSales(v) }}>
+            <Select
+              value={shopId}
+              onValueChange={(v) => {
+                void loadSales(v)
+              }}
+            >
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Select shop" />
               </SelectTrigger>
@@ -110,7 +119,7 @@ function SalesPage() {
 
         {sales.length > 0 && (
           <p className="text-sm text-muted-foreground">
-            {sales.length} sales | Total revenue:{" "}
+            {sales.length} sales | Total revenue:{' '}
             <span className="font-mono font-semibold">
               {formatUgxTotal(totalRevenue)}
             </span>
@@ -127,26 +136,35 @@ function SalesPage() {
             getRowKey={(s) => s.id}
             columns={[
               {
-                header: "Date",
+                header: 'Date',
                 cell: (s) => formatDateTime(s.saleDate),
               },
               {
-                header: "Items",
-                align: "left",
+                header: 'Items',
+                align: 'left',
                 cell: (s) => (
                   <div className="flex flex-col gap-1">
                     {s.items.map((i, idx) => {
                       // Plan 2c: line carries item directly; variant is
                       // optional. Render item label + optional variant chip.
                       return (
-                        <div key={idx} className="flex items-center gap-2 text-sm">
-                          <span className="font-mono">{i.quantity}x {i.item.articleNumber}</span>
-                          <span className="text-muted-foreground">{i.item.name}</span>
+                        <div
+                          key={idx}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <span className="font-mono">
+                            {i.quantity}x {i.item.articleNumber}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {i.item.name}
+                          </span>
                           {i.variant && (
                             <>
                               <span
                                 className="inline-block h-3 w-3 rounded-full border"
-                                style={{ backgroundColor: i.variant.color.colorHex }}
+                                style={{
+                                  backgroundColor: i.variant.color.colorHex,
+                                }}
                                 aria-hidden
                               />
                               <span className="text-muted-foreground text-xs">
@@ -161,17 +179,17 @@ function SalesPage() {
                 ),
               },
               {
-                header: "Payment",
+                header: 'Payment',
                 cell: (s) => <Badge variant="outline">{s.paymentMethod}</Badge>,
               },
               {
-                header: "Clerk",
-                cell: (s) => s.soldByUser?.name ?? "—",
+                header: 'Clerk',
+                cell: (s) => s.soldByUser?.name ?? '—',
                 hideOnMobile: true,
               },
               {
-                header: "Amount (UGX)",
-                align: "right",
+                header: 'Amount (UGX)',
+                align: 'right',
                 cell: (s) => (
                   <span className="font-mono font-semibold">
                     {roundUgxFloor50(s.totalAmount).toFormat(0)}
@@ -179,11 +197,14 @@ function SalesPage() {
                 ),
               },
               {
-                header: "Flags",
-                cell: (s) => s.items.some((i) => i.isBelowMinimum) ? <Badge variant="destructive">Below min</Badge> : null,
+                header: 'Flags',
+                cell: (s) =>
+                  s.items.some((i) => i.isBelowMinimum) ? (
+                    <Badge variant="destructive">Below min</Badge>
+                  ) : null,
               },
               {
-                header: "Receipt",
+                header: 'Receipt',
                 cell: (s) => (
                   <Button
                     type="button"
@@ -193,8 +214,12 @@ function SalesPage() {
                     aria-label={`Print receipt for sale ${s.id}`}
                     onClick={() => {
                       printSaleReceipt(s.id).catch((e) => {
-                        console.error("print failed:", e)
-                        alert(e instanceof Error ? e.message : "Could not print receipt")
+                        console.error('print failed:', e)
+                        alert(
+                          e instanceof Error
+                            ? e.message
+                            : 'Could not print receipt',
+                        )
                       })
                     }}
                   >

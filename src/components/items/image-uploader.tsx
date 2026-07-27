@@ -1,31 +1,43 @@
-import { useRef, useState } from "react"
-import { extractDominantLab } from "#/lib/colors/extract-dominant"
-import { matchPaletteLab } from "#/lib/colors/match-palette"
-import { labToRgb, rgbToHex, rgbToLab  } from "#/lib/colors/lab"
-import type {Rgb} from "#/lib/colors/lab";
-import { Button } from "#/components/ui/button"
+import { useRef, useState } from 'react'
+import { extractDominantLab } from '#/lib/colors/extract-dominant'
+import { matchPaletteLab } from '#/lib/colors/match-palette'
+import { labToRgb, rgbToHex, rgbToLab } from '#/lib/colors/lab'
+import type { Rgb } from '#/lib/colors/lab'
+import { Button } from '#/components/ui/button'
 
 interface Props {
   initialUrl?: string | null
   onBlobReady: (blob: Blob) => void
-  onSuggestColor?: (s: { name: string; hex: string; sampledHex: string }) => void
+  onSuggestColor?: (s: {
+    name: string
+    hex: string
+    sampledHex: string
+  }) => void
   onEyedrop?: (s: { name: string; hex: string; sampledHex: string }) => void
 }
 
 const MAX_DIM = 1600
 
-export function ImageUploader({ initialUrl, onBlobReady, onSuggestColor, onEyedrop }: Props) {
+export function ImageUploader({
+  initialUrl,
+  onBlobReady,
+  onSuggestColor,
+  onEyedrop,
+}: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(initialUrl ?? null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    initialUrl ?? null,
+  )
 
   async function handleFile(file: File) {
     const img = await loadImage(file)
     const canvas = canvasRef.current
     if (!canvas) return
     const { w, h } = fitWithin(img.naturalWidth, img.naturalHeight, MAX_DIM)
-    canvas.width = w; canvas.height = h
-    const ctx = canvas.getContext("2d")
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(img, 0, 0, w, h)
 
@@ -35,17 +47,25 @@ export function ImageUploader({ initialUrl, onBlobReady, onSuggestColor, onEyedr
     const sampledHex = rgbToHex(labToRgb(lab))
     onSuggestColor?.({ name: tile.name, hex: tile.hex, sampledHex })
 
-    canvas.toBlob((blob) => { if (blob) onBlobReady(blob) }, "image/jpeg", 0.82)
-    setPreviewUrl(canvas.toDataURL("image/jpeg", 0.5))
+    canvas.toBlob(
+      (blob) => {
+        if (blob) onBlobReady(blob)
+      },
+      'image/jpeg',
+      0.82,
+    )
+    setPreviewUrl(canvas.toDataURL('image/jpeg', 0.5))
   }
 
   function handleCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
     if (!onEyedrop) return
-    const canvas = canvasRef.current; if (!canvas) return
+    const canvas = canvasRef.current
+    if (!canvas) return
     const rect = canvas.getBoundingClientRect()
     const x = Math.floor(((e.clientX - rect.left) / rect.width) * canvas.width)
     const y = Math.floor(((e.clientY - rect.top) / rect.height) * canvas.height)
-    const ctx = canvas.getContext("2d"); if (!ctx) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
     const data = ctx.getImageData(x, y, 1, 1).data
     const rgb: Rgb = { r: data[0], g: data[1], b: data[2] }
     const lab = rgbToLab(rgb)
@@ -62,18 +82,29 @@ export function ImageUploader({ initialUrl, onBlobReady, onSuggestColor, onEyedr
           accept="image/*"
           capture="environment"
           className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f) }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) void handleFile(f)
+          }}
         />
-        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-          {previewUrl ? "Replace image" : "Upload image"}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {previewUrl ? 'Replace image' : 'Upload image'}
         </Button>
-        {previewUrl && <span className="text-xs text-muted-foreground">Click the image to eyedrop</span>}
+        {previewUrl && (
+          <span className="text-xs text-muted-foreground">
+            Click the image to eyedrop
+          </span>
+        )}
       </div>
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
         className="rounded border cursor-crosshair max-h-72 object-contain"
-        style={{ display: previewUrl ? "block" : "none" }}
+        style={{ display: previewUrl ? 'block' : 'none' }}
       />
       {!previewUrl && initialUrl && (
         <img src={initialUrl} alt="" className="rounded border max-h-72" />
@@ -90,18 +121,27 @@ function loadImage(file: File): Promise<HTMLImageElement> {
     img.src = URL.createObjectURL(file)
   })
 }
-function fitWithin(w: number, h: number, max: number): { w: number; h: number } {
+function fitWithin(
+  w: number,
+  h: number,
+  max: number,
+): { w: number; h: number } {
   if (w <= max && h <= max) return { w, h }
   const ratio = w > h ? max / w : max / h
   return { w: Math.round(w * ratio), h: Math.round(h * ratio) }
 }
-function downscale(ctx: CanvasRenderingContext2D, w: number, h: number, target: number) {
-  const tmp = document.createElement("canvas")
+function downscale(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  target: number,
+) {
+  const tmp = document.createElement('canvas')
   const ratio = Math.min(target / w, target / h, 1)
   tmp.width = Math.max(1, Math.round(w * ratio))
   tmp.height = Math.max(1, Math.round(h * ratio))
-  const tctx = tmp.getContext("2d")
-  if (!tctx) throw new Error("2d canvas context unavailable")
+  const tctx = tmp.getContext('2d')
+  if (!tctx) throw new Error('2d canvas context unavailable')
   tctx.drawImage(ctx.canvas, 0, 0, tmp.width, tmp.height)
   return tctx.getImageData(0, 0, tmp.width, tmp.height)
 }

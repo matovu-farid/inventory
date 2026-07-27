@@ -1,8 +1,8 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useEffect, useState } from "react"
-import type { FormEvent } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import { z } from "zod"
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import { z } from 'zod'
 import {
   Table,
   TableBody,
@@ -10,11 +10,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "#/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { Label } from "#/components/ui/label"
+} from '#/components/ui/table'
+import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { Label } from '#/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -23,27 +23,27 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "#/components/ui/dialog"
+} from '#/components/ui/dialog'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
+} from '#/components/ui/select'
 import {
   inviteUser,
   resendInvite,
   removeUser,
   setUserRole,
   listUsers,
-} from "#/server/functions/admin/users"
-import { getSession } from "#/server/middleware/auth"
-import { ROLES } from "#/lib/roles"
-import type { Role } from "#/lib/roles"
+} from '#/server/functions/admin/users'
+import { getSession } from '#/server/middleware/auth'
+import { ROLES } from '#/lib/roles'
+import type { Role } from '#/lib/roles'
 
-export const Route = createFileRoute("/settings/users")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "users.manage"),
+export const Route = createFileRoute('/settings/users')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'users.manage'),
   loader: async () => {
     const [result, session] = await Promise.all([listUsers(), getSession()])
     return { result, currentUserId: session?.user.id ?? null }
@@ -71,16 +71,13 @@ function UsersPage() {
   const [invitePending, setInvitePending] = useState(false)
   const [inviteError, setInviteError] = useState<string | undefined>()
 
-  async function handleRoleChange(
-    userId: string,
-    role: Role,
-  ) {
+  async function handleRoleChange(userId: string, role: Role) {
     setRoleChangingId(userId)
     try {
       await setUserRole({ data: { userId, role } })
       void router.invalidate()
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to change role")
+      alert(err instanceof Error ? err.message : 'Failed to change role')
     } finally {
       setRoleChangingId(null)
     }
@@ -98,7 +95,9 @@ function UsersPage() {
       setOpen(false)
       void router.invalidate()
     } catch (err) {
-      setInviteError(err instanceof Error ? err.message : "Failed to send invite")
+      setInviteError(
+        err instanceof Error ? err.message : 'Failed to send invite',
+      )
     } finally {
       setInvitePending(false)
     }
@@ -144,7 +143,9 @@ function UsersPage() {
           </DialogTrigger>
           <InviteDialog
             open={open}
-            onSubmit={(v) => { void handleInvite(v) }}
+            onSubmit={(v) => {
+              void handleInvite(v)
+            }}
             pending={invitePending}
             error={inviteError}
           />
@@ -169,13 +170,13 @@ function UsersPage() {
             <TableBody>
               {list.map((u) => {
                 const isSelf = u.id === currentUserId
-                const role = (u.role ?? "sales") as
-                  | "admin"
-                  | "supervisor"
-                  | "sales"
+                const role = (u.role ?? 'sales') as
+                  | 'admin'
+                  | 'supervisor'
+                  | 'sales'
                 return (
                   <TableRow key={u.id}>
-                    <TableCell>{u.name ?? "—"}</TableCell>
+                    <TableCell>{u.name ?? '—'}</TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>
                       {isSelf ? (
@@ -202,24 +203,30 @@ function UsersPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {u.emailVerified ? "Active" : "Invited"}
+                      {u.emailVerified ? 'Active' : 'Invited'}
                     </TableCell>
                     <TableCell className="space-x-2 text-right">
                       {!u.emailVerified && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => { void handleResend(u.id) }}
+                          onClick={() => {
+                            void handleResend(u.id)
+                          }}
                           disabled={resendingId === u.id}
                         >
-                          {resendingId === u.id ? "Sending..." : "Resend invite"}
+                          {resendingId === u.id
+                            ? 'Sending...'
+                            : 'Resend invite'}
                         </Button>
                       )}
                       {!isSelf && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => { void handleRemove(u) }}
+                          onClick={() => {
+                            void handleRemove(u)
+                          }}
                           disabled={removingId === u.id}
                         >
                           Remove
@@ -254,15 +261,15 @@ function InviteDialog({
   pending: boolean
   error?: string
 }) {
-  const [email, setEmail] = useState("")
-  const [name, setName] = useState("")
-  const [role, setRole] = useState<Role>("sales")
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [role, setRole] = useState<Role>('sales')
 
   useEffect(() => {
     if (!open) {
-      setEmail("")
-      setName("")
-      setRole("sales")
+      setEmail('')
+      setName('')
+      setRole('sales')
     }
   }, [open])
 
@@ -308,10 +315,7 @@ function InviteDialog({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="invite-role">Role</Label>
-          <Select
-            value={role}
-            onValueChange={(v) => setRole(v as Role)}
-          >
+          <Select value={role} onValueChange={(v) => setRole(v as Role)}>
             <SelectTrigger id="invite-role" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -324,7 +328,7 @@ function InviteDialog({
         </div>
         <DialogFooter>
           <Button type="submit" disabled={pending}>
-            {pending ? "Sending..." : "Send invite"}
+            {pending ? 'Sending...' : 'Send invite'}
           </Button>
         </DialogFooter>
       </form>

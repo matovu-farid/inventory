@@ -1,13 +1,13 @@
-import { randomBytes } from "node:crypto"
-import { and, eq, gt } from "drizzle-orm"
-import { db } from "#/db"
-import { verification } from "#/db/schema"
+import { randomBytes } from 'node:crypto'
+import { and, eq, gt } from 'drizzle-orm'
+import { db } from '#/db'
+import { verification } from '#/db/schema'
 
-const INVITE_PREFIX = "invite:"
+const INVITE_PREFIX = 'invite:'
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
 function makeToken(): string {
-  return randomBytes(32).toString("base64url")
+  return randomBytes(32).toString('base64url')
 }
 
 export async function createInvite({

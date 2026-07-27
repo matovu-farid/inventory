@@ -1,8 +1,8 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
-import { z } from "zod"
-import BigNumber from "bignumber.js"
-import { db } from "#/db"
+import { createServerFn } from '@tanstack/react-start'
+import { and, eq, inArray } from 'drizzle-orm'
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
+import { db } from '#/db'
 import {
   items,
   shops,
@@ -11,28 +11,23 @@ import {
   shopSaleLineAllocations,
   shopStock,
   customers,
-} from "#/db/schema"
-import { postJournalEntry } from "#/lib/accounting/ledger"
-import { nextDocumentNumber } from "#/lib/document-numbers-db"
-import { recordAuditLog } from "#/server/middleware/audit-store"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import {
-  depositCategoryFor,
-  depositLocationFor,
-} from "#/lib/payment-method"
-import { formatItemLabel, formatItemLabelUnresolved } from "#/lib/items"
-import { pickShopStockFifo } from "./fifo"
-import { validateBelowMinimumSale } from "./sale-validate"
-import { renderAuditDescription } from "#/server/audit/descriptions"
-import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
-import { getActorName } from "#/server/audit/actor"
+} from '#/db/schema'
+import { postJournalEntry } from '#/lib/accounting/ledger'
+import { nextDocumentNumber } from '#/lib/document-numbers-db'
+import { recordAuditLog } from '#/server/middleware/audit-store'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { depositCategoryFor, depositLocationFor } from '#/lib/payment-method'
+import { formatItemLabel, formatItemLabelUnresolved } from '#/lib/items'
+import { pickShopStockFifo } from './fifo'
+import { validateBelowMinimumSale } from './sale-validate'
+import { renderAuditDescription } from '#/server/audit/descriptions'
+import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
+import { getActorName } from '#/server/audit/actor'
 
 export const getShopStock = createServerFn()
   .inputValidator(z.object({ shopId: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor", "sales"])
+    await requireSessionAndRole(['admin', 'supervisor', 'sales'])
 
     return db.query.shopStock.findMany({
       where: eq(shopStock.shopId, data.shopId),
@@ -52,36 +47,43 @@ export const getShopStock = createServerFn()
  * Used by the Sales page to keep the shop dropdown free of empty options.
  */
 export const listShopsWithSales = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin", "supervisor", "sales"])
+  const session = await requireSessionAndRole(['admin', 'supervisor', 'sales'])
   const userId = session.user.id
   const role = session.user.role
 
   const rows = await db
     .selectDistinct({ shopId: shopSales.shopId })
     .from(shopSales)
-    .where(role === "sales" ? eq(shopSales.soldBy, userId) : undefined)
+    .where(role === 'sales' ? eq(shopSales.soldBy, userId) : undefined)
 
   if (rows.length === 0) return []
 
   return db
     .select()
     .from(shops)
-    .where(inArray(shops.id, rows.map((r) => r.shopId)))
+    .where(
+      inArray(
+        shops.id,
+        rows.map((r) => r.shopId),
+      ),
+    )
     .orderBy(shops.name)
 })
 
 export const listShopSales = createServerFn()
   .inputValidator(z.object({ shopId: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor", "sales"])
+    const session = await requireSessionAndRole([
+      'admin',
+      'supervisor',
+      'sales',
+    ])
     const userId = session.user.id
     const role = session.user.role
 
     // Sales reps see only their own sales. Admin/supervisor see everything.
     const where =
-      role === "sales"
+      role === 'sales'
         ? and(eq(shopSales.shopId, data.shopId), eq(shopSales.soldBy, userId))
         : eq(shopSales.shopId, data.shopId)
 
@@ -111,7 +113,7 @@ const saleItemInput = z.object({
 
 const recordSaleInput = z.object({
   shopId: z.uuid(),
-  paymentMethod: z.enum(["cash", "bank", "credit"]),
+  paymentMethod: z.enum(['cash', 'bank', 'credit']),
   bankAccountId: z.uuid().optional(),
   customerId: z.uuid().optional(),
   items: z.array(saleItemInput).min(1),
@@ -131,24 +133,25 @@ const recordSaleInput = z.object({
 export const recordSale = createServerFn()
   .inputValidator(recordSaleInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor", "sales"])
+    const session = await requireSessionAndRole([
+      'admin',
+      'supervisor',
+      'sales',
+    ])
     const userId = session.user.id
-    const userRole = session.user.role ?? ""
+    const userRole = session.user.role ?? ''
 
-    if (data.paymentMethod === "credit") {
-      if (userRole === "sales") {
-        throw new Error(
-          "Only admin or supervisor can authorize a credit sale.",
-        )
+    if (data.paymentMethod === 'credit') {
+      if (userRole === 'sales') {
+        throw new Error('Only admin or supervisor can authorize a credit sale.')
       }
       if (!data.customerId) {
-        throw new Error("customerId is required for credit sales.")
+        throw new Error('customerId is required for credit sales.')
       }
     }
 
     return db.transaction(async (tx) => {
-      if (data.paymentMethod === "credit" && data.customerId) {
+      if (data.paymentMethod === 'credit' && data.customerId) {
         const customer = await tx.query.customers.findFirst({
           where: eq(customers.id, data.customerId),
         })
@@ -206,7 +209,7 @@ export const recordSale = createServerFn()
         // Item-level label (color/size optional). Used in below-minimum
         // validator error messages and the audit description fallback.
         const itemLabel = input.variantId
-          ? formatItemLabel(item.articleNumber, item.name, "")
+          ? formatItemLabel(item.articleNumber, item.name, '')
           : formatItemLabelUnresolved(item.articleNumber, item.name)
 
         const { isBelowMinimum, reason: belowMinimumReason } =
@@ -214,7 +217,7 @@ export const recordSale = createServerFn()
             unitPriceUgx: input.unitPriceUgx,
             minimumSellPriceUgx: item.minimumSellPriceUgx,
             userRole,
-            reason: input.belowMinimumReason ?? "",
+            reason: input.belowMinimumReason ?? '',
             itemName: itemLabel,
           })
         if (isBelowMinimum) hasBelowMinimum = true
@@ -242,8 +245,8 @@ export const recordSale = createServerFn()
         })
       }
 
-      const isCredit = data.paymentMethod === "credit"
-      const docNumber = await nextDocumentNumber(tx, "SALE")
+      const isCredit = data.paymentMethod === 'credit'
+      const docNumber = await nextDocumentNumber(tx, 'SALE')
 
       const [sale] = await tx
         .insert(shopSales)
@@ -255,8 +258,8 @@ export const recordSale = createServerFn()
           bankAccountId: data.bankAccountId,
           customerId: isCredit ? data.customerId : null,
           totalAmount: totalAmount.toFixed(2),
-          paymentStatus: isCredit ? "open" : "settled",
-          outstandingBalance: isCredit ? totalAmount.toFixed(2) : "0",
+          paymentStatus: isCredit ? 'open' : 'settled',
+          outstandingBalance: isCredit ? totalAmount.toFixed(2) : '0',
           approvedBy: isCredit || hasBelowMinimum ? userId : undefined,
           documentNumber: docNumber.formatted,
           notes: data.notes,
@@ -306,22 +309,26 @@ export const recordSale = createServerFn()
       }
 
       const debitCategory =
-        data.paymentMethod === "credit"
-          ? "Accounts Receivable"
+        data.paymentMethod === 'credit'
+          ? 'Accounts Receivable'
           : depositCategoryFor(data.paymentMethod)
 
       await postJournalEntry(tx, {
         entries: [
           {
-            type: "debit",
+            type: 'debit',
             category: debitCategory,
             amount: totalAmount.toFixed(2),
           },
-          { type: "credit", category: "Sales Revenue", amount: totalAmount.toFixed(2) },
+          {
+            type: 'credit',
+            category: 'Sales Revenue',
+            amount: totalAmount.toFixed(2),
+          },
         ],
-        referenceType: "shop_sale",
+        referenceType: 'shop_sale',
         referenceId: sale.id,
-        locationType: "shop",
+        locationType: 'shop',
         locationId: data.shopId,
         depositLocation: depositLocationFor(data.paymentMethod),
         bankAccountId: data.bankAccountId,
@@ -331,12 +338,20 @@ export const recordSale = createServerFn()
 
       await postJournalEntry(tx, {
         entries: [
-          { type: "debit", category: "Cost of Goods Sold", amount: totalCost.toFixed(2) },
-          { type: "credit", category: "Inventory - Shop", amount: totalCost.toFixed(2) },
+          {
+            type: 'debit',
+            category: 'Cost of Goods Sold',
+            amount: totalCost.toFixed(2),
+          },
+          {
+            type: 'credit',
+            category: 'Inventory - Shop',
+            amount: totalCost.toFixed(2),
+          },
         ],
-        referenceType: "shop_sale",
+        referenceType: 'shop_sale',
         referenceId: sale.id,
-        locationType: "shop",
+        locationType: 'shop',
         locationId: data.shopId,
         recordedBy: userId,
         description: `COGS for sale`,
@@ -347,18 +362,18 @@ export const recordSale = createServerFn()
       })
       const actorName = await getActorName(tx, userId)
       const articleNumbers = await resolveArticleNumbersForAudit(tx, {
-        action: "sale.create",
-        entityType: "shop_sale",
+        action: 'sale.create',
+        entityType: 'shop_sale',
         entityId: sale.id,
         metadata: null,
       })
 
       await recordAuditLog(tx, {
         actorUserId: userId,
-        action: "sale.create",
-        entityType: "shop_sale",
+        action: 'sale.create',
+        entityType: 'shop_sale',
         entityId: sale.id,
-        description: renderAuditDescription("sale.create", {
+        description: renderAuditDescription('sale.create', {
           actorName,
           shopName: shop?.name,
           itemCount: data.items.length,
@@ -371,7 +386,7 @@ export const recordSale = createServerFn()
           documentNumber: docNumber.formatted,
           paymentMethod: data.paymentMethod,
           totalAmountUgx: totalAmount.toFixed(2),
-          paymentStatus: isCredit ? "open" : "settled",
+          paymentStatus: isCredit ? 'open' : 'settled',
           customerId: isCredit ? data.customerId : null,
         },
         metadata: {

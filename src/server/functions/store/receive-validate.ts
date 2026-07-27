@@ -19,7 +19,7 @@ export function validateDiscrepancyNotes(
   input: ValidateDiscrepancyNotesInput,
 ): void {
   if (input.quantityReceived >= input.quantityExpected) return
-  const note = (input.discrepancyNotes ?? "").trim()
+  const note = (input.discrepancyNotes ?? '').trim()
   if (note.length === 0) {
     throw new Error(
       `Discrepancy notes required: received ${input.quantityReceived} of ${input.quantityExpected} expected`,

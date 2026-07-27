@@ -1,6 +1,6 @@
-import { Link } from "@tanstack/react-router"
-import { ResponsiveTable } from "#/components/ui/responsive-table"
-import { formatUgxTotal } from "#/lib/format"
+import { Link } from '@tanstack/react-router'
+import { ResponsiveTable } from '#/components/ui/responsive-table'
+import { formatDateTime, formatUgxTotal } from '#/lib/format'
 
 interface Row {
   id: string
@@ -18,7 +18,7 @@ export function ZHistoryTable({ rows }: { rows: Row[] }) {
         getRowKey={(r) => r.id}
         columns={[
           {
-            header: "#",
+            header: '#',
             cell: (r) => (
               <Link
                 className="underline"
@@ -30,19 +30,21 @@ export function ZHistoryTable({ rows }: { rows: Row[] }) {
             ),
           },
           {
-            header: "Closed",
-            cell: (r) => new Date(r.closedAt).toLocaleString("en-UG"),
+            header: 'Closed',
+            cell: (r) => formatDateTime(r.closedAt),
           },
           {
-            header: "Gross",
-            align: "right",
+            header: 'Gross',
+            align: 'right',
             cell: (r) => (
-              <span className="font-mono">{formatUgxTotal(r.grossSalesUgx)}</span>
+              <span className="font-mono">
+                {formatUgxTotal(r.grossSalesUgx)}
+              </span>
             ),
           },
           {
-            header: "Variance",
-            align: "right",
+            header: 'Variance',
+            align: 'right',
             cell: (r) => (
               <span className="font-mono">{formatUgxTotal(r.varianceUgx)}</span>
             ),

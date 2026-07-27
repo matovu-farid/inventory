@@ -1,12 +1,12 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
-import { Fragment, useState } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import BigNumber from "bignumber.js"
-import { formatUgx, formatUgxTotal } from "#/lib/format"
-import { Button } from "#/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
-import { Badge } from "#/components/ui/badge"
-import { InfoTip } from "#/components/ui/info-tip"
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { Fragment, useState } from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import BigNumber from 'bignumber.js'
+import { formatUgx, formatUgxTotal } from '#/lib/format'
+import { Button } from '#/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { Badge } from '#/components/ui/badge'
+import { InfoTip } from '#/components/ui/info-tip'
 import {
   Table,
   TableBody,
@@ -14,18 +14,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "#/components/ui/table"
-import { ChevronDown, ChevronRight, Plus } from "lucide-react"
-import { SpecifyStockDialog } from "#/components/stock/specify-stock-dialog"
-import { getStoreStock } from "#/server/functions/store/receiving"
-import { ensureStore } from "#/server/functions/admin/locations"
-import { getSession } from "#/server/middleware/auth"
-import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
-import { getStorePrereqs } from "#/server/functions/prereqs/store"
+} from '#/components/ui/table'
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
+import { SpecifyStockDialog } from '#/components/stock/specify-stock-dialog'
+import { getStoreStock } from '#/server/functions/store/receiving'
+import { ensureStore } from '#/server/functions/admin/locations'
+import { getSession } from '#/server/middleware/auth'
+import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
+import { getStorePrereqs } from '#/server/functions/prereqs/store'
 
-export const Route = createFileRoute("/store/")({
-  beforeLoad: ({ context }) =>
-    requireUiPermission(context, "warehouse.stock"),
+export const Route = createFileRoute('/store/')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'warehouse.stock'),
   loader: async () => {
     await ensureStore()
     const session = await getSession()
@@ -45,12 +44,11 @@ type StoreStockGroup = StoreStockGroups[number]
 function StoreStockPage() {
   const { groups, prerequisites, role } = Route.useLoaderData()
   const router = useRouter()
-  const canSeed = role === "admin" || role === "supervisor"
+  const canSeed = role === 'admin' || role === 'supervisor'
 
   const totalValue = groups.reduce((sum, g) => {
     const groupValue = g.rows.reduce(
-      (s, r) =>
-        s.plus(new BigNumber(r.costPerUnitUgx).times(r.quantityOnHand)),
+      (s, r) => s.plus(new BigNumber(r.costPerUnitUgx).times(r.quantityOnHand)),
       new BigNumber(0),
     )
     return sum.plus(groupValue)
@@ -114,7 +112,7 @@ function StoreStockPage() {
           <>
             <div className="flex items-baseline justify-between">
               <p className="text-sm text-muted-foreground">
-                {groups.length} product{groups.length === 1 ? "" : "s"} ·{" "}
+                {groups.length} product{groups.length === 1 ? '' : 's'} ·{' '}
                 {totalItems} units
               </p>
             </div>
@@ -188,7 +186,7 @@ function ItemStockRow({
       <TableRow
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
+          if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             setOpen((o) => !o)
           }
@@ -206,7 +204,7 @@ function ItemStockRow({
           )}
         </TableCell>
         <TableCell className="font-medium">
-          {group.item.articleNumber}{" "}
+          {group.item.articleNumber}{' '}
           <span className="text-muted-foreground">{group.item.name}</span>
         </TableCell>
         <TableCell>{group.item.category}</TableCell>

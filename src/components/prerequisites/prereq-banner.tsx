@@ -1,9 +1,9 @@
 // src/components/prerequisites/prereq-banner.tsx
-import { AlertTriangle } from "lucide-react"
-import { Link } from "@tanstack/react-router"
-import { Button } from "#/components/ui/button"
-import { cn } from "#/lib/utils"
-import type { MissingPrereq } from "#/lib/prerequisites/types"
+import { AlertTriangle } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Button } from '#/components/ui/button'
+import { cn } from '#/lib/utils'
+import type { MissingPrereq } from '#/lib/prerequisites/types'
 
 interface PrereqBannerProps {
   /** Soft prereqs only — hard ones should never reach this component. */
@@ -21,8 +21,8 @@ export function PrereqBanner({ items, className }: PrereqBannerProps) {
   return (
     <div
       className={cn(
-        "rounded-md border border-amber-300/60 bg-amber-50/80 p-4 text-amber-900",
-        "dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-100",
+        'rounded-md border border-amber-300/60 bg-amber-50/80 p-4 text-amber-900',
+        'dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-100',
         className,
       )}
       role="status"

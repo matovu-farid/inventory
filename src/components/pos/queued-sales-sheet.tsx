@@ -1,21 +1,26 @@
-import * as React from "react"
-import { AlertTriangle, Clock, RefreshCw, Trash2, CheckCircle2 } from "lucide-react"
+import * as React from 'react'
+import {
+  AlertTriangle,
+  Clock,
+  RefreshCw,
+  Trash2,
+  CheckCircle2,
+} from 'lucide-react'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "#/components/ui/sheet"
-import { Button } from "#/components/ui/button"
-import { formatUgxTotal } from "#/lib/format"
+} from '#/components/ui/sheet'
+import { Button } from '#/components/ui/button'
+import { formatUgxTotal } from '#/lib/format'
 import {
   getQueuedSales,
   deleteQueuedSale,
-  updateQueuedSaleStatus
-  
-} from "#/lib/offline/idb"
-import type {QueuedSale} from "#/lib/offline/idb";
-import { recordSale } from "#/server/functions/shop/sales"
+  updateQueuedSaleStatus,
+} from '#/lib/offline/idb'
+import type { QueuedSale } from '#/lib/offline/idb'
+import { recordSale } from '#/server/functions/shop/sales'
 
 type Props = {
   open: boolean
@@ -26,7 +31,7 @@ type Props = {
 function formatRelative(ts: number): string {
   const diff = Date.now() - ts
   const mins = Math.floor(diff / 60_000)
-  if (mins < 1) return "just now"
+  if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `${hrs}h ago`
@@ -44,8 +49,13 @@ function getItemCount(payload: unknown): number {
 
 function getSaleTotal(payload: unknown): number {
   try {
-    const p = payload as { items?: Array<{ quantity: number; unitPriceUgx: string }> }
-    return (p.items ?? []).reduce((sum, i) => sum + i.quantity * Number(i.unitPriceUgx), 0)
+    const p = payload as {
+      items?: Array<{ quantity: number; unitPriceUgx: string }>
+    }
+    return (p.items ?? []).reduce(
+      (sum, i) => sum + i.quantity * Number(i.unitPriceUgx),
+      0,
+    )
   } catch {
     return 0
   }
@@ -55,10 +65,16 @@ function getSaleTotal(payload: unknown): number {
  * Sheet showing queued and failed offline sales.
  * Salesman can retry or discard failed sales.
  */
-export function QueuedSalesSheet({ open, onOpenChange, onSyncComplete }: Props) {
+export function QueuedSalesSheet({
+  open,
+  onOpenChange,
+  onSyncComplete,
+}: Props) {
   const [sales, setSales] = React.useState<QueuedSale[]>([])
   const [retrying, setRetrying] = React.useState<string | null>(null)
-  const [discardConfirm, setDiscardConfirm] = React.useState<string | null>(null)
+  const [discardConfirm, setDiscardConfirm] = React.useState<string | null>(
+    null,
+  )
 
   async function load() {
     try {
@@ -77,13 +93,15 @@ export function QueuedSalesSheet({ open, onOpenChange, onSyncComplete }: Props) 
   async function handleRetry(sale: QueuedSale) {
     setRetrying(sale.id)
     try {
-      await updateQueuedSaleStatus(sale.id, "queued", null)
-      await recordSale({ data: sale.payload as Parameters<typeof recordSale>[0]["data"] })
+      await updateQueuedSaleStatus(sale.id, 'queued', null)
+      await recordSale({
+        data: sale.payload as Parameters<typeof recordSale>[0]['data'],
+      })
       await deleteQueuedSale(sale.id)
       onSyncComplete?.()
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      await updateQueuedSaleStatus(sale.id, "failed", msg)
+      await updateQueuedSaleStatus(sale.id, 'failed', msg)
     } finally {
       setRetrying(null)
       await load()
@@ -96,8 +114,10 @@ export function QueuedSalesSheet({ open, onOpenChange, onSyncComplete }: Props) 
     await load()
   }
 
-  const queued = sales.filter((s) => s.status === "queued" || s.status === "syncing")
-  const failed = sales.filter((s) => s.status === "failed")
+  const queued = sales.filter(
+    (s) => s.status === 'queued' || s.status === 'syncing',
+  )
+  const failed = sales.filter((s) => s.status === 'failed')
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -130,15 +150,21 @@ export function QueuedSalesSheet({ open, onOpenChange, onSyncComplete }: Props) 
               </p>
               <div className="space-y-2">
                 {failed.map((s) => (
-                  <div key={s.id} className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <div
+                    key={s.id}
+                    className="rounded-lg border border-destructive/30 bg-destructive/5 p-3"
+                  >
                     <SaleRow sale={s} />
                     {s.failureReason && (
-                      <p className="mt-1.5 text-xs text-destructive">{s.failureReason}</p>
+                      <p className="mt-1.5 text-xs text-destructive">
+                        {s.failureReason}
+                      </p>
                     )}
                     {discardConfirm === s.id ? (
                       <div className="mt-2 space-y-1.5">
                         <p className="text-xs text-muted-foreground">
-                          The customer already received this sale. Discard anyway?
+                          The customer already received this sale. Discard
+                          anyway?
                         </p>
                         <div className="flex gap-2">
                           <Button
@@ -168,7 +194,9 @@ export function QueuedSalesSheet({ open, onOpenChange, onSyncComplete }: Props) 
                           disabled={retrying === s.id}
                           onClick={() => void handleRetry(s)}
                         >
-                          <RefreshCw className={`mr-1 size-3 ${retrying === s.id ? "animate-spin" : ""}`} />
+                          <RefreshCw
+                            className={`mr-1 size-3 ${retrying === s.id ? 'animate-spin' : ''}`}
+                          />
                           Retry
                         </Button>
                         <Button
@@ -210,7 +238,7 @@ function SaleRow({ sale }: { sale: QueuedSale }) {
         <span>{formatRelative(sale.createdAt)}</span>
         <span>·</span>
         <span>
-          {itemCount} {itemCount === 1 ? "item" : "items"}
+          {itemCount} {itemCount === 1 ? 'item' : 'items'}
         </span>
       </div>
       <span className="font-mono font-semibold">{formatUgxTotal(total)}</span>

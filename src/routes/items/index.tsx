@@ -1,25 +1,25 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
-import { Plus } from "lucide-react"
-import { requireUiPermission, useCan } from "#/lib/permissions"
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { useState } from 'react'
+import { Plus } from 'lucide-react'
+import { requireUiPermission, useCan } from '#/lib/permissions'
 import {
   listItemCategories,
   listItems,
   searchItems,
-} from "#/server/functions/items/items"
-import { ItemCard } from "#/components/items/item-card"
-import { ItemEditor } from "#/components/items/item-editor"
-import { Input } from "#/components/ui/input"
-import { Button } from "#/components/ui/button"
+} from '#/server/functions/items/items'
+import { ItemCard } from '#/components/items/item-card'
+import { ItemEditor } from '#/components/items/item-editor'
+import { Input } from '#/components/ui/input'
+import { Button } from '#/components/ui/button'
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
   ResponsiveDialogHeader as DialogHeader,
   ResponsiveDialogTitle as DialogTitle,
-} from "#/components/ui/responsive-dialog"
+} from '#/components/ui/responsive-dialog'
 
-export const Route = createFileRoute("/items/")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "items.view"),
+export const Route = createFileRoute('/items/')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'items.view'),
   loader: async () => {
     const [products, categories] = await Promise.all([
       listItems(),
@@ -33,8 +33,8 @@ export const Route = createFileRoute("/items/")({
 function ProductsPage() {
   const { products: initial, categories } = Route.useLoaderData()
   const router = useRouter()
-  const canManage = useCan("items.manage")
-  const [query, setQuery] = useState("")
+  const canManage = useCan('items.manage')
+  const [query, setQuery] = useState('')
   const [results, setResults] = useState(initial)
   const [editorOpen, setEditorOpen] = useState(false)
 
@@ -54,7 +54,7 @@ function ProductsPage() {
         <h1 className="text-2xl font-bold">Items</h1>
         <div className="flex items-center gap-3">
           <p className="text-sm text-muted-foreground">
-            {results.length} item{results.length === 1 ? "" : "s"}
+            {results.length} item{results.length === 1 ? '' : 's'}
           </p>
           {canManage && (
             <Button size="sm" onClick={() => setEditorOpen(true)}>
@@ -66,16 +66,18 @@ function ProductsPage() {
       <Input
         placeholder="Search by article or name…"
         value={query}
-        onChange={(e) => { void handleSearch(e.target.value) }}
+        onChange={(e) => {
+          void handleSearch(e.target.value)
+        }}
         className="max-w-md"
       />
       {results.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {query
-            ? "No matching items."
+            ? 'No matching items.'
             : canManage
-              ? "No items yet. Create one above, or add one when recording a supply route."
-              : "No items yet. Ask an admin to create one, or add one when recording a supply route."}
+              ? 'No items yet. Create one above, or add one when recording a supply route.'
+              : 'No items yet. Ask an admin to create one, or add one when recording a supply route.'}
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">

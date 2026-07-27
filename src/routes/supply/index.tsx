@@ -1,35 +1,34 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
-import { requireUiPermission } from "#/lib/permissions"
-import { useState } from "react"
-import BigNumber from "bignumber.js"
-import { roundUgxBankers50 } from "#/lib/format"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { MoneyInput, RateInput } from "#/components/ui/money-input"
-import { FieldLabel } from "#/components/ui/field-label"
-import { Textarea } from "#/components/ui/textarea"
-import { Badge } from "#/components/ui/badge"
-import { DatePicker } from "#/components/ui/date-picker"
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { requireUiPermission } from '#/lib/permissions'
+import { useState } from 'react'
+import BigNumber from 'bignumber.js'
+import { roundUgxBankers50 } from '#/lib/format'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { MoneyInput, RateInput } from '#/components/ui/money-input'
+import { FieldLabel } from '#/components/ui/field-label'
+import { Textarea } from '#/components/ui/textarea'
+import { Badge } from '#/components/ui/badge'
+import { DatePicker } from '#/components/ui/date-picker'
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
   ResponsiveDialogHeader as DialogHeader,
   ResponsiveDialogTitle as DialogTitle,
-} from "#/components/ui/responsive-dialog"
-import { DialogTrigger } from "#/components/ui/dialog"
-import { ResponsiveTable } from "#/components/ui/responsive-table"
-import { Plus, ArrowRight } from "lucide-react"
+} from '#/components/ui/responsive-dialog'
+import { DialogTrigger } from '#/components/ui/dialog'
+import { ResponsiveTable } from '#/components/ui/responsive-table'
+import { Plus, ArrowRight } from 'lucide-react'
 import {
   listSupplyRoutes,
   createSupplyRoute,
   listSuppliersForSelect,
-} from "#/server/functions/supply/routes"
-import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
-import { getSupplyPrereqs } from "#/server/functions/prereqs/supply"
+} from '#/server/functions/supply/routes'
+import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
+import { getSupplyPrereqs } from '#/server/functions/prereqs/supply'
 
-export const Route = createFileRoute("/supply/")({
-  beforeLoad: ({ context }) =>
-    requireUiPermission(context, "procurement.view"),
+export const Route = createFileRoute('/supply/')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
   loader: async () => {
     const [routes, suppliers, prerequisites] = await Promise.all([
       listSupplyRoutes(),
@@ -41,10 +40,13 @@ export const Route = createFileRoute("/supply/")({
   component: SupplyRoutesPage,
 })
 
-const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  planning: "outline",
-  in_transit: "default",
-  received: "secondary",
+const STATUS_COLORS: Record<
+  string,
+  'default' | 'secondary' | 'destructive' | 'outline'
+> = {
+  planning: 'outline',
+  in_transit: 'default',
+  received: 'secondary',
 }
 
 function SupplyRoutesPage() {
@@ -77,14 +79,13 @@ function SupplyRoutesPage() {
       </div>
 
       <PagePrerequisites result={prerequisites}>
-
         <ResponsiveTable
           data={routes}
           getRowKey={(r) => r.id}
           emptyMessage="No supply routes yet. Create your first route to start tracking procurement."
           columns={[
             {
-              header: "Route",
+              header: 'Route',
               cell: (r) => (
                 <div>
                   <span className="font-medium">{r.name}</span>
@@ -97,27 +98,27 @@ function SupplyRoutesPage() {
               ),
             },
             {
-              header: "Status",
+              header: 'Status',
               cell: (r) => (
-                <Badge variant={STATUS_COLORS[r.status] ?? "outline"}>
-                  {r.status.replace("_", " ")}
+                <Badge variant={STATUS_COLORS[r.status] ?? 'outline'}>
+                  {r.status.replace('_', ' ')}
                 </Badge>
               ),
             },
             {
-              header: "Suppliers",
+              header: 'Suppliers',
               cell: (r) =>
-                r.suppliers.map((s) => s.supplier.name).join(", ") || "-",
+                r.suppliers.map((s) => s.supplier.name).join(', ') || '-',
               hideOnMobile: true,
             },
             {
-              header: "Items",
-              align: "right",
+              header: 'Items',
+              align: 'right',
               cell: (r) => r.items.length,
             },
             {
-              header: "Total Cost (UGX)",
-              align: "right",
+              header: 'Total Cost (UGX)',
+              align: 'right',
               cell: (r) => (
                 <span className="font-mono">
                   {roundUgxBankers50(
@@ -130,8 +131,8 @@ function SupplyRoutesPage() {
               ),
             },
             {
-              header: "Expenses (UGX)",
-              align: "right",
+              header: 'Expenses (UGX)',
+              align: 'right',
               hideOnMobile: true,
               cell: (r) => (
                 <span className="font-mono">
@@ -145,7 +146,7 @@ function SupplyRoutesPage() {
               ),
             },
             {
-              header: "",
+              header: '',
               cell: (r) => (
                 <Link
                   to="/supply/$routeId"
@@ -163,31 +164,28 @@ function SupplyRoutesPage() {
   )
 }
 
-function CreateRouteForm({
-  onSuccess,
-}: {
-  onSuccess: () => void
-}) {
+function CreateRouteForm({ onSuccess }: { onSuccess: () => void }) {
   const [pending, setPending] = useState(false)
-  const [budgetUsd, setBudgetUsd] = useState("")
-  const [rateUgxPerUsd, setRateUgxPerUsd] = useState("")
-  const [rateRmbPerUsd, setRateRmbPerUsd] = useState("")
+  const [budgetUsd, setBudgetUsd] = useState('')
+  const [rateUgxPerUsd, setRateUgxPerUsd] = useState('')
+  const [rateRmbPerUsd, setRateRmbPerUsd] = useState('')
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
-    const name = (form.get("name") as string).trim()
+    const name = (form.get('name') as string).trim()
 
-    const departureDate = (form.get("departureDate") as string) || ""
-    const returnDate = (form.get("returnDate") as string) || ""
+    const departureDate = (form.get('departureDate') as string) || ''
+    const returnDate = (form.get('returnDate') as string) || ''
 
     const errs: Record<string, string> = {}
-    if (!name) errs.name = "Route name is required"
-    if (budgetUsd && isNaN(Number(budgetUsd))) errs.budget = "Invalid budget amount"
+    if (!name) errs.name = 'Route name is required'
+    if (budgetUsd && isNaN(Number(budgetUsd)))
+      errs.budget = 'Invalid budget amount'
     if (departureDate && returnDate && departureDate > returnDate) {
-      errs.returnDate = "Return date must be on or after departure date"
+      errs.returnDate = 'Return date must be on or after departure date'
     }
     setFormErrors(errs)
     if (Object.keys(errs).length > 0) return
@@ -197,27 +195,34 @@ function CreateRouteForm({
       await createSupplyRoute({
         data: {
           name,
-          departureDate: (form.get("departureDate") as string) || undefined,
-          returnDate: (form.get("returnDate") as string) || undefined,
+          departureDate: (form.get('departureDate') as string) || undefined,
+          returnDate: (form.get('returnDate') as string) || undefined,
           budgetUsd: budgetUsd || undefined,
           rateUgxPerUsd: rateUgxPerUsd || undefined,
           rateRmbPerUsd: rateRmbPerUsd || undefined,
-          notes: (form.get("notes") as string) || undefined,
+          notes: (form.get('notes') as string) || undefined,
         },
       })
       void router.invalidate()
       onSuccess()
     } catch (err) {
-      console.error("Failed to create route:", err)
+      console.error('Failed to create route:', err)
     } finally {
       setPending(false)
     }
   }
 
   return (
-    <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
+    <form
+      onSubmit={(e) => {
+        void handleSubmit(e)
+      }}
+      className="space-y-4"
+    >
       <div className="space-y-2">
-        <FieldLabel htmlFor="name" help="supplyRoute.name">Route Name *</FieldLabel>
+        <FieldLabel htmlFor="name" help="supplyRoute.name">
+          Route Name *
+        </FieldLabel>
         <Input
           id="name"
           name="name"
@@ -232,11 +237,15 @@ function CreateRouteForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <FieldLabel htmlFor="departureDate" help="supplyRoute.departureDate">Departure Date</FieldLabel>
+          <FieldLabel htmlFor="departureDate" help="supplyRoute.departureDate">
+            Departure Date
+          </FieldLabel>
           <DatePicker id="departureDate" name="departureDate" />
         </div>
         <div className="space-y-2">
-          <FieldLabel htmlFor="returnDate" help="supplyRoute.returnDate">Return Date</FieldLabel>
+          <FieldLabel htmlFor="returnDate" help="supplyRoute.returnDate">
+            Return Date
+          </FieldLabel>
           <DatePicker id="returnDate" name="returnDate" />
           {formErrors.returnDate && (
             <p className="text-xs text-destructive">{formErrors.returnDate}</p>
@@ -245,7 +254,9 @@ function CreateRouteForm({
       </div>
 
       <div className="space-y-2">
-        <FieldLabel htmlFor="budgetUsd" help="supplyRoute.budgetUsd">Budget</FieldLabel>
+        <FieldLabel htmlFor="budgetUsd" help="supplyRoute.budgetUsd">
+          Budget
+        </FieldLabel>
         <MoneyInput
           id="budgetUsd"
           currency="USD"
@@ -283,12 +294,14 @@ function CreateRouteForm({
       </div>
 
       <div className="space-y-2">
-        <FieldLabel htmlFor="notes" help="supplyRoute.notes">Notes</FieldLabel>
+        <FieldLabel htmlFor="notes" help="supplyRoute.notes">
+          Notes
+        </FieldLabel>
         <Textarea id="notes" name="notes" rows={2} />
       </div>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Creating..." : "Create Route"}
+        {pending ? 'Creating...' : 'Create Route'}
       </Button>
     </form>
   )

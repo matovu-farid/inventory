@@ -7,20 +7,24 @@ import {
   timestamp,
   index,
   unique,
-} from "drizzle-orm/pg-core"
-import { relations } from "drizzle-orm"
-import { user } from "./auth"
-import { variants } from "./variants"
-import { items } from "./items"
-import { supplyRouteLines } from "./supply-routes"
+} from 'drizzle-orm/pg-core'
+import { relations } from 'drizzle-orm'
+import { user } from './auth'
+import { variants } from './variants'
+import { items } from './items'
+import { supplyRouteLines } from './supply-routes'
 
-export const shops = pgTable("shops", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  location: text("location"),
-  managerId: text("manager_id").references(() => user.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
+export const shops = pgTable('shops', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  location: text('location'),
+  managerId: text('manager_id').references(() => user.id, {
+    onDelete: 'set null',
+  }),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
@@ -39,43 +43,48 @@ export const shops = pgTable("shops", {
  * change transitively — no direct change to their schemas in this issue.
  */
 export const shopStock = pgTable(
-  "shop_stock",
+  'shop_stock',
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    shopId: uuid("shop_id")
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopId: uuid('shop_id')
       .notNull()
-      .references(() => shops.id, { onDelete: "restrict" }),
-    itemId: uuid("item_id")
+      .references(() => shops.id, { onDelete: 'restrict' }),
+    itemId: uuid('item_id')
       .notNull()
-      .references(() => items.id, { onDelete: "restrict" }),
-    variantId: uuid("variant_id").references(() => variants.id, {
-      onDelete: "restrict",
+      .references(() => items.id, { onDelete: 'restrict' }),
+    variantId: uuid('variant_id').references(() => variants.id, {
+      onDelete: 'restrict',
     }),
     // Carries the original purchase lot from supply through store → shop.
     // Two shop_stock rows for the same (shop, item, variant) but different
     // supply lines stay separate so per-lot cost is preserved.
-    supplyRouteLineId: uuid("supply_route_line_id").references(
+    supplyRouteLineId: uuid('supply_route_line_id').references(
       () => supplyRouteLines.id,
-      { onDelete: "restrict" },
+      { onDelete: 'restrict' },
     ),
-    storeTransferItemId: uuid("store_transfer_item_id"),
-    quantityOnHand: integer("quantity_on_hand").notNull().default(0),
-    costPerUnitUgx: numeric("cost_per_unit_ugx", { precision: 15, scale: 2 }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+    storeTransferItemId: uuid('store_transfer_item_id'),
+    quantityOnHand: integer('quantity_on_hand').notNull().default(0),
+    costPerUnitUgx: numeric('cost_per_unit_ugx', {
+      precision: 15,
+      scale: 2,
+    }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [
-    index("idx_shst_shop").on(table.shopId),
-    index("idx_shst_item").on(table.itemId),
-    index("idx_shst_variant").on(table.variantId),
-    index("idx_shst_line").on(table.supplyRouteLineId),
-    index("idx_shst_transfer_item").on(table.storeTransferItemId),
+    index('idx_shst_shop').on(table.shopId),
+    index('idx_shst_item').on(table.itemId),
+    index('idx_shst_variant').on(table.variantId),
+    index('idx_shst_line').on(table.supplyRouteLineId),
+    index('idx_shst_transfer_item').on(table.storeTransferItemId),
     // Replaces uq_shst_variant. NULLS NOT DISTINCT means at most one
     // (shop, item, NULL variant, NULL line) row.
-    unique("uq_shst_shop_item_variant_line")
+    unique('uq_shst_shop_item_variant_line')
       .on(table.shopId, table.itemId, table.variantId, table.supplyRouteLineId)
       .nullsNotDistinct(),
   ],

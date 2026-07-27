@@ -1,28 +1,33 @@
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
-import { z } from "zod"
-import BigNumber from "bignumber.js"
-import { db } from "#/db"
-import { stockTakes, stockTakeLines, storeStock, shopStock, shops, stores } from "#/db/schema"
-import { postJournalEntry } from "#/lib/accounting/ledger"
-import { recordAuditLog } from "#/server/middleware/audit-store"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { formatItemLabel } from "#/lib/items"
-import { renderAuditDescription } from "#/server/audit/descriptions"
-import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
-import { getActorName } from "#/server/audit/actor"
+import { createServerFn } from '@tanstack/react-start'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
+import { db } from '#/db'
+import {
+  stockTakes,
+  stockTakeLines,
+  storeStock,
+  shopStock,
+  shops,
+  stores,
+} from '#/db/schema'
+import { postJournalEntry } from '#/lib/accounting/ledger'
+import { recordAuditLog } from '#/server/middleware/audit-store'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { formatItemLabel } from '#/lib/items'
+import { renderAuditDescription } from '#/server/audit/descriptions'
+import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
+import { getActorName } from '#/server/audit/actor'
 
 export const listStockTakes = createServerFn()
   .inputValidator(
     z.object({
-      locationType: z.enum(["store", "shop"]),
+      locationType: z.enum(['store', 'shop']),
       locationId: z.uuid(),
     }),
   )
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    await requireSessionAndRole(['admin', 'supervisor'])
 
     return db.query.stockTakes.findMany({
       where: (st, { and, eq: e }) =>
@@ -36,7 +41,7 @@ export const listStockTakes = createServerFn()
   })
 
 const startStockTakeInput = z.object({
-  locationType: z.enum(["store", "shop"]),
+  locationType: z.enum(['store', 'shop']),
   locationId: z.uuid(),
 })
 
@@ -47,8 +52,7 @@ const startStockTakeInput = z.object({
 export const startStockTake = createServerFn()
   .inputValidator(startStockTakeInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    const session = await requireSessionAndRole(['admin', 'supervisor'])
     const userId = session.user.id
 
     return db.transaction(async (tx) => {
@@ -64,7 +68,7 @@ export const startStockTake = createServerFn()
 
       let itemCount = 0
       // Get current stock for this location
-      if (data.locationType === "store") {
+      if (data.locationType === 'store') {
         const items = await tx.query.storeStock.findMany({
           where: eq(storeStock.storeId, data.locationId),
           with: {
@@ -128,26 +132,30 @@ export const startStockTake = createServerFn()
 
       const actorName = await getActorName(tx, userId)
       const locationShop =
-        data.locationType === "shop"
-          ? await tx.query.shops.findFirst({ where: eq(shops.id, data.locationId) })
+        data.locationType === 'shop'
+          ? await tx.query.shops.findFirst({
+              where: eq(shops.id, data.locationId),
+            })
           : undefined
       const locationStore =
-        data.locationType === "store"
-          ? await tx.query.stores.findFirst({ where: eq(stores.id, data.locationId) })
+        data.locationType === 'store'
+          ? await tx.query.stores.findFirst({
+              where: eq(stores.id, data.locationId),
+            })
           : undefined
       const articleNumbers = await resolveArticleNumbersForAudit(tx, {
-        action: "stockTake.start",
-        entityType: "stock_take",
+        action: 'stockTake.start',
+        entityType: 'stock_take',
         entityId: st.id,
         metadata: null,
       })
 
       await recordAuditLog(tx, {
         actorUserId: userId,
-        action: "stockTake.start",
-        entityType: "stock_take",
+        action: 'stockTake.start',
+        entityType: 'stock_take',
         entityId: st.id,
-        description: renderAuditDescription("stockTake.start", {
+        description: renderAuditDescription('stockTake.start', {
           actorName,
           shopName: locationShop?.name,
           storeName: locationStore?.name,
@@ -177,13 +185,12 @@ const recordCountInput = z.object({
 export const recordPhysicalCount = createServerFn()
   .inputValidator(recordCountInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    await requireSessionAndRole(['admin', 'supervisor'])
 
     const item = await db.query.stockTakeLines.findFirst({
       where: eq(stockTakeLines.id, data.stockTakeItemId),
     })
-    if (!item) throw new Error("Stock take item not found")
+    if (!item) throw new Error('Stock take item not found')
 
     const discrepancy = data.physicalQuantity - item.systemQuantity
 
@@ -209,8 +216,7 @@ const reconcileInput = z.object({ stockTakeId: z.uuid() })
 export const reconcileStockTake = createServerFn()
   .inputValidator(reconcileInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    const session = await requireSessionAndRole(['admin', 'supervisor'])
     const userId = session.user.id
 
     return db.transaction(async (tx) => {
@@ -218,14 +224,14 @@ export const reconcileStockTake = createServerFn()
         where: eq(stockTakes.id, data.stockTakeId),
         with: { items: true },
       })
-      if (!st) throw new Error("Stock take not found")
-      if (st.status === "reconciled") throw new Error("Already reconciled")
+      if (!st) throw new Error('Stock take not found')
+      if (st.status === 'reconciled') throw new Error('Already reconciled')
 
       for (const item of st.items) {
         if (item.discrepancy === 0) continue
 
         // Adjust system quantity
-        if (st.locationType === "store" && item.storeStockId) {
+        if (st.locationType === 'store' && item.storeStockId) {
           const stock = await tx.query.storeStock.findFirst({
             where: eq(storeStock.id, item.storeStockId),
           })
@@ -238,22 +244,32 @@ export const reconcileStockTake = createServerFn()
             // Post loss entry if shrinkage
             if (item.discrepancy < 0) {
               const lossQty = Math.abs(item.discrepancy)
-              const lossValue = new BigNumber(stock.costPerUnitUgx).times(lossQty)
+              const lossValue = new BigNumber(stock.costPerUnitUgx).times(
+                lossQty,
+              )
               await postJournalEntry(tx, {
                 entries: [
-                  { type: "debit", category: "Inventory Loss", amount: lossValue.toFixed(2) },
-                  { type: "credit", category: "Inventory - Store", amount: lossValue.toFixed(2) },
+                  {
+                    type: 'debit',
+                    category: 'Inventory Loss',
+                    amount: lossValue.toFixed(2),
+                  },
+                  {
+                    type: 'credit',
+                    category: 'Inventory - Store',
+                    amount: lossValue.toFixed(2),
+                  },
                 ],
-                referenceType: "stock_take_adjustment",
+                referenceType: 'stock_take_adjustment',
                 referenceId: st.id,
-                locationType: "store",
+                locationType: 'store',
                 locationId: st.locationId,
                 recordedBy: userId,
                 description: `Shrinkage: ${lossQty}x ${item.itemName}`,
               })
             }
           }
-        } else if (st.locationType === "shop" && item.shopStockId) {
+        } else if (st.locationType === 'shop' && item.shopStockId) {
           const stock = await tx.query.shopStock.findFirst({
             where: eq(shopStock.id, item.shopStockId),
           })
@@ -265,15 +281,25 @@ export const reconcileStockTake = createServerFn()
 
             if (item.discrepancy < 0) {
               const lossQty = Math.abs(item.discrepancy)
-              const lossValue = new BigNumber(stock.costPerUnitUgx).times(lossQty)
+              const lossValue = new BigNumber(stock.costPerUnitUgx).times(
+                lossQty,
+              )
               await postJournalEntry(tx, {
                 entries: [
-                  { type: "debit", category: "Inventory Loss", amount: lossValue.toFixed(2) },
-                  { type: "credit", category: "Inventory - Shop", amount: lossValue.toFixed(2) },
+                  {
+                    type: 'debit',
+                    category: 'Inventory Loss',
+                    amount: lossValue.toFixed(2),
+                  },
+                  {
+                    type: 'credit',
+                    category: 'Inventory - Shop',
+                    amount: lossValue.toFixed(2),
+                  },
                 ],
-                referenceType: "stock_take_adjustment",
+                referenceType: 'stock_take_adjustment',
                 referenceId: st.id,
-                locationType: "shop",
+                locationType: 'shop',
                 locationId: st.locationId,
                 recordedBy: userId,
                 description: `Shrinkage: ${lossQty}x ${item.itemName}`,
@@ -286,10 +312,12 @@ export const reconcileStockTake = createServerFn()
       // Mark stock take as reconciled
       await tx
         .update(stockTakes)
-        .set({ status: "reconciled" })
+        .set({ status: 'reconciled' })
         .where(eq(stockTakes.id, data.stockTakeId))
 
-      const discrepancyCount = st.items.filter((i) => i.discrepancy !== 0).length
+      const discrepancyCount = st.items.filter(
+        (i) => i.discrepancy !== 0,
+      ).length
       const totalShrinkage = st.items.reduce(
         (sum, i) => sum + (i.discrepancy < 0 ? Math.abs(i.discrepancy) : 0),
         0,
@@ -301,26 +329,30 @@ export const reconcileStockTake = createServerFn()
 
       const actorName = await getActorName(tx, userId)
       const locationShop =
-        st.locationType === "shop"
-          ? await tx.query.shops.findFirst({ where: eq(shops.id, st.locationId) })
+        st.locationType === 'shop'
+          ? await tx.query.shops.findFirst({
+              where: eq(shops.id, st.locationId),
+            })
           : undefined
       const locationStore =
-        st.locationType === "store"
-          ? await tx.query.stores.findFirst({ where: eq(stores.id, st.locationId) })
+        st.locationType === 'store'
+          ? await tx.query.stores.findFirst({
+              where: eq(stores.id, st.locationId),
+            })
           : undefined
       const articleNumbers = await resolveArticleNumbersForAudit(tx, {
-        action: "stockTake.reconcile",
-        entityType: "stock_take",
+        action: 'stockTake.reconcile',
+        entityType: 'stock_take',
         entityId: st.id,
         metadata: null,
       })
 
       await recordAuditLog(tx, {
         actorUserId: userId,
-        action: "stockTake.reconcile",
-        entityType: "stock_take",
+        action: 'stockTake.reconcile',
+        entityType: 'stock_take',
         entityId: st.id,
-        description: renderAuditDescription("stockTake.reconcile", {
+        description: renderAuditDescription('stockTake.reconcile', {
           actorName,
           shopName: locationShop?.name,
           storeName: locationStore?.name,
@@ -328,7 +360,7 @@ export const reconcileStockTake = createServerFn()
         }),
         articleNumbers,
         before: { status: st.status },
-        after: { status: "reconciled" },
+        after: { status: 'reconciled' },
         metadata: {
           locationType: st.locationType,
           locationId: st.locationId,

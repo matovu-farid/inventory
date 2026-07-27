@@ -1,5 +1,5 @@
-import { useState, useEffect, createContext } from "react"
-import { Link } from "@tanstack/react-router"
+import { useState, useEffect, createContext } from 'react'
+import { Link } from '@tanstack/react-router'
 import {
   LayoutDashboard,
   Package,
@@ -21,25 +21,25 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeft,
-} from "lucide-react"
-import { cn } from "#/lib/utils"
-import { can  } from "#/lib/permissions"
-import type {Permission} from "#/lib/permissions";
-import { Logo } from "#/components/logo"
-import { Button } from "#/components/ui/button"
-import { ScrollArea } from "#/components/ui/scroll-area"
-import { Avatar, AvatarFallback } from "#/components/ui/avatar"
+} from 'lucide-react'
+import { cn } from '#/lib/utils'
+import { can } from '#/lib/permissions'
+import type { Permission } from '#/lib/permissions'
+import { Logo } from '#/components/logo'
+import { Button } from '#/components/ui/button'
+import { ScrollArea } from '#/components/ui/scroll-area'
+import { Avatar, AvatarFallback } from '#/components/ui/avatar'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "#/components/ui/tooltip"
+} from '#/components/ui/tooltip'
 import {
   Sheet,
   SheetContent,
   SheetTitle,
   SheetTrigger,
-} from "#/components/ui/sheet"
+} from '#/components/ui/sheet'
 
 // ---------------------------------------------------------------------------
 // Types & navigation data
@@ -68,56 +68,121 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    title: "Procurement",
+    title: 'Procurement',
     items: [
-      { label: "Supply Routes", to: "/supply", icon: Truck, permission: "procurement.view" },
-      { label: "Suppliers", to: "/supply/suppliers", icon: Users, permission: "procurement.view" },
+      {
+        label: 'Supply Routes',
+        to: '/supply',
+        icon: Truck,
+        permission: 'procurement.view',
+      },
+      {
+        label: 'Suppliers',
+        to: '/supply/suppliers',
+        icon: Users,
+        permission: 'procurement.view',
+      },
     ],
   },
   {
-    title: "Catalog",
+    title: 'Catalog',
     items: [
-      { label: "Items", to: "/items", icon: Tags, permission: "items.view" },
+      { label: 'Items', to: '/items', icon: Tags, permission: 'items.view' },
     ],
   },
   {
-    title: "Warehouse",
+    title: 'Warehouse',
     items: [
-      { label: "Stock", to: "/store", icon: Package, permission: "warehouse.stock" },
-      { label: "Receiving", to: "/store/receiving", icon: ClipboardList, permission: "warehouse.receiving" },
-      { label: "Transfers", to: "/store/transfers", icon: ArrowLeftRight, permission: "warehouse.transfers" },
+      {
+        label: 'Stock',
+        to: '/store',
+        icon: Package,
+        permission: 'warehouse.stock',
+      },
+      {
+        label: 'Receiving',
+        to: '/store/receiving',
+        icon: ClipboardList,
+        permission: 'warehouse.receiving',
+      },
+      {
+        label: 'Transfers',
+        to: '/store/transfers',
+        icon: ArrowLeftRight,
+        permission: 'warehouse.transfers',
+      },
     ],
   },
   {
-    title: "Retail",
+    title: 'Retail',
     items: [
-      { label: "Shop", to: "/shop", icon: Store, permission: "shop.view" },
-      { label: "Sales", to: "/shop/sales", icon: ShoppingCart, permission: "sales.view" },
-      { label: "Customers", to: "/customers", icon: Users, permission: "customers.view" },
+      { label: 'Shop', to: '/shop', icon: Store, permission: 'shop.view' },
+      {
+        label: 'Sales',
+        to: '/shop/sales',
+        icon: ShoppingCart,
+        permission: 'sales.view',
+      },
+      {
+        label: 'Customers',
+        to: '/customers',
+        icon: Users,
+        permission: 'customers.view',
+      },
     ],
   },
   {
-    title: "Finance",
+    title: 'Finance',
     items: [
-      { label: "Reports", to: "/reports", icon: BarChart3, permission: "reports.view" },
-      { label: "Ledger", to: "/reports/ledger", icon: BookOpen, permission: "reports.view" },
-      { label: "X Report", to: "/reports/x", icon: ClipboardList, permission: "shift.reports.view" },
-      { label: "Z Reports", to: "/reports/z", icon: Receipt, permission: "shift.reports.view" },
+      {
+        label: 'Reports',
+        to: '/reports',
+        icon: BarChart3,
+        permission: 'reports.view',
+      },
+      {
+        label: 'Ledger',
+        to: '/reports/ledger',
+        icon: BookOpen,
+        permission: 'reports.view',
+      },
+      {
+        label: 'X Report',
+        to: '/reports/x',
+        icon: ClipboardList,
+        permission: 'shift.reports.view',
+      },
+      {
+        label: 'Z Reports',
+        to: '/reports/z',
+        icon: Receipt,
+        permission: 'shift.reports.view',
+      },
     ],
   },
 ]
 
 const SALES_NAV_GROUP: NavGroup = {
-  title: "POS",
+  title: 'POS',
   items: [
-    { label: "POS", to: "/pos", icon: ShoppingCart, permission: "pos.view" },
-    { label: "Sales history", to: "/shop/sales", icon: Receipt, permission: "sales.view" },
-    { label: "Receive transfers", to: "/shop", icon: PackageCheck, permission: "shop.view" },
+    { label: 'POS', to: '/pos', icon: ShoppingCart, permission: 'pos.view' },
+    {
+      label: 'Sales history',
+      to: '/shop/sales',
+      icon: Receipt,
+      permission: 'sales.view',
+    },
+    {
+      label: 'Receive transfers',
+      to: '/shop',
+      icon: PackageCheck,
+      permission: 'shop.view',
+    },
   ],
 }
 
 function visibleGroups(role: string): NavGroup[] {
-  if (role === "sales") {
+  if (role === 'sales') {
     return [SALES_NAV_GROUP]
   }
   return navGroups
@@ -129,26 +194,26 @@ function visibleGroups(role: string): NavGroup[] {
 }
 
 const dashboardItem: NavItem = {
-  label: "Dashboard",
-  to: "/",
+  label: 'Dashboard',
+  to: '/',
   icon: LayoutDashboard,
 }
 
 const settingsItem: NavItem = {
-  label: "Settings",
-  to: "/settings",
+  label: 'Settings',
+  to: '/settings',
   icon: Settings,
 }
 
 const usersItem: NavItem = {
-  label: "Users",
-  to: "/settings/users",
+  label: 'Users',
+  to: '/settings/users',
   icon: UserCog,
 }
 
 const auditLogItem: NavItem = {
-  label: "Audit log",
-  to: "/settings/audit-log",
+  label: 'Audit log',
+  to: '/settings/audit-log',
   icon: History,
 }
 
@@ -162,12 +227,12 @@ const SidebarContext = createContext({ collapsed: false })
 // Collapsed state persistence
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = "sidebar-collapsed"
+const STORAGE_KEY = 'sidebar-collapsed'
 
 function readCollapsed(): boolean {
-  if (typeof window === "undefined") return false
+  if (typeof window === 'undefined') return false
   try {
-    return localStorage.getItem(STORAGE_KEY) === "1"
+    return localStorage.getItem(STORAGE_KEY) === '1'
   } catch {
     return false
   }
@@ -175,7 +240,7 @@ function readCollapsed(): boolean {
 
 function writeCollapsed(v: boolean) {
   try {
-    localStorage.setItem(STORAGE_KEY, v ? "1" : "0")
+    localStorage.setItem(STORAGE_KEY, v ? '1' : '0')
   } catch {
     /* noop */
   }
@@ -187,9 +252,9 @@ function writeCollapsed(v: boolean) {
 
 function initials(name: string) {
   return name
-    .split(" ")
+    .split(' ')
     .map((w) => w[0])
-    .join("")
+    .join('')
     .slice(0, 2)
     .toUpperCase()
 }
@@ -217,17 +282,17 @@ function NavLink({
       onClick={onClick}
       activeOptions={{ exact: true }}
       className={cn(
-        "group/link relative flex items-center rounded-lg text-[13px] font-medium",
-        "text-sidebar-foreground/60 transition-all duration-150",
-        "hover:bg-black/[0.04] hover:text-sidebar-foreground",
-        "[&.active]:bg-[oklch(0.546_0.245_262.88/0.08)] [&.active]:text-[oklch(0.42_0.18_262.88)] [&.active]:font-semibold",
-        collapsed ? "mx-auto size-10 justify-center" : "gap-3 px-3 py-[7px]",
+        'group/link relative flex items-center rounded-lg text-[13px] font-medium',
+        'text-sidebar-foreground/60 transition-all duration-150',
+        'hover:bg-black/[0.04] hover:text-sidebar-foreground',
+        '[&.active]:bg-[oklch(0.546_0.245_262.88/0.08)] [&.active]:text-[oklch(0.42_0.18_262.88)] [&.active]:font-semibold',
+        collapsed ? 'mx-auto size-10 justify-center' : 'gap-3 px-3 py-[7px]',
       )}
     >
       <Icon
         className={cn(
-          "size-[18px] shrink-0 transition-colors duration-150",
-          "group-[&.active]/link:text-[oklch(0.48_0.2_262.88)]",
+          'size-[18px] shrink-0 transition-colors duration-150',
+          'group-[&.active]/link:text-[oklch(0.48_0.2_262.88)]',
         )}
         strokeWidth={1.75}
       />
@@ -276,7 +341,9 @@ function SidebarNav({
   showDashboard: boolean
 }) {
   return (
-    <nav className={cn("flex flex-col", collapsed ? "gap-1 px-2" : "gap-5 px-3")}>
+    <nav
+      className={cn('flex flex-col', collapsed ? 'gap-1 px-2' : 'gap-5 px-3')}
+    >
       {showDashboard && (
         <div className="flex flex-col gap-0.5">
           <NavLink
@@ -406,10 +473,15 @@ function UserFooter({
 // AppSidebar
 // ---------------------------------------------------------------------------
 
-function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSidebarProps) {
+function AppSidebar({
+  userName,
+  userRole,
+  onLogout,
+  pendingHardCount,
+}: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(readCollapsed)
   const groups = visibleGroups(userRole)
-  const showDashboard = userRole !== "sales"
+  const showDashboard = userRole !== 'sales'
 
   useEffect(() => {
     writeCollapsed(collapsed)
@@ -420,17 +492,17 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
       {/* The actual sidebar */}
       <aside
         className={cn(
-          "hidden md:flex flex-col fixed inset-y-0 left-0 z-30",
-          "bg-sidebar border-r border-sidebar-border",
-          "transition-[width] duration-250 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
-          collapsed ? "w-[68px]" : "w-[240px]",
+          'hidden md:flex flex-col fixed inset-y-0 left-0 z-30',
+          'bg-sidebar border-r border-sidebar-border',
+          'transition-[width] duration-250 ease-[cubic-bezier(0.25,0.1,0.25,1)]',
+          collapsed ? 'w-[68px]' : 'w-[240px]',
         )}
       >
         {/* ── Header ── */}
         <div
           className={cn(
-            "flex h-14 shrink-0 items-center",
-            collapsed ? "justify-center px-2" : "justify-between pl-5 pr-2",
+            'flex h-14 shrink-0 items-center',
+            collapsed ? 'justify-center px-2' : 'justify-between pl-5 pr-2',
           )}
         >
           {/* Brand */}
@@ -460,7 +532,11 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
                   <PanelLeftClose className="size-[18px]" strokeWidth={1.5} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={4} className="rounded-lg px-3 py-1.5 text-xs shadow-md">
+              <TooltipContent
+                side="right"
+                sideOffset={4}
+                className="rounded-lg px-3 py-1.5 text-xs shadow-md"
+              >
                 Collapse
               </TooltipContent>
             </Tooltip>
@@ -481,7 +557,11 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
                   <PanelLeft className="size-[18px]" strokeWidth={1.5} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={12} className="rounded-lg px-3 py-1.5 text-xs shadow-md">
+              <TooltipContent
+                side="right"
+                sideOffset={12}
+                className="rounded-lg px-3 py-1.5 text-xs shadow-md"
+              >
                 Expand
               </TooltipContent>
             </Tooltip>
@@ -498,20 +578,24 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
         </ScrollArea>
 
         {/* ── Admin (pinned above user) ── */}
-        {userRole !== "sales" && (
+        {userRole !== 'sales' && (
           <div
             className={cn(
-              "shrink-0 flex flex-col gap-0.5 border-t border-sidebar-border",
-              collapsed ? "px-2 py-2" : "px-3 py-2",
+              'shrink-0 flex flex-col gap-0.5 border-t border-sidebar-border',
+              collapsed ? 'px-2 py-2' : 'px-3 py-2',
             )}
           >
-            {userRole === "admin" && (
+            {userRole === 'admin' && (
               <NavLink item={usersItem} collapsed={collapsed} />
             )}
-            {userRole === "admin" && (
+            {userRole === 'admin' && (
               <NavLink item={auditLogItem} collapsed={collapsed} />
             )}
-            <NavLink item={settingsItem} collapsed={collapsed} badge={pendingHardCount} />
+            <NavLink
+              item={settingsItem}
+              collapsed={collapsed}
+              badge={pendingHardCount}
+            />
           </div>
         )}
 
@@ -529,9 +613,9 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
       {/* Spacer – pushes main content right */}
       <div
         className={cn(
-          "hidden md:block shrink-0",
-          "transition-[width] duration-250 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
-          collapsed ? "w-[68px]" : "w-[240px]",
+          'hidden md:block shrink-0',
+          'transition-[width] duration-250 ease-[cubic-bezier(0.25,0.1,0.25,1)]',
+          collapsed ? 'w-[68px]' : 'w-[240px]',
         )}
         aria-hidden
       />
@@ -543,10 +627,15 @@ function AppSidebar({ userName, userRole, onLogout, pendingHardCount }: AppSideb
 // SidebarTrigger – mobile hamburger + sheet
 // ---------------------------------------------------------------------------
 
-function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppSidebarProps) {
+function SidebarTrigger({
+  userName,
+  userRole,
+  onLogout,
+  pendingHardCount,
+}: AppSidebarProps) {
   const [open, setOpen] = useState(false)
   const groups = visibleGroups(userRole)
-  const showDashboard = userRole !== "sales"
+  const showDashboard = userRole !== 'sales'
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -587,16 +676,16 @@ function SidebarTrigger({ userName, userRole, onLogout, pendingHardCount }: AppS
         </ScrollArea>
 
         {/* Admin */}
-        {userRole !== "sales" && (
+        {userRole !== 'sales' && (
           <div className="shrink-0 flex flex-col gap-0.5 border-t border-sidebar-border px-3 py-2">
-            {userRole === "admin" && (
+            {userRole === 'admin' && (
               <NavLink
                 item={usersItem}
                 collapsed={false}
                 onClick={() => setOpen(false)}
               />
             )}
-            {userRole === "admin" && (
+            {userRole === 'admin' && (
               <NavLink
                 item={auditLogItem}
                 collapsed={false}

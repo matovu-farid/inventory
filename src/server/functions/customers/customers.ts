@@ -1,10 +1,9 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, eq, isNull } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import { customers } from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { and, eq, isNull } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { customers } from '#/db/schema'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 const createCustomerInput = z.object({
   name: z.string().min(1),
@@ -15,8 +14,7 @@ const createCustomerInput = z.object({
 export const createCustomer = createServerFn()
   .inputValidator(createCustomerInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    await requireSessionAndRole(['admin', 'supervisor'])
 
     const [created] = await db
       .insert(customers)
@@ -39,8 +37,7 @@ const updateCustomerInput = z.object({
 export const updateCustomer = createServerFn()
   .inputValidator(updateCustomerInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    await requireSessionAndRole(['admin', 'supervisor'])
 
     const { id, ...updates } = data
     const updatedRows = await db
@@ -53,8 +50,7 @@ export const updateCustomer = createServerFn()
   })
 
 export const listCustomers = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin", "supervisor", "sales"])
+  await requireSessionAndRole(['admin', 'supervisor', 'sales'])
 
   return db.query.customers.findMany({
     where: isNull(customers.deletedAt),
@@ -67,8 +63,7 @@ const getCustomerInput = z.object({ id: z.uuid() })
 export const getCustomer = createServerFn()
   .inputValidator(getCustomerInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor", "sales"])
+    await requireSessionAndRole(['admin', 'supervisor', 'sales'])
 
     const customer = await db.query.customers.findFirst({
       where: and(eq(customers.id, data.id), isNull(customers.deletedAt)),
@@ -82,8 +77,7 @@ const archiveCustomerInput = z.object({ id: z.uuid() })
 export const archiveCustomer = createServerFn()
   .inputValidator(archiveCustomerInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     await db
       .update(customers)

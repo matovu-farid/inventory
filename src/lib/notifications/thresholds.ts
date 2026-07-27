@@ -1,29 +1,11 @@
 import { isPaymentStatusOpen } from '#/lib/payment-status'
 import type { PaymentStatus } from '#/lib/payment-status'
-import type {
-  Defaults,
-  OverrideRow,
-  Rule,
-} from '#/lib/notifications/types'
+import type { Defaults, OverrideRow, Rule } from '#/lib/notifications/types'
 
 export type CreditSaleStatus = PaymentStatus
 
-export interface DiscrepancyThresholds {
-  discrepancyPercent: number
-}
-
 export interface OverdueThresholds {
   overdueDays: number
-}
-
-export function shouldNotifyDiscrepancy(
-  systemQuantity: number,
-  discrepancy: number,
-  thresholds: DiscrepancyThresholds,
-): boolean {
-  if (systemQuantity === 0) return false
-  const pct = (Math.abs(discrepancy) / systemQuantity) * 100
-  return pct >= thresholds.discrepancyPercent
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -50,8 +32,7 @@ export interface OverrideMaps {
   store: Map<string, Rule>
 }
 
-const shopItemKey = (shopId: string, itemId: string) =>
-  `${shopId}|${itemId}`
+const shopItemKey = (shopId: string, itemId: string) => `${shopId}|${itemId}`
 
 export function buildOverrideMaps(rows: OverrideRow[]): OverrideMaps {
   const maps: OverrideMaps = {

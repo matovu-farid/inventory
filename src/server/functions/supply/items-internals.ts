@@ -1,5 +1,5 @@
-import { z } from "zod"
-import BigNumber from "bignumber.js"
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
 
 /**
  * A "cell" is one slot in the procurement entry grid. Three shapes are valid:
@@ -30,7 +30,7 @@ export const variantInput = z.object({
   supplierId: z.uuid(),
   itemId: z.uuid(),
   unitPriceForeign: z.string(),
-  foreignCurrency: z.string().default("RMB"),
+  foreignCurrency: z.string().default('RMB'),
   exchangeRateForeignToUsd: z.string().optional(),
   exchangeRateUsdToUgx: z.string().optional(),
   cells: z.array(cellSchema).min(1),
@@ -60,9 +60,9 @@ export function materializeVariantRows(
 ): MaterializedRow[] {
   const cells = input.cells.filter((c) => c.quantity > 0)
   const unitPrice = new BigNumber(input.unitPriceForeign)
-  const isUsd = input.foreignCurrency === "USD"
+  const isUsd = input.foreignCurrency === 'USD'
   const fxToUsdStr = isUsd
-    ? input.exchangeRateForeignToUsd ?? "1"
+    ? (input.exchangeRateForeignToUsd ?? '1')
     : input.exchangeRateForeignToUsd
 
   return cells.map((cell) => {
@@ -70,14 +70,14 @@ export function materializeVariantRows(
     let totalAmountUsd: string | null = null
     let totalCostUgx: string
     if (
-      input.foreignCurrency === "UGX" ||
+      input.foreignCurrency === 'UGX' ||
       !fxToUsdStr ||
       !input.exchangeRateUsdToUgx
     ) {
       totalCostUgx = totalAmountForeign
     } else {
       const fxToUsd = new BigNumber(fxToUsdStr)
-      if (fxToUsd.isZero()) throw new Error("Exchange rate cannot be zero")
+      if (fxToUsd.isZero()) throw new Error('Exchange rate cannot be zero')
       const usdToUgx = new BigNumber(input.exchangeRateUsdToUgx)
       totalAmountUsd = new BigNumber(totalAmountForeign)
         .div(fxToUsd)

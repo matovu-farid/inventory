@@ -111,10 +111,7 @@ describe('variants — materialize from (colors × sizes) cross product', () => 
 
   it('C: unique (item_id, color_id, size) rejects duplicate insertion', async () => {
     const [prod] = createdProductIds.length
-      ? await db
-          .select()
-          .from(items)
-          .where(eq(items.id, createdProductIds[0]))
+      ? await db.select().from(items).where(eq(items.id, createdProductIds[0]))
       : []
     expect(prod).toBeDefined()
 

@@ -1,5 +1,5 @@
-import "#/sentry"
-import { useEffect } from "react"
+import '#/sentry'
+import { useEffect } from 'react'
 import {
   HeadContent,
   Link,
@@ -9,17 +9,17 @@ import {
   useRouter,
   useMatches,
   useLocation,
-} from "@tanstack/react-router"
+} from '@tanstack/react-router'
 
-import { TooltipProvider } from "#/components/ui/tooltip"
-import { AppSidebar, SidebarTrigger } from "#/components/app-sidebar"
-import { Logo } from "#/components/logo"
-import { getSession } from "#/server/middleware/auth"
-import { authClient } from "#/lib/auth-client"
-import { getSystemPrereqs } from "#/server/functions/prereqs/system"
-import appCss from "../styles.css?url"
+import { TooltipProvider } from '#/components/ui/tooltip'
+import { AppSidebar, SidebarTrigger } from '#/components/app-sidebar'
+import { Logo } from '#/components/logo'
+import { getSession } from '#/server/middleware/auth'
+import { authClient } from '#/lib/auth-client'
+import { getSystemPrereqs } from '#/server/functions/prereqs/system'
+import appCss from '../styles.css?url'
 
-import type { QueryClient } from "@tanstack/react-query"
+import type { QueryClient } from '@tanstack/react-query'
 
 interface MyRouterContext {
   queryClient: QueryClient
@@ -28,17 +28,17 @@ interface MyRouterContext {
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   head: () => ({
     meta: [
-      { charSet: "utf-8" },
+      { charSet: 'utf-8' },
       {
-        name: "viewport",
-        content: "width=device-width, initial-scale=1",
+        name: 'viewport',
+        content: 'width=device-width, initial-scale=1',
       },
-      { title: "Inventory Management" },
+      { title: 'Inventory Management' },
     ],
     links: [
-      { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
-      { rel: "apple-touch-icon", href: "/logo.svg" },
+      { rel: 'stylesheet', href: appCss },
+      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+      { rel: 'apple-touch-icon', href: '/logo.svg' },
     ],
   }),
   beforeLoad: async () => {
@@ -74,33 +74,35 @@ function RootLayout() {
   const matches = useMatches()
 
   const publicPaths = new Set([
-    "/login",
-    "/accept-invite",
-    "/forgot-password",
-    "/reset-password",
-    "/verify-email-sent",
+    '/login',
+    '/accept-invite',
+    '/forgot-password',
+    '/reset-password',
+    '/verify-email-sent',
   ])
   const isPublicPage = matches.some((m) => publicPaths.has(m.fullPath))
   const needsRedirect = !session && !isPublicPage
 
   const location = useLocation()
-  const userRoleForRedirect = (session?.user as { role?: string } | undefined)?.role ?? ""
-  const isOnPosPath = location.pathname === "/pos" || location.pathname.startsWith("/pos/")
+  const userRoleForRedirect =
+    (session?.user as { role?: string } | undefined)?.role ?? ''
+  const isOnPosPath =
+    location.pathname === '/pos' || location.pathname.startsWith('/pos/')
   const needsPosRedirect =
     !!session &&
-    userRoleForRedirect === "sales" &&
+    userRoleForRedirect === 'sales' &&
     !isPublicPage &&
     !isOnPosPath
 
   // All useEffect hooks must be called unconditionally before any early returns
   useEffect(() => {
     if (needsRedirect) {
-      void router.navigate({ to: "/login" })
+      void router.navigate({ to: '/login' })
     }
   }, [needsRedirect, router])
 
   useEffect(() => {
-    if (needsPosRedirect) void router.navigate({ to: "/pos" })
+    if (needsPosRedirect) void router.navigate({ to: '/pos' })
   }, [needsPosRedirect, router])
 
   if (needsRedirect) {
@@ -113,13 +115,14 @@ function RootLayout() {
     return <Outlet />
   }
 
-  const userName = (session?.user as { name?: string } | undefined)?.name ?? "User"
-  const userRole = (session?.user as { role?: string } | undefined)?.role ?? ""
+  const userName =
+    (session?.user as { name?: string } | undefined)?.name ?? 'User'
+  const userRole = (session?.user as { role?: string } | undefined)?.role ?? ''
   const pendingHardCount = prereqsSummary?.failingHard ?? 0
 
   async function handleLogout() {
     await authClient.signOut()
-    await router.navigate({ to: "/login" })
+    await router.navigate({ to: '/login' })
   }
 
   const onLogout = () => {

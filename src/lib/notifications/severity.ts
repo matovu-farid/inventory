@@ -1,6 +1,6 @@
-import type { Rule } from "#/lib/notifications/types"
+import type { Rule } from '#/lib/notifications/types'
 
-export type Severity = "critical" | "warning"
+export type Severity = 'critical' | 'warning'
 
 export interface SeverityInput {
   rule: Rule
@@ -12,13 +12,13 @@ const CRITICAL_RATIO = 0.25
 
 export function severityForAlert(input: SeverityInput): Severity {
   const rank = severityRank(input)
-  return rank >= 1 - CRITICAL_RATIO ? "critical" : "warning"
+  return rank >= 1 - CRITICAL_RATIO ? 'critical' : 'warning'
 }
 
 /** Returns a number in [0, 1] where 1 = stocked-out. Used to rank alerts. */
 export function severityRank(input: SeverityInput): number {
   const qoh = Math.max(0, input.quantityOnHand)
-  if (input.rule.mode === "units") {
+  if (input.rule.mode === 'units') {
     const denom = Math.max(1, input.rule.value)
     return clamp01(1 - qoh / denom)
   }

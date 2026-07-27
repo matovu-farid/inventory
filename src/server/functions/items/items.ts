@@ -8,10 +8,9 @@
 // walks the static import graph regardless of whether the imports are
 // only used inside server-fn handlers.
 
-import { createServerFn } from "@tanstack/react-start"
-import { z } from "zod"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 import {
   createItemQuery,
   getItemByArticleQuery,
@@ -22,31 +21,28 @@ import {
   updateInput,
   updateItemQuery,
   upsertInput,
-} from "./items.server"
+} from './items.server'
 
 // ─── Server-function wrappers ────────────────────────────────────────────────
 // Read endpoints allow admin/supervisor/sales; write endpoints are
 // restricted to admin/supervisor.
 
 export const listItems = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin", "supervisor", "sales"])
+  await requireSessionAndRole(['admin', 'supervisor', 'sales'])
   return listItemsQuery()
 })
 
 export const getItemByArticle = createServerFn()
   .inputValidator(z.object({ articleNumber: z.string().min(1) }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor", "sales"])
+    await requireSessionAndRole(['admin', 'supervisor', 'sales'])
     return getItemByArticleQuery(data)
   })
 
 export const searchItems = createServerFn()
   .inputValidator(z.object({ query: z.string() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor", "sales"])
+    await requireSessionAndRole(['admin', 'supervisor', 'sales'])
     return searchItemsQuery(data)
   })
 
@@ -55,24 +51,21 @@ export const searchItems = createServerFn()
  * sorted ascending. Powers the create-item / detail-edit combobox.
  */
 export const listItemCategories = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin", "supervisor", "sales"])
+  await requireSessionAndRole(['admin', 'supervisor', 'sales'])
   return listItemCategoriesQuery()
 })
 
 export const createItem = createServerFn()
   .inputValidator(upsertInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    await requireSessionAndRole(['admin', 'supervisor'])
     return createItemQuery(data)
   })
 
 export const updateItem = createServerFn()
   .inputValidator(updateInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    await requireSessionAndRole(['admin', 'supervisor'])
     return updateItemQuery(data)
   })
 
@@ -84,7 +77,6 @@ export const updateItem = createServerFn()
 export const listItemSizes = createServerFn()
   .inputValidator(z.object({ itemId: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor", "sales"])
+    await requireSessionAndRole(['admin', 'supervisor', 'sales'])
     return listItemSizesQuery(data)
   })

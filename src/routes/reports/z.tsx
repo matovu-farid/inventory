@@ -1,13 +1,13 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
-import { requireUiPermission } from "#/lib/permissions"
-import { listShopsForReports } from "#/server/functions/shop/list-shops"
-import { getZReportHistory } from "#/server/functions/accounting/shift-reports"
-import { ZHistoryTable } from "#/components/reports/z-history-table"
-import { Button } from "#/components/ui/button"
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { requireUiPermission } from '#/lib/permissions'
+import { listShopsForReports } from '#/server/functions/shop/list-shops'
+import { getZReportHistory } from '#/server/functions/accounting/shift-reports'
+import { ZHistoryTable } from '#/components/reports/z-history-table'
+import { Button } from '#/components/ui/button'
 
-export const Route = createFileRoute("/reports/z")({
+export const Route = createFileRoute('/reports/z')({
   beforeLoad: ({ context }) =>
-    requireUiPermission(context, "shift.reports.view"),
+    requireUiPermission(context, 'shift.reports.view'),
   loader: async () => {
     const shops = await listShopsForReports()
     if (shops.length === 0) {

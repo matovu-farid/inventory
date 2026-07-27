@@ -13,8 +13,7 @@
 // plugin recognises as erased at compile time and therefore safe.
 
 import { createServerFn } from '@tanstack/react-start'
-import { requireSession } from '#/server/middleware/auth'
-import { requireRole } from '#/server/middleware/rbac'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { listAuditLogInputSchema, queryAuditLog } from './list.server'
 
 export type {
@@ -27,7 +26,6 @@ export type {
 export const listAuditLog = createServerFn()
   .inputValidator(listAuditLogInputSchema)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin'])
+    await requireSessionAndRole(['admin'])
     return queryAuditLog(data)
   })

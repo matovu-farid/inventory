@@ -1,5 +1,5 @@
-import { AwsClient } from "aws4fetch"
-import { env } from "#/env"
+import { AwsClient } from 'aws4fetch'
+import { env } from '#/env'
 
 const PRESIGN_EXPIRY_SECONDS = 300
 
@@ -8,7 +8,7 @@ function awsClient(): AwsClient {
     accessKeyId: env.AWS_ACCESS_KEY_ID,
     secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
     region: env.AWS_REGION,
-    service: "s3",
+    service: 's3',
   })
 }
 
@@ -22,11 +22,11 @@ export async function presignPutUrl(params: {
 }): Promise<string> {
   const client = awsClient()
   const url = new URL(publicUrlFor(params.key))
-  url.searchParams.set("X-Amz-Expires", String(PRESIGN_EXPIRY_SECONDS))
+  url.searchParams.set('X-Amz-Expires', String(PRESIGN_EXPIRY_SECONDS))
   const signed = await client.sign(
     new Request(url.toString(), {
-      method: "PUT",
-      headers: { "Content-Type": params.contentType },
+      method: 'PUT',
+      headers: { 'Content-Type': params.contentType },
     }),
     { aws: { signQuery: true } },
   )

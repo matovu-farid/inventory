@@ -1,7 +1,7 @@
-import BigNumber from "bignumber.js"
+import BigNumber from 'bignumber.js'
 
 export interface JournalEntry {
-  type: "debit" | "credit"
+  type: 'debit' | 'credit'
   category: string
   amount: string
 }
@@ -38,27 +38,27 @@ export function buildTransferInventoryEntries(
 
   const entries: JournalEntry[] = [
     {
-      type: "debit",
-      category: "Inventory - Shop",
+      type: 'debit',
+      category: 'Inventory - Shop',
       amount: transferValue.toFixed(2),
     },
     {
-      type: "credit",
-      category: "Inventory - Store",
+      type: 'credit',
+      category: 'Inventory - Store',
       amount: costValue.toFixed(2),
     },
   ]
 
   if (margin.gt(0)) {
     entries.push({
-      type: "credit",
-      category: "Store Transfer Revenue",
+      type: 'credit',
+      category: 'Store Transfer Revenue',
       amount: margin.toFixed(2),
     })
   } else if (margin.lt(0)) {
     entries.push({
-      type: "debit",
-      category: "Store Transfer Loss",
+      type: 'debit',
+      category: 'Store Transfer Loss',
       amount: margin.abs().toFixed(2),
     })
   }

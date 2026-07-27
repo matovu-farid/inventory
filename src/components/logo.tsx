@@ -1,10 +1,10 @@
-import { cn } from "#/lib/utils"
+import { cn } from '#/lib/utils'
 
-function Logo({ className, ...props }: React.ComponentProps<"div">) {
+function Logo({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-[22%] bg-gradient-to-br from-[#4DA6FF] to-[#0066E6] shadow-sm",
+        'flex shrink-0 items-center justify-center rounded-[22%] bg-gradient-to-br from-[#4DA6FF] to-[#0066E6] shadow-sm',
         className,
       )}
       {...props}

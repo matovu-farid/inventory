@@ -1,16 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router"
-import * as React from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import { listShopsForReports } from "#/server/functions/shop/list-shops"
-import { getXReport } from "#/server/functions/accounting/shift-reports"
-import { ShopPicker } from "#/components/reports/shop-picker"
-import { XReportView } from "#/components/reports/x-report-view"
-import { Button } from "#/components/ui/button"
-import { ZCloseDialog } from "#/components/reports/z-close-dialog"
+import { createFileRoute } from '@tanstack/react-router'
+import * as React from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import { listShopsForReports } from '#/server/functions/shop/list-shops'
+import { getXReport } from '#/server/functions/accounting/shift-reports'
+import { ShopPicker } from '#/components/reports/shop-picker'
+import { XReportView } from '#/components/reports/x-report-view'
+import { Button } from '#/components/ui/button'
+import { ZCloseDialog } from '#/components/reports/z-close-dialog'
 
-export const Route = createFileRoute("/reports/x")({
+export const Route = createFileRoute('/reports/x')({
   beforeLoad: ({ context }) =>
-    requireUiPermission(context, "shift.reports.view"),
+    requireUiPermission(context, 'shift.reports.view'),
   loader: async () => {
     const shops = await listShopsForReports()
     if (shops.length === 0) {

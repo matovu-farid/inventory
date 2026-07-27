@@ -1,11 +1,11 @@
-import { eq, isNotNull, and } from "drizzle-orm"
-import BigNumber from "bignumber.js"
-import { transactions, transactionCategories } from "#/db/schema"
-import type { Database } from "#/db"
-import { buildReversalEntries, assertReversible } from "./reversal"
+import { eq, isNotNull, and } from 'drizzle-orm'
+import BigNumber from 'bignumber.js'
+import { transactions, transactionCategories } from '#/db/schema'
+import type { Database } from '#/db'
+import { buildReversalEntries, assertReversible } from './reversal'
 
 interface JournalEntry {
-  type: "debit" | "credit"
+  type: 'debit' | 'credit'
   category: string
   amount: string // BigNumber string
 }
@@ -14,9 +14,9 @@ export interface PostJournalParams {
   entries: JournalEntry[]
   referenceType: string
   referenceId: string
-  locationType: "store" | "shop"
+  locationType: 'store' | 'shop'
   locationId: string
-  depositLocation?: "cash" | "bank"
+  depositLocation?: 'cash' | 'bank'
   bankAccountId?: string
   recordedBy: string
   transactionDate?: Date
@@ -30,18 +30,18 @@ export interface PostJournalParams {
  * Total debits must equal total credits or the entry is rejected.
  */
 export async function postJournalEntry(
-  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+  tx: Parameters<Parameters<Database['transaction']>[0]>[0],
   params: PostJournalParams,
 ): Promise<string> {
   const journalGroupId = crypto.randomUUID()
 
   // Validate balance
   const totalDebits = params.entries
-    .filter((e) => e.type === "debit")
+    .filter((e) => e.type === 'debit')
     .reduce((sum, e) => sum.plus(e.amount), new BigNumber(0))
 
   const totalCredits = params.entries
-    .filter((e) => e.type === "credit")
+    .filter((e) => e.type === 'credit')
     .reduce((sum, e) => sum.plus(e.amount), new BigNumber(0))
 
   if (!totalDebits.eq(totalCredits)) {
@@ -51,7 +51,7 @@ export async function postJournalEntry(
   }
 
   if (totalDebits.isZero()) {
-    throw new Error("Journal entry cannot have zero amount")
+    throw new Error('Journal entry cannot have zero amount')
   }
 
   // Resolve categories and insert entries
@@ -87,7 +87,7 @@ export async function postJournalEntry(
  * that has already been reversed.
  */
 export async function reverseJournalEntry(
-  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+  tx: Parameters<Parameters<Database['transaction']>[0]>[0],
   originalJournalGroupId: string,
   params: { reason: string; recordedBy: string },
 ): Promise<string> {
@@ -99,7 +99,7 @@ export async function reverseJournalEntry(
     .select()
     .from(transactions)
     .where(eq(transactions.journalGroupId, originalJournalGroupId))
-    .for("update")
+    .for('update')
 
   assertReversible(original)
 
@@ -156,7 +156,7 @@ export async function reverseJournalEntry(
  * Resolve a category name to its ID. Throws if not found.
  */
 async function resolveCategory(
-  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+  tx: Parameters<Parameters<Database['transaction']>[0]>[0],
   name: string,
 ): Promise<string> {
   const rows = await tx

@@ -1,10 +1,10 @@
-import * as React from "react"
-import { Eye, EyeOff } from "lucide-react"
+import * as React from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 
-import { cn } from "#/lib/utils"
-import { Input } from "#/components/ui/input"
+import { cn } from '#/lib/utils'
+import { Input } from '#/components/ui/input'
 
-type PasswordInputProps = Omit<React.ComponentProps<"input">, "type">
+type PasswordInputProps = Omit<React.ComponentProps<'input'>, 'type'>
 
 function PasswordInput({ className, ...props }: PasswordInputProps) {
   const [visible, setVisible] = React.useState(false)
@@ -14,14 +14,14 @@ function PasswordInput({ className, ...props }: PasswordInputProps) {
     <div className="relative">
       <Input
         {...props}
-        type={visible ? "text" : "password"}
-        className={cn("pr-10", className)}
+        type={visible ? 'text' : 'password'}
+        className={cn('pr-10', className)}
       />
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
         tabIndex={-1}
-        aria-label={visible ? "Hide password" : "Show password"}
+        aria-label={visible ? 'Hide password' : 'Show password'}
         aria-pressed={visible}
         className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:text-foreground"
       >

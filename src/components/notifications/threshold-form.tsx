@@ -1,18 +1,18 @@
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { Label } from "#/components/ui/label"
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { Label } from '#/components/ui/label'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
-import { InfoTip } from "#/components/ui/info-tip"
-import type { HelpKey } from "#/lib/help-dictionary"
+} from '#/components/ui/select'
+import { InfoTip } from '#/components/ui/info-tip'
+import type { HelpKey } from '#/lib/help-dictionary'
 
 export interface ThresholdValue {
-  mode: "percent" | "units"
+  mode: 'percent' | 'units'
   value: number
 }
 
@@ -42,7 +42,10 @@ export function ThresholdField({
           <Select
             value={value.mode}
             onValueChange={(m) =>
-              onChange({ mode: m as ThresholdValue["mode"], value: value.value })
+              onChange({
+                mode: m as ThresholdValue['mode'],
+                value: value.value,
+              })
             }
           >
             <SelectTrigger className="w-32">
@@ -69,7 +72,7 @@ export function ThresholdField({
           <InfoTip term={valueHelpKey} />
         </div>
         <span className="self-center text-sm text-muted-foreground">
-          {value.mode === "percent" ? "% of typical batch" : "units left"}
+          {value.mode === 'percent' ? '% of typical batch' : 'units left'}
         </span>
       </div>
     </div>

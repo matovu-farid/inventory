@@ -1,23 +1,31 @@
-import BigNumber from "bignumber.js"
+import BigNumber from 'bignumber.js'
 
 const STEP = new BigNumber(50)
 
 /**
- * Format a date as a calendar date (no time component) using the runtime's
- * default locale. Use for table cells and summaries where only the day matters.
+ * Format a date as a calendar date (no time component). Use for table cells
+ * and summaries where only the day matters. Defaults to `"en-UG"` (the
+ * project's canonical locale); pass an explicit locale to override.
  */
-export function formatDate(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date
-  return d.toLocaleDateString()
+export function formatDate(
+  date: Date | string,
+  locale: string = 'en-UG',
+): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  return d.toLocaleDateString(locale)
 }
 
 /**
- * Format a date with time using the runtime's default locale. Use for sale
- * receipts, audit-log rows, and anywhere the time-of-day matters.
+ * Format a date with time. Use for sale receipts, audit-log rows, and anywhere
+ * the time-of-day matters. Defaults to `"en-UG"` (the project's canonical
+ * locale); pass an explicit locale to override.
  */
-export function formatDateTime(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date
-  return d.toLocaleString()
+export function formatDateTime(
+  date: Date | string,
+  locale: string = 'en-UG',
+): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  return d.toLocaleString(locale)
 }
 
 /**

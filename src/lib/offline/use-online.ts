@@ -1,7 +1,7 @@
-import * as React from "react"
+import * as React from 'react'
 
 const HEARTBEAT_INTERVAL_MS = 30_000
-const HEARTBEAT_URL = "/api/auth/get-session"
+const HEARTBEAT_URL = '/api/auth/get-session'
 
 /**
  * Returns true when the browser believes it's online AND a background heartbeat
@@ -9,7 +9,7 @@ const HEARTBEAT_URL = "/api/auth/get-session"
  */
 export function useOnline(): boolean {
   const [isOnline, setIsOnline] = React.useState(() =>
-    typeof navigator !== "undefined" ? navigator.onLine : true,
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
   )
 
   React.useEffect(() => {
@@ -20,15 +20,15 @@ export function useOnline(): boolean {
       setIsOnline(false)
     }
 
-    window.addEventListener("online", handleOnline)
-    window.addEventListener("offline", handleOffline)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
 
     // Heartbeat: confirms real connectivity every 30s
     async function heartbeat() {
       try {
         const res = await fetch(HEARTBEAT_URL, {
-          method: "GET",
-          cache: "no-store",
+          method: 'GET',
+          cache: 'no-store',
           // Short timeout so a hanging connection doesn't block indefinitely
           signal: AbortSignal.timeout(8_000),
         })
@@ -45,8 +45,8 @@ export function useOnline(): boolean {
     }, HEARTBEAT_INTERVAL_MS)
 
     return () => {
-      window.removeEventListener("online", handleOnline)
-      window.removeEventListener("offline", handleOffline)
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
       clearInterval(intervalId)
     }
   }, [])

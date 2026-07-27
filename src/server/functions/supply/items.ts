@@ -1,23 +1,21 @@
-import { createServerFn } from "@tanstack/react-start"
-import { eq, ilike } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import { supplyRouteLines, items, itemColors } from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { eq, ilike } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { supplyRouteLines, items, itemColors } from '#/db/schema'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 import {
   materializeSplitRows,
   materializeVariantRows,
   variantInput,
-} from "./items-internals"
+} from './items-internals'
 
-export type { MaterializedRow } from "./items-internals"
+export type { MaterializedRow } from './items-internals'
 
 export const addSupplyRouteVariants = createServerFn()
   .inputValidator(variantInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
     const rows = materializeVariantRows(data)
     return db.insert(supplyRouteLines).values(rows).returning()
   })
@@ -25,18 +23,19 @@ export const addSupplyRouteVariants = createServerFn()
 export const deleteSupplyRouteItem = createServerFn()
   .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
     await db.delete(supplyRouteLines).where(eq(supplyRouteLines.id, data.id))
   })
 
 export const getItemNameSuggestions = createServerFn()
   .inputValidator(z.object({ query: z.string().min(1) }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
     const like = `%${data.query}%`
-    return db.query.items.findMany({ where: ilike(items.name, like), limit: 20 })
+    return db.query.items.findMany({
+      where: ilike(items.name, like),
+      limit: 20,
+    })
   })
 
 /**
@@ -61,14 +60,13 @@ const splitInput = z.object({
 export const splitSupplyRouteItem = createServerFn()
   .inputValidator(splitInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     return db.transaction(async (tx) => {
       const original = await tx.query.supplyRouteLines.findFirst({
         where: eq(supplyRouteLines.id, data.itemId),
       })
-      if (!original) throw new Error("Supply route item not found")
+      if (!original) throw new Error('Supply route item not found')
 
       // We need an itemId to attach to each new row. Prefer the row's own
       // itemId; if missing (existing aggregate rows pre-migration), fall
@@ -79,7 +77,7 @@ export const splitSupplyRouteItem = createServerFn()
         const firstColor = await tx.query.itemColors.findFirst({
           where: eq(itemColors.id, data.cells[0].itemColorId),
         })
-        if (!firstColor) throw new Error("Color not found")
+        if (!firstColor) throw new Error('Color not found')
         itemIdFallback = firstColor.itemId
       }
 
@@ -93,9 +91,7 @@ export const splitSupplyRouteItem = createServerFn()
       })
       for (const c of referencedColors) {
         if (c.itemId !== itemIdFallback) {
-          throw new Error(
-            "All colors in a split must belong to the same item",
-          )
+          throw new Error('All colors in a split must belong to the same item')
         }
       }
 

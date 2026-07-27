@@ -1,6 +1,10 @@
-import * as React from "react"
+import * as React from 'react'
 
-export function PosLayout({ header, children, footer }: {
+export function PosLayout({
+  header,
+  children,
+  footer,
+}: {
   header: React.ReactNode
   children: React.ReactNode
   footer?: React.ReactNode

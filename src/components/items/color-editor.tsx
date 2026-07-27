@@ -1,15 +1,21 @@
-import { useState } from "react"
-import { Button } from "#/components/ui/button"
-import { ColorPicker } from "./color-picker"
-import { ImageUploader } from "./image-uploader"
-import { addItemColor, setItemColorImage } from "#/server/functions/items/colors"
-import { getItemImageUploadUrl } from "#/server/functions/items/uploads"
+import { useState } from 'react'
+import { Button } from '#/components/ui/button'
+import { ColorPicker } from './color-picker'
+import { ImageUploader } from './image-uploader'
+import {
+  addItemColor,
+  setItemColorImage,
+} from '#/server/functions/items/colors'
+import { getItemImageUploadUrl } from '#/server/functions/items/uploads'
 
-interface Props { itemId: string; onCreated: (itemColorId: string) => void }
+interface Props {
+  itemId: string
+  onCreated: (itemColorId: string) => void
+}
 
 export function ColorEditor({ itemId, onCreated }: Props) {
-  const [colorName, setColorName] = useState("")
-  const [colorHex, setColorHex] = useState("#000000")
+  const [colorName, setColorName] = useState('')
+  const [colorHex, setColorHex] = useState('#000000')
   const [sampledHex, setSampledHex] = useState<string | null>(null)
   const [pendingBlob, setPendingBlob] = useState<Blob | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -17,17 +23,25 @@ export function ColorEditor({ itemId, onCreated }: Props) {
   async function save() {
     setSubmitting(true)
     try {
-      const color = await addItemColor({ data: { itemId, colorName, colorHex } })
+      const color = await addItemColor({
+        data: { itemId, colorName, colorHex },
+      })
       if (pendingBlob) {
         const { uploadUrl, s3Key } = await getItemImageUploadUrl({
-          data: { itemColorId: color.id, contentType: "image/jpeg" },
+          data: { itemColorId: color.id, contentType: 'image/jpeg' },
         })
-        const res = await fetch(uploadUrl, { method: "PUT", body: pendingBlob, headers: { "Content-Type": "image/jpeg" } })
+        const res = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: pendingBlob,
+          headers: { 'Content-Type': 'image/jpeg' },
+        })
         if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
         await setItemColorImage({ data: { id: color.id, imageS3Key: s3Key } })
       }
       onCreated(color.id)
-    } finally { setSubmitting(false) }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -35,21 +49,28 @@ export function ColorEditor({ itemId, onCreated }: Props) {
       <ImageUploader
         onBlobReady={setPendingBlob}
         onSuggestColor={({ name, hex, sampledHex: sampled }) => {
-          setColorName(name); setColorHex(hex); setSampledHex(sampled)
+          setColorName(name)
+          setColorHex(hex)
+          setSampledHex(sampled)
         }}
         onEyedrop={({ name, hex, sampledHex: sampled }) => {
-          setColorName(name); setColorHex(hex); setSampledHex(sampled)
+          setColorName(name)
+          setColorHex(hex)
+          setSampledHex(sampled)
         }}
       />
       <ColorPicker
         colorName={colorName}
         colorHex={colorHex}
-        onChange={({ colorName: nextName, colorHex: nextHex }) => { setColorName(nextName); setColorHex(nextHex) }}
+        onChange={({ colorName: nextName, colorHex: nextHex }) => {
+          setColorName(nextName)
+          setColorHex(nextHex)
+        }}
         sampledHex={sampledHex}
       />
       <div className="flex justify-end">
         <Button onClick={() => void save()} disabled={!colorName || submitting}>
-          {submitting ? "Saving…" : "Save color"}
+          {submitting ? 'Saving…' : 'Save color'}
         </Button>
       </div>
     </div>

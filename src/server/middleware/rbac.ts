@@ -1,9 +1,10 @@
-import type { AppSession } from "#/lib/auth"
-import type { Role } from "#/lib/roles"
-import { ROLES } from "#/lib/roles"
-import { enforceIpAllowlist } from "./ip-allowlist"
+import type { AppSession } from '#/lib/auth'
+import type { Role } from '#/lib/roles'
+import { ROLES } from '#/lib/roles'
+import { requireSession } from './auth'
+import { enforceIpAllowlist } from './ip-allowlist'
 
-export type { Role } from "#/lib/roles"
+export type { Role } from '#/lib/roles'
 
 // DB stores role as a free-form string; this predicate narrows it to the
 // validated union after a runtime membership check. Widening the readonly
@@ -17,8 +18,21 @@ function isRole(value: string | null | undefined): value is Role {
 export function requireRole(session: AppSession, allowedRoles: Role[]): void {
   const role = session.user.role
   if (!isRole(role) || !allowedRoles.includes(role)) {
-    throw new Error("Forbidden: insufficient permissions")
+    throw new Error('Forbidden: insufficient permissions')
   }
+}
+
+/**
+ * Convenience wrapper that resolves the current session and asserts the user's
+ * role membership in a single call. Equivalent to `requireSession()` followed
+ * by `requireRole(session, allowedRoles)`; throws on either failure.
+ */
+export async function requireSessionAndRole(
+  allowedRoles: Role[],
+): Promise<AppSession> {
+  const session = await requireSession()
+  requireRole(session, allowedRoles)
+  return session
 }
 
 export function hasRole(session: AppSession, allowedRoles: Role[]): boolean {

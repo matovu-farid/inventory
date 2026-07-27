@@ -1,56 +1,54 @@
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import { supplyRouteExpenses } from "#/db/schema"
-import { postJournalEntry } from "#/lib/accounting/ledger"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { convertExpenseToUgx } from "./expense-fx"
+import { createServerFn } from '@tanstack/react-start'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { supplyRouteExpenses } from '#/db/schema'
+import { postJournalEntry } from '#/lib/accounting/ledger'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { convertExpenseToUgx } from './expense-fx'
 
 /** Map supply-route expense categories to ledger account names. */
 const expenseCategoryToLedger: Record<string, string> = {
-  freight: "Freight Expense",
-  shipping: "Freight Expense",
-  customs: "Customs Expense",
-  ticket: "Travel Expense",
-  transportation: "Transportation Expense",
-  insurance: "Miscellaneous Expense",
-  rent: "Rent Expense",
-  salary: "Salary Expense",
-  tax: "Tax Expense",
-  miscellaneous: "Miscellaneous Expense",
+  freight: 'Freight Expense',
+  shipping: 'Freight Expense',
+  customs: 'Customs Expense',
+  ticket: 'Travel Expense',
+  transportation: 'Transportation Expense',
+  insurance: 'Miscellaneous Expense',
+  rent: 'Rent Expense',
+  salary: 'Salary Expense',
+  tax: 'Tax Expense',
+  miscellaneous: 'Miscellaneous Expense',
 }
 
 const addExpenseInput = z.object({
   supplyRouteId: z.uuid(),
   category: z.enum([
-    "freight",
-    "shipping",
-    "customs",
-    "ticket",
-    "transportation",
-    "insurance",
-    "rent",
-    "salary",
-    "tax",
-    "miscellaneous",
+    'freight',
+    'shipping',
+    'customs',
+    'ticket',
+    'transportation',
+    'insurance',
+    'rent',
+    'salary',
+    'tax',
+    'miscellaneous',
   ]),
   description: z.string().optional(),
   amount: z.string(),
-  currency: z.string().default("UGX"),
+  currency: z.string().default('UGX'),
   exchangeRate: z.string().optional(),
 })
 
 export const addSupplyRouteExpense = createServerFn()
   .inputValidator(addExpenseInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    const session = await requireSessionAndRole(['admin'])
     const userId = session.user.id
 
     const store = await db.query.stores.findFirst()
-    if (!store) throw new Error("Store not configured")
+    if (!store) throw new Error('Store not configured')
 
     return db.transaction(async (tx) => {
       const [expense] = await tx
@@ -59,21 +57,21 @@ export const addSupplyRouteExpense = createServerFn()
         .returning()
 
       const ledgerCategory =
-        expenseCategoryToLedger[data.category] ?? "Miscellaneous Expense"
+        expenseCategoryToLedger[data.category] ?? 'Miscellaneous Expense'
       const amountUgx = convertExpenseToUgx(data)
 
       await postJournalEntry(tx, {
         entries: [
-          { type: "debit", category: ledgerCategory, amount: amountUgx },
-          { type: "credit", category: "Cash", amount: amountUgx },
+          { type: 'debit', category: ledgerCategory, amount: amountUgx },
+          { type: 'credit', category: 'Cash', amount: amountUgx },
         ],
-        referenceType: "supply_route",
+        referenceType: 'supply_route',
         referenceId: expense.id,
-        locationType: "store",
+        locationType: 'store',
         locationId: store.id,
-        depositLocation: "cash",
+        depositLocation: 'cash',
         recordedBy: userId,
-        description: `${data.category}: ${data.description ?? ""}`,
+        description: `${data.category}: ${data.description ?? ''}`,
       })
 
       return expense
@@ -84,16 +82,16 @@ const updateExpenseInput = z.object({
   id: z.uuid(),
   category: z
     .enum([
-      "freight",
-      "shipping",
-      "customs",
-      "ticket",
-      "transportation",
-      "insurance",
-      "rent",
-      "salary",
-      "tax",
-      "miscellaneous",
+      'freight',
+      'shipping',
+      'customs',
+      'ticket',
+      'transportation',
+      'insurance',
+      'rent',
+      'salary',
+      'tax',
+      'miscellaneous',
     ])
     .optional(),
   description: z.string().optional(),
@@ -105,17 +103,18 @@ const updateExpenseInput = z.object({
 export const updateSupplyRouteExpense = createServerFn()
   .inputValidator(updateExpenseInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const { id, ...fields } = data
-    const expense = (await db
-      .update(supplyRouteExpenses)
-      .set(fields)
-      .where(eq(supplyRouteExpenses.id, id))
-      .returning()).at(0)
+    const expense = (
+      await db
+        .update(supplyRouteExpenses)
+        .set(fields)
+        .where(eq(supplyRouteExpenses.id, id))
+        .returning()
+    ).at(0)
 
-    if (!expense) throw new Error("Expense not found")
+    if (!expense) throw new Error('Expense not found')
     return expense
   })
 
@@ -124,8 +123,7 @@ const deleteExpenseInput = z.object({ id: z.uuid() })
 export const deleteSupplyRouteExpense = createServerFn()
   .inputValidator(deleteExpenseInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     await db
       .delete(supplyRouteExpenses)

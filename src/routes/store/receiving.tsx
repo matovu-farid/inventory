@@ -1,29 +1,29 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { requireUiPermission } from "#/lib/permissions"
-import { useEffect, useState, useCallback } from "react"
-import { Split } from "lucide-react"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { Label } from "#/components/ui/label"
-import { FieldLabel } from "#/components/ui/field-label"
-import { Badge } from "#/components/ui/badge"
-import { InfoTip } from "#/components/ui/info-tip"
-import { Textarea } from "#/components/ui/textarea"
-import { SplitItemForm } from "#/components/supply/split-item-form"
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { requireUiPermission } from '#/lib/permissions'
+import { useEffect, useState, useCallback } from 'react'
+import { Split } from 'lucide-react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { Label } from '#/components/ui/label'
+import { FieldLabel } from '#/components/ui/field-label'
+import { Badge } from '#/components/ui/badge'
+import { InfoTip } from '#/components/ui/info-tip'
+import { Textarea } from '#/components/ui/textarea'
+import { SplitItemForm } from '#/components/supply/split-item-form'
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "#/components/ui/dialog"
+} from '#/components/ui/dialog'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
+} from '#/components/ui/select'
 import {
   Table,
   TableBody,
@@ -31,19 +31,19 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "#/components/ui/table"
-import { PagePrerequisites } from "#/components/prerequisites/page-prerequisites"
+} from '#/components/ui/table'
+import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
 import {
   listReceivableRoutes,
   getUnreceivedItems,
   receiveGoods,
-} from "#/server/functions/store/receiving"
-import { ensureStore } from "#/server/functions/admin/locations"
-import { getReceivingPrereqs } from "#/server/functions/prereqs/receiving"
+} from '#/server/functions/store/receiving'
+import { ensureStore } from '#/server/functions/admin/locations'
+import { getReceivingPrereqs } from '#/server/functions/prereqs/receiving'
 
-export const Route = createFileRoute("/store/receiving")({
+export const Route = createFileRoute('/store/receiving')({
   beforeLoad: ({ context }) =>
-    requireUiPermission(context, "warehouse.receiving"),
+    requireUiPermission(context, 'warehouse.receiving'),
   loader: async () => {
     await ensureStore()
     const [routes, prerequisites] = await Promise.all([
@@ -59,9 +59,9 @@ function ReceivingPage() {
   const { routes, prerequisites } = Route.useLoaderData()
   const { session } = Route.useRouteContext()
   const role = session?.user.role
-  const todayLocal = new Date().toLocaleDateString("en-CA") // YYYY-MM-DD in browser locale
+  const todayLocal = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in browser locale
   const [receivedDateInput, setReceivedDateInput] = useState<string>(todayLocal)
-  const [selectedRouteId, setSelectedRouteId] = useState<string>("")
+  const [selectedRouteId, setSelectedRouteId] = useState<string>('')
   const [items, setItems] = useState<
     Array<{
       id: string
@@ -109,9 +109,7 @@ function ReceivingPage() {
       itemColor: i.itemColor ?? null,
       item: i.item ?? i.itemColor?.item ?? null,
     }))
-    setUnresolvedCount(
-      receivable.filter((r) => !r.itemColor || !r.size).length,
-    )
+    setUnresolvedCount(receivable.filter((r) => !r.itemColor || !r.size).length)
     setItems(receivable)
     const qtys: Record<string, number> = {}
     for (const i of receivable) {
@@ -143,7 +141,8 @@ function ReceivingPage() {
           items: items.map((i) => ({
             supplyRouteLineId: i.id,
             quantityReceived: receivedQtys[i.id] ?? i.quantity,
-            discrepancyNotes: (discrepancyNotes[i.id] ?? "").trim() || undefined,
+            discrepancyNotes:
+              (discrepancyNotes[i.id] ?? '').trim() || undefined,
           })),
           receivedDate:
             receivedDateInput === todayLocal
@@ -153,11 +152,11 @@ function ReceivingPage() {
       })
       setDiscrepancyOpen(false)
       void router.invalidate()
-      await router.navigate({ to: "/store" })
+      await router.navigate({ to: '/store' })
     } catch (err) {
-      console.error("Failed to receive goods:", err)
+      console.error('Failed to receive goods:', err)
       setSubmitError(
-        err instanceof Error ? err.message : "Failed to receive goods.",
+        err instanceof Error ? err.message : 'Failed to receive goods.',
       )
     } finally {
       setPending(false)
@@ -174,7 +173,7 @@ function ReceivingPage() {
   }
 
   const allDiscrepancyNotesFilled = discrepantItems.every(
-    (i) => (discrepancyNotes[i.id] ?? "").trim().length > 0,
+    (i) => (discrepancyNotes[i.id] ?? '').trim().length > 0,
   )
 
   return (
@@ -189,16 +188,21 @@ function ReceivingPage() {
       <PagePrerequisites result={prerequisites}>
         <div className="max-w-sm space-y-2">
           <Label>Select Supply Route</Label>
-          <Select value={selectedRouteId} onValueChange={(v) => { void loadItems(v) }}>
+          <Select
+            value={selectedRouteId}
+            onValueChange={(v) => {
+              void loadItems(v)
+            }}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Choose a route..." />
             </SelectTrigger>
             <SelectContent>
               {routes.map((r) => (
                 <SelectItem key={r.id} value={r.id}>
-                  {r.name}{" "}
+                  {r.name}{' '}
                   <span className="text-muted-foreground">
-                    ({r.status.replace("_", " ")})
+                    ({r.status.replace('_', ' ')})
                   </span>
                 </SelectItem>
               ))}
@@ -208,9 +212,9 @@ function ReceivingPage() {
 
         {unresolvedCount > 0 && (
           <p className="text-sm text-muted-foreground">
-            {unresolvedCount} item{unresolvedCount === 1 ? "" : "s"} on this route
-            {" "}have no color or size yet. You can receive as-is and label them
-            later, or use Split to assign variants now.
+            {unresolvedCount} item{unresolvedCount === 1 ? '' : 's'} on this
+            route have no color or size yet. You can receive as-is and label
+            them later, or use Split to assign variants now.
           </p>
         )}
 
@@ -222,9 +226,9 @@ function ReceivingPage() {
               value={receivedDateInput}
               max={todayLocal}
               onChange={(e) => setReceivedDateInput(e.target.value)}
-              disabled={role !== "admin"}
+              disabled={role !== 'admin'}
             />
-            {role !== "admin" && (
+            {role !== 'admin' && (
               <p className="text-xs text-muted-foreground">
                 Only admins can change the receipt date.
               </p>
@@ -260,9 +264,12 @@ function ReceivingPage() {
                         <div className="flex flex-col gap-0.5">
                           <span>
                             {(item.itemColor?.item.articleNumber ??
-                              item.item?.articleNumber) || "—"}{" "}
+                              item.item?.articleNumber) ||
+                              '—'}{' '}
                             <span className="text-muted-foreground">
-                              {item.itemColor?.item.name ?? item.item?.name ?? ""}
+                              {item.itemColor?.item.name ??
+                                item.item?.name ??
+                                ''}
                             </span>
                           </span>
                           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -276,7 +283,7 @@ function ReceivingPage() {
                                   aria-hidden
                                 />
                                 {item.itemColor.colorName}
-                                {item.size ? ` · ${item.size}` : " · —"}
+                                {item.size ? ` · ${item.size}` : ' · —'}
                               </>
                             ) : null}
                           </span>
@@ -292,7 +299,7 @@ function ReceivingPage() {
                           min={0}
                           max={item.quantity}
                           className="w-20 ml-auto text-right"
-                          value={receivedQtys[item.id] ?? ""}
+                          value={receivedQtys[item.id] ?? ''}
                           onChange={(e) =>
                             setReceivedQtys((q) => ({
                               ...q,
@@ -322,7 +329,7 @@ function ReceivingPage() {
 
             <div className="space-y-2">
               <Button onClick={handleReceive} disabled={pending}>
-                {pending ? "Receiving..." : "Confirm Receipt"}
+                {pending ? 'Receiving...' : 'Confirm Receipt'}
               </Button>
               {submitError && (
                 <p className="text-sm text-destructive">{submitError}</p>
@@ -344,14 +351,18 @@ function ReceivingPage() {
                 const received = receivedQtys[item.id] ?? item.quantity
                 const missing = item.quantity - received
                 return (
-                  <div key={item.id} className="space-y-2 rounded-md border p-3">
+                  <div
+                    key={item.id}
+                    className="space-y-2 rounded-md border p-3"
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-medium">
                           {(item.itemColor?.item.articleNumber ??
-                            item.item?.articleNumber) || "—"}{" "}
+                            item.item?.articleNumber) ||
+                            '—'}{' '}
                           <span className="text-muted-foreground">
-                            {item.itemColor?.item.name ?? item.item?.name ?? ""}
+                            {item.itemColor?.item.name ?? item.item?.name ?? ''}
                           </span>
                         </span>
                         <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -365,7 +376,7 @@ function ReceivingPage() {
                                 aria-hidden
                               />
                               {item.itemColor.colorName}
-                              {item.size ? ` · ${item.size}` : " · —"}
+                              {item.size ? ` · ${item.size}` : ' · —'}
                             </>
                           ) : null}
                         </span>
@@ -378,7 +389,7 @@ function ReceivingPage() {
                     <Textarea
                       rows={2}
                       placeholder="e.g. 10 boxes held at customs"
-                      value={discrepancyNotes[item.id] ?? ""}
+                      value={discrepancyNotes[item.id] ?? ''}
                       onChange={(e) =>
                         setDiscrepancyNotes((n) => ({
                           ...n,
@@ -399,10 +410,12 @@ function ReceivingPage() {
                 Cancel
               </Button>
               <Button
-                onClick={() => { void submitReceipt() }}
+                onClick={() => {
+                  void submitReceipt()
+                }}
                 disabled={pending || !allDiscrepancyNotesFilled}
               >
-                {pending ? "Receiving..." : "Confirm Receipt"}
+                {pending ? 'Receiving...' : 'Confirm Receipt'}
               </Button>
             </DialogFooter>
           </DialogContent>

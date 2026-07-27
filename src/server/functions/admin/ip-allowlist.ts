@@ -1,24 +1,22 @@
-import { createServerFn } from "@tanstack/react-start"
-import { z } from "zod"
-import { desc, eq } from "drizzle-orm"
-import { db } from "#/db"
-import { adminIpAllowlist, ipBlockLog, user } from "#/db/schema"
-import { systemSettings } from "#/db/schema/notifications"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { clearCaches } from "#/lib/ip-allowlist"
+import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
+import { desc, eq } from 'drizzle-orm'
+import { db } from '#/db'
+import { adminIpAllowlist, ipBlockLog, user } from '#/db/schema'
+import { systemSettings } from '#/db/schema/notifications'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { clearCaches } from '#/lib/ip-allowlist'
 
 // ─── getIpAllowlistState ──────────────────────────────────────────────────────
 
 export const getIpAllowlistState = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin"])
+  await requireSessionAndRole(['admin'])
 
   const [settingRows, entries, recentBlocks] = await Promise.all([
     db
       .select({ value: systemSettings.value })
       .from(systemSettings)
-      .where(eq(systemSettings.key, "ip_allowlist_enabled"))
+      .where(eq(systemSettings.key, 'ip_allowlist_enabled'))
       .limit(1),
 
     db
@@ -47,7 +45,7 @@ export const getIpAllowlistState = createServerFn().handler(async () => {
       .limit(50),
   ])
 
-  const enabled = settingRows[0]?.value === "true"
+  const enabled = settingRows[0]?.value === 'true'
 
   return { enabled, entries, recentBlocks }
 })
@@ -59,13 +57,12 @@ const setEnabledInput = z.object({ enabled: z.boolean() })
 export const setIpAllowlistEnabled = createServerFn()
   .inputValidator(setEnabledInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     await db
       .insert(systemSettings)
       .values({
-        key: "ip_allowlist_enabled",
+        key: 'ip_allowlist_enabled',
         value: data.enabled,
         updatedAt: new Date(),
       })
@@ -85,12 +82,9 @@ const removeEntryInput = z.object({ id: z.uuid() })
 export const removeAllowlistEntry = createServerFn()
   .inputValidator(removeEntryInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
-    await db
-      .delete(adminIpAllowlist)
-      .where(eq(adminIpAllowlist.id, data.id))
+    await db.delete(adminIpAllowlist).where(eq(adminIpAllowlist.id, data.id))
 
     clearCaches()
     return { ok: true as const }
@@ -99,8 +93,7 @@ export const removeAllowlistEntry = createServerFn()
 // ─── clearAllowlist ───────────────────────────────────────────────────────────
 
 export const clearAllowlist = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin"])
+  await requireSessionAndRole(['admin'])
 
   await db.delete(adminIpAllowlist)
 

@@ -1,18 +1,12 @@
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import {
-  supplyRoutes,
-  supplyRouteSuppliers,
-  suppliers,
-} from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { supplyRoutes, supplyRouteSuppliers, suppliers } from '#/db/schema'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 export const listSupplyRoutes = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin"])
+  await requireSessionAndRole(['admin'])
 
   const routes = await db.query.supplyRoutes.findMany({
     orderBy: (r, { desc }) => [desc(r.createdAt)],
@@ -31,8 +25,7 @@ export const listSupplyRoutes = createServerFn().handler(async () => {
 export const getSupplyRoute = createServerFn()
   .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const route = await db.query.supplyRoutes.findFirst({
       where: eq(supplyRoutes.id, data.id),
@@ -54,7 +47,7 @@ export const getSupplyRoute = createServerFn()
       },
     })
 
-    if (!route) throw new Error("Supply route not found")
+    if (!route) throw new Error('Supply route not found')
     return route
   })
 
@@ -72,16 +65,15 @@ const createRouteInput = z
   .refine(
     (d) => !d.departureDate || !d.returnDate || d.departureDate <= d.returnDate,
     {
-      message: "Return date must be on or after departure date",
-      path: ["returnDate"],
+      message: 'Return date must be on or after departure date',
+      path: ['returnDate'],
     },
   )
 
 export const createSupplyRoute = createServerFn()
   .inputValidator(createRouteInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const { supplierIds, ...routeData } = data
 
@@ -108,9 +100,7 @@ const updateRouteInput = z
   .object({
     id: z.uuid(),
     name: z.string().min(1).optional(),
-    status: z
-      .enum(["planning", "in_transit", "received"])
-      .optional(),
+    status: z.enum(['planning', 'in_transit', 'received']).optional(),
     departureDate: z.string().optional(),
     returnDate: z.string().optional(),
     budgetUsd: z.string().optional(),
@@ -121,25 +111,26 @@ const updateRouteInput = z
   .refine(
     (d) => !d.departureDate || !d.returnDate || d.departureDate <= d.returnDate,
     {
-      message: "Return date must be on or after departure date",
-      path: ["returnDate"],
+      message: 'Return date must be on or after departure date',
+      path: ['returnDate'],
     },
   )
 
 export const updateSupplyRoute = createServerFn()
   .inputValidator(updateRouteInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const { id, ...fields } = data
-    const route = (await db
-      .update(supplyRoutes)
-      .set(fields)
-      .where(eq(supplyRoutes.id, id))
-      .returning()).at(0)
+    const route = (
+      await db
+        .update(supplyRoutes)
+        .set(fields)
+        .where(eq(supplyRoutes.id, id))
+        .returning()
+    ).at(0)
 
-    if (!route) throw new Error("Supply route not found")
+    if (!route) throw new Error('Supply route not found')
     return route
   })
 
@@ -151,8 +142,7 @@ const addSupplierToRouteInput = z.object({
 export const addSupplierToRoute = createServerFn()
   .inputValidator(addSupplierToRouteInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const [link] = await db
       .insert(supplyRouteSuppliers)
@@ -169,8 +159,7 @@ const removeSupplierFromRouteInput = z.object({
 export const removeSupplierFromRoute = createServerFn()
   .inputValidator(removeSupplierFromRouteInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     await db
       .delete(supplyRouteSuppliers)
@@ -178,8 +167,7 @@ export const removeSupplierFromRoute = createServerFn()
   })
 
 export const listSuppliersForSelect = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin"])
+  await requireSessionAndRole(['admin'])
 
   return db
     .select({ id: suppliers.id, name: suppliers.name, type: suppliers.type })

@@ -1,4 +1,4 @@
-import { useState, Fragment } from "react"
+import { useState, Fragment } from 'react'
 import {
   Table,
   TableBody,
@@ -6,13 +6,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "#/components/ui/table"
-import { Button } from "#/components/ui/button"
-import { InfoTip } from "#/components/ui/info-tip"
-import { Badge } from "#/components/ui/badge"
-import { auditActionLabel } from "#/server/audit/descriptions"
-import { formatDayKampala } from "#/lib/business-date"
-import type { AuditLogRow } from "#/server/functions/audit/list"
+} from '#/components/ui/table'
+import { Button } from '#/components/ui/button'
+import { InfoTip } from '#/components/ui/info-tip'
+import { Badge } from '#/components/ui/badge'
+import { auditActionLabel } from '#/server/audit/descriptions'
+import { formatDayKampala } from '#/lib/business-date'
+import type { AuditLogRow } from '#/server/functions/audit/list'
 
 interface Props {
   rows: AuditLogRow[]
@@ -21,7 +21,7 @@ interface Props {
 
 export function AuditLogTable({
   rows,
-  emptyMessage = "No recorded activity yet.",
+  emptyMessage = 'No recorded activity yet.',
 }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -89,7 +89,7 @@ export function AuditLogTable({
                   <TableCell className="whitespace-nowrap text-muted-foreground">
                     {formatDayKampala(row.createdAt)}
                   </TableCell>
-                  <TableCell>{row.actorName ?? "(unknown)"}</TableCell>
+                  <TableCell>{row.actorName ?? '(unknown)'}</TableCell>
                   <TableCell>{auditActionLabel(row.action)}</TableCell>
                   <TableCell>{row.description}</TableCell>
                   <TableCell>
@@ -98,7 +98,7 @@ export function AuditLogTable({
                       size="sm"
                       onClick={() => toggle(row.id)}
                     >
-                      {isExpanded ? "Hide" : "Details"}
+                      {isExpanded ? 'Hide' : 'Details'}
                     </Button>
                   </TableCell>
                 </TableRow>

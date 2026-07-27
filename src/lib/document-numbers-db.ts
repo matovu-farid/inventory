@@ -1,10 +1,8 @@
-import { sql } from "drizzle-orm"
-import type { Database } from "#/db"
-import { documentNumbers } from "#/db/schema"
-import { formatDocumentNumber  } from "./document-numbers"
-import type {DocumentPrefix} from "./document-numbers";
-
-type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0]
+import { sql } from 'drizzle-orm'
+import type { Tx } from '#/db'
+import { documentNumbers } from '#/db/schema'
+import { formatDocumentNumber } from './document-numbers'
+import type { DocumentPrefix } from './document-numbers'
 
 const DEFAULT_PADDING: Record<DocumentPrefix, number> = {
   SR: 4,
@@ -13,7 +11,7 @@ const DEFAULT_PADDING: Record<DocumentPrefix, number> = {
   SALE: 5,
   PAY: 4,
   RET: 4,
-  "STR-RET": 4,
+  'STR-RET': 4,
   STK: 4,
 }
 

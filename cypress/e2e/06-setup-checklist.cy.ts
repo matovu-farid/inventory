@@ -4,25 +4,29 @@
  * Verifies the empty-DB state shows hard issues with CTAs, and the
  * dashboard banner is shown when hard prereqs are failing.
  */
-describe("Setup Checklist", () => {
+describe('Setup Checklist', () => {
   const testEmail = `e2e-setup-${Date.now()}@test.com`
-  const testPassword = "E2EPassword123!"
+  const testPassword = 'E2EPassword123!'
 
   function waitForHydration() {
-    cy.get("body", { timeout: 10000 }).should("be.visible")
+    cy.get('body', { timeout: 10000 }).should('be.visible')
     cy.wait(1500)
   }
 
   before(() => {
-    cy.task("cleanupAllTestData", null)
+    cy.task('cleanupAllTestData', null)
     cy.request({
-      method: "POST",
-      url: "/api/auth/sign-up/email",
-      headers: { Origin: "http://localhost:3000" },
-      body: { name: "E2E Setup Admin", email: testEmail, password: testPassword },
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      headers: { Origin: 'http://localhost:3000' },
+      body: {
+        name: 'E2E Setup Admin',
+        email: testEmail,
+        password: testPassword,
+      },
     })
     cy.task(
-      "dbQuery",
+      'dbQuery',
       `UPDATE "user" SET role = 'admin', email_verified = TRUE WHERE email = '${testEmail}'`,
     )
   })
@@ -32,23 +36,23 @@ describe("Setup Checklist", () => {
   })
 
   after(() => {
-    cy.task("cleanupAllTestData", null)
+    cy.task('cleanupAllTestData', null)
   })
 
-  it("shows blocking issues with CTAs on empty DB", () => {
-    cy.visit("/settings")
+  it('shows blocking issues with CTAs on empty DB', () => {
+    cy.visit('/settings')
     waitForHydration()
-    cy.contains("Setup Checklist").scrollIntoView().should("be.visible")
-    cy.contains("blocking").should("be.visible")
-    cy.contains("No shops configured").should("be.visible")
-    cy.contains("a", "Go to Shop").should("have.attr", "href", "/shop")
-    cy.screenshot("setup-checklist-empty")
+    cy.contains('Setup Checklist').scrollIntoView().should('be.visible')
+    cy.contains('blocking').should('be.visible')
+    cy.contains('No shops configured').should('be.visible')
+    cy.contains('a', 'Go to Shop').should('have.attr', 'href', '/shop')
+    cy.screenshot('setup-checklist-empty')
   })
 
-  it("dashboard shows the setup banner when hard prereqs failing", () => {
-    cy.visit("/")
+  it('dashboard shows the setup banner when hard prereqs failing', () => {
+    cy.visit('/')
     waitForHydration()
-    cy.contains("setup").should("be.visible")
-    cy.contains("attention").should("be.visible")
+    cy.contains('setup').should('be.visible')
+    cy.contains('attention').should('be.visible')
   })
 })

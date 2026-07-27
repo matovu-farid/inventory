@@ -1,11 +1,11 @@
-const TZ = "Africa/Kampala"
+const TZ = 'Africa/Kampala'
 
 export function formatDayKampala(d: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
+  return new Intl.DateTimeFormat('en-CA', {
     timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   }).format(d)
 }
 

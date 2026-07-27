@@ -1,19 +1,20 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { requireUiPermission } from "#/lib/permissions"
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { requireUiPermission } from '#/lib/permissions'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "#/components/ui/card"
-import { listOpenRequisitions } from "#/server/functions/store/requisitions"
-import { listSupplyRoutes } from "#/server/functions/supply/routes"
-import { listSuppliers } from "#/server/functions/supply/suppliers"
-import { RequisitionsTable } from "#/components/notifications/requisitions-table"
+} from '#/components/ui/card'
+import { listOpenRequisitions } from '#/server/functions/store/requisitions'
+import { listSupplyRoutes } from '#/server/functions/supply/routes'
+import { listSuppliers } from '#/server/functions/supply/suppliers'
+import { RequisitionsTable } from '#/components/notifications/requisitions-table'
 
-export const Route = createFileRoute("/store/restock-requisitions")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "notifications.manage"),
+export const Route = createFileRoute('/store/restock-requisitions')({
+  beforeLoad: ({ context }) =>
+    requireUiPermission(context, 'notifications.manage'),
   loader: async () => {
     const [requisitions, allRoutes, suppliers] = await Promise.all([
       listOpenRequisitions(),
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/store/restock-requisitions")({
     ])
     // Filter routes client-side to status='planning'
     const routes = allRoutes
-      .filter((r) => r.status === "planning")
+      .filter((r) => r.status === 'planning')
       .map((r) => ({ id: r.id, name: r.name }))
     return {
       requisitions,

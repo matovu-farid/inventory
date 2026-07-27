@@ -1,29 +1,29 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
-import { AlertCircle, AlertTriangle } from "lucide-react"
-import { Button } from "#/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card"
-import { Input } from "#/components/ui/input"
-import { Label } from "#/components/ui/label"
-import { PasswordInput } from "#/components/ui/password-input"
-import { PrereqEmptyState } from "#/components/prerequisites/prereq-empty-state"
-import { authClient } from "#/lib/auth-client"
-import type { SystemPrereqsSummary } from "#/lib/prerequisites/types"
-import { getSystemPrereqs } from "#/server/functions/prereqs/system"
-import { getSession } from "#/server/middleware/auth"
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { useState } from 'react'
+import { AlertCircle, AlertTriangle } from 'lucide-react'
+import { Button } from '#/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { Input } from '#/components/ui/input'
+import { Label } from '#/components/ui/label'
+import { PasswordInput } from '#/components/ui/password-input'
+import { PrereqEmptyState } from '#/components/prerequisites/prereq-empty-state'
+import { authClient } from '#/lib/auth-client'
+import type { SystemPrereqsSummary } from '#/lib/prerequisites/types'
+import { getSystemPrereqs } from '#/server/functions/prereqs/system'
+import { getSession } from '#/server/middleware/auth'
 
-export const Route = createFileRoute("/settings/")({
+export const Route = createFileRoute('/settings/')({
   loader: async () => {
     const session = await getSession()
     const u = session?.user as
       | { name?: string | null; email?: string | null; role?: string | null }
       | undefined
     const profile = {
-      name: u?.name ?? "",
-      email: u?.email ?? "",
+      name: u?.name ?? '',
+      email: u?.email ?? '',
     }
     // Sales reps can't act on any setup-checklist item — hide the section.
-    if (u?.role === "sales") return { summary: null, profile }
+    if (u?.role === 'sales') return { summary: null, profile }
     return { summary: await getSystemPrereqs(), profile }
   },
   component: SettingsPage,
@@ -56,9 +56,10 @@ function ProfileCard({
   const router = useRouter()
   const [name, setName] = useState(initialName)
   const [pending, setPending] = useState(false)
-  const [message, setMessage] = useState<
-    { kind: "success" | "error"; text: string } | null
-  >(null)
+  const [message, setMessage] = useState<{
+    kind: 'success' | 'error'
+    text: string
+  } | null>(null)
 
   const dirty = name.trim() !== initialName.trim()
 
@@ -70,10 +71,10 @@ function ProfileCard({
     const { error } = await authClient.updateUser({ name: name.trim() })
     setPending(false)
     if (error) {
-      setMessage({ kind: "error", text: error.message ?? "Update failed." })
+      setMessage({ kind: 'error', text: error.message ?? 'Update failed.' })
       return
     }
-    setMessage({ kind: "success", text: "Profile updated." })
+    setMessage({ kind: 'success', text: 'Profile updated.' })
     void router.invalidate()
   }
 
@@ -83,7 +84,12 @@ function ProfileCard({
         <CardTitle>Profile</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={(e) => { void submit(e) }} className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            void submit(e)
+          }}
+          className="space-y-4"
+        >
           {message && <FormMessage message={message} />}
           <div className="space-y-1.5">
             <Label htmlFor="profile-name">Name</Label>
@@ -103,7 +109,7 @@ function ProfileCard({
           </div>
           <div className="flex justify-end">
             <Button type="submit" disabled={!dirty || pending || !name.trim()}>
-              {pending ? "Saving..." : "Save"}
+              {pending ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </form>
@@ -115,29 +121,33 @@ function ProfileCard({
 // ─── Change password ────────────────────────────────────────────────────────
 
 function ChangePasswordCard() {
-  const [current, setCurrent] = useState("")
-  const [next, setNext] = useState("")
-  const [confirm, setConfirm] = useState("")
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [pending, setPending] = useState(false)
-  const [message, setMessage] = useState<
-    { kind: "success" | "error"; text: string } | null
-  >(null)
+  const [message, setMessage] = useState<{
+    kind: 'success' | 'error'
+    text: string
+  } | null>(null)
 
   function reset() {
-    setCurrent("")
-    setNext("")
-    setConfirm("")
+    setCurrent('')
+    setNext('')
+    setConfirm('')
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setMessage(null)
     if (next.length < 8) {
-      setMessage({ kind: "error", text: "New password must be at least 8 characters." })
+      setMessage({
+        kind: 'error',
+        text: 'New password must be at least 8 characters.',
+      })
       return
     }
     if (next !== confirm) {
-      setMessage({ kind: "error", text: "New passwords don't match." })
+      setMessage({ kind: 'error', text: "New passwords don't match." })
       return
     }
     setPending(true)
@@ -148,13 +158,13 @@ function ChangePasswordCard() {
     setPending(false)
     if (error) {
       setMessage({
-        kind: "error",
-        text: error.message ?? "Could not change password.",
+        kind: 'error',
+        text: error.message ?? 'Could not change password.',
       })
       return
     }
     reset()
-    setMessage({ kind: "success", text: "Password changed." })
+    setMessage({ kind: 'success', text: 'Password changed.' })
   }
 
   return (
@@ -163,7 +173,12 @@ function ChangePasswordCard() {
         <CardTitle>Change password</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={(e) => { void submit(e) }} className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            void submit(e)
+          }}
+          className="space-y-4"
+        >
           {message && <FormMessage message={message} />}
           <div className="space-y-1.5">
             <Label htmlFor="pw-current">Current password</Label>
@@ -202,7 +217,7 @@ function ChangePasswordCard() {
               type="submit"
               disabled={pending || !current || !next || !confirm}
             >
-              {pending ? "Updating..." : "Update password"}
+              {pending ? 'Updating...' : 'Update password'}
             </Button>
           </div>
         </form>
@@ -214,20 +229,20 @@ function ChangePasswordCard() {
 function FormMessage({
   message,
 }: {
-  message: { kind: "success" | "error"; text: string }
+  message: { kind: 'success' | 'error'; text: string }
 }) {
   const cls =
-    message.kind === "success"
-      ? "rounded-md bg-emerald-500/10 px-3 py-2 text-[13px] text-emerald-700"
-      : "rounded-md bg-destructive/10 px-3 py-2 text-[13px] text-destructive"
+    message.kind === 'success'
+      ? 'rounded-md bg-emerald-500/10 px-3 py-2 text-[13px] text-emerald-700'
+      : 'rounded-md bg-destructive/10 px-3 py-2 text-[13px] text-destructive'
   return <div className={cls}>{message.text}</div>
 }
 
 // ─── Setup checklist (admin/supervisor only) ────────────────────────────────
 
 function SetupChecklist({ summary }: { summary: SystemPrereqsSummary }) {
-  const hardItems = summary.items.filter((i) => i.severity === "hard")
-  const softItems = summary.items.filter((i) => i.severity === "soft")
+  const hardItems = summary.items.filter((i) => i.severity === 'hard')
+  const softItems = summary.items.filter((i) => i.severity === 'soft')
 
   return (
     <section className="space-y-4">
@@ -243,8 +258,8 @@ function SetupChecklist({ summary }: { summary: SystemPrereqsSummary }) {
           <div className="flex items-center gap-2 text-destructive">
             <AlertCircle className="size-4" strokeWidth={1.75} />
             <h3 className="text-sm font-semibold">
-              {hardItems.length} blocking{" "}
-              {hardItems.length === 1 ? "issue" : "issues"}
+              {hardItems.length} blocking{' '}
+              {hardItems.length === 1 ? 'issue' : 'issues'}
             </h3>
           </div>
           <PrereqEmptyState
@@ -262,7 +277,7 @@ function SetupChecklist({ summary }: { summary: SystemPrereqsSummary }) {
             <AlertTriangle className="size-4" strokeWidth={1.75} />
             <h3 className="text-sm font-semibold">
               {softItems.length} suggestion
-              {softItems.length === 1 ? "" : "s"}
+              {softItems.length === 1 ? '' : 's'}
             </h3>
           </div>
           <PrereqEmptyState

@@ -1,8 +1,8 @@
-import "@tanstack/react-start/server-only"
-import { eq } from "drizzle-orm"
-import { db } from "#/db"
-import { shopSales, shops, customers } from "#/db/schema"
-import { renderSaleReceipt } from "#/lib/pdf/receipt-html"
+import '@tanstack/react-start/server-only'
+import { eq } from 'drizzle-orm'
+import { db } from '#/db'
+import { shopSales, shops, customers } from '#/db/schema'
+import { renderSaleReceipt } from '#/lib/pdf/receipt-html'
 
 /**
  * Pure renderer — lives in a `.server.ts` companion so the client bundle
@@ -37,7 +37,7 @@ export async function buildSaleReceiptHtml(saleId: string): Promise<string> {
   return renderSaleReceipt({
     documentNumber: sale.documentNumber,
     saleDate: sale.saleDate,
-    shopName: shop?.name ?? "Shop",
+    shopName: shop?.name ?? 'Shop',
     totalAmount: sale.totalAmount,
     paymentMethod: sale.paymentMethod,
     customerName: customer?.name ?? null,

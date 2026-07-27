@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react"
-import { Button } from "#/components/ui/button"
-import { AuditLogTable } from "./audit-log-table"
-import { listAuditLogByArticle } from "#/server/functions/audit/list-by-article"
-import type { AuditLogRow } from "#/server/functions/audit/list"
+import { useEffect, useState } from 'react'
+import { Button } from '#/components/ui/button'
+import { AuditLogTable } from './audit-log-table'
+import { listAuditLogByArticle } from '#/server/functions/audit/list-by-article'
+import type { AuditLogRow } from '#/server/functions/audit/list'
 
 interface Props {
   articleNumber: string
@@ -51,16 +51,23 @@ export function AuditActivityPanel({ articleNumber }: Props) {
       <div>
         <h2 className="text-xl font-semibold">Activity</h2>
         <p className="text-sm text-muted-foreground">
-          Every recorded event for this article — receipts, transfers, sales, returns.
+          Every recorded event for this article — receipts, transfers, sales,
+          returns.
         </p>
       </div>
       <AuditLogTable
         rows={rows}
-        emptyMessage={loading ? "Loading…" : "No recorded activity for this article yet."}
+        emptyMessage={
+          loading ? 'Loading…' : 'No recorded activity for this article yet.'
+        }
       />
       {cursor && (
-        <Button variant="outline" onClick={() => void loadMore()} disabled={loading}>
-          {loading ? "Loading…" : "Load more"}
+        <Button
+          variant="outline"
+          onClick={() => void loadMore()}
+          disabled={loading}
+        >
+          {loading ? 'Loading…' : 'Load more'}
         </Button>
       )}
     </section>

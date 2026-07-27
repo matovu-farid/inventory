@@ -1,4 +1,4 @@
-import BigNumber from "bignumber.js"
+import BigNumber from 'bignumber.js'
 
 export interface ConvertExpenseToUgxInput {
   amount: string
@@ -26,7 +26,7 @@ export function convertExpenseToUgx(input: ConvertExpenseToUgxInput): string {
     )
   }
 
-  if (input.currency === "UGX") {
+  if (input.currency === 'UGX') {
     return input.amount
   }
 
@@ -43,8 +43,5 @@ export function convertExpenseToUgx(input: ConvertExpenseToUgxInput): string {
     )
   }
 
-  return amount
-    .multipliedBy(rate)
-    .dp(0, BigNumber.ROUND_HALF_UP)
-    .toFixed(0)
+  return amount.multipliedBy(rate).dp(0, BigNumber.ROUND_HALF_UP).toFixed(0)
 }

@@ -1,8 +1,8 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, eq, isNull, sql } from "drizzle-orm"
-import { z } from "zod"
-import BigNumber from "bignumber.js"
-import { db } from "#/db"
+import { createServerFn } from '@tanstack/react-start'
+import { and, eq, isNull, sql } from 'drizzle-orm'
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
+import { db } from '#/db'
 import {
   storeTransfers,
   storeTransferLines,
@@ -11,25 +11,23 @@ import {
   shopStock,
   shops,
   items,
-} from "#/db/schema"
-import { postJournalEntry } from "#/lib/accounting/ledger"
-import { recordAuditLog } from "#/server/middleware/audit-store"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { formatItemLabel } from "#/lib/items"
-import { renderAuditDescription } from "#/server/audit/descriptions"
-import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
-import { getActorName } from "#/server/audit/actor"
+} from '#/db/schema'
+import { postJournalEntry } from '#/lib/accounting/ledger'
+import { recordAuditLog } from '#/server/middleware/audit-store'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { formatItemLabel } from '#/lib/items'
+import { renderAuditDescription } from '#/server/audit/descriptions'
+import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
+import { getActorName } from '#/server/audit/actor'
 import {
   validateDiscrepancyNotes,
   validateQuantityReceived,
-} from "./receive-validate"
-import { buildTransferInventoryEntries } from "./transfer-entries"
-import { pickStoreStockFifo } from "./fifo"
+} from './receive-validate'
+import { buildTransferInventoryEntries } from './transfer-entries'
+import { pickStoreStockFifo } from './fifo'
 
 export const listTransfers = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  await requireSessionAndRole(['admin', 'supervisor'])
 
   return db.query.storeTransfers.findMany({
     orderBy: (t, { desc }) => [desc(t.transferDate)],
@@ -84,12 +82,11 @@ const createTransferInput = z.object({
 export const createTransfer = createServerFn()
   .inputValidator(createTransferInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    const session = await requireSessionAndRole(['admin', 'supervisor'])
     const userId = session.user.id
 
     const store = await db.query.stores.findFirst()
-    if (!store) throw new Error("Store not configured")
+    if (!store) throw new Error('Store not configured')
 
     return db.transaction(async (tx) => {
       // Create transfer header
@@ -99,7 +96,7 @@ export const createTransfer = createServerFn()
           storeId: store.id,
           shopId: data.shopId,
           transferDate: new Date(),
-          status: "dispatched",
+          status: 'dispatched',
           dispatchedBy: userId,
           notes: data.notes,
         })
@@ -186,9 +183,9 @@ export const createTransfer = createServerFn()
 
       await postJournalEntry(tx, {
         entries: inventoryEntries,
-        referenceType: "store_transfer",
+        referenceType: 'store_transfer',
         referenceId: transfer.id,
-        locationType: "store",
+        locationType: 'store',
         locationId: store.id,
         recordedBy: userId,
         description: `Transfer to shop`,
@@ -198,12 +195,20 @@ export const createTransfer = createServerFn()
       // DR Due from Shop / CR Due to Store
       await postJournalEntry(tx, {
         entries: [
-          { type: "debit", category: "Due from Shop", amount: totalTransferValue.toFixed(2) },
-          { type: "credit", category: "Due to Store", amount: totalTransferValue.toFixed(2) },
+          {
+            type: 'debit',
+            category: 'Due from Shop',
+            amount: totalTransferValue.toFixed(2),
+          },
+          {
+            type: 'credit',
+            category: 'Due to Store',
+            amount: totalTransferValue.toFixed(2),
+          },
         ],
-        referenceType: "store_transfer",
+        referenceType: 'store_transfer',
         referenceId: transfer.id,
-        locationType: "store",
+        locationType: 'store',
         locationId: store.id,
         recordedBy: userId,
         description: `Inter-branch balance for transfer`,
@@ -214,18 +219,18 @@ export const createTransfer = createServerFn()
       })
       const actorName = await getActorName(tx, userId)
       const articleNumbers = await resolveArticleNumbersForAudit(tx, {
-        action: "transfer.create",
-        entityType: "store_transfer",
+        action: 'transfer.create',
+        entityType: 'store_transfer',
         entityId: transfer.id,
         metadata: null,
       })
 
       await recordAuditLog(tx, {
         actorUserId: userId,
-        action: "transfer.create",
-        entityType: "store_transfer",
+        action: 'transfer.create',
+        entityType: 'store_transfer',
         entityId: transfer.id,
-        description: renderAuditDescription("transfer.create", {
+        description: renderAuditDescription('transfer.create', {
           actorName,
           shopName: shop?.name,
           itemCount: data.items.length,
@@ -233,7 +238,7 @@ export const createTransfer = createServerFn()
         articleNumbers,
         after: {
           shopId: data.shopId,
-          status: "dispatched",
+          status: 'dispatched',
           notes: data.notes,
         },
         metadata: {
@@ -265,8 +270,7 @@ const confirmReceiptInput = z.object({
 export const confirmTransferReceipt = createServerFn()
   .inputValidator(confirmReceiptInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    const session = await requireSessionAndRole(['admin', 'supervisor'])
     const userId = session.user.id
 
     return db.transaction(async (tx) => {
@@ -287,22 +291,29 @@ export const confirmTransferReceipt = createServerFn()
           },
         },
       })
-      if (!transfer) throw new Error("Transfer not found")
-      if (transfer.status !== "dispatched") {
+      if (!transfer) throw new Error('Transfer not found')
+      if (transfer.status !== 'dispatched') {
         throw new Error(`Transfer is ${transfer.status}, expected dispatched`)
       }
 
       const store = await tx.query.stores.findFirst()
-      if (!store) throw new Error("Store not configured")
+      if (!store) throw new Error('Store not configured')
 
       for (const receiptItem of data.items) {
-        const tl = transfer.items.find((i) => i.id === receiptItem.transferItemId)
-        if (!tl) throw new Error(`Transfer item not found: ${receiptItem.transferItemId}`)
+        const tl = transfer.items.find(
+          (i) => i.id === receiptItem.transferItemId,
+        )
+        if (!tl)
+          throw new Error(
+            `Transfer item not found: ${receiptItem.transferItemId}`,
+          )
 
         // Idempotency guard — partial receipts not re-applied; use a
         // return flow to adjust.
         if (tl.quantityReceived !== null) {
-          throw new Error("This transfer item has already been received. Use a return flow to adjust.")
+          throw new Error(
+            'This transfer item has already been received. Use a return flow to adjust.',
+          )
         }
 
         validateQuantityReceived(receiptItem.quantityReceived)
@@ -331,7 +342,9 @@ export const confirmTransferReceipt = createServerFn()
           if (i === lastIdx) {
             return { alloc: a, take: remaining }
           }
-          const share = Math.floor((received * a.quantity) / tl.quantityDispatched)
+          const share = Math.floor(
+            (received * a.quantity) / tl.quantityDispatched,
+          )
           remaining -= share
           return { alloc: a, take: share }
         })
@@ -389,12 +402,20 @@ export const confirmTransferReceipt = createServerFn()
             : `${tl.item.articleNumber} ${tl.item.name}`
           await postJournalEntry(tx, {
             entries: [
-              { type: "debit", category: "Inventory Loss", amount: lossValue.toFixed(2) },
-              { type: "credit", category: "Inventory - Shop", amount: lossValue.toFixed(2) },
+              {
+                type: 'debit',
+                category: 'Inventory Loss',
+                amount: lossValue.toFixed(2),
+              },
+              {
+                type: 'credit',
+                category: 'Inventory - Shop',
+                amount: lossValue.toFixed(2),
+              },
             ],
-            referenceType: "distribution_loss",
+            referenceType: 'distribution_loss',
             referenceId: tl.id,
-            locationType: "shop",
+            locationType: 'shop',
             locationId: transfer.shopId,
             recordedBy: userId,
             description: `Distribution loss: ${loss}× ${itemLabel}`,
@@ -405,7 +426,7 @@ export const confirmTransferReceipt = createServerFn()
       // Update transfer status
       await tx
         .update(storeTransfers)
-        .set({ status: "received", receivedBy: userId })
+        .set({ status: 'received', receivedBy: userId })
         .where(eq(storeTransfers.id, data.transferId))
 
       const totalLoss = data.items.reduce((sum, i) => {
@@ -419,25 +440,25 @@ export const confirmTransferReceipt = createServerFn()
       })
       const actorName = await getActorName(tx, userId)
       const articleNumbers = await resolveArticleNumbersForAudit(tx, {
-        action: "transfer.receive",
-        entityType: "store_transfer",
+        action: 'transfer.receive',
+        entityType: 'store_transfer',
         entityId: data.transferId,
         metadata: null,
       })
 
       await recordAuditLog(tx, {
         actorUserId: userId,
-        action: "transfer.receive",
-        entityType: "store_transfer",
+        action: 'transfer.receive',
+        entityType: 'store_transfer',
         entityId: data.transferId,
-        description: renderAuditDescription("transfer.receive", {
+        description: renderAuditDescription('transfer.receive', {
           actorName,
           shopName: shop?.name,
           itemCount: data.items.length,
         }),
         articleNumbers,
-        before: { status: "dispatched" },
-        after: { status: "received" },
+        before: { status: 'dispatched' },
+        after: { status: 'received' },
         metadata: {
           itemCount: data.items.length,
           shopId: transfer.shopId,
@@ -445,6 +466,6 @@ export const confirmTransferReceipt = createServerFn()
         },
       })
 
-      return { transferId: data.transferId, status: "received" }
+      return { transferId: data.transferId, status: 'received' }
     })
   })

@@ -102,8 +102,18 @@ export const helpDict = {
   },
   'item.variantsOptional': {
     description:
-      "Colors and sizes are refinements. You can add them now, while receiving, or after items land in stock. Items without colors or sizes still count and sell — they just appear by article number.",
+      'Colors and sizes are refinements. You can add them now, while receiving, or after items land in stock. Items without colors or sizes still count and sell — they just appear by article number.',
     example: 'Add later from this page or while receiving.',
+  },
+  'item.description': {
+    description:
+      'Optional notes about the item — material, fit, supplier quirks, anything that helps you recognise it later. Shown on the item detail page only.',
+    example: 'Heavy 200gsm cotton, runs one size small.',
+  },
+  'item.initialColors': {
+    description:
+      'Seed colors for this item. Each color becomes a variant when combined with each size. Optional — you can add colors here, while receiving, or later from the item detail page.',
+    example: 'Burgundy, Navy, Black',
   },
 
   // ─── Expense form (inside a Supply Route) ────────────────────────────

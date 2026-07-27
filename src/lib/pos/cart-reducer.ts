@@ -1,4 +1,4 @@
-import BigNumber from "bignumber.js"
+import BigNumber from 'bignumber.js'
 
 export type CartItem = {
   // Stable per-row key for cart UI. Today this is the source shop_stock
@@ -20,13 +20,13 @@ export type CartItem = {
 export type CartState = { items: CartItem[] }
 
 export type CartAction =
-  | { type: "add"; item: CartItem }
-  | { type: "remove"; shopStockId: string }
-  | { type: "updateQty"; shopStockId: string; qty: number }
-  | { type: "updatePrice"; shopStockId: string; unitPriceUgx: string }
-  | { type: "updateReason"; shopStockId: string; reason: string }
-  | { type: "clear" }
-  | { type: "hydrate"; state: CartState }
+  | { type: 'add'; item: CartItem }
+  | { type: 'remove'; shopStockId: string }
+  | { type: 'updateQty'; shopStockId: string; qty: number }
+  | { type: 'updatePrice'; shopStockId: string; unitPriceUgx: string }
+  | { type: 'updateReason'; shopStockId: string; reason: string }
+  | { type: 'clear' }
+  | { type: 'hydrate'; state: CartState }
 
 export const initialCart: CartState = { items: [] }
 
@@ -37,41 +37,64 @@ function clampQty(qty: number, available: number): number {
 
 export function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
-    case "add": {
-      const existing = state.items.find((i) => i.shopStockId === action.item.shopStockId)
+    case 'add': {
+      const existing = state.items.find(
+        (i) => i.shopStockId === action.item.shopStockId,
+      )
       if (existing) {
-        const mergedQty = clampQty(existing.qty + action.item.qty, existing.availableQty)
+        const mergedQty = clampQty(
+          existing.qty + action.item.qty,
+          existing.availableQty,
+        )
         return {
           items: state.items.map((i) =>
-            i.shopStockId === action.item.shopStockId ? { ...i, qty: mergedQty } : i,
+            i.shopStockId === action.item.shopStockId
+              ? { ...i, qty: mergedQty }
+              : i,
           ),
         }
       }
-      return { items: [...state.items, { ...action.item, qty: clampQty(action.item.qty, action.item.availableQty) }] }
+      return {
+        items: [
+          ...state.items,
+          {
+            ...action.item,
+            qty: clampQty(action.item.qty, action.item.availableQty),
+          },
+        ],
+      }
     }
-    case "remove":
-      return { items: state.items.filter((i) => i.shopStockId !== action.shopStockId) }
-    case "updateQty":
+    case 'remove':
+      return {
+        items: state.items.filter((i) => i.shopStockId !== action.shopStockId),
+      }
+    case 'updateQty':
       return {
         items: state.items.map((i) =>
-          i.shopStockId === action.shopStockId ? { ...i, qty: clampQty(action.qty, i.availableQty) } : i,
+          i.shopStockId === action.shopStockId
+            ? { ...i, qty: clampQty(action.qty, i.availableQty) }
+            : i,
         ),
       }
-    case "updatePrice":
+    case 'updatePrice':
       return {
         items: state.items.map((i) =>
-          i.shopStockId === action.shopStockId ? { ...i, unitPriceUgx: action.unitPriceUgx } : i,
+          i.shopStockId === action.shopStockId
+            ? { ...i, unitPriceUgx: action.unitPriceUgx }
+            : i,
         ),
       }
-    case "updateReason":
+    case 'updateReason':
       return {
         items: state.items.map((i) =>
-          i.shopStockId === action.shopStockId ? { ...i, belowMinimumReason: action.reason } : i,
+          i.shopStockId === action.shopStockId
+            ? { ...i, belowMinimumReason: action.reason }
+            : i,
         ),
       }
-    case "clear":
+    case 'clear':
       return initialCart
-    case "hydrate":
+    case 'hydrate':
       return action.state
   }
 }

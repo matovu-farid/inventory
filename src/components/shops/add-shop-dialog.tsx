@@ -1,16 +1,16 @@
-import { useState } from "react"
-import { Plus } from "lucide-react"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { FieldLabel } from "#/components/ui/field-label"
+import { useState } from 'react'
+import { Plus } from 'lucide-react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { FieldLabel } from '#/components/ui/field-label'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "#/components/ui/dialog"
-import { createShop } from "#/server/functions/admin/locations"
+} from '#/components/ui/dialog'
+import { createShop } from '#/server/functions/admin/locations'
 
 interface CreatedShop {
   id: string
@@ -63,13 +63,17 @@ function AddShopForm({
     try {
       const created = await createShop({
         data: {
-          name: form.get("name") as string,
-          location: (form.get("location") as string) || undefined,
+          name: form.get('name') as string,
+          location: (form.get('location') as string) || undefined,
         },
       })
-      onSuccess({ id: created.id, name: created.name, location: created.location })
+      onSuccess({
+        id: created.id,
+        name: created.name,
+        location: created.location,
+      })
     } catch (err) {
-      console.error("Failed to create shop:", err)
+      console.error('Failed to create shop:', err)
     } finally {
       setPending(false)
     }
@@ -78,15 +82,19 @@ function AddShopForm({
   return (
     <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
       <div className="space-y-2">
-        <FieldLabel htmlFor="name" help="shop.name">Shop Name *</FieldLabel>
+        <FieldLabel htmlFor="name" help="shop.name">
+          Shop Name *
+        </FieldLabel>
         <Input id="name" name="name" required />
       </div>
       <div className="space-y-2">
-        <FieldLabel htmlFor="location" help="shop.location">Location</FieldLabel>
+        <FieldLabel htmlFor="location" help="shop.location">
+          Location
+        </FieldLabel>
         <Input id="location" name="location" placeholder="e.g., Kampala" />
       </div>
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Creating..." : "Create Shop"}
+        {pending ? 'Creating...' : 'Create Shop'}
       </Button>
     </form>
   )

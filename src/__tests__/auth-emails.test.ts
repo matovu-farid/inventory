@@ -1,15 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { db } from "#/db"
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { db } from '#/db'
 
-import * as emailMod from "#/lib/email"
-import { auth } from "#/lib/auth"
-import * as schema from "#/db/schema"
-import { and, eq } from "drizzle-orm"
-import { createInvite, consumeInvite } from "#/lib/invite"
-import { hashPassword } from "better-auth/crypto"
-import type * as ReactStartServer from "@tanstack/react-start/server"
+import * as emailMod from '#/lib/email'
+import { auth } from '#/lib/auth'
+import * as schema from '#/db/schema'
+import { and, eq } from 'drizzle-orm'
+import { createInvite, consumeInvite } from '#/lib/invite'
+import { hashPassword } from 'better-auth/crypto'
+import type * as ReactStartServer from '@tanstack/react-start/server'
 
-vi.mock("#/lib/email", () => {
+vi.mock('#/lib/email', () => {
   return {
     sendVerificationEmail: vi.fn(() => Promise.resolve(undefined)),
     sendPasswordResetEmail: vi.fn(() => Promise.resolve(undefined)),
@@ -20,7 +20,7 @@ vi.mock("#/lib/email", () => {
 // setResponseHeader / getRequestHeaders are called when acceptInvite forwards
 // Set-Cookie headers from signInEmail. Outside an HTTP request context these
 // would throw; mocking them as no-ops lets the unit test run without a server.
-vi.mock("@tanstack/react-start/server", async (importOriginal) => {
+vi.mock('@tanstack/react-start/server', async (importOriginal) => {
   const actual = await importOriginal<typeof ReactStartServer>()
   return {
     ...actual,
@@ -29,7 +29,7 @@ vi.mock("@tanstack/react-start/server", async (importOriginal) => {
   }
 })
 
-const TEST_PREFIX = "test-auth-emails-"
+const TEST_PREFIX = 'test-auth-emails-'
 
 /**
  * cleanup() nukes ALL rows in session/account/verification/user — required
@@ -40,13 +40,10 @@ const TEST_PREFIX = "test-auth-emails-"
  * Belt-and-suspenders: refuse to start unless DATABASE_URL points at a
  * database whose name contains "test" (e.g. inventory_test, inventory_testing).
  */
-if (
-  !process.env.DATABASE_URL ||
-  !/test/i.test(process.env.DATABASE_URL)
-) {
+if (!process.env.DATABASE_URL || !/test/i.test(process.env.DATABASE_URL)) {
   throw new Error(
-    "auth-emails.test.ts refuses to run: DATABASE_URL must point at a test " +
-      "database. Run via `pnpm test` (which loads .env.test).",
+    'auth-emails.test.ts refuses to run: DATABASE_URL must point at a test ' +
+      'database. Run via `pnpm test` (which loads .env.test).',
   )
 }
 
@@ -57,14 +54,14 @@ async function cleanup() {
   await db.delete(schema.user)
 }
 
-describe("auth emails wiring", () => {
+describe('auth emails wiring', () => {
   beforeEach(cleanup)
   afterEach(cleanup)
 
-  it("first signup succeeds and triggers verification email", async () => {
+  it('first signup succeeds and triggers verification email', async () => {
     const email = `test-auth-emails-first-${Date.now()}@example.com`
     await auth.api.signUpEmail({
-      body: { email, password: "password123", name: "First Admin" },
+      body: { email, password: 'password123', name: 'First Admin' },
     })
 
     const found = await db
@@ -72,20 +69,20 @@ describe("auth emails wiring", () => {
       .from(schema.user)
       .where(eq(schema.user.email, email))
 
-    expect(found[0].role).toBe("admin")
+    expect(found[0].role).toBe('admin')
     expect(emailMod.sendVerificationEmail).toHaveBeenCalledOnce()
   })
 
-  it("second signup is rejected", async () => {
+  it('second signup is rejected', async () => {
     const a = `test-auth-emails-a-${Date.now()}@example.com`
     const b = `test-auth-emails-b-${Date.now()}@example.com`
     await auth.api.signUpEmail({
-      body: { email: a, password: "password123", name: "A" },
+      body: { email: a, password: 'password123', name: 'A' },
     })
 
     await expect(
       auth.api.signUpEmail({
-        body: { email: b, password: "password123", name: "B" },
+        body: { email: b, password: 'password123', name: 'B' },
       }),
     ).rejects.toThrow(/disabled/i)
   })
@@ -96,16 +93,16 @@ describe("auth emails wiring", () => {
 // bundle chunk — it is unavailable in Vitest. Per the task spec hedge, we call
 // the underlying logic (consumeInvite + hashPassword + db update + signInEmail)
 // directly. This mirrors exactly what acceptInvite.handler does.
-describe("invite + accept flow", () => {
+describe('invite + accept flow', () => {
   beforeEach(cleanup)
   afterEach(cleanup)
 
-  it("acceptInvite sets password, deletes the invite row, and signs the user in", async () => {
+  it('acceptInvite sets password, deletes the invite row, and signs the user in', async () => {
     const email = `${TEST_PREFIX}invitee-${Date.now()}@example.com`
 
     // Bypass admin server fn for unit test — call signUpEmail directly to set up a user
     const created = await auth.api.signUpEmail({
-      body: { email, password: "throwaway1234", name: "Invitee" },
+      body: { email, password: 'throwaway1234', name: 'Invitee' },
     })
     const userId = (created as any).user.id
 
@@ -117,9 +114,9 @@ describe("invite + accept flow", () => {
     const { token } = await createInvite({ userId })
 
     // --- replicate acceptInvite.handler logic ---
-    const newPassword = "newPass1234"
+    const newPassword = 'newPass1234'
     const consumed = await consumeInvite(token)
-    if (!consumed) throw new Error("consumeInvite returned null")
+    if (!consumed) throw new Error('consumeInvite returned null')
     expect(consumed.userId).toBe(userId)
 
     // Hash + store new password
@@ -130,7 +127,7 @@ describe("invite + accept flow", () => {
       .where(
         and(
           eq(schema.account.userId, userId),
-          eq(schema.account.providerId, "credential"),
+          eq(schema.account.providerId, 'credential'),
         ),
       )
 

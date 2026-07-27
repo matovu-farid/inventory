@@ -1,11 +1,6 @@
-import * as React from "react"
-import {
-  cartReducer,
-  initialCart
-  
-  
-} from "#/lib/pos/cart-reducer"
-import type {CartState, CartItem} from "#/lib/pos/cart-reducer";
+import * as React from 'react'
+import { cartReducer, initialCart } from '#/lib/pos/cart-reducer'
+import type { CartState, CartItem } from '#/lib/pos/cart-reducer'
 
 type CartCtx = {
   state: CartState
@@ -30,18 +25,18 @@ export function CartProvider({
   const hydrated = React.useRef(false)
 
   React.useEffect(() => {
-    if (typeof window === "undefined") return
+    if (typeof window === 'undefined') return
     const raw = window.localStorage.getItem(storageKey)
     if (raw) {
       try {
         const parsed: unknown = JSON.parse(raw)
         if (
           parsed &&
-          typeof parsed === "object" &&
-          "items" in parsed &&
+          typeof parsed === 'object' &&
+          'items' in parsed &&
           Array.isArray(parsed.items)
         ) {
-          dispatch({ type: "hydrate", state: parsed as CartState })
+          dispatch({ type: 'hydrate', state: parsed as CartState })
         }
       } catch {
         // ignore corrupt storage
@@ -51,20 +46,22 @@ export function CartProvider({
   }, [storageKey])
 
   React.useEffect(() => {
-    if (!hydrated.current || typeof window === "undefined") return
+    if (!hydrated.current || typeof window === 'undefined') return
     window.localStorage.setItem(storageKey, JSON.stringify(state))
   }, [storageKey, state])
 
   const value = React.useMemo<CartCtx>(
     () => ({
       state,
-      add: (item) => dispatch({ type: "add", item }),
-      remove: (shopStockId) => dispatch({ type: "remove", shopStockId }),
-      updateQty: (shopStockId, qty) => dispatch({ type: "updateQty", shopStockId, qty }),
+      add: (item) => dispatch({ type: 'add', item }),
+      remove: (shopStockId) => dispatch({ type: 'remove', shopStockId }),
+      updateQty: (shopStockId, qty) =>
+        dispatch({ type: 'updateQty', shopStockId, qty }),
       updatePrice: (shopStockId, unitPriceUgx) =>
-        dispatch({ type: "updatePrice", shopStockId, unitPriceUgx }),
-      updateReason: (shopStockId, reason) => dispatch({ type: "updateReason", shopStockId, reason }),
-      clear: () => dispatch({ type: "clear" }),
+        dispatch({ type: 'updatePrice', shopStockId, unitPriceUgx }),
+      updateReason: (shopStockId, reason) =>
+        dispatch({ type: 'updateReason', shopStockId, reason }),
+      clear: () => dispatch({ type: 'clear' }),
     }),
     [state],
   )
@@ -74,6 +71,6 @@ export function CartProvider({
 
 export function useCart(): CartCtx {
   const v = React.useContext(Ctx)
-  if (!v) throw new Error("useCart must be used inside CartProvider")
+  if (!v) throw new Error('useCart must be used inside CartProvider')
   return v
 }

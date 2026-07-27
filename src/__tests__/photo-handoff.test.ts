@@ -2,16 +2,16 @@
  * Photo-handoff internals — token validation and consumption.
  * Uses the real test DB, namespaces fixtures with Date.now() for isolation.
  */
-import { describe, it, expect, beforeEach, afterEach } from "vitest"
-import { eq } from "drizzle-orm"
-import { db } from "#/db"
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { eq } from 'drizzle-orm'
+import { db } from '#/db'
 import {
   pictureUploadTokens,
   items,
   itemColors,
   user as userTable,
-} from "#/db/schema"
-import * as _internal from "#/server/functions/items/photo-handoff-internals"
+} from '#/db/schema'
+import * as _internal from '#/server/functions/items/photo-handoff-internals'
 
 let runId: string
 let userId: string
@@ -25,7 +25,7 @@ async function seed() {
     name: `Admin ${runId}`,
     email: `${runId}@test.local`,
     emailVerified: true,
-    role: "admin",
+    role: 'admin',
   })
   const p = (
     await db
@@ -33,20 +33,22 @@ async function seed() {
       .values({
         articleNumber: runId,
         name: `T ${runId}`,
-        category: "Test",
+        category: 'Test',
       })
       .returning()
   )[0]
   colorId = (
     await db
       .insert(itemColors)
-      .values({ itemId: p.id, colorName: "Red", colorHex: "#dc2626" })
+      .values({ itemId: p.id, colorName: 'Red', colorHex: '#dc2626' })
       .returning()
   )[0].id
 }
 
 async function teardown() {
-  await db.delete(pictureUploadTokens).where(eq(pictureUploadTokens.itemColorId, colorId))
+  await db
+    .delete(pictureUploadTokens)
+    .where(eq(pictureUploadTokens.itemColorId, colorId))
   const p = await db.query.items.findFirst({
     where: eq(items.articleNumber, runId),
   })
@@ -57,11 +59,11 @@ async function teardown() {
   await db.delete(userTable).where(eq(userTable.id, userId))
 }
 
-describe("photo-handoff internals", () => {
+describe('photo-handoff internals', () => {
   beforeEach(seed)
   afterEach(teardown)
 
-  it("validateToken rejects expired tokens", async () => {
+  it('validateToken rejects expired tokens', async () => {
     const token = `${runId}-old`
     await db.insert(pictureUploadTokens).values({
       token,
@@ -72,7 +74,7 @@ describe("photo-handoff internals", () => {
     await expect(_internal.validateToken(token)).rejects.toThrow(/expired/i)
   })
 
-  it("validateToken rejects consumed tokens", async () => {
+  it('validateToken rejects consumed tokens', async () => {
     const token = `${runId}-used`
     await db.insert(pictureUploadTokens).values({
       token,
@@ -81,16 +83,18 @@ describe("photo-handoff internals", () => {
       expiresAt: new Date(Date.now() + 60_000),
       consumedAt: new Date(),
     })
-    await expect(_internal.validateToken(token)).rejects.toThrow(/already used/i)
+    await expect(_internal.validateToken(token)).rejects.toThrow(
+      /already used/i,
+    )
   })
 
-  it("validateToken rejects missing tokens", async () => {
-    await expect(_internal.validateToken("no-such-token")).rejects.toThrow(
+  it('validateToken rejects missing tokens', async () => {
+    await expect(_internal.validateToken('no-such-token')).rejects.toThrow(
       /not found/i,
     )
   })
 
-  it("markConsumed sets consumedAt and updates itemColors.imageS3Key", async () => {
+  it('markConsumed sets consumedAt and updates itemColors.imageS3Key', async () => {
     const token = `${runId}-good`
     await db.insert(pictureUploadTokens).values({
       token,
@@ -113,7 +117,7 @@ describe("photo-handoff internals", () => {
     expect(color?.imageS3Key).toBe(key)
   })
 
-  it("markConsumed throws if token is already consumed", async () => {
+  it('markConsumed throws if token is already consumed', async () => {
     const token = `${runId}-once`
     await db.insert(pictureUploadTokens).values({
       token,
@@ -123,7 +127,7 @@ describe("photo-handoff internals", () => {
       consumedAt: new Date(),
     })
     await expect(
-      _internal.markConsumed(token, "products/x/y.jpg"),
+      _internal.markConsumed(token, 'products/x/y.jpg'),
     ).rejects.toThrow(/already consumed/i)
   })
 })

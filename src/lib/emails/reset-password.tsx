@@ -1,4 +1,4 @@
-import { EmailLayout } from "./_layout"
+import { EmailLayout } from './_layout'
 
 export type ResetPasswordProps = {
   name: string
@@ -6,7 +6,11 @@ export type ResetPasswordProps = {
   appUrl: string
 }
 
-export function ResetPasswordTemplate({ name, url, appUrl }: ResetPasswordProps) {
+export function ResetPasswordTemplate({
+  name,
+  url,
+  appUrl,
+}: ResetPasswordProps) {
   return (
     <EmailLayout
       preview="Reset your Inventory Management password"

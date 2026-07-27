@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest"
-import fc from "fast-check"
-import { validateCreditAdjustmentRefund } from "#/server/functions/shop/refund-validate"
+import { describe, it, expect } from 'vitest'
+import fc from 'fast-check'
+import { validateCreditAdjustmentRefund } from '#/server/functions/shop/refund-validate'
 
 /**
  * Tests for GAP-5: in credit_adjustment refunds the ledger credits the full
@@ -15,70 +15,70 @@ import { validateCreditAdjustmentRefund } from "#/server/functions/shop/refund-v
  *     - totalRefund == outstandingBalance is allowed (boundary)
  */
 
-describe("validateCreditAdjustmentRefund — examples (GAP-5)", () => {
-  it("throws when refund exceeds outstanding balance", () => {
+describe('validateCreditAdjustmentRefund — examples (GAP-5)', () => {
+  it('throws when refund exceeds outstanding balance', () => {
     expect(() =>
       validateCreditAdjustmentRefund({
-        totalRefund: "5000",
-        outstandingBalance: "3000",
+        totalRefund: '5000',
+        outstandingBalance: '3000',
       }),
     ).toThrow(/(refund|exceed|balance)/i)
   })
 
-  it("includes both numbers in the error message", () => {
+  it('includes both numbers in the error message', () => {
     expect(() =>
       validateCreditAdjustmentRefund({
-        totalRefund: "5000",
-        outstandingBalance: "3000",
+        totalRefund: '5000',
+        outstandingBalance: '3000',
       }),
     ).toThrow(/5,000/)
     expect(() =>
       validateCreditAdjustmentRefund({
-        totalRefund: "5000",
-        outstandingBalance: "3000",
+        totalRefund: '5000',
+        outstandingBalance: '3000',
       }),
     ).toThrow(/3,000/)
   })
 
-  it("allows refund equal to outstanding balance", () => {
+  it('allows refund equal to outstanding balance', () => {
     expect(() =>
       validateCreditAdjustmentRefund({
-        totalRefund: "3000",
-        outstandingBalance: "3000",
+        totalRefund: '3000',
+        outstandingBalance: '3000',
       }),
     ).not.toThrow()
   })
 
-  it("allows refund less than outstanding balance", () => {
+  it('allows refund less than outstanding balance', () => {
     expect(() =>
       validateCreditAdjustmentRefund({
-        totalRefund: "1000",
-        outstandingBalance: "3000",
+        totalRefund: '1000',
+        outstandingBalance: '3000',
       }),
     ).not.toThrow()
   })
 
-  it("allows zero refund", () => {
+  it('allows zero refund', () => {
     expect(() =>
       validateCreditAdjustmentRefund({
-        totalRefund: "0",
-        outstandingBalance: "3000",
+        totalRefund: '0',
+        outstandingBalance: '3000',
       }),
     ).not.toThrow()
   })
 
-  it("allows zero refund against zero balance", () => {
+  it('allows zero refund against zero balance', () => {
     expect(() =>
       validateCreditAdjustmentRefund({
-        totalRefund: "0",
-        outstandingBalance: "0",
+        totalRefund: '0',
+        outstandingBalance: '0',
       }),
     ).not.toThrow()
   })
 })
 
-describe("validateCreditAdjustmentRefund — property (GAP-5)", () => {
-  it("forAll non-negative integer refund and balance: throws iff refund > balance", () => {
+describe('validateCreditAdjustmentRefund — property (GAP-5)', () => {
+  it('forAll non-negative integer refund and balance: throws iff refund > balance', () => {
     fc.assert(
       fc.property(
         fc.nat({ max: 1_000_000 }),

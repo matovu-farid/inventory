@@ -18,10 +18,10 @@
  * one place.
  */
 
-import pg from "pg"
-import { and, eq, isNull } from "drizzle-orm"
+import pg from 'pg'
+import { and, eq, isNull } from 'drizzle-orm'
 
-import { db } from "#/db"
+import { db } from '#/db'
 import {
   itemColors,
   items,
@@ -33,15 +33,15 @@ import {
   supplyRouteLines,
   supplyRoutes,
   variants,
-} from "#/db/schema"
-import { cleanupAllTestData } from "../../cypress/support/cleanup"
+} from '#/db/schema'
+import { cleanupAllTestData } from '../../cypress/support/cleanup'
 
 export function assertDefined<T>(
   value: T | null | undefined,
   message?: string,
 ): asserts value is T {
   if (value === null || value === undefined) {
-    throw new Error(message ?? "Expected value to be defined")
+    throw new Error(message ?? 'Expected value to be defined')
   }
 }
 
@@ -54,11 +54,11 @@ export function assertDefined<T>(
  */
 export async function resetTestDb(): Promise<void> {
   const url = process.env.DATABASE_URL
-  if (!url) throw new Error("DATABASE_URL is not set")
+  if (!url) throw new Error('DATABASE_URL is not set')
   if (!/test/i.test(url)) {
     throw new Error(
-      "resetTestDb refuses to run: DATABASE_URL must point at a test " +
-        "database. Run via `pnpm test` (which loads .env.test).",
+      'resetTestDb refuses to run: DATABASE_URL must point at a test ' +
+        'database. Run via `pnpm test` (which loads .env.test).',
     )
   }
   const client = new pg.Client({ connectionString: url })
@@ -81,11 +81,11 @@ export async function seedItem(input: {
     .values({
       articleNumber: input.articleNumber,
       name: input.name,
-      category: input.category ?? "Test",
-      minimumSellPriceUgx: input.minimumSellPriceUgx ?? "0",
+      category: input.category ?? 'Test',
+      minimumSellPriceUgx: input.minimumSellPriceUgx ?? '0',
     })
     .returning()
-  assertDefined(row, "seedItem: insert returned no row")
+  assertDefined(row, 'seedItem: insert returned no row')
   return row.id
 }
 
@@ -102,45 +102,52 @@ export async function seedColor(input: {
       colorHex: input.colorHex,
     })
     .returning()
-  assertDefined(row, "seedColor: insert returned no row")
+  assertDefined(row, 'seedColor: insert returned no row')
   return row.id
 }
 
 export async function seedStore(input?: { name?: string }): Promise<string> {
   const [row] = await db
     .insert(stores)
-    .values({ name: input?.name ?? "Test Store" })
+    .values({ name: input?.name ?? 'Test Store' })
     .returning()
-  assertDefined(row, "seedStore: insert returned no row")
+  assertDefined(row, 'seedStore: insert returned no row')
   return row.id
 }
 
 export async function seedShop(input?: { name?: string }): Promise<string> {
   const [row] = await db
     .insert(shops)
-    .values({ name: input?.name ?? `Test Shop ${Math.random().toString(36).slice(2, 8)}` })
+    .values({
+      name:
+        input?.name ?? `Test Shop ${Math.random().toString(36).slice(2, 8)}`,
+    })
     .returning()
-  assertDefined(row, "seedShop: insert returned no row")
+  assertDefined(row, 'seedShop: insert returned no row')
   return row.id
 }
 
 export async function seedSupplier(input?: { name?: string }): Promise<string> {
-  const name = input?.name ?? `Test Supplier ${Math.random().toString(36).slice(2, 8)}`
+  const name =
+    input?.name ?? `Test Supplier ${Math.random().toString(36).slice(2, 8)}`
   const [row] = await db
     .insert(suppliers)
-    .values({ name, type: "international" })
+    .values({ name, type: 'international' })
     .returning()
-  assertDefined(row, "seedSupplier: insert returned no row")
+  assertDefined(row, 'seedSupplier: insert returned no row')
   return row.id
 }
 
-export async function seedSupplyRoute(input?: { name?: string }): Promise<string> {
-  const name = input?.name ?? `Test Route ${Math.random().toString(36).slice(2, 8)}`
+export async function seedSupplyRoute(input?: {
+  name?: string
+}): Promise<string> {
+  const name =
+    input?.name ?? `Test Route ${Math.random().toString(36).slice(2, 8)}`
   const [row] = await db
     .insert(supplyRoutes)
-    .values({ name, status: "in_transit" })
+    .values({ name, status: 'in_transit' })
     .returning()
-  assertDefined(row, "seedSupplyRoute: insert returned no row")
+  assertDefined(row, 'seedSupplyRoute: insert returned no row')
   return row.id
 }
 
@@ -165,10 +172,8 @@ export async function seedSupplyRouteLine(input: {
   const supplyRouteId = input.supplyRouteId ?? (await seedSupplyRoute())
   const supplierId = input.supplierId ?? (await seedSupplier())
   const quantity = input.quantity ?? 10
-  const unitPriceForeign = input.unitPriceForeign ?? "10.00"
-  const totalAmountForeign = (
-    Number(unitPriceForeign) * quantity
-  ).toFixed(2)
+  const unitPriceForeign = input.unitPriceForeign ?? '10.00'
+  const totalAmountForeign = (Number(unitPriceForeign) * quantity).toFixed(2)
   const createdAt =
     input.createdAt === undefined
       ? undefined
@@ -186,7 +191,7 @@ export async function seedSupplyRouteLine(input: {
       size: input.size ?? null,
       quantity,
       unitPriceForeign,
-      foreignCurrency: "RMB",
+      foreignCurrency: 'RMB',
       totalAmountForeign,
       // totalCostUgx is required (notNull) — a placeholder is fine for
       // FIFO tests which only read the row's createdAt + ids.
@@ -194,7 +199,7 @@ export async function seedSupplyRouteLine(input: {
       ...(createdAt ? { createdAt } : {}),
     })
     .returning()
-  assertDefined(row, "seedSupplyRouteLine: insert returned no row")
+  assertDefined(row, 'seedSupplyRouteLine: insert returned no row')
   return row.id
 }
 
@@ -221,7 +226,7 @@ export async function seedStoreStockLot(input: {
   let resolvedVariantId: string | null
   if (input.variantId === null) {
     resolvedVariantId = null
-  } else if (typeof input.variantId === "string") {
+  } else if (typeof input.variantId === 'string') {
     resolvedVariantId = input.variantId
   } else if (input.colorId && input.size) {
     const existing = await db.query.variants.findFirst({
@@ -242,12 +247,15 @@ export async function seedStoreStockLot(input: {
           size: input.size,
         })
         .returning()
-      assertDefined(created, "seedStoreStockLot: variant insert returned no row")
+      assertDefined(
+        created,
+        'seedStoreStockLot: variant insert returned no row',
+      )
       resolvedVariantId = created.id
     }
   } else {
     throw new Error(
-      "seedStoreStockLot: pass variantId (or null), or both colorId + size",
+      'seedStoreStockLot: pass variantId (or null), or both colorId + size',
     )
   }
 
@@ -262,7 +270,7 @@ export async function seedStoreStockLot(input: {
       costPerUnitUgx: input.costPerUnitUgx,
     })
     .returning()
-  assertDefined(row, "seedStoreStockLot: insert returned no row")
+  assertDefined(row, 'seedStoreStockLot: insert returned no row')
   return { stockId: row.id, variantId: resolvedVariantId }
 }
 
@@ -289,7 +297,7 @@ export async function seedShopStockLot(input: {
   let resolvedVariantId: string | null
   if (input.variantId === null) {
     resolvedVariantId = null
-  } else if (typeof input.variantId === "string") {
+  } else if (typeof input.variantId === 'string') {
     resolvedVariantId = input.variantId
   } else if (input.colorId && input.size) {
     const existing = await db.query.variants.findFirst({
@@ -310,12 +318,12 @@ export async function seedShopStockLot(input: {
           size: input.size,
         })
         .returning()
-      assertDefined(created, "seedShopStockLot: variant insert returned no row")
+      assertDefined(created, 'seedShopStockLot: variant insert returned no row')
       resolvedVariantId = created.id
     }
   } else {
     throw new Error(
-      "seedShopStockLot: pass variantId (or null), or both colorId + size",
+      'seedShopStockLot: pass variantId (or null), or both colorId + size',
     )
   }
 
@@ -330,7 +338,7 @@ export async function seedShopStockLot(input: {
       costPerUnitUgx: input.costPerUnitUgx,
     })
     .returning()
-  assertDefined(row, "seedShopStockLot: insert returned no row")
+  assertDefined(row, 'seedShopStockLot: insert returned no row')
   return { stockId: row.id, variantId: resolvedVariantId }
 }
 
@@ -367,7 +375,7 @@ export async function seedUnresolvedShopStock(input: {
       costPerUnitUgx: input.costPerUnitUgx,
     })
     .returning()
-  assertDefined(row, "seedUnresolvedShopStock: insert returned no row")
+  assertDefined(row, 'seedUnresolvedShopStock: insert returned no row')
   return { stockId: row.id, supplyRouteLineId }
 }
 

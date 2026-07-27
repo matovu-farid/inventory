@@ -1,20 +1,20 @@
-import { defineConfig  } from "vitest/config"
-import type {UserConfig} from "vitest/config";
-import react from "@vitejs/plugin-react"
+import { defineConfig } from 'vitest/config'
+import type { UserConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  plugins: [react()] as UserConfig["plugins"],
+  plugins: [react()] as UserConfig['plugins'],
   resolve: {
     alias: {
-      "#": new URL("./src", import.meta.url).pathname,
+      '#': new URL('./src', import.meta.url).pathname,
     },
   },
   test: {
     include: [
-      "src/__tests__/**/*.test.{ts,tsx}",
-      "src/**/__tests__/**/*.test.{ts,tsx}",
+      'src/__tests__/**/*.test.{ts,tsx}',
+      'src/**/__tests__/**/*.test.{ts,tsx}',
     ],
-    environment: "node",
+    environment: 'node',
     // Many tests touch the shared test Postgres DB and use fixed fixture
     // IDs or truncate-all cleanups (e.g. auth-emails first-signup-becomes-
     // admin). Running test files in parallel causes them to step on each

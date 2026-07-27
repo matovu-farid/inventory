@@ -4,6 +4,7 @@
 **Trust rule:** if any entry here disagrees with the code, trust the code.
 
 ## Stack
+
 - Runtime: Node.js (via Vite dev / Cloudflare Workers prod) — see `package.json:9` (`vite dev`) and `package.json:19` (`wrangler deploy`)
 - Language: TypeScript @ ^5.7.2 (source: `package.json:99`)
 - Framework: TanStack Start @ ^1.167.65 + TanStack Router @ ^1.169.2 + React @ ^19.2.0 (source: `package.json:46-50,66`)
@@ -18,6 +19,7 @@
 - Commands: see `.claude/kanban.json` → `scopes.app.typecheck` and `scopes.app.test`. Build/lint/format are package.json scripts (`build`, `lint`, `format`, `check`) — not modeled in kanban.json.
 
 ## File layout
+
 - `src/routes/` — TanStack Router file-based routes; `routeTree.gen.ts` is auto-generated, never edit by hand
 - `src/routes/__root.tsx` — root layout, providers, sidebar
 - `src/routes/{store,shop,supply}/` — three business modules (warehouse, retail, procurement)
@@ -51,6 +53,7 @@
 - `gross_profit.xlsx` — client's source Excel (47 routes, 2011–2026) being migrated into this system
 
 ## Conventions
+
 - All server mutations go through `createServerFn` — example: `src/server/functions/products/products.ts:14`. Client code (`src/routes/**`, `src/components/**`) is forbidden from importing `#/db` or `*-internals*` (enforced by `eslint.config.js:40-58`).
 - Auth gate is `requireSession()` then `requireRole(session, [...])` at the top of every handler (example: `src/server/functions/products/products.ts:17-18`; ≥4 files: products, supply/routes, store/receiving, shop/sales).
 - Money stored as Postgres `numeric(15,2)` and manipulated with `BigNumber` (example: `src/db/schema/transactions.ts:49`; 5 schema files: transactions, customers, returns, supply-routes, sales).
@@ -65,9 +68,11 @@
 - Schema files are split per-table under `src/db/schema/` and re-exported from `src/db/schema/index.ts`; `src/db/schema.ts` (one-liner) is what drizzle-kit reads.
 
 ## Architecture
+
 Single TanStack Start app deployed to Cloudflare Workers, backed by Neon Postgres with self-hosted ElectricSQL on Hetzner for real-time sync to the browser. Requests flow: browser route → either a TanStack DB collection (read-mostly, synced via Electric) or a `createServerFn` call (mutations + privileged reads). Every server function runs `requireSession` → `requireRole` → optional IP allowlist before touching the DB. Mutations open a `db.transaction`, mutate domain tables, call `postJournalEntry` for any financial side-effect (double-entry, debits=credits enforced), and write an `auditLogs` row inside the same tx. Three business modules (Supply, Store, Shop) share one schema, ledger, and auth; roles (admin, supervisor, sales) partition access. Currency chain RMB→USD→UGX uses `BigNumber` end-to-end; UGX values are floored to 50 shillings only at display time.
 
 ## Domain glossary
+
 - **Supply / Route** — A buying trip (typically to China). Tracks items purchased + freight/customs/tax expenses. Routes live in `supply_routes`.
 - **Store** — The single central warehouse. Receives goods from supply routes, distributes to shops.
 - **Shop** — A retail location (1..many). Sells to walk-in or credit customers; uses POS.
@@ -90,6 +95,7 @@ Single TanStack Start app deployed to Cloudflare Workers, backed by Neon Postgre
 - **Audit log** — Append-only `audit_logs` rows written inside the same tx as the mutation they describe.
 
 ## Entry points
+
 - `src/routes/__root.tsx` — start here to understand layout, providers, and sidebar wiring
 - `src/db/schema/index.ts` — map of all domain tables; follow re-exports to per-table files
 - `src/server/functions/` — start here when changing server behavior or adding a new mutation

@@ -1,15 +1,15 @@
-import { useState } from "react"
-import { Pencil } from "lucide-react"
-import { Badge } from "#/components/ui/badge"
-import { Button } from "#/components/ui/button"
-import { CreatableCombobox } from "#/components/ui/creatable-combobox"
+import { useState } from 'react'
+import { Pencil } from 'lucide-react'
+import { Badge } from '#/components/ui/badge'
+import { Button } from '#/components/ui/button'
+import { CreatableCombobox } from '#/components/ui/creatable-combobox'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "#/components/ui/popover"
-import { updateItem } from "#/server/functions/items/items"
-import { InfoTip } from "#/components/ui/info-tip"
+} from '#/components/ui/popover'
+import { updateItem } from '#/server/functions/items/items'
+import { InfoTip } from '#/components/ui/info-tip'
 
 interface Props {
   itemId: string
@@ -61,7 +61,7 @@ export function CategoryEditPopover({
       setOpen(false)
       onSaved()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update category.")
+      setError(e instanceof Error ? e.message : 'Failed to update category.')
     } finally {
       setPending(false)
     }
@@ -124,7 +124,7 @@ export function CategoryEditPopover({
                 onClick={() => void save()}
                 disabled={pending || !draft.trim()}
               >
-                {pending ? "Saving…" : "Save"}
+                {pending ? 'Saving…' : 'Save'}
               </Button>
             </div>
           </PopoverContent>

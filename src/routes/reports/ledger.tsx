@@ -1,12 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { formatUgx, formatDate } from "#/lib/format"
-import { requireUiPermission } from "#/lib/permissions"
-import { Badge } from "#/components/ui/badge"
-import { ResponsiveTable } from "#/components/ui/responsive-table"
-import { getLedgerEntries } from "#/server/functions/accounting/reports"
+import { createFileRoute } from '@tanstack/react-router'
+import { formatUgx, formatDate } from '#/lib/format'
+import { requireUiPermission } from '#/lib/permissions'
+import { Badge } from '#/components/ui/badge'
+import { ResponsiveTable } from '#/components/ui/responsive-table'
+import { getLedgerEntries } from '#/server/functions/accounting/reports'
 
-export const Route = createFileRoute("/reports/ledger")({
-  beforeLoad: ({ context }) => requireUiPermission(context, "reports.view"),
+export const Route = createFileRoute('/reports/ledger')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'reports.view'),
   loader: () => getLedgerEntries({ data: { limit: 100, offset: 0 } }),
   component: LedgerPage,
 })
@@ -18,9 +18,7 @@ function LedgerPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">General Ledger</h1>
-        <p className="text-muted-foreground">
-          Complete journal entry history.
-        </p>
+        <p className="text-muted-foreground">Complete journal entry history.</p>
       </div>
 
       <div className="rounded-md border">
@@ -30,38 +28,34 @@ function LedgerPage() {
           emptyMessage="No ledger entries yet."
           columns={[
             {
-              header: "Date",
+              header: 'Date',
               cell: (e) => (
-                <span className="text-xs">
-                  {formatDate(e.transactionDate)}
-                </span>
+                <span className="text-xs">{formatDate(e.transactionDate)}</span>
               ),
             },
             {
-              header: "Account",
+              header: 'Account',
               cell: (e) => (
                 <span className="font-medium text-sm">{e.categoryName}</span>
               ),
             },
             {
-              header: "DR/CR",
+              header: 'DR/CR',
               cell: (e) => (
-                <Badge variant={e.type === "debit" ? "default" : "secondary"}>
-                  {e.type === "debit" ? "DR" : "CR"}
+                <Badge variant={e.type === 'debit' ? 'default' : 'secondary'}>
+                  {e.type === 'debit' ? 'DR' : 'CR'}
                 </Badge>
               ),
             },
             {
-              header: "Amount",
-              align: "right",
+              header: 'Amount',
+              align: 'right',
               cell: (e) => (
-                <span className="font-mono">
-                  {formatUgx(e.amount)}
-                </span>
+                <span className="font-mono">{formatUgx(e.amount)}</span>
               ),
             },
             {
-              header: "Type",
+              header: 'Type',
               hideOnMobile: true,
               cell: (e) => (
                 <Badge variant="outline" className="text-xs">
@@ -70,16 +64,16 @@ function LedgerPage() {
               ),
             },
             {
-              header: "Description",
+              header: 'Description',
               hideOnMobile: true,
               cell: (e) => (
                 <span className="text-sm text-muted-foreground max-w-48 truncate block">
-                  {e.description ?? "-"}
+                  {e.description ?? '-'}
                 </span>
               ),
             },
             {
-              header: "Ref",
+              header: 'Ref',
               hideOnMobile: true,
               cell: (e) => (
                 <span className="text-xs text-muted-foreground">
@@ -88,7 +82,7 @@ function LedgerPage() {
               ),
             },
             {
-              header: "Location",
+              header: 'Location',
               hideOnMobile: true,
               cell: (e) => (
                 <Badge variant="outline" className="text-xs">

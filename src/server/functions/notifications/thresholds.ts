@@ -6,15 +6,13 @@ import {
   notificationThresholds,
   notificationThresholdOverrides,
 } from '#/db/schema'
-import { requireSession } from '#/server/middleware/auth'
-import { requireRole } from '#/server/middleware/rbac'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 const modeEnum = z.enum(['percent', 'units'])
 const scopeEnum = z.enum(['store', 'shop'])
 
 export const getThresholds = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ['admin', 'supervisor'])
+  await requireSessionAndRole(['admin', 'supervisor'])
 
   const row = (
     await db
@@ -46,8 +44,7 @@ const updateInput = z.object({
 export const updateThresholds = createServerFn()
   .inputValidator(updateInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin'])
+    const session = await requireSessionAndRole(['admin'])
     await db
       .insert(notificationThresholds)
       .values({
@@ -85,8 +82,7 @@ const listOverridesInput = z.object({
 export const listOverrides = createServerFn()
   .inputValidator(listOverridesInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin', 'supervisor'])
+    await requireSessionAndRole(['admin', 'supervisor'])
     const whereClause = data.shopId
       ? eq(notificationThresholdOverrides.shopId, data.shopId)
       : undefined
@@ -110,8 +106,7 @@ const upsertOverrideInput = z.object({
 export const upsertOverride = createServerFn()
   .inputValidator(upsertOverrideInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin'])
+    await requireSessionAndRole(['admin'])
     await db
       .insert(notificationThresholdOverrides)
       .values({
@@ -140,8 +135,7 @@ const deleteOverrideInput = z.object({ id: z.uuid() })
 export const deleteOverride = createServerFn()
   .inputValidator(deleteOverrideInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin'])
+    await requireSessionAndRole(['admin'])
     await db
       .delete(notificationThresholdOverrides)
       .where(eq(notificationThresholdOverrides.id, data.id))

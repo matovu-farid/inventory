@@ -1,5 +1,5 @@
-import { redirect, useRouteContext } from "@tanstack/react-router"
-import type { Role } from "#/server/middleware/rbac"
+import { redirect, useRouteContext } from '@tanstack/react-router'
+import type { Role } from '#/server/middleware/rbac'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Permission registry
@@ -14,115 +14,113 @@ import type { Role } from "#/server/middleware/rbac"
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type Permission =
-  | "procurement.view"
-  | "warehouse.stock"
-  | "warehouse.receiving"
-  | "warehouse.transfers"
-  | "warehouse.openingBalance"
-  | "shop.view"
-  | "shop.openingBalance"
-  | "sales.view"
-  | "customers.view"
-  | "reports.view"
-  | "users.manage"
-  | "items.view"
-  | "items.manage"
-  | "pos.view"
-  | "security.manage"
-  | "shift.reports.view"
-  | "notifications.manage"
-  | "audit.view"
-  | "audit.viewArticleActivity"
+  | 'procurement.view'
+  | 'warehouse.stock'
+  | 'warehouse.receiving'
+  | 'warehouse.transfers'
+  | 'warehouse.openingBalance'
+  | 'shop.view'
+  | 'shop.openingBalance'
+  | 'sales.view'
+  | 'customers.view'
+  | 'reports.view'
+  | 'users.manage'
+  | 'items.view'
+  | 'items.manage'
+  | 'pos.view'
+  | 'security.manage'
+  | 'shift.reports.view'
+  | 'notifications.manage'
+  | 'audit.view'
+  | 'audit.viewArticleActivity'
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   admin: [
-    "procurement.view",
-    "warehouse.stock",
-    "warehouse.receiving",
-    "warehouse.transfers",
-    "warehouse.openingBalance",
-    "shop.view",
-    "shop.openingBalance",
-    "sales.view",
-    "customers.view",
-    "reports.view",
-    "users.manage",
-    "items.view",
-    "items.manage",
-    "pos.view",
-    "security.manage",
-    "shift.reports.view",
-    "notifications.manage",
-    "audit.view",
-    "audit.viewArticleActivity",
+    'procurement.view',
+    'warehouse.stock',
+    'warehouse.receiving',
+    'warehouse.transfers',
+    'warehouse.openingBalance',
+    'shop.view',
+    'shop.openingBalance',
+    'sales.view',
+    'customers.view',
+    'reports.view',
+    'users.manage',
+    'items.view',
+    'items.manage',
+    'pos.view',
+    'security.manage',
+    'shift.reports.view',
+    'notifications.manage',
+    'audit.view',
+    'audit.viewArticleActivity',
   ],
   supervisor: [
-    "warehouse.transfers",
-    "warehouse.openingBalance",
-    "shop.view",
-    "shop.openingBalance",
-    "sales.view",
-    "customers.view",
-    "reports.view",
-    "items.view",
-    "items.manage",
-    "pos.view",
-    "shift.reports.view",
-    "notifications.manage",
-    "audit.viewArticleActivity",
+    'warehouse.transfers',
+    'warehouse.openingBalance',
+    'shop.view',
+    'shop.openingBalance',
+    'sales.view',
+    'customers.view',
+    'reports.view',
+    'items.view',
+    'items.manage',
+    'pos.view',
+    'shift.reports.view',
+    'notifications.manage',
+    'audit.viewArticleActivity',
   ],
-  sales: ["shop.view", "sales.view", "items.view", "pos.view"],
+  sales: ['shop.view', 'sales.view', 'items.view', 'pos.view'],
 }
 
 // Map each Permission → server files that enforce it via `requireRole`.
 // The vitest harness loads each file and asserts `requireRole` appears,
 // preventing the registry from drifting away from real server gates.
 export const PERMISSION_SERVER_GATES: Record<Permission, readonly string[]> = {
-  "procurement.view": [
-    "src/server/functions/supply/routes.ts",
-    "src/server/functions/supply/suppliers.ts",
-    "src/server/functions/supply/items.ts",
-    "src/server/functions/supply/expenses.ts",
+  'procurement.view': [
+    'src/server/functions/supply/routes.ts',
+    'src/server/functions/supply/suppliers.ts',
+    'src/server/functions/supply/items.ts',
+    'src/server/functions/supply/expenses.ts',
   ],
-  "warehouse.stock": ["src/server/functions/store/receiving.ts"],
-  "warehouse.receiving": ["src/server/functions/store/receiving.ts"],
-  "warehouse.transfers": [
-    "src/server/functions/store/transfers.ts",
-    "src/server/functions/store/returns.ts",
+  'warehouse.stock': ['src/server/functions/store/receiving.ts'],
+  'warehouse.receiving': ['src/server/functions/store/receiving.ts'],
+  'warehouse.transfers': [
+    'src/server/functions/store/transfers.ts',
+    'src/server/functions/store/returns.ts',
   ],
-  "warehouse.openingBalance": [
-    "src/server/functions/admin/opening-balance.ts",
+  'warehouse.openingBalance': ['src/server/functions/admin/opening-balance.ts'],
+  'shop.view': ['src/server/functions/shop/receipt.ts'],
+  'shop.openingBalance': ['src/server/functions/admin/opening-balance.ts'],
+  'sales.view': ['src/server/functions/shop/sales.ts'],
+  'customers.view': ['src/server/functions/customers/customers.ts'],
+  'reports.view': [
+    'src/server/functions/accounting/reports.ts',
+    'src/server/functions/accounting/fund-transfers.ts',
   ],
-  "shop.view": ["src/server/functions/shop/receipt.ts"],
-  "shop.openingBalance": [
-    "src/server/functions/admin/opening-balance.ts",
+  'users.manage': ['src/server/functions/admin/users.ts'],
+  'security.manage': ['src/server/functions/admin/ip-allowlist.ts'],
+  'items.view': [
+    'src/server/functions/items/items.ts',
+    'src/server/functions/items/colors.ts',
   ],
-  "sales.view": ["src/server/functions/shop/sales.ts"],
-  "customers.view": ["src/server/functions/customers/customers.ts"],
-  "reports.view": [
-    "src/server/functions/accounting/reports.ts",
-    "src/server/functions/accounting/fund-transfers.ts",
+  'items.manage': [
+    'src/server/functions/items/items.ts',
+    'src/server/functions/items/colors.ts',
+    'src/server/functions/items/uploads.ts',
   ],
-  "users.manage": ["src/server/functions/admin/users.ts"],
-  "security.manage": ["src/server/functions/admin/ip-allowlist.ts"],
-  "items.view": [
-    "src/server/functions/items/items.ts",
-    "src/server/functions/items/colors.ts",
+  'pos.view': ['src/server/functions/shop/sales.ts'],
+  'shift.reports.view': ['src/server/functions/accounting/shift-reports.ts'],
+  'notifications.manage': [
+    'src/server/functions/notifications/thresholds.ts',
+    'src/server/functions/store/requisitions.ts',
+    'src/server/functions/shop/restock-suggestions.ts',
   ],
-  "items.manage": [
-    "src/server/functions/items/items.ts",
-    "src/server/functions/items/colors.ts",
-    "src/server/functions/items/uploads.ts",
+  'audit.view': ['src/server/functions/audit/list.ts'],
+  'audit.viewArticleActivity': [
+    'src/server/functions/audit/list-by-article.ts',
   ],
-  "pos.view": ["src/server/functions/shop/sales.ts"],
-  "shift.reports.view": ["src/server/functions/accounting/shift-reports.ts"],
-  "notifications.manage": [
-    "src/server/functions/notifications/thresholds.ts",
-    "src/server/functions/store/requisitions.ts",
-    "src/server/functions/shop/restock-suggestions.ts",
-  ],
-  "audit.view": ["src/server/functions/audit/list.ts"],
-  "audit.viewArticleActivity": ["src/server/functions/audit/list-by-article.ts"],
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -130,7 +128,7 @@ export const PERMISSION_SERVER_GATES: Record<Permission, readonly string[]> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function toRole(role: string | undefined | null): Role | undefined {
-  if (role === "admin" || role === "supervisor" || role === "sales") return role
+  if (role === 'admin' || role === 'supervisor' || role === 'sales') return role
   return undefined
 }
 
@@ -156,15 +154,12 @@ export function canAny(
  */
 export function requireUiPermission(
   context: {
-    session?:
-      | { user?: { role?: string | null } | null }
-      | null
-      | undefined
+    session?: { user?: { role?: string | null } | null } | null | undefined
   },
   perm: Permission,
 ): void {
   if (!can(context.session?.user?.role, perm)) {
-    throw redirect({ to: "/" })
+    throw redirect({ to: '/' })
   }
 }
 
@@ -173,7 +168,7 @@ export function requireUiPermission(
 // ─────────────────────────────────────────────────────────────────────────────
 
 function useRole(): Role | undefined {
-  const ctx = useRouteContext({ from: "__root__" })
+  const ctx = useRouteContext({ from: '__root__' })
   const session = (ctx as { session?: { user?: { role?: string } } }).session
   return toRole(session?.user?.role)
 }

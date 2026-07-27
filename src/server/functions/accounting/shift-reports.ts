@@ -1,23 +1,21 @@
-import { createServerFn } from "@tanstack/react-start"
-import { z } from "zod"
-import BigNumber from "bignumber.js"
-import { desc, eq } from "drizzle-orm"
-import { db } from "#/db"
-import { shiftClosures } from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { makeDbIdempotencyStore } from "#/server/middleware/idempotency-store"
-import { withIdempotency } from "#/server/middleware/idempotency"
+import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
+import { desc, eq } from 'drizzle-orm'
+import { db } from '#/db'
+import { shiftClosures } from '#/db/schema'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { makeDbIdempotencyStore } from '#/server/middleware/idempotency-store'
+import { withIdempotency } from '#/server/middleware/idempotency'
 import {
   computeShiftAggregates,
   findPeriodStart,
-} from "./shift-reports-internals"
+} from './shift-reports-internals'
 
 export const getXReport = createServerFn()
   .inputValidator(z.object({ shopId: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    await requireSessionAndRole(['admin', 'supervisor'])
     const { periodStart, previousClosureNumber } = await findPeriodStart(
       data.shopId,
     )
@@ -46,8 +44,7 @@ export const closeZReport = createServerFn()
     }),
   )
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    const session = await requireSessionAndRole(['admin', 'supervisor'])
     const userId = session.user.id
     const store = makeDbIdempotencyStore(db)
 
@@ -71,7 +68,7 @@ export const closeZReport = createServerFn()
           periodStart,
           closedAt,
           closedBy: userId,
-          openingCashUgx: "0",
+          openingCashUgx: '0',
           declaredCashUgx: data.declaredCashUgx,
           expectedCashUgx: expectedCash.toFixed(2),
           varianceUgx: variance.toFixed(2),
@@ -95,8 +92,7 @@ export const getZReportHistory = createServerFn()
     }),
   )
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    await requireSessionAndRole(['admin', 'supervisor'])
     return db
       .select()
       .from(shiftClosures)
@@ -108,8 +104,7 @@ export const getZReportHistory = createServerFn()
 export const getZReportById = createServerFn()
   .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    await requireSessionAndRole(['admin', 'supervisor'])
     const closure = await db.query.shiftClosures.findFirst({
       where: eq(shiftClosures.id, data.id),
       with: {

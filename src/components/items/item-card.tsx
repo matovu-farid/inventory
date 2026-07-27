@@ -1,8 +1,8 @@
-import { Link } from "@tanstack/react-router"
-import { itemImageUrl } from "#/lib/items"
-import { deriveSizes } from "#/lib/variants"
-import type { VariantLike } from "#/lib/variants"
-import { cn } from "#/lib/utils"
+import { Link } from '@tanstack/react-router'
+import { itemImageUrl } from '#/lib/items'
+import { deriveSizes } from '#/lib/variants'
+import type { VariantLike } from '#/lib/variants'
+import { cn } from '#/lib/utils'
 
 interface ItemCardData {
   articleNumber: string
@@ -32,7 +32,7 @@ export function ItemCard({
       to="/items/$articleNumber"
       params={{ articleNumber: data.articleNumber }}
       className={cn(
-        "flex gap-3 rounded-lg border p-3 hover:bg-muted/40 transition",
+        'flex gap-3 rounded-lg border p-3 hover:bg-muted/40 transition',
         className,
       )}
     >
@@ -77,16 +77,16 @@ export function ItemCard({
             ))}
           </div>
         )}
-        {typeof data.totalQuantity === "number" && (
+        {typeof data.totalQuantity === 'number' && (
           <p className="text-sm">
             <span className="font-semibold">{data.totalQuantity}</span>
             <span className="text-muted-foreground"> in stock</span>
             {data.locationCounts && data.locationCounts.length > 0 && (
               <span className="text-muted-foreground">
-                {" · "}
+                {' · '}
                 {data.locationCounts
                   .map((l) => `${l.label}: ${l.qty}`)
-                  .join(" · ")}
+                  .join(' · ')}
               </span>
             )}
           </p>

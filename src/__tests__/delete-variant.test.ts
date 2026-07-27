@@ -3,17 +3,8 @@ import { and, eq, inArray } from 'drizzle-orm'
 import { runWithStartContext } from '@tanstack/start-storage-context'
 
 import { db } from '#/db'
-import {
-  items,
-  itemColors,
-  variants,
-  storeStock,
-  stores,
-} from '#/db/schema'
-import {
-  createVariant,
-  deleteVariant,
-} from '#/server/functions/items/variants'
+import { items, itemColors, variants, storeStock, stores } from '#/db/schema'
+import { createVariant, deleteVariant } from '#/server/functions/items/variants'
 import { assertDefined } from './test-helpers'
 
 /**
@@ -36,6 +27,9 @@ vi.mock('#/server/middleware/auth', () => ({
 vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
+  requireSessionAndRole: () => Promise.resolve({
+    user: { id: TEST_USER_ID, role: 'admin' },
+  }),
 }))
 
 const stubStartContext = {

@@ -1,19 +1,18 @@
-import { createServerFn } from "@tanstack/react-start"
-import { z } from "zod"
-import BigNumber from "bignumber.js"
-import { db } from "#/db"
-import { postJournalEntry } from "#/lib/accounting/ledger"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
+import { db } from '#/db'
+import { postJournalEntry } from '#/lib/accounting/ledger'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 const transferFundsInput = z.object({
   /** Direction of the transfer. */
-  direction: z.enum(["cash_to_bank", "bank_to_cash"]),
+  direction: z.enum(['cash_to_bank', 'bank_to_cash']),
   amount: z
     .string()
-    .refine((v) => new BigNumber(v).gt(0), "Amount must be positive"),
+    .refine((v) => new BigNumber(v).gt(0), 'Amount must be positive'),
   bankAccountId: z.uuid(),
-  locationType: z.enum(["store", "shop"]),
+  locationType: z.enum(['store', 'shop']),
   locationId: z.uuid(),
   description: z.string().optional(),
 })
@@ -27,33 +26,30 @@ const transferFundsInput = z.object({
 export const transferFunds = createServerFn()
   .inputValidator(transferFundsInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    const session = await requireSessionAndRole(['admin', 'supervisor'])
     const userId = session.user.id
 
-    const debitCategory =
-      data.direction === "cash_to_bank" ? "Bank" : "Cash"
-    const creditCategory =
-      data.direction === "cash_to_bank" ? "Cash" : "Bank"
+    const debitCategory = data.direction === 'cash_to_bank' ? 'Bank' : 'Cash'
+    const creditCategory = data.direction === 'cash_to_bank' ? 'Cash' : 'Bank'
 
     return db.transaction(async (tx) => {
       const journalGroupId = await postJournalEntry(tx, {
         entries: [
-          { type: "debit", category: debitCategory, amount: data.amount },
-          { type: "credit", category: creditCategory, amount: data.amount },
+          { type: 'debit', category: debitCategory, amount: data.amount },
+          { type: 'credit', category: creditCategory, amount: data.amount },
         ],
-        referenceType: "fund_transfer",
+        referenceType: 'fund_transfer',
         referenceId: data.bankAccountId,
         locationType: data.locationType,
         locationId: data.locationId,
-        depositLocation: data.direction === "cash_to_bank" ? "bank" : "cash",
+        depositLocation: data.direction === 'cash_to_bank' ? 'bank' : 'cash',
         bankAccountId: data.bankAccountId,
         recordedBy: userId,
         description:
           data.description ??
-          (data.direction === "cash_to_bank"
-            ? "Deposit cash to bank"
-            : "Withdraw from bank to cash"),
+          (data.direction === 'cash_to_bank'
+            ? 'Deposit cash to bank'
+            : 'Withdraw from bank to cash'),
       })
 
       return { journalGroupId }

@@ -3,9 +3,9 @@
  * Hits the real database (uses .env.test) but namespaces every fixture
  * with Date.now() so tests are isolated and don't TRUNCATE shared tables.
  */
-import { describe, it, expect, beforeEach, afterEach } from "vitest"
-import { eq } from "drizzle-orm"
-import { db } from "#/db"
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { eq } from 'drizzle-orm'
+import { db } from '#/db'
 import {
   shops,
   user as userTable,
@@ -16,11 +16,11 @@ import {
   shopSaleLines,
   shiftClosures,
   variants,
-} from "#/db/schema"
+} from '#/db/schema'
 import {
   computeShiftAggregates,
   findPeriodStart,
-} from "#/server/functions/accounting/shift-reports-internals"
+} from '#/server/functions/accounting/shift-reports-internals'
 
 let runId: string
 let shopId: string
@@ -34,7 +34,7 @@ async function seed() {
   shopId = (
     await db
       .insert(shops)
-      .values({ name: `Shop ${runId}`, location: "Kampala" })
+      .values({ name: `Shop ${runId}`, location: 'Kampala' })
       .returning()
   )[0].id
   userId = runId
@@ -43,7 +43,7 @@ async function seed() {
     name: `Clerk ${runId}`,
     email: `${runId}@test.local`,
     emailVerified: true,
-    role: "sales",
+    role: 'sales',
   })
   const p = (
     await db
@@ -51,21 +51,21 @@ async function seed() {
       .values({
         articleNumber: runId,
         name: `Tee ${runId}`,
-        category: "Test",
+        category: 'Test',
       })
       .returning()
   )[0]
   const pc = (
     await db
       .insert(itemColors)
-      .values({ itemId: p.id, colorName: "Red", colorHex: "#dc2626" })
+      .values({ itemId: p.id, colorName: 'Red', colorHex: '#dc2626' })
       .returning()
   )[0]
   // Stock now references variant_id (issue #4). Seed the matching variant.
   const v = (
     await db
       .insert(variants)
-      .values({ itemId: p.id, colorId: pc.id, size: "M" })
+      .values({ itemId: p.id, colorId: pc.id, size: 'M' })
       .returning()
   )[0]
   itemId = p.id
@@ -80,7 +80,7 @@ async function seed() {
         itemId: p.id,
         variantId: v.id,
         quantityOnHand: 100,
-        costPerUnitUgx: "10000",
+        costPerUnitUgx: '10000',
       })
       .returning()
   )[0].id
@@ -97,16 +97,14 @@ async function teardown() {
   if (seededProduct) {
     // variants reference itemColors on RESTRICT — clear them first.
     await db.delete(variants).where(eq(variants.itemId, seededProduct.id))
-    await db
-      .delete(itemColors)
-      .where(eq(itemColors.itemId, seededProduct.id))
+    await db.delete(itemColors).where(eq(itemColors.itemId, seededProduct.id))
   }
   await db.delete(items).where(eq(items.articleNumber, runId))
   await db.delete(shops).where(eq(shops.id, shopId))
   await db.delete(userTable).where(eq(userTable.id, userId))
 }
 
-async function addSale(method: "cash" | "bank" | "credit", total: string) {
+async function addSale(method: 'cash' | 'bank' | 'credit', total: string) {
   const [sale] = await db
     .insert(shopSales)
     .values({
@@ -124,68 +122,76 @@ async function addSale(method: "cash" | "bank" | "credit", total: string) {
     shopStockId: stockId,
     quantity: 1,
     unitPriceUgx: total,
-    minimumPriceUgx: "20000",
+    minimumPriceUgx: '20000',
     totalPriceUgx: total,
   })
   return sale
 }
 
-describe("computeShiftAggregates", () => {
+describe('computeShiftAggregates', () => {
   beforeEach(seed)
   afterEach(teardown)
 
-  it("sums by payment method and counts sales", async () => {
-    await addSale("cash", "30000")
-    await addSale("bank", "20000")
-    await addSale("cash", "15000")
-    const agg = await computeShiftAggregates(shopId, new Date(0), new Date(Date.now() + 60_000))
+  it('sums by payment method and counts sales', async () => {
+    await addSale('cash', '30000')
+    await addSale('bank', '20000')
+    await addSale('cash', '15000')
+    const agg = await computeShiftAggregates(
+      shopId,
+      new Date(0),
+      new Date(Date.now() + 60_000),
+    )
     expect(agg.salesCount).toBe(3)
-    expect(agg.grossSalesUgx).toBe("65000.00")
-    expect(agg.cashSalesUgx).toBe("45000.00")
-    expect(agg.bankSalesUgx).toBe("20000.00")
-    expect(agg.creditSalesUgx).toBe("0.00")
+    expect(agg.grossSalesUgx).toBe('65000.00')
+    expect(agg.cashSalesUgx).toBe('45000.00')
+    expect(agg.bankSalesUgx).toBe('20000.00')
+    expect(agg.creditSalesUgx).toBe('0.00')
   })
 
-  it("returns zero totals when no sales in window", async () => {
+  it('returns zero totals when no sales in window', async () => {
     const agg = await computeShiftAggregates(shopId, new Date(0), new Date())
     expect(agg.salesCount).toBe(0)
-    expect(agg.grossSalesUgx).toBe("0.00")
+    expect(agg.grossSalesUgx).toBe('0.00')
   })
 
-  it("excludes sales outside the time window", async () => {
-    await addSale("cash", "30000")
+  it('excludes sales outside the time window', async () => {
+    await addSale('cash', '30000')
     // window is in the future — should match nothing
     const future = new Date(Date.now() + 60_000)
-    const agg = await computeShiftAggregates(shopId, future, new Date(future.getTime() + 60_000))
+    const agg = await computeShiftAggregates(
+      shopId,
+      future,
+      new Date(future.getTime() + 60_000),
+    )
     expect(agg.salesCount).toBe(0)
   })
 })
 
-describe("findPeriodStart", () => {
+describe('findPeriodStart', () => {
   beforeEach(seed)
   afterEach(teardown)
 
-  it("returns epoch for first Z", async () => {
+  it('returns epoch for first Z', async () => {
     const start = await findPeriodStart(shopId)
     expect(start.periodStart.getTime()).toBe(0)
     expect(start.previousClosureNumber).toBe(0)
   })
 
   it("returns the previous Z's closedAt", async () => {
-    const closedAt = new Date("2026-05-01T10:00:00Z")
+    const closedAt = new Date('2026-05-01T10:00:00Z')
     await db.insert(shiftClosures).values({
       shopId,
       closureNumber: 1,
       periodStart: new Date(0),
       closedAt,
       closedBy: userId,
-      declaredCashUgx: "0",
-      expectedCashUgx: "0",
-      varianceUgx: "0",
-      grossSalesUgx: "0",
-      cashSalesUgx: "0",
-      bankSalesUgx: "0",
-      creditSalesUgx: "0",
+      declaredCashUgx: '0',
+      expectedCashUgx: '0',
+      varianceUgx: '0',
+      grossSalesUgx: '0',
+      cashSalesUgx: '0',
+      bankSalesUgx: '0',
+      creditSalesUgx: '0',
       salesCount: 0,
     })
     const start = await findPeriodStart(shopId)

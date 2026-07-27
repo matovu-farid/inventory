@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest"
-import { assertReversible } from "#/lib/accounting/reversal"
-import type { TransactionRow } from "#/lib/accounting/reversal"
+import { describe, it, expect } from 'vitest'
+import { assertReversible } from '#/lib/accounting/reversal'
+import type { TransactionRow } from '#/lib/accounting/reversal'
 
 /**
  * Tests for BUG-4: reverseJournalEntry has a TOCTOU race — two concurrent
@@ -16,48 +16,48 @@ import type { TransactionRow } from "#/lib/accounting/reversal"
  */
 
 const okEntry: TransactionRow = {
-  id: "tx-1",
-  journalGroupId: "jg-1",
-  type: "debit",
-  amount: "10000",
-  categoryId: "cat-1",
+  id: 'tx-1',
+  journalGroupId: 'jg-1',
+  type: 'debit',
+  amount: '10000',
+  categoryId: 'cat-1',
   reversedByJournalGroupId: null,
 }
 
 const reversedEntry: TransactionRow = {
-  id: "tx-2",
-  journalGroupId: "jg-1",
-  type: "credit",
-  amount: "10000",
-  categoryId: "cat-2",
-  reversedByJournalGroupId: "jg-reversal-99",
+  id: 'tx-2',
+  journalGroupId: 'jg-1',
+  type: 'credit',
+  amount: '10000',
+  categoryId: 'cat-2',
+  reversedByJournalGroupId: 'jg-reversal-99',
 }
 
-describe("assertReversible", () => {
-  it("does not throw for a clean group (no reversedByJournalGroupId set)", () => {
+describe('assertReversible', () => {
+  it('does not throw for a clean group (no reversedByJournalGroupId set)', () => {
     expect(() =>
       assertReversible([
         okEntry,
-        { ...okEntry, id: "tx-2", type: "credit", categoryId: "cat-2" },
+        { ...okEntry, id: 'tx-2', type: 'credit', categoryId: 'cat-2' },
       ]),
     ).not.toThrow()
   })
 
-  it("throws for a single-leg already-reversed group", () => {
+  it('throws for a single-leg already-reversed group', () => {
     expect(() => assertReversible([reversedEntry])).toThrow(/already reversed/i)
   })
 
-  it("throws for a multi-leg group where any leg is already reversed", () => {
+  it('throws for a multi-leg group where any leg is already reversed', () => {
     expect(() => assertReversible([okEntry, reversedEntry])).toThrow(
       /already reversed/i,
     )
   })
 
-  it("includes the reversing journal group id in the error message for traceability", () => {
+  it('includes the reversing journal group id in the error message for traceability', () => {
     expect(() => assertReversible([reversedEntry])).toThrow(/jg-reversal-99/)
   })
 
-  it("throws for an empty entry list", () => {
+  it('throws for an empty entry list', () => {
     expect(() => assertReversible([])).toThrow(/(empty|not found)/i)
   })
 })

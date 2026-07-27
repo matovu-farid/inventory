@@ -1,7 +1,7 @@
-import BigNumber from "bignumber.js"
+import BigNumber from 'bignumber.js'
 
 export interface JournalEntry {
-  type: "debit" | "credit"
+  type: 'debit' | 'credit'
   category: string
   amount: string
 }
@@ -39,9 +39,9 @@ export function buildStoreReturnReceiveEntries(
 ): BuildStoreReturnReceiveEntriesResult {
   const totalCost = new BigNumber(input.totalCost)
   const totalTransferPrice = new BigNumber(input.totalTransferPrice)
-  const totalCostDispatched = new BigNumber(input.totalCostDispatched ?? "0")
+  const totalCostDispatched = new BigNumber(input.totalCostDispatched ?? '0')
   const totalTransferDispatched = new BigNumber(
-    input.totalTransferDispatched ?? "0",
+    input.totalTransferDispatched ?? '0',
   )
   const totalMargin = totalTransferPrice.minus(totalCost)
   const totalReceived = totalCost.plus(totalTransferPrice)
@@ -52,24 +52,24 @@ export function buildStoreReturnReceiveEntries(
   // Reverse the original transfer in full and book the loss.
   if (totalReceived.eq(0) && totalCostDispatched.gt(0)) {
     entries.push({
-      type: "debit",
-      category: "Inventory Loss",
+      type: 'debit',
+      category: 'Inventory Loss',
       amount: totalCostDispatched.toFixed(2),
     })
     entries.push({
-      type: "credit",
-      category: "Inventory - Shop",
+      type: 'credit',
+      category: 'Inventory - Shop',
       amount: totalCostDispatched.toFixed(2),
     })
     if (totalTransferDispatched.gt(0)) {
       entries.push({
-        type: "debit",
-        category: "Due to Store",
+        type: 'debit',
+        category: 'Due to Store',
         amount: totalTransferDispatched.toFixed(2),
       })
       entries.push({
-        type: "credit",
-        category: "Due from Shop",
+        type: 'credit',
+        category: 'Due from Shop',
         amount: totalTransferDispatched.toFixed(2),
       })
     }
@@ -78,40 +78,40 @@ export function buildStoreReturnReceiveEntries(
 
   if (totalCost.gt(0)) {
     entries.push({
-      type: "debit",
-      category: "Inventory - Store",
+      type: 'debit',
+      category: 'Inventory - Store',
       amount: totalCost.toFixed(2),
     })
   }
 
   if (totalTransferPrice.gt(0)) {
     entries.push({
-      type: "credit",
-      category: "Inventory - Shop",
+      type: 'credit',
+      category: 'Inventory - Shop',
       amount: totalTransferPrice.toFixed(2),
     })
     entries.push({
-      type: "debit",
-      category: "Due to Store",
+      type: 'debit',
+      category: 'Due to Store',
       amount: totalTransferPrice.toFixed(2),
     })
     entries.push({
-      type: "credit",
-      category: "Due from Shop",
+      type: 'credit',
+      category: 'Due from Shop',
       amount: totalTransferPrice.toFixed(2),
     })
   }
 
   if (totalMargin.gt(0)) {
     entries.push({
-      type: "debit",
-      category: "Store Transfer Revenue",
+      type: 'debit',
+      category: 'Store Transfer Revenue',
       amount: totalMargin.toFixed(2),
     })
   } else if (totalMargin.lt(0)) {
     entries.push({
-      type: "credit",
-      category: "Store Transfer Revenue",
+      type: 'credit',
+      category: 'Store Transfer Revenue',
       amount: totalMargin.abs().toFixed(2),
     })
   }

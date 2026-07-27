@@ -1,19 +1,19 @@
-import { useRef, useState } from "react"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { Textarea } from "#/components/ui/textarea"
-import { Badge } from "#/components/ui/badge"
-import { CreatableCombobox } from "#/components/ui/creatable-combobox"
-import { X } from "lucide-react"
-import { createItem } from "#/server/functions/items/items"
-import { matchPaletteHex } from "#/lib/colors/match-palette"
-import { CLOTHING_PALETTE } from "#/lib/colors/palette"
-import { HexColorField } from "./hex-color-field"
-import { InfoTip } from "#/components/ui/info-tip"
-import { FieldLabel } from "#/components/ui/field-label"
-import { MoneyInput } from "#/components/ui/money-input"
+import { useRef, useState } from 'react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { Textarea } from '#/components/ui/textarea'
+import { Badge } from '#/components/ui/badge'
+import { CreatableCombobox } from '#/components/ui/creatable-combobox'
+import { X } from 'lucide-react'
+import { createItem } from '#/server/functions/items/items'
+import { matchPaletteHex } from '#/lib/colors/match-palette'
+import { CLOTHING_PALETTE } from '#/lib/colors/palette'
+import { HexColorField } from './hex-color-field'
+import { InfoTip } from '#/components/ui/info-tip'
+import { FieldLabel } from '#/components/ui/field-label'
+import { MoneyInput } from '#/components/ui/money-input'
 
-const SIZE_QUICK_PICKS = ["XS", "S", "M", "L", "XL", "XXL"]
+const SIZE_QUICK_PICKS = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 interface Props {
   categories: ReadonlyArray<string>
@@ -32,20 +32,20 @@ interface ColorDraft {
  * the variants table when saving.
  */
 export function ItemEditor({ categories, onCreated }: Props) {
-  const [articleNumber, setArticleNumber] = useState("")
-  const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
-  const [category, setCategory] = useState("")
-  const [minimumSellPriceUgx, setMinimumSellPriceUgx] = useState<string>("0")
+  const [articleNumber, setArticleNumber] = useState('')
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [category, setCategory] = useState('')
+  const [minimumSellPriceUgx, setMinimumSellPriceUgx] = useState<string>('0')
   const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
     null,
   )
   const [sizes, setSizes] = useState<string[]>([])
-  const [sizeDraft, setSizeDraft] = useState("")
+  const [sizeDraft, setSizeDraft] = useState('')
   const [colors, setColors] = useState<ColorDraft[]>([])
-  const [colorNameDraft, setColorNameDraft] = useState("")
-  const [colorHexDraft, setColorHexDraft] = useState("#000000")
-  const lastSuggestedName = useRef<string>("")
+  const [colorNameDraft, setColorNameDraft] = useState('')
+  const [colorHexDraft, setColorHexDraft] = useState('#000000')
+  const lastSuggestedName = useRef<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -53,7 +53,7 @@ export function ItemEditor({ categories, onCreated }: Props) {
     setColorHexDraft(hex)
     const suggested = matchPaletteHex(hex).name
     const current = colorNameDraft.trim()
-    if (current === "" || current === lastSuggestedName.current) {
+    if (current === '' || current === lastSuggestedName.current) {
       setColorNameDraft(suggested)
       lastSuggestedName.current = suggested
     } else {
@@ -74,7 +74,7 @@ export function ItemEditor({ categories, onCreated }: Props) {
 
   function addSizes(raw: string) {
     const parts = raw
-      .split(",")
+      .split(',')
       .map((p) => p.trim())
       .filter(Boolean)
     if (parts.length === 0) return
@@ -85,7 +85,7 @@ export function ItemEditor({ categories, onCreated }: Props) {
       }
       return next
     })
-    setSizeDraft("")
+    setSizeDraft('')
   }
 
   function addColor() {
@@ -93,7 +93,7 @@ export function ItemEditor({ categories, onCreated }: Props) {
     if (!cn || colors.some((c) => c.colorName === cn)) return
     if (!/^#[0-9a-fA-F]{6}$/.test(colorHexDraft)) return
     setColors([...colors, { colorName: cn, colorHex: colorHexDraft }])
-    setColorNameDraft("")
+    setColorNameDraft('')
   }
 
   async function save() {
@@ -108,13 +108,13 @@ export function ItemEditor({ categories, onCreated }: Props) {
           category: category.trim(),
           sizes,
           colors,
-          minimumSellPriceUgx: minimumSellPriceUgx || "0",
+          minimumSellPriceUgx: minimumSellPriceUgx || '0',
           lowStockThreshold,
         },
       })
       onCreated(created.id, created.articleNumber)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create item.")
+      setError(e instanceof Error ? e.message : 'Failed to create item.')
     } finally {
       setSubmitting(false)
     }
@@ -123,7 +123,7 @@ export function ItemEditor({ categories, onCreated }: Props) {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <label className="text-sm font-medium">Article number</label>
+        <FieldLabel help="item.articleNumber">Article number</FieldLabel>
         <Input
           className="h-11 text-base"
           value={articleNumber}
@@ -132,7 +132,7 @@ export function ItemEditor({ categories, onCreated }: Props) {
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium">Item name</label>
+        <FieldLabel help="item.name">Item name</FieldLabel>
         <Input
           className="h-11 text-base"
           value={name}
@@ -141,7 +141,7 @@ export function ItemEditor({ categories, onCreated }: Props) {
         />
       </div>
       <div className="space-y-1">
-        <label className="text-sm font-medium">Description (optional)</label>
+        <FieldLabel help="item.description">Description (optional)</FieldLabel>
         <Textarea
           className="text-base"
           value={description}
@@ -150,10 +150,7 @@ export function ItemEditor({ categories, onCreated }: Props) {
         />
       </div>
       <div className="space-y-1">
-        <label className="flex items-center gap-1.5 text-sm font-medium">
-          Category
-          <InfoTip term="itemForm.category" ariaLabel="What is Category?" />
-        </label>
+        <FieldLabel help="itemForm.category">Category</FieldLabel>
         <CreatableCombobox
           options={categories}
           value={category}
@@ -184,27 +181,27 @@ export function ItemEditor({ categories, onCreated }: Props) {
           min={0}
           step={1}
           placeholder="No alert"
-          value={lowStockThreshold ?? ""}
+          value={lowStockThreshold ?? ''}
           onChange={(e) => {
             const v = e.target.value
             setLowStockThreshold(
-              v === "" ? null : Math.max(0, Math.floor(Number(v))),
+              v === '' ? null : Math.max(0, Math.floor(Number(v))),
             )
           }}
         />
       </div>
       <div className="space-y-2">
-        <label className="text-sm font-medium">Sizes (optional)</label>
+        <FieldLabel help="item.sizes">Sizes (optional)</FieldLabel>
         <p className="text-sm text-muted-foreground">
-          Optional. Add sizes if you want to track stock by size. You can
-          also add them later from the item detail page or while receiving.
+          Optional. Add sizes if you want to track stock by size. You can also
+          add them later from the item detail page or while receiving.
         </p>
         <Input
           className="h-11 text-base"
           value={sizeDraft}
           onChange={(e) => setSizeDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === 'Enter') {
               e.preventDefault()
               addSizes(sizeDraft)
             }
@@ -245,12 +242,13 @@ export function ItemEditor({ categories, onCreated }: Props) {
         </div>
       </div>
       <div className="space-y-2">
-        <label className="text-sm font-medium">
+        <FieldLabel help="item.initialColors">
           Initial colors (optional)
-        </label>
+        </FieldLabel>
         <p className="text-sm text-muted-foreground">
           Optional. Add colors if you want to track stock by color. You can also
-          add them later from this page or while receiving. <InfoTip term="item.variantsOptional" />
+          add them later from this page or while receiving.{' '}
+          <InfoTip term="item.variantsOptional" />
         </p>
         <div className="flex flex-wrap gap-1">
           {colors.map((c) => (
@@ -315,11 +313,9 @@ export function ItemEditor({ categories, onCreated }: Props) {
       <div className="flex justify-end">
         <Button
           onClick={() => void save()}
-          disabled={
-            !articleNumber || !name || !category.trim() || submitting
-          }
+          disabled={!articleNumber || !name || !category.trim() || submitting}
         >
-          {submitting ? "Saving…" : "Create item"}
+          {submitting ? 'Saving…' : 'Create item'}
         </Button>
       </div>
     </div>

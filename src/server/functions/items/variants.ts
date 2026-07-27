@@ -3,8 +3,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
 import { variants } from '#/db/schema'
-import { requireSession } from '#/server/middleware/auth'
-import { requireRole } from '#/server/middleware/rbac'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 /**
  * Variant-level server functions for the item detail page (issue #7).
@@ -35,8 +34,7 @@ export const createVariant = createServerFn()
     }),
   )
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin', 'supervisor'])
+    await requireSessionAndRole(['admin', 'supervisor'])
 
     try {
       const [row] = await db.insert(variants).values(data).returning()
@@ -54,8 +52,7 @@ export const createVariant = createServerFn()
 export const deleteVariant = createServerFn()
   .inputValidator(z.object({ variantId: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin', 'supervisor'])
+    await requireSessionAndRole(['admin', 'supervisor'])
 
     try {
       const removed = (
@@ -85,8 +82,7 @@ export const deleteVariant = createServerFn()
 export const listVariantsByItem = createServerFn()
   .inputValidator(z.object({ itemId: z.uuid() }))
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ['admin', 'supervisor', 'sales'])
+    await requireSessionAndRole(['admin', 'supervisor', 'sales'])
     return db.query.variants.findMany({
       where: eq(variants.itemId, data.itemId),
       with: {
@@ -96,4 +92,3 @@ export const listVariantsByItem = createServerFn()
       },
     })
   })
-

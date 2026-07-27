@@ -1,16 +1,14 @@
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import { bankAccounts } from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { bankAccounts } from '#/db/schema'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 // ── List bank accounts ───────────────────────────────────────────
 
 export const listBankAccounts = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  await requireSessionAndRole(['admin', 'supervisor'])
 
   return db.select().from(bankAccounts).orderBy(bankAccounts.bankName)
 })
@@ -27,8 +25,7 @@ const createBankAccountInput = z.object({
 export const createBankAccount = createServerFn()
   .inputValidator(createBankAccountInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const [account] = await db.insert(bankAccounts).values(data).returning()
     return account
@@ -48,15 +45,16 @@ const updateBankAccountInput = z.object({
 export const updateBankAccount = createServerFn()
   .inputValidator(updateBankAccountInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin"])
+    await requireSessionAndRole(['admin'])
 
     const { id, ...fields } = data
-    const account = (await db
-      .update(bankAccounts)
-      .set(fields)
-      .where(eq(bankAccounts.id, id))
-      .returning()).at(0)
-    if (!account) throw new Error("Bank account not found")
+    const account = (
+      await db
+        .update(bankAccounts)
+        .set(fields)
+        .where(eq(bankAccounts.id, id))
+        .returning()
+    ).at(0)
+    if (!account) throw new Error('Bank account not found')
     return account
   })

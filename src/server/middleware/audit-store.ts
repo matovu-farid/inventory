@@ -1,9 +1,7 @@
-import type { Database } from "#/db"
-import { auditLogs } from "#/db/schema"
-import { buildAuditEntry  } from "./audit"
-import type {AuditEntryParams} from "./audit";
-
-type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0]
+import type { Tx } from '#/db'
+import { auditLogs } from '#/db/schema'
+import { buildAuditEntry } from './audit'
+import type { AuditEntryParams } from './audit'
 
 export async function recordAuditLog(
   tx: Tx,

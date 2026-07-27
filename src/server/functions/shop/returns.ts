@@ -1,8 +1,9 @@
-import { createServerFn } from "@tanstack/react-start"
-import { and, desc, eq, isNull, sql } from "drizzle-orm"
-import { z } from "zod"
-import BigNumber from "bignumber.js"
-import { db } from "#/db"
+import { createServerFn } from '@tanstack/react-start'
+import { and, desc, eq, isNull, sql } from 'drizzle-orm'
+import { z } from 'zod'
+import BigNumber from 'bignumber.js'
+import { db  } from '#/db'
+import type {Tx} from '#/db';
 import {
   shopReturns,
   shopReturnLines,
@@ -13,18 +14,17 @@ import {
   customers,
   shops,
   items,
-} from "#/db/schema"
-import { postJournalEntry } from "#/lib/accounting/ledger"
-import { nextDocumentNumber } from "#/lib/document-numbers-db"
-import { computeNewSaleStatus } from "#/lib/credit/payment-allocation"
-import { isPaymentStatusOpen } from "#/lib/payment-status"
-import { recordAuditLog } from "#/server/middleware/audit-store"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
-import { validateCreditAdjustmentRefund } from "./refund-validate"
-import { renderAuditDescription } from "#/server/audit/descriptions"
-import { resolveArticleNumbersForAudit } from "#/server/audit/article-numbers"
-import { getActorName } from "#/server/audit/actor"
+} from '#/db/schema'
+import { postJournalEntry } from '#/lib/accounting/ledger'
+import { nextDocumentNumber } from '#/lib/document-numbers-db'
+import { computeNewSaleStatus } from '#/lib/credit/payment-allocation'
+import { isPaymentStatusOpen } from '#/lib/payment-status'
+import { recordAuditLog } from '#/server/middleware/audit-store'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { validateCreditAdjustmentRefund } from './refund-validate'
+import { renderAuditDescription } from '#/server/audit/descriptions'
+import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
+import { getActorName } from '#/server/audit/actor'
 
 const returnItemInput = z.object({
   itemId: z.uuid(),
@@ -38,13 +38,11 @@ const recordCustomerReturnInput = z.object({
   originalSaleId: z.uuid().optional(),
   customerId: z.uuid().optional(),
   reason: z.string().min(1),
-  refundMethod: z.enum(["cash", "bank", "credit_adjustment"]),
+  refundMethod: z.enum(['cash', 'bank', 'credit_adjustment']),
   bankAccountId: z.uuid().optional(),
   items: z.array(returnItemInput).min(1),
   notes: z.string().optional(),
 })
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
 /**
  * Plan a return-line lot reversal. Two modes:
@@ -66,7 +64,14 @@ async function planReturnAllocations(
     quantity: number
     originalSaleId?: string
   },
-): Promise<Array<{ shopStockId: string; quantity: number; costPerUnitUgx: string; supplyRouteLineId: string | null }>> {
+): Promise<
+  Array<{
+    shopStockId: string
+    quantity: number
+    costPerUnitUgx: string
+    supplyRouteLineId: string | null
+  }>
+> {
   const allocations: Array<{
     shopStockId: string
     quantity: number
@@ -123,7 +128,7 @@ async function planReturnAllocations(
     if (!target) {
       throw new Error(
         `No shop_stock row to re-stock for return — item ${input.itemId}` +
-          (input.variantId ? ` variant ${input.variantId}` : " (unresolved)"),
+          (input.variantId ? ` variant ${input.variantId}` : ' (unresolved)'),
       )
     }
     allocations.push({
@@ -150,12 +155,11 @@ async function planReturnAllocations(
 export const recordCustomerReturn = createServerFn()
   .inputValidator(recordCustomerReturnInput)
   .handler(async ({ data }) => {
-    const session = await requireSession()
-    requireRole(session, ["admin", "supervisor"])
+    const session = await requireSessionAndRole(['admin', 'supervisor'])
     const userId = session.user.id
 
-    if (data.refundMethod === "credit_adjustment" && !data.customerId) {
-      throw new Error("customerId is required for credit_adjustment refunds")
+    if (data.refundMethod === 'credit_adjustment' && !data.customerId) {
+      throw new Error('customerId is required for credit_adjustment refunds')
     }
 
     return db.transaction(async (tx) => {
@@ -225,7 +229,7 @@ export const recordCustomerReturn = createServerFn()
         })
       }
 
-      const docNumber = await nextDocumentNumber(tx, "RET")
+      const docNumber = await nextDocumentNumber(tx, 'RET')
       const [shopReturn] = await tx
         .insert(shopReturns)
         .values({
@@ -278,10 +282,8 @@ export const recordCustomerReturn = createServerFn()
 
       // For credit_adjustment refunds, look up the original sale and
       // guard against over-refunding before posting any journal entry.
-      let originalSale:
-        | typeof shopSales.$inferSelect
-        | undefined
-      if (data.refundMethod === "credit_adjustment" && data.originalSaleId) {
+      let originalSale: typeof shopSales.$inferSelect | undefined
+      if (data.refundMethod === 'credit_adjustment' && data.originalSaleId) {
         originalSale = await tx.query.shopSales.findFirst({
           where: eq(shopSales.id, data.originalSaleId),
         })
@@ -294,34 +296,34 @@ export const recordCustomerReturn = createServerFn()
       }
 
       const refundCreditCategory =
-        data.refundMethod === "credit_adjustment"
-          ? "Accounts Receivable"
-          : data.refundMethod === "cash"
-            ? "Cash"
-            : "Bank"
+        data.refundMethod === 'credit_adjustment'
+          ? 'Accounts Receivable'
+          : data.refundMethod === 'cash'
+            ? 'Cash'
+            : 'Bank'
 
       await postJournalEntry(tx, {
         entries: [
           {
-            type: "debit",
-            category: "Sales Returns",
+            type: 'debit',
+            category: 'Sales Returns',
             amount: totalRefund.toFixed(2),
           },
           {
-            type: "credit",
+            type: 'credit',
             category: refundCreditCategory,
             amount: totalRefund.toFixed(2),
           },
         ],
-        referenceType: "shop_return",
+        referenceType: 'shop_return',
         referenceId: shopReturn.id,
-        locationType: "shop",
+        locationType: 'shop',
         locationId: data.shopId,
         depositLocation:
-          data.refundMethod === "cash"
-            ? "cash"
-            : data.refundMethod === "bank"
-              ? "bank"
+          data.refundMethod === 'cash'
+            ? 'cash'
+            : data.refundMethod === 'bank'
+              ? 'bank'
               : undefined,
         bankAccountId: data.bankAccountId,
         recordedBy: userId,
@@ -332,26 +334,26 @@ export const recordCustomerReturn = createServerFn()
         await postJournalEntry(tx, {
           entries: [
             {
-              type: "debit",
-              category: "Inventory - Shop",
+              type: 'debit',
+              category: 'Inventory - Shop',
               amount: totalCost.toFixed(2),
             },
             {
-              type: "credit",
-              category: "Cost of Goods Sold",
+              type: 'credit',
+              category: 'Cost of Goods Sold',
               amount: totalCost.toFixed(2),
             },
           ],
-          referenceType: "shop_return",
+          referenceType: 'shop_return',
           referenceId: shopReturn.id,
-          locationType: "shop",
+          locationType: 'shop',
           locationId: data.shopId,
           recordedBy: userId,
           description: `Return COGS reversal ${docNumber.formatted}`,
         })
       }
 
-      if (data.refundMethod === "credit_adjustment" && data.originalSaleId) {
+      if (data.refundMethod === 'credit_adjustment' && data.originalSaleId) {
         const sale = originalSale
         if (sale && isPaymentStatusOpen(sale.paymentStatus)) {
           const newBalance = BigNumber.maximum(
@@ -373,18 +375,18 @@ export const recordCustomerReturn = createServerFn()
       })
       const actorName = await getActorName(tx, userId)
       const articleNumbers = await resolveArticleNumbersForAudit(tx, {
-        action: "shopReturn.create",
-        entityType: "shop_return",
+        action: 'shopReturn.create',
+        entityType: 'shop_return',
         entityId: shopReturn.id,
         metadata: null,
       })
 
       await recordAuditLog(tx, {
         actorUserId: userId,
-        action: "shopReturn.create",
-        entityType: "shop_return",
+        action: 'shopReturn.create',
+        entityType: 'shop_return',
         entityId: shopReturn.id,
-        description: renderAuditDescription("shopReturn.create", {
+        description: renderAuditDescription('shopReturn.create', {
           actorName,
           shopName: shop?.name,
           itemCount: data.items.length,

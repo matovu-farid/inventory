@@ -1,8 +1,8 @@
-import * as React from "react"
-import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react"
+import * as React from 'react'
+import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from 'lucide-react'
 
-import { cn } from "#/lib/utils"
-import { Button } from "#/components/ui/button"
+import { cn } from '#/lib/utils'
+import { Button } from '#/components/ui/button'
 import {
   Command,
   CommandEmpty,
@@ -10,17 +10,17 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "#/components/ui/command"
+} from '#/components/ui/command'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "#/components/ui/popover"
+} from '#/components/ui/popover'
 
 // Unique-by-construction value for the synthetic "Create…" row. Uses a
 // null byte so it can never collide with a user-typed option (every
 // upstream validator strips control characters).
-const CREATE_SENTINEL = "\x00__create__"
+const CREATE_SENTINEL = '\x00__create__'
 
 interface CreatableComboboxProps {
   options: ReadonlyArray<string>
@@ -31,7 +31,7 @@ interface CreatableComboboxProps {
   emptyMessage?: React.ReactNode
   disabled?: boolean
   id?: string
-  "aria-invalid"?: boolean
+  'aria-invalid'?: boolean
   className?: string
   triggerClassName?: string
 }
@@ -49,17 +49,17 @@ function CreatableCombobox({
   options,
   value,
   onChange,
-  placeholder = "Select or create...",
-  searchPlaceholder = "Search or type to create...",
-  emptyMessage = "No matches.",
+  placeholder = 'Select or create...',
+  searchPlaceholder = 'Search or type to create...',
+  emptyMessage = 'No matches.',
   disabled,
   id,
-  "aria-invalid": ariaInvalid,
+  'aria-invalid': ariaInvalid,
   className,
   triggerClassName,
 }: CreatableComboboxProps) {
   const [open, setOpen] = React.useState(false)
-  const [query, setQuery] = React.useState("")
+  const [query, setQuery] = React.useState('')
 
   const trimmed = query.trim()
   const exactMatch = options.some(
@@ -70,7 +70,7 @@ function CreatableCombobox({
   function select(next: string) {
     onChange(next)
     setOpen(false)
-    setQuery("")
+    setQuery('')
   }
 
   return (
@@ -78,7 +78,7 @@ function CreatableCombobox({
       open={open}
       onOpenChange={(o) => {
         setOpen(o)
-        if (!o) setQuery("")
+        if (!o) setQuery('')
       }}
     >
       <PopoverTrigger asChild>
@@ -91,8 +91,8 @@ function CreatableCombobox({
           aria-invalid={ariaInvalid || undefined}
           disabled={disabled}
           className={cn(
-            "w-full justify-between font-normal",
-            !value && "text-muted-foreground",
+            'w-full justify-between font-normal',
+            !value && 'text-muted-foreground',
             triggerClassName,
           )}
         >
@@ -101,7 +101,7 @@ function CreatableCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className={cn("w-(--radix-popover-trigger-width) p-0", className)}
+        className={cn('w-(--radix-popover-trigger-width) p-0', className)}
         align="start"
       >
         <Command
@@ -141,8 +141,8 @@ function CreatableCombobox({
                 >
                   <CheckIcon
                     className={cn(
-                      "mr-2 size-4",
-                      value === option ? "opacity-100" : "opacity-0",
+                      'mr-2 size-4',
+                      value === option ? 'opacity-100' : 'opacity-0',
                     )}
                   />
                   {option}

@@ -1,11 +1,11 @@
 export interface OriginalEntry {
-  type: "debit" | "credit"
+  type: 'debit' | 'credit'
   amount: string
   categoryId: string
-  locationType: "store" | "shop"
+  locationType: 'store' | 'shop'
   locationId: string
   bankAccountId: string | null
-  depositLocation: "cash" | "bank" | null
+  depositLocation: 'cash' | 'bank' | null
   referenceType: string | null
   referenceId: string | null
   description: string | null
@@ -19,7 +19,7 @@ export interface OriginalEntry {
 export interface TransactionRow {
   id: string
   journalGroupId: string
-  type: "debit" | "credit"
+  type: 'debit' | 'credit'
   amount: string
   categoryId: string
   reversedByJournalGroupId: string | null
@@ -34,7 +34,7 @@ export interface TransactionRow {
  */
 export function assertReversible(entries: TransactionRow[]): void {
   if (entries.length === 0) {
-    throw new Error("assertReversible: journal group is empty (not found)")
+    throw new Error('assertReversible: journal group is empty (not found)')
   }
   const alreadyReversed = entries.find(
     (e) => e.reversedByJournalGroupId !== null,
@@ -60,15 +60,15 @@ export function buildReversalEntries(
   params: ReversalParams,
 ): ReversalEntry[] {
   if (entries.length === 0) {
-    throw new Error("reversal: cannot reverse an empty entry list")
+    throw new Error('reversal: cannot reverse an empty entry list')
   }
-  if (!params.reason) throw new Error("reversal: reason required")
-  if (!params.recordedBy) throw new Error("reversal: recordedBy required")
+  if (!params.reason) throw new Error('reversal: reason required')
+  if (!params.recordedBy) throw new Error('reversal: recordedBy required')
 
   return entries.map((entry) => ({
     ...entry,
-    type: entry.type === "debit" ? "credit" : "debit",
-    referenceType: "reversal",
+    type: entry.type === 'debit' ? 'credit' : 'debit',
+    referenceType: 'reversal',
     description: `Reversal: ${params.reason}`,
     recordedBy: params.recordedBy,
   }))

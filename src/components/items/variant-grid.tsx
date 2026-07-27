@@ -1,10 +1,14 @@
-import { useMemo } from "react"
-import { X } from "lucide-react"
-import { Input } from "#/components/ui/input"
-import { Button } from "#/components/ui/button"
-import { cn } from "#/lib/utils"
+import { useMemo } from 'react'
+import { X } from 'lucide-react'
+import { Input } from '#/components/ui/input'
+import { Button } from '#/components/ui/button'
+import { cn } from '#/lib/utils'
 
-interface Color { id: string; colorName: string; colorHex: string }
+interface Color {
+  id: string
+  colorName: string
+  colorHex: string
+}
 
 interface Props {
   sizes: string[]
@@ -14,20 +18,37 @@ interface Props {
   onRemoveColor?: (itemColorId: string) => void
 }
 
-export function VariantGrid({ sizes, colors, quantities, onChange, onRemoveColor }: Props) {
+export function VariantGrid({
+  sizes,
+  colors,
+  quantities,
+  onChange,
+  onRemoveColor,
+}: Props) {
   function setCell(itemColorId: string, size: string, value: string) {
     const n = Math.max(0, Math.floor(Number(value) || 0))
     const next = { ...quantities, [`${itemColorId}|${size}`]: n }
     if (n === 0) delete next[`${itemColorId}|${size}`]
     onChange(next)
   }
-  const total = useMemo(() => Object.values(quantities).reduce((s, x) => s + x, 0), [quantities])
+  const total = useMemo(
+    () => Object.values(quantities).reduce((s, x) => s + x, 0),
+    [quantities],
+  )
 
   if (colors.length === 0) {
-    return <p className="text-sm text-muted-foreground">Add at least one color to enter quantities.</p>
+    return (
+      <p className="text-sm text-muted-foreground">
+        Add at least one color to enter quantities.
+      </p>
+    )
   }
   if (sizes.length === 0) {
-    return <p className="text-sm text-muted-foreground">This item has no sizes defined.</p>
+    return (
+      <p className="text-sm text-muted-foreground">
+        This item has no sizes defined.
+      </p>
+    )
   }
 
   return (
@@ -37,8 +58,17 @@ export function VariantGrid({ sizes, colors, quantities, onChange, onRemoveColor
           <thead>
             <tr className="bg-muted/50">
               <th className="p-2 text-left font-medium">Color</th>
-              {sizes.map((s) => <th key={s} className="p-2 text-center font-medium w-24 min-w-24">{s}</th>)}
-              {onRemoveColor && <th className="w-10 min-w-10" aria-label="Actions" />}
+              {sizes.map((s) => (
+                <th
+                  key={s}
+                  className="p-2 text-center font-medium w-24 min-w-24"
+                >
+                  {s}
+                </th>
+              ))}
+              {onRemoveColor && (
+                <th className="w-10 min-w-10" aria-label="Actions" />
+              )}
             </tr>
           </thead>
           <tbody>
@@ -46,7 +76,11 @@ export function VariantGrid({ sizes, colors, quantities, onChange, onRemoveColor
               <tr key={c.id} className="border-t">
                 <td className="p-2">
                   <span className="inline-flex items-center gap-2">
-                    <span className="inline-block size-4 rounded border" style={{ backgroundColor: c.colorHex }} aria-hidden />
+                    <span
+                      className="inline-block size-4 rounded border"
+                      style={{ backgroundColor: c.colorHex }}
+                      aria-hidden
+                    />
                     {c.colorName}
                   </span>
                 </td>
@@ -58,9 +92,18 @@ export function VariantGrid({ sizes, colors, quantities, onChange, onRemoveColor
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        value={quantities[key] ?? ""}
-                        onChange={(e) => setCell(c.id, s, e.target.value.replace(/[^0-9]/g, ""))}
-                        className={cn("h-9 px-2 text-right tabular-nums", quantities[key] ? "" : "text-muted-foreground")}
+                        value={quantities[key] ?? ''}
+                        onChange={(e) =>
+                          setCell(
+                            c.id,
+                            s,
+                            e.target.value.replace(/[^0-9]/g, ''),
+                          )
+                        }
+                        className={cn(
+                          'h-9 px-2 text-right tabular-nums',
+                          quantities[key] ? '' : 'text-muted-foreground',
+                        )}
                       />
                     </td>
                   )
@@ -84,7 +127,9 @@ export function VariantGrid({ sizes, colors, quantities, onChange, onRemoveColor
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">Total units: <span className="font-mono">{total}</span></p>
+      <p className="text-xs text-muted-foreground">
+        Total units: <span className="font-mono">{total}</span>
+      </p>
     </div>
   )
 }

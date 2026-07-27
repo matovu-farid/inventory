@@ -1,11 +1,12 @@
 /**
  * `pickStoreStockFifo` — unresolved-first FIFO picker for store_stock.
  *
- * Pure planning logic: given (storeId, itemId, optional variantId,
- * quantity), returns a per-row allocation plan that drains source
- * `store_stock` rows in the right order. No writes — the caller (Task 7
- * `createTransfer`, Plan 2b `recordSale`) decides whether to honour the
- * plan or throw on shortfall.
+ * Thin wrapper around the shared `planFifoFromRows` helper
+ * (`src/server/functions/_shared/fifo.ts`). Given (storeId, itemId,
+ * optional variantId, quantity), returns a per-row allocation plan that
+ * drains source `store_stock` rows in the right order. No writes — the
+ * caller (Task 7 `createTransfer`, Plan 2b `recordSale`) decides whether
+ * to honour the plan or throw on shortfall.
  *
  * Ordering rules:
  *   1. If `variantId` is provided → only rows matching that variant are
@@ -24,17 +25,16 @@
  * before any goods-received lot.
  */
 
-import { and, eq } from "drizzle-orm"
+import { and, eq } from 'drizzle-orm'
 
-import { storeStock, supplyRouteLines } from "#/db/schema"
-import type { Database } from "#/db"
+import { storeStock, supplyRouteLines } from '#/db/schema'
+import type { DbOrTx } from '#/db'
+import { planFifoFromRows } from '#/server/functions/_shared/fifo'
 
-// Mirrors the pattern in src/server/audit/actor.ts: accept either the
-// top-level Database handle or an in-flight transaction. Tests pass
-// `db`; Task 7's `createTransfer` will pass a `tx` inside its
-// transaction so the FIFO read sees the same snapshot as the writes.
-type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0]
-export type DbOrTx = Database | Tx
+// Re-exported for backward compat — `src/server/functions/shop/fifo.ts`
+// and other callers historically imported `DbOrTx` from this module.
+// Single source of truth now lives in `src/db/index.ts`.
+export type { Tx, DbOrTx } from '#/db'
 
 export interface FifoAllocation {
   storeStockId: string
@@ -90,37 +90,18 @@ export async function pickStoreStockFifo(
     )
     .where(and(...conditions))
 
-  // Sort: (unresolved-first when variantId is omitted), then oldest
-  // supply line first. A NULL supplyLineCreatedAt collates as `0`
-  // (epoch) so legacy opening-balance rows drain before any dated lot.
-  //
-  // We use `[...rows].sort` rather than ES2023 `Array.prototype.toSorted`
-  // because the project's tsconfig `lib` targets ES2022.
-  const sorted = [...rows].sort((a, b) => {
-    if (!input.variantId) {
-      const aUnresolved = a.variantId === null
-      const bUnresolved = b.variantId === null
-      if (aUnresolved !== bUnresolved) return aUnresolved ? -1 : 1
-    }
-    const at = a.supplyLineCreatedAt?.getTime() ?? 0
-    const bt = b.supplyLineCreatedAt?.getTime() ?? 0
-    return at - bt
+  const plan = planFifoFromRows(rows, {
+    variantId: input.variantId,
+    quantity: input.quantity,
   })
 
-  const allocations: FifoAllocation[] = []
-  let remaining = input.quantity
-  for (const r of sorted) {
-    if (remaining <= 0) break
-    if (r.quantityOnHand <= 0) continue
-    const take = Math.min(r.quantityOnHand, remaining)
-    allocations.push({
-      storeStockId: r.id,
-      quantity: take,
-      costPerUnitUgx: r.costPerUnitUgx,
-      supplyRouteLineId: r.supplyRouteLineId,
-    })
-    remaining -= take
+  return {
+    allocations: plan.allocations.map((a) => ({
+      storeStockId: a.stockId,
+      quantity: a.quantity,
+      costPerUnitUgx: a.costPerUnitUgx,
+      supplyRouteLineId: a.supplyRouteLineId,
+    })),
+    shortfall: plan.shortfall,
   }
-
-  return { allocations, shortfall: remaining }
 }

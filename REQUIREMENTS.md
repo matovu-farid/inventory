@@ -53,11 +53,11 @@ The business currently tracks operations in a spreadsheet (`gross_profit.xlsx`) 
 
 The system consists of three specialized front-end applications served from a single codebase, sharing a common database and accounting engine:
 
-| Module | Primary Users | Core Responsibility |
-|--------|--------------|-------------------|
-| **Supply** | Admin, Supervisor | Procurement, supplier management, import cost tracking |
-| **Store** | Admin, Supervisor | Warehouse management, stock control, distribution to shops |
-| **Shop** | Sales Personnel, Supervisor | Retail sales, pricing, daily accounts |
+| Module     | Primary Users               | Core Responsibility                                        |
+| ---------- | --------------------------- | ---------------------------------------------------------- |
+| **Supply** | Admin, Supervisor           | Procurement, supplier management, import cost tracking     |
+| **Store**  | Admin, Supervisor           | Warehouse management, stock control, distribution to shops |
+| **Shop**   | Sales Personnel, Supervisor | Retail sales, pricing, daily accounts                      |
 
 ### 3.2 Tech Stack
 
@@ -275,6 +275,7 @@ StoreTransferItem
 **Ownership Model:** The store and all shops are owned by the same person. Transfers are **not** external sales — they are internal branch movements for accounting purposes.
 
 **Accounting Treatment:** Transfers use **inter-branch accounting** with a transfer price (the minimum sell price). This creates:
+
 - **Due from Shop X** (Asset on store side) — what the shop owes the store
 - **Due to Store** (Liability on shop side) — what the shop owes back
 - **Store Transfer Revenue** (Revenue) — the store's internal margin
@@ -353,6 +354,7 @@ Customer
 ```
 
 **Credit policy:**
+
 - **Trust-based** — no per-customer credit limits enforced by the system.
 - **Approval required:** Only Admin or Supervisor can authorize a credit sale. Sales personnel cannot grant credit on their own. The `approvedBy` field on `ShopSale` records who authorized.
 - **No fixed payment terms** tracked.
@@ -538,34 +540,34 @@ TransactionCategory
 
 **Seeded Categories:**
 
-| Name | Type | Purpose |
-|------|------|---------|
-| Cash | Asset | Physical cash on hand |
-| Bank | Asset | Money in bank accounts |
-| Inventory - Store | Asset | Value of goods in warehouse |
-| Inventory - Shop | Asset | Value of goods at shops |
-| Damaged Inventory - Store | Asset | Value of damaged goods at warehouse (segregated) |
-| Damaged Inventory - Shop | Asset | Value of damaged goods at shops (segregated) |
-| Accounts Receivable | Asset | Outstanding balances owed by credit customers |
-| Due from Shop | Asset | What shops owe the store (inter-branch) |
-| Supplier Payable | Liability | What is owed to suppliers |
-| Due to Store | Liability | What shops owe the store (inter-branch) |
-| Owner's Equity | Equity | Owner's capital |
-| Sales Revenue | Revenue | Income from shop sales |
-| Sales Returns | Contra-Revenue | Customer refunds (reduces revenue) |
-| Store Transfer Revenue | Revenue | Store's margin on transfers to shops |
-| Cost of Goods Sold | Expense | Cost of goods that were sold |
-| Freight Expense | Expense | Shipping/freight costs |
-| Transportation Expense | Expense | Local transport costs |
-| Customs Expense | Expense | Customs/duties |
-| Travel Expense | Expense | Tickets and travel |
-| Rent Expense | Expense | Rent payments |
-| Salary Expense | Expense | Staff salaries |
-| Tax Expense | Expense | Tax payments |
-| Inventory Loss | Expense | Losses detected via stock take |
-| Damaged Goods Write-off | Expense | Damaged inventory written off (no resale) |
-| Bad Debt Expense | Expense | Uncollectible credit-sale balances written off |
-| Miscellaneous Expense | Expense | Other expenses |
+| Name                      | Type           | Purpose                                          |
+| ------------------------- | -------------- | ------------------------------------------------ |
+| Cash                      | Asset          | Physical cash on hand                            |
+| Bank                      | Asset          | Money in bank accounts                           |
+| Inventory - Store         | Asset          | Value of goods in warehouse                      |
+| Inventory - Shop          | Asset          | Value of goods at shops                          |
+| Damaged Inventory - Store | Asset          | Value of damaged goods at warehouse (segregated) |
+| Damaged Inventory - Shop  | Asset          | Value of damaged goods at shops (segregated)     |
+| Accounts Receivable       | Asset          | Outstanding balances owed by credit customers    |
+| Due from Shop             | Asset          | What shops owe the store (inter-branch)          |
+| Supplier Payable          | Liability      | What is owed to suppliers                        |
+| Due to Store              | Liability      | What shops owe the store (inter-branch)          |
+| Owner's Equity            | Equity         | Owner's capital                                  |
+| Sales Revenue             | Revenue        | Income from shop sales                           |
+| Sales Returns             | Contra-Revenue | Customer refunds (reduces revenue)               |
+| Store Transfer Revenue    | Revenue        | Store's margin on transfers to shops             |
+| Cost of Goods Sold        | Expense        | Cost of goods that were sold                     |
+| Freight Expense           | Expense        | Shipping/freight costs                           |
+| Transportation Expense    | Expense        | Local transport costs                            |
+| Customs Expense           | Expense        | Customs/duties                                   |
+| Travel Expense            | Expense        | Tickets and travel                               |
+| Rent Expense              | Expense        | Rent payments                                    |
+| Salary Expense            | Expense        | Staff salaries                                   |
+| Tax Expense               | Expense        | Tax payments                                     |
+| Inventory Loss            | Expense        | Losses detected via stock take                   |
+| Damaged Goods Write-off   | Expense        | Damaged inventory written off (no resale)        |
+| Bad Debt Expense          | Expense        | Uncollectible credit-sale balances written off   |
+| Miscellaneous Expense     | Expense        | Other expenses                                   |
 
 #### 4.2.2 Transactions (Ledger Entries)
 
@@ -618,22 +620,22 @@ BankAccount
 
 **When goods are purchased from a supplier:**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
+| Debit             | Credit      | Amount            |
+| ----------------- | ----------- | ----------------- |
 | Inventory - Store | Cash / Bank | Total cost in UGX |
 
 If international, additional expense entries:
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
+| Debit           | Credit      | Amount         |
+| --------------- | ----------- | -------------- |
 | Freight Expense | Cash / Bank | Freight amount |
-| Travel Expense | Cash / Bank | Ticket cost |
-| Customs Expense | Cash / Bank | Customs fees |
+| Travel Expense  | Cash / Bank | Ticket cost    |
+| Customs Expense | Cash / Bank | Customs fees   |
 
 If local supplier:
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
+| Debit                  | Credit      | Amount         |
+| ---------------------- | ----------- | -------------- |
 | Transportation Expense | Cash / Bank | Transport cost |
 
 ### 5.2 Store to Shop Transfer (Inter-Branch)
@@ -642,15 +644,16 @@ If local supplier:
 
 Example: trousers with landed cost 10,000 UGX transferred at minimum sell price 15,000 UGX.
 
-| | Debit | Credit | Amount |
-|---|-------|--------|--------|
-| Inventory - Shop (Asset) | 15,000 | | Transfer price |
-| Inventory - Store (Asset) | | 10,000 | Landed cost |
-| Store Transfer Revenue (Revenue) | | 5,000 | Store margin (transfer price - cost) |
-| Due from Shop (Asset) | 15,000 | | Store is owed by shop |
-| Due to Store (Liability) | | 15,000 | Shop owes the store |
+|                                  | Debit  | Credit | Amount                               |
+| -------------------------------- | ------ | ------ | ------------------------------------ |
+| Inventory - Shop (Asset)         | 15,000 |        | Transfer price                       |
+| Inventory - Store (Asset)        |        | 10,000 | Landed cost                          |
+| Store Transfer Revenue (Revenue) |        | 5,000  | Store margin (transfer price - cost) |
+| Due from Shop (Asset)            | 15,000 |        | Store is owed by shop                |
+| Due to Store (Liability)         |        | 15,000 | Shop owes the store                  |
 
 **Accounting equation check:**
+
 - Assets: +15,000 (shop inventory) - 10,000 (store inventory) + 15,000 (due from shop) = +20,000
 - Liabilities: +15,000 (due to store) = +15,000
 - Equity: +5,000 (revenue) = +5,000
@@ -662,34 +665,34 @@ Example: trousers with landed cost 10,000 UGX transferred at minimum sell price 
 
 **When a shop sells goods to a customer for cash or bank:**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
-| Cash / Bank | Sales Revenue | Sale amount |
+| Debit              | Credit           | Amount             |
+| ------------------ | ---------------- | ------------------ |
+| Cash / Bank        | Sales Revenue    | Sale amount        |
 | Cost of Goods Sold | Inventory - Shop | Cost of goods sold |
 
 **When a shop sells goods to a customer on credit (Admin/Supervisor approved):**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
-| Accounts Receivable | Sales Revenue | Sale amount |
-| Cost of Goods Sold | Inventory - Shop | Cost of goods sold |
+| Debit               | Credit           | Amount             |
+| ------------------- | ---------------- | ------------------ |
+| Accounts Receivable | Sales Revenue    | Sale amount        |
+| Cost of Goods Sold  | Inventory - Shop | Cost of goods sold |
 
 **When a credit customer later pays (full or partial):**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
+| Debit       | Credit              | Amount         |
+| ----------- | ------------------- | -------------- |
 | Cash / Bank | Accounts Receivable | Payment amount |
 
 ### 5.4 Shop Settlement to Store
 
 **When the owner collects revenue from a shop and settles the inter-branch balance:**
 
-| | Debit | Credit | Amount |
-|---|-------|--------|--------|
-| Cash / Bank (Store) | X | | Payment amount |
-| Due from Shop (Asset) | | X | Reduces what shop owes |
-| Due to Store (Liability) | X | | Reduces shop's obligation |
-| Cash / Bank (Shop) | | X | Cash leaves shop |
+|                          | Debit | Credit | Amount                    |
+| ------------------------ | ----- | ------ | ------------------------- |
+| Cash / Bank (Store)      | X     |        | Payment amount            |
+| Due from Shop (Asset)    |       | X      | Reduces what shop owes    |
+| Due to Store (Liability) | X     |        | Reduces shop's obligation |
+| Cash / Bank (Shop)       |       | X      | Cash leaves shop          |
 
 Settlement is ad-hoc — no fixed schedule or credit limits since all locations are owned by the same person.
 
@@ -697,46 +700,46 @@ Settlement is ad-hoc — no fixed schedule or credit limits since all locations 
 
 **When physical count differs from system (loss detected):**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
+| Debit          | Credit                               | Amount              |
+| -------------- | ------------------------------------ | ------------------- |
 | Inventory Loss | Inventory - Store / Inventory - Shop | Value of lost goods |
 
 ### 5.5.1 Damaged Goods
 
 **When goods are flagged as damaged on receipt or during stock take (move to damaged bucket):**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
+| Debit                            | Credit                   | Amount                      |
+| -------------------------------- | ------------------------ | --------------------------- |
 | Damaged Inventory - Store / Shop | Inventory - Store / Shop | Cost value of damaged goods |
 
 **When damaged goods are sold at a discount (Admin/Supervisor approved):**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
-| Cash / Bank / Accounts Receivable | Sales Revenue | Discounted sale price |
-| Cost of Goods Sold | Damaged Inventory - Store / Shop | Cost value |
+| Debit                             | Credit                           | Amount                |
+| --------------------------------- | -------------------------------- | --------------------- |
+| Cash / Bank / Accounts Receivable | Sales Revenue                    | Discounted sale price |
+| Cost of Goods Sold                | Damaged Inventory - Store / Shop | Cost value            |
 
 **When damaged goods are written off (cannot be sold):**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
+| Debit                   | Credit                           | Amount     |
+| ----------------------- | -------------------------------- | ---------- |
 | Damaged Goods Write-off | Damaged Inventory - Store / Shop | Cost value |
 
 ### 5.5.2 Customer Return to Shop
 
 **Cash or bank refund (item resellable, returned to stock):**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
-| Sales Returns | Cash / Bank | Refund amount |
-| Inventory - Shop | Cost of Goods Sold | Cost value |
+| Debit            | Credit             | Amount        |
+| ---------------- | ------------------ | ------------- |
+| Sales Returns    | Cash / Bank        | Refund amount |
+| Inventory - Shop | Cost of Goods Sold | Cost value    |
 
 **Refund applied as credit-balance adjustment (customer originally bought on credit):**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
-| Sales Returns | Accounts Receivable | Refund amount |
-| Inventory - Shop | Cost of Goods Sold | Cost value |
+| Debit            | Credit              | Amount        |
+| ---------------- | ------------------- | ------------- |
+| Sales Returns    | Accounts Receivable | Refund amount |
+| Inventory - Shop | Cost of Goods Sold  | Cost value    |
 
 **If the returned item is damaged, the inventory leg targets Damaged Inventory - Shop instead of Inventory - Shop.**
 
@@ -744,13 +747,13 @@ Settlement is ad-hoc — no fixed schedule or credit limits since all locations 
 
 **When a shop sends unsold goods back to the store (reverses the original transfer):**
 
-| | Debit | Credit | Amount |
-|---|-------|--------|--------|
-| Inventory - Store | X | | Cost value at store |
-| Inventory - Shop | | X (transfer price) | Reverses shop inventory |
-| Store Transfer Revenue | Y | | Reverses store's prior margin |
-| Due to Store (Liability) | X (transfer price) | | Reduces shop's obligation |
-| Due from Shop (Asset) | | X (transfer price) | Reduces store's receivable |
+|                          | Debit              | Credit             | Amount                        |
+| ------------------------ | ------------------ | ------------------ | ----------------------------- |
+| Inventory - Store        | X                  |                    | Cost value at store           |
+| Inventory - Shop         |                    | X (transfer price) | Reverses shop inventory       |
+| Store Transfer Revenue   | Y                  |                    | Reverses store's prior margin |
+| Due to Store (Liability) | X (transfer price) |                    | Reduces shop's obligation     |
+| Due from Shop (Asset)    |                    | X (transfer price) | Reduces store's receivable    |
 
 Where `X` = original transfer price and `Y` = original margin (transfer price minus landed cost). If the returned goods are damaged, the store-side debit lands in Damaged Inventory - Store.
 
@@ -758,24 +761,24 @@ Where `X` = original transfer price and `Y` = original margin (transfer price mi
 
 **Rent, salary, tax, miscellaneous:**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
+| Debit              | Credit      | Amount         |
+| ------------------ | ----------- | -------------- |
 | [Specific Expense] | Cash / Bank | Expense amount |
 
 ### 5.7 Fund Transfers
 
 **Moving money between cash and bank:**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
+| Debit              | Credit        | Amount          |
+| ------------------ | ------------- | --------------- |
 | Cash (destination) | Cash (source) | Transfer amount |
 
 ### 5.8 Bad Debt Write-off (Credit Sales)
 
 **When an Admin determines a credit-sale balance is uncollectible:**
 
-| Debit | Credit | Amount |
-|-------|--------|--------|
+| Debit            | Credit              | Amount                        |
+| ---------------- | ------------------- | ----------------------------- |
 | Bad Debt Expense | Accounts Receivable | Remaining outstanding balance |
 
 The originating `ShopSale.paymentStatus` flips to `written_off` and its `outstandingBalance` becomes zero.
@@ -858,41 +861,41 @@ For local suppliers, purchases are directly in UGX. No currency conversion is ne
 
 ### 8.1 Role Definitions
 
-| Role | Description |
-|------|-------------|
-| **Admin** | Full system access. Can configure prices, manage users, approve exceptions, view all reports |
-| **Supervisor** | Operational oversight. Can manage stock, approve below-minimum sales, view reports |
+| Role                | Description                                                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Admin**           | Full system access. Can configure prices, manage users, approve exceptions, view all reports                                            |
+| **Supervisor**      | Operational oversight. Can manage stock, approve below-minimum sales, view reports                                                      |
 | **Sales Personnel** | Data entry only. Assigned to a **specific shop**. Can record sales, view own shop inventory. Cannot modify prices or approve exceptions |
 
 ### 8.2 Permission Matrix
 
-| Action | Admin | Supervisor | Sales |
-|--------|-------|-----------|-------|
-| Manage suppliers | Yes | No | No |
-| Create supply routes | Yes | Yes | No |
-| Record supply route items | Yes | Yes | No |
-| Record supply expenses | Yes | Yes | No |
-| Receive goods at store | Yes | Yes | No |
-| Set minimum sell price | Yes | No | No |
-| Transfer goods to shop | Yes | Yes | No |
-| Record shop sales (cash/bank) | Yes | Yes | Yes |
-| Authorize credit sale | Yes | Yes | No |
-| Manage customers (debtors) | Yes | Yes | No |
-| Record customer payment | Yes | Yes | Yes |
-| Sell below minimum price | Yes (approve) | Yes (approve) | No |
-| Sell damaged goods at discount | Yes (approve) | Yes (approve) | No |
-| Write off damaged goods | Yes | Yes | No |
-| Approve customer return | Yes | Yes | No |
-| Approve shop-to-store return | Yes | Yes | No |
-| Conduct stock taking | Yes | Yes | No |
-| Reconcile stock | Yes | Yes | No |
-| View store reports | Yes | Yes | No |
-| View shop reports | Yes | Yes | Own shop only |
-| View financial reports | Yes | Yes | No |
-| Manage users | Yes | No | No |
-| Manage bank accounts | Yes | No | No |
-| Record expenses | Yes | Yes | No |
-| Transfer funds | Yes | Yes | No |
+| Action                         | Admin         | Supervisor    | Sales         |
+| ------------------------------ | ------------- | ------------- | ------------- |
+| Manage suppliers               | Yes           | No            | No            |
+| Create supply routes           | Yes           | Yes           | No            |
+| Record supply route items      | Yes           | Yes           | No            |
+| Record supply expenses         | Yes           | Yes           | No            |
+| Receive goods at store         | Yes           | Yes           | No            |
+| Set minimum sell price         | Yes           | No            | No            |
+| Transfer goods to shop         | Yes           | Yes           | No            |
+| Record shop sales (cash/bank)  | Yes           | Yes           | Yes           |
+| Authorize credit sale          | Yes           | Yes           | No            |
+| Manage customers (debtors)     | Yes           | Yes           | No            |
+| Record customer payment        | Yes           | Yes           | Yes           |
+| Sell below minimum price       | Yes (approve) | Yes (approve) | No            |
+| Sell damaged goods at discount | Yes (approve) | Yes (approve) | No            |
+| Write off damaged goods        | Yes           | Yes           | No            |
+| Approve customer return        | Yes           | Yes           | No            |
+| Approve shop-to-store return   | Yes           | Yes           | No            |
+| Conduct stock taking           | Yes           | Yes           | No            |
+| Reconcile stock                | Yes           | Yes           | No            |
+| View store reports             | Yes           | Yes           | No            |
+| View shop reports              | Yes           | Yes           | Own shop only |
+| View financial reports         | Yes           | Yes           | No            |
+| Manage users                   | Yes           | No            | No            |
+| Manage bank accounts           | Yes           | No            | No            |
+| Record expenses                | Yes           | Yes           | No            |
+| Transfer funds                 | Yes           | Yes           | No            |
 
 ---
 
@@ -931,6 +934,7 @@ The system must detect and report losses at four critical points:
 ### 9.5 Loss Accounting
 
 All detected losses must be:
+
 1. Recorded as inventory adjustments
 2. Posted to the ledger as `DR: Inventory Loss / CR: Inventory`
 3. Included in financial reports as expenses
@@ -1006,6 +1010,7 @@ All financial reports must be derived directly from the ledger, not from denorma
 ### 12.1 Store Account
 
 The store maintains its own account tracking:
+
 - **Revenue:** Store Transfer Revenue (margin on transfers to shops)
 - **Expenses:** Procurement costs, route expenses (freight, tickets, etc.), plus operating expenses (rent, staff salaries, utilities, etc. — freeform entry)
 - **Due from Shops:** Inter-branch balances owed by each shop
@@ -1014,6 +1019,7 @@ The store maintains its own account tracking:
 ### 12.2 Shop Accounts
 
 Each shop maintains:
+
 - **Revenue:** Income from retail sales to customers
 - **Expenses:** Cost of goods (transfer price from store), plus operating expenses (rent, staff wages, utilities, transport, etc. — freeform entry)
 - **Due to Store:** Inter-branch balance owed to the store
@@ -1133,22 +1139,23 @@ Stock contention can occur when two users (e.g., two sales personnel at the same
 
 Every document a user might reference verbally or in print has a stable, sequential, human-readable number alongside its internal UUID. Numbers are zero-padded and prefixed by document type and year.
 
-| Document | Format | Example |
-|----------|--------|---------|
-| Supply route | `SR-YYYY-NNNN` | `SR-2026-0048` |
-| Store receiving | `RCV-YYYY-NNNN` | `RCV-2026-0123` |
-| Store transfer | `TRF-YYYY-NNNN` | `TRF-2026-0089` |
-| Shop sale (receipt) | `SALE-YYYY-NNNNN` | `SALE-2026-00457` |
-| Customer payment | `PAY-YYYY-NNNN` | `PAY-2026-0021` |
-| Shop return | `RET-YYYY-NNNN` | `RET-2026-0007` |
-| Store return | `STR-RET-YYYY-NNNN` | `STR-RET-2026-0003` |
-| Stock take | `STK-YYYY-NNNN` | `STK-2026-0014` |
+| Document            | Format              | Example             |
+| ------------------- | ------------------- | ------------------- |
+| Supply route        | `SR-YYYY-NNNN`      | `SR-2026-0048`      |
+| Store receiving     | `RCV-YYYY-NNNN`     | `RCV-2026-0123`     |
+| Store transfer      | `TRF-YYYY-NNNN`     | `TRF-2026-0089`     |
+| Shop sale (receipt) | `SALE-YYYY-NNNNN`   | `SALE-2026-00457`   |
+| Customer payment    | `PAY-YYYY-NNNN`     | `PAY-2026-0021`     |
+| Shop return         | `RET-YYYY-NNNN`     | `RET-2026-0007`     |
+| Store return        | `STR-RET-YYYY-NNNN` | `STR-RET-2026-0003` |
+| Stock take          | `STK-YYYY-NNNN`     | `STK-2026-0014`     |
 
 Numbers are generated server-side using a per-prefix Postgres sequence and reset annually. They are immutable once issued.
 
 ### 14.9 Receipt & Document Generation
 
 The system generates printable PDFs for the following documents:
+
 - **Sales receipt** (per `ShopSale`) — issued at point of sale, includes shop name, items, total, payment method, and document number
 - **Transfer slip** (per `StoreTransfer`) — accompanies goods leaving the warehouse, lists items dispatched
 - **Customer statement** (per `Customer`, on demand) — outstanding balance, sale history, payment history, aged receivables
@@ -1159,6 +1166,7 @@ PDFs are generated on demand via server function (no batch storage); receipts ca
 ### 14.10 Listing, Search & Pagination
 
 All list endpoints (sales, transfers, customers, ledger) follow a consistent contract:
+
 - **Pagination:** cursor-based (`?cursor=<id>&limit=<n>`), default limit 50, max 200
 - **Filters:** date range, location, status, free-text search where applicable (e.g., customer name, product name, document number)
 - **Sort:** explicit `?sort=<field>:<asc|desc>`; default by `createdAt desc`
@@ -1168,15 +1176,15 @@ All list endpoints (sales, transfers, customers, ledger) follow a consistent con
 
 The system emits in-app notifications (and optionally email for Admin) for events that need attention:
 
-| Trigger | Audience | Channel |
-|---------|----------|---------|
-| Shop stock for an item drops below 5 units | Admin, Supervisor | In-app |
+| Trigger                                         | Audience          | Channel        |
+| ----------------------------------------------- | ----------------- | -------------- |
+| Shop stock for an item drops below 5 units      | Admin, Supervisor | In-app         |
 | Stock take discrepancy > 10% of system quantity | Admin, Supervisor | In-app + email |
-| Credit sale outstanding > 30 days | Admin, Supervisor | In-app + email |
-| Below-minimum sale recorded | Admin, Supervisor | In-app |
-| Bad-debt write-off | Admin | In-app + email |
-| Journal reversal posted | Admin | In-app + email |
-| Logical replication slot lag > 1 GB | Admin (sysops) | Email |
+| Credit sale outstanding > 30 days               | Admin, Supervisor | In-app + email |
+| Below-minimum sale recorded                     | Admin, Supervisor | In-app         |
+| Bad-debt write-off                              | Admin             | In-app + email |
+| Journal reversal posted                         | Admin             | In-app + email |
+| Logical replication slot lag > 1 GB             | Admin (sysops)    | Email          |
 
 Thresholds (low-stock count, aging window, discrepancy %) are configurable in settings, not hardcoded.
 
@@ -1248,33 +1256,33 @@ A one-time import path migrates the historical `gross_profit.xlsx` (47 routes, 2
 
 The following maps the existing Excel structure to system fields:
 
-| Excel Column | System Field |
-|-------------|-------------|
-| DATE | supplyRouteItem.createdAt / supplyRoute.departureDate |
-| DETAILS | supplyRouteItem.productName |
-| ART NO | supplyRouteItem.articleNumber |
-| EX.RATE | supplyRouteItem.exchangeRateForeignToUsd |
-| QTY | supplyRouteItem.quantity |
-| RATE(rmb) | supplyRouteItem.unitPriceForeign |
-| AMOUNT(rmb) | supplyRouteItem.totalAmountForeign |
-| USD($) | supplyRouteItem.totalAmountUsd |
-| USD RATE(Shs) | supplyRouteItem.exchangeRateUsdToUgx |
-| T.COST(shs) | supplyRouteItem.totalCostUgx |
-| RATE(shs) | N/A (actual sell price determined at shop level, not at procurement) |
-| SELLING PX | N/A (derived from ShopSaleItem records) |
-| G.PROFIT | N/A (derived from ledger: sales revenue minus costs) |
+| Excel Column  | System Field                                                         |
+| ------------- | -------------------------------------------------------------------- |
+| DATE          | supplyRouteItem.createdAt / supplyRoute.departureDate                |
+| DETAILS       | supplyRouteItem.productName                                          |
+| ART NO        | supplyRouteItem.articleNumber                                        |
+| EX.RATE       | supplyRouteItem.exchangeRateForeignToUsd                             |
+| QTY           | supplyRouteItem.quantity                                             |
+| RATE(rmb)     | supplyRouteItem.unitPriceForeign                                     |
+| AMOUNT(rmb)   | supplyRouteItem.totalAmountForeign                                   |
+| USD($)        | supplyRouteItem.totalAmountUsd                                       |
+| USD RATE(Shs) | supplyRouteItem.exchangeRateUsdToUgx                                 |
+| T.COST(shs)   | supplyRouteItem.totalCostUgx                                         |
+| RATE(shs)     | N/A (actual sell price determined at shop level, not at procurement) |
+| SELLING PX    | N/A (derived from ShopSaleItem records)                              |
+| G.PROFIT      | N/A (derived from ledger: sales revenue minus costs)                 |
 
 ### 16.2 Expense Category Mapping
 
-| Excel Expense | System Category |
-|--------------|----------------|
-| COST | (sum of item costs - not a separate expense) |
-| FREIGHT | freight |
-| TICKET | ticket (maps to Travel Expense) |
-| EXPENSES | miscellaneous |
-| RENT | rent |
-| SALLARY | salary |
-| TAX | tax |
+| Excel Expense | System Category                              |
+| ------------- | -------------------------------------------- |
+| COST          | (sum of item costs - not a separate expense) |
+| FREIGHT       | freight                                      |
+| TICKET        | ticket (maps to Travel Expense)              |
+| EXPENSES      | miscellaneous                                |
+| RENT          | rent                                         |
+| SALLARY       | salary                                       |
+| TAX           | tax                                          |
 
 ### 16.3 Future Work (Out of Scope)
 

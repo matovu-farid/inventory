@@ -1,10 +1,10 @@
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
-import { z } from "zod"
-import { db } from "#/db"
-import { shops } from "#/db/schema"
-import { requireSession } from "#/server/middleware/auth"
-import { requireRole } from "#/server/middleware/rbac"
+import { createServerFn } from '@tanstack/react-start'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import { shops } from '#/db/schema'
+import { requireSession } from '#/server/middleware/auth'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
 
 export const getShop = createServerFn()
   .inputValidator(z.object({ id: z.string().uuid() }))
@@ -16,7 +16,7 @@ export const getShop = createServerFn()
         .from(shops)
         .where(eq(shops.id, data.id))
     ).at(0)
-    if (!row) throw new Error("Shop not found")
+    if (!row) throw new Error('Shop not found')
     return row
   })
 
@@ -26,14 +26,13 @@ export const getShop = createServerFn()
  * (via `user.shopId`) — falling back to every shop if no assignment exists.
  */
 export const listShopsForReports = createServerFn().handler(async () => {
-  const session = await requireSession()
-  requireRole(session, ["admin", "supervisor"])
+  const session = await requireSessionAndRole(['admin', 'supervisor'])
   const { role, shopId } = session.user
   const all = await db
     .select({ id: shops.id, name: shops.name })
     .from(shops)
     .orderBy(shops.name)
-  if (role === "supervisor" && shopId) {
+  if (role === 'supervisor' && shopId) {
     return all.filter((s) => s.id === shopId)
   }
   return all

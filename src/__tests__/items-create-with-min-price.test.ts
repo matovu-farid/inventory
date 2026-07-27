@@ -7,33 +7,36 @@
  * mock auth/rbac, run server-fns under runWithStartContext, then read
  * the DB to verify side effects.
  */
-import { describe, it, expect, afterAll, vi } from "vitest"
-import { eq, inArray } from "drizzle-orm"
-import { runWithStartContext } from "@tanstack/start-storage-context"
+import { describe, it, expect, afterAll, vi } from 'vitest'
+import { eq, inArray } from 'drizzle-orm'
+import { runWithStartContext } from '@tanstack/start-storage-context'
 
-import { db } from "#/db"
-import { items, variants } from "#/db/schema"
-import { createItem } from "#/server/functions/items/items"
+import { db } from '#/db'
+import { items, variants } from '#/db/schema'
+import { createItem } from '#/server/functions/items/items'
 
-const TEST_USER_ID = "00000000-0000-0000-0000-0000000000c9"
-vi.mock("#/server/middleware/auth", () => ({
+const TEST_USER_ID = '00000000-0000-0000-0000-0000000000c9'
+vi.mock('#/server/middleware/auth', () => ({
   requireSession: () =>
-    Promise.resolve({ user: { id: TEST_USER_ID, role: "admin" } }),
+    Promise.resolve({ user: { id: TEST_USER_ID, role: 'admin' } }),
 }))
-vi.mock("#/server/middleware/rbac", () => ({
+vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
+  requireSessionAndRole: () => Promise.resolve({
+    user: { id: TEST_USER_ID, role: 'admin' },
+  }),
 }))
 
 const stubStartContext = {
   getRouter: (() => {
-    throw new Error("router not available in tests")
+    throw new Error('router not available in tests')
   }) as never,
-  request: new Request("http://localhost/test"),
+  request: new Request('http://localhost/test'),
   startOptions: { functionMiddleware: [] },
   contextAfterGlobalMiddlewares: {},
   executedRequestMiddlewares: new Set(),
-  handlerType: "serverFn" as const,
+  handlerType: 'serverFn' as const,
 }
 function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
   return runWithStartContext(stubStartContext, fn)
@@ -49,18 +52,18 @@ afterAll(async () => {
   }
 })
 
-describe("createItem — variant-flexibility fields", () => {
-  it("persists minimumSellPriceUgx and lowStockThreshold", async () => {
+describe('createItem — variant-flexibility fields', () => {
+  it('persists minimumSellPriceUgx and lowStockThreshold', async () => {
     const articleNumber = `tr-min-${SUFFIX}`
     await callServerFn(() =>
       createItem({
         data: {
           articleNumber,
-          name: "Min Test",
-          category: "Tops",
+          name: 'Min Test',
+          category: 'Tops',
           sizes: [],
           colors: [],
-          minimumSellPriceUgx: "9500.00",
+          minimumSellPriceUgx: '9500.00',
           lowStockThreshold: 5,
         },
       }),
@@ -70,18 +73,18 @@ describe("createItem — variant-flexibility fields", () => {
     })
     expect(row).toBeDefined()
     if (row) createdItemIds.push(row.id)
-    expect(row?.minimumSellPriceUgx).toBe("9500.00")
+    expect(row?.minimumSellPriceUgx).toBe('9500.00')
     expect(row?.lowStockThreshold).toBe(5)
   })
 
-  it("defaults minimumSellPriceUgx to 0 and lowStockThreshold to null", async () => {
+  it('defaults minimumSellPriceUgx to 0 and lowStockThreshold to null', async () => {
     const articleNumber = `tr-def-${SUFFIX}`
     await callServerFn(() =>
       createItem({
         data: {
           articleNumber,
-          name: "Default Test",
-          category: "Tops",
+          name: 'Default Test',
+          category: 'Tops',
           sizes: [],
           colors: [],
         },
@@ -92,7 +95,7 @@ describe("createItem — variant-flexibility fields", () => {
     })
     expect(row).toBeDefined()
     if (row) createdItemIds.push(row.id)
-    expect(row?.minimumSellPriceUgx).toBe("0.00")
+    expect(row?.minimumSellPriceUgx).toBe('0.00')
     expect(row?.lowStockThreshold).toBeNull()
   })
 })

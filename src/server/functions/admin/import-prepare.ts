@@ -1,6 +1,6 @@
-import BigNumber from "bignumber.js"
-import type { ParsedRouteItem } from "#/lib/excel/parser"
-import type { supplyRouteLines } from "#/db/schema"
+import BigNumber from 'bignumber.js'
+import type { ParsedRouteItem } from '#/lib/excel/parser'
+import type { supplyRouteLines } from '#/db/schema'
 
 type NewSupplyRouteItem = typeof supplyRouteLines.$inferInsert
 
@@ -25,10 +25,10 @@ export function prepareImportItem(
   supplyRouteId: string,
 ): NewSupplyRouteItem {
   if (!supplierId) {
-    throw new Error("prepareImportItem: supplierId is required")
+    throw new Error('prepareImportItem: supplierId is required')
   }
   if (!supplyRouteId) {
-    throw new Error("prepareImportItem: supplyRouteId is required")
+    throw new Error('prepareImportItem: supplyRouteId is required')
   }
 
   const quantity = item.quantity
@@ -36,7 +36,7 @@ export function prepareImportItem(
   const totalForeign = unitPrice.times(quantity)
 
   let totalAmountUsd: string | null = null
-  let totalCostUgx = "0"
+  let totalCostUgx = '0'
   if (
     item.exchangeRateForeignToUsd !== null &&
     item.exchangeRateUsdToUgx !== null

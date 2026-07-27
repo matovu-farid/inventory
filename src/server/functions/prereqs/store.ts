@@ -1,8 +1,8 @@
-import { createServerFn } from "@tanstack/react-start"
-import { sql } from "drizzle-orm"
-import { db } from "#/db"
-import { storeStock } from "#/db/schema"
-import { deriveStorePrereqs } from "#/lib/prerequisites/derive"
+import { createServerFn } from '@tanstack/react-start'
+import { sql } from 'drizzle-orm'
+import { db } from '#/db'
+import { storeStock } from '#/db/schema'
+import { deriveStorePrereqs } from '#/lib/prerequisites/derive'
 
 export const getStorePrereqs = createServerFn().handler(async () => {
   const row = await db

@@ -1,8 +1,8 @@
-export { VerifyEmailTemplate } from "./verify-email"
-export type { VerifyEmailProps } from "./verify-email"
-export { ResetPasswordTemplate } from "./reset-password"
-export type { ResetPasswordProps } from "./reset-password"
-export { InviteUserTemplate } from "./invite-user"
-export type { InviteUserProps } from "./invite-user"
-export { LowStockDigestTemplate } from "./low-stock-digest"
-export type { LowStockDigestData } from "./low-stock-digest"
+export { VerifyEmailTemplate } from './verify-email'
+export type { VerifyEmailProps } from './verify-email'
+export { ResetPasswordTemplate } from './reset-password'
+export type { ResetPasswordProps } from './reset-password'
+export { InviteUserTemplate } from './invite-user'
+export type { InviteUserProps } from './invite-user'
+export { LowStockDigestTemplate } from './low-stock-digest'
+export type { LowStockDigestData } from './low-stock-digest'

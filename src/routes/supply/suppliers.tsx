@@ -1,26 +1,26 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
-import { requireUiPermission } from "#/lib/permissions"
-import { Button } from "#/components/ui/button"
-import { Input } from "#/components/ui/input"
-import { FieldLabel } from "#/components/ui/field-label"
-import { Textarea } from "#/components/ui/textarea"
-import { Combobox } from "#/components/ui/combobox"
-import { COUNTRIES } from "#/lib/countries"
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { useState } from 'react'
+import { requireUiPermission } from '#/lib/permissions'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { FieldLabel } from '#/components/ui/field-label'
+import { Textarea } from '#/components/ui/textarea'
+import { Combobox } from '#/components/ui/combobox'
+import { COUNTRIES } from '#/lib/countries'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "#/components/ui/select"
+} from '#/components/ui/select'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "#/components/ui/dialog"
+} from '#/components/ui/dialog'
 import {
   Table,
   TableBody,
@@ -28,17 +28,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "#/components/ui/table"
-import { Badge } from "#/components/ui/badge"
-import { Plus } from "lucide-react"
+} from '#/components/ui/table'
+import { Badge } from '#/components/ui/badge'
+import { Plus } from 'lucide-react'
 import {
   listSuppliers,
   createSupplier,
-} from "#/server/functions/supply/suppliers"
+} from '#/server/functions/supply/suppliers'
 
-export const Route = createFileRoute("/supply/suppliers")({
-  beforeLoad: ({ context }) =>
-    requireUiPermission(context, "procurement.view"),
+export const Route = createFileRoute('/supply/suppliers')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
   loader: () => listSuppliers(),
   component: SuppliersPage,
 })
@@ -93,13 +92,17 @@ function SuppliersPage() {
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell>
-                    <Badge variant={s.type === "international" ? "default" : "secondary"}>
+                    <Badge
+                      variant={
+                        s.type === 'international' ? 'default' : 'secondary'
+                      }
+                    >
                       {s.type}
                     </Badge>
                   </TableCell>
-                  <TableCell>{s.country ?? "-"}</TableCell>
-                  <TableCell>{s.contactName ?? "-"}</TableCell>
-                  <TableCell>{s.contactPhone ?? "-"}</TableCell>
+                  <TableCell>{s.country ?? '-'}</TableCell>
+                  <TableCell>{s.contactName ?? '-'}</TableCell>
+                  <TableCell>{s.contactPhone ?? '-'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -112,7 +115,7 @@ function SuppliersPage() {
 
 function CreateSupplierForm({ onSuccess }: { onSuccess: () => void }) {
   const [pending, setPending] = useState(false)
-  const [country, setCountry] = useState("")
+  const [country, setCountry] = useState('')
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -123,33 +126,42 @@ function CreateSupplierForm({ onSuccess }: { onSuccess: () => void }) {
     try {
       await createSupplier({
         data: {
-          name: form.get("name") as string,
-          type: form.get("type") as "local" | "international",
+          name: form.get('name') as string,
+          type: form.get('type') as 'local' | 'international',
           country: country || undefined,
-          contactName: (form.get("contactName") as string) || undefined,
-          contactPhone: (form.get("contactPhone") as string) || undefined,
-          contactEmail: (form.get("contactEmail") as string) || undefined,
-          notes: (form.get("notes") as string) || undefined,
+          contactName: (form.get('contactName') as string) || undefined,
+          contactPhone: (form.get('contactPhone') as string) || undefined,
+          contactEmail: (form.get('contactEmail') as string) || undefined,
+          notes: (form.get('notes') as string) || undefined,
         },
       })
       void router.invalidate()
       onSuccess()
     } catch (err) {
-      console.error("Failed to create supplier:", err)
+      console.error('Failed to create supplier:', err)
     } finally {
       setPending(false)
     }
   }
 
   return (
-    <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-4">
+    <form
+      onSubmit={(e) => {
+        void handleSubmit(e)
+      }}
+      className="space-y-4"
+    >
       <div className="space-y-2">
-        <FieldLabel htmlFor="name" help="supplier.name">Name *</FieldLabel>
+        <FieldLabel htmlFor="name" help="supplier.name">
+          Name *
+        </FieldLabel>
         <Input id="name" name="name" required />
       </div>
 
       <div className="space-y-2">
-        <FieldLabel htmlFor="type" help="supplier.type">Type *</FieldLabel>
+        <FieldLabel htmlFor="type" help="supplier.type">
+          Type *
+        </FieldLabel>
         <Select name="type" defaultValue="international">
           <SelectTrigger>
             <SelectValue />
@@ -162,7 +174,9 @@ function CreateSupplierForm({ onSuccess }: { onSuccess: () => void }) {
       </div>
 
       <div className="space-y-2">
-        <FieldLabel htmlFor="country" help="supplier.country">Country</FieldLabel>
+        <FieldLabel htmlFor="country" help="supplier.country">
+          Country
+        </FieldLabel>
         <Combobox
           id="country"
           options={COUNTRIES}
@@ -176,27 +190,35 @@ function CreateSupplierForm({ onSuccess }: { onSuccess: () => void }) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <FieldLabel htmlFor="contactName" help="supplier.contactName">Contact Name</FieldLabel>
+          <FieldLabel htmlFor="contactName" help="supplier.contactName">
+            Contact Name
+          </FieldLabel>
           <Input id="contactName" name="contactName" />
         </div>
         <div className="space-y-2">
-          <FieldLabel htmlFor="contactPhone" help="supplier.contactPhone">Phone</FieldLabel>
+          <FieldLabel htmlFor="contactPhone" help="supplier.contactPhone">
+            Phone
+          </FieldLabel>
           <Input id="contactPhone" name="contactPhone" />
         </div>
       </div>
 
       <div className="space-y-2">
-        <FieldLabel htmlFor="contactEmail" help="supplier.contactEmail">Email</FieldLabel>
+        <FieldLabel htmlFor="contactEmail" help="supplier.contactEmail">
+          Email
+        </FieldLabel>
         <Input id="contactEmail" name="contactEmail" type="email" />
       </div>
 
       <div className="space-y-2">
-        <FieldLabel htmlFor="notes" help="supplier.notes">Notes</FieldLabel>
+        <FieldLabel htmlFor="notes" help="supplier.notes">
+          Notes
+        </FieldLabel>
         <Textarea id="notes" name="notes" rows={2} />
       </div>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Creating..." : "Create Supplier"}
+        {pending ? 'Creating...' : 'Create Supplier'}
       </Button>
     </form>
   )
