@@ -34,6 +34,7 @@ export const addSupplyRouteVariants = createServerFn()
     if (
       !item.supplierId ||
       !item.costPrice ||
+      Number(item.costPrice) <= 0 ||
       !item.costCurrency ||
       !item.minimumSellPriceUgx ||
       Number(item.minimumSellPriceUgx) <= 0

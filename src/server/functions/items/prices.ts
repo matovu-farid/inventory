@@ -59,7 +59,10 @@ const priceAmount = z
  */
 const setItemMinPriceInput = z.object({
   itemId: z.uuid(),
-  minimumSellPriceUgx: priceAmount,
+  minimumSellPriceUgx: priceAmount.refine(
+    (v) => Number(v) > 0,
+    'Minimum sell price must be positive',
+  ),
 })
 
 export const setItemMinimumSellPrice = createServerFn()

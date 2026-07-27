@@ -130,6 +130,18 @@ export async function listItemCategoriesQuery() {
 }
 
 export async function createItemQuery(data: z.infer<typeof upsertInput>) {
+  if (
+    !data.supplierId ||
+    !data.costPrice ||
+    !data.costCurrency ||
+    !data.minimumSellPriceUgx ||
+    Number(data.costPrice) <= 0 ||
+    Number(data.minimumSellPriceUgx) <= 0
+  ) {
+    throw new Error(
+      'Supplier, supplier cost, cost currency, and a positive minimum sell price are required',
+    )
+  }
   const [row] = await db
     .insert(items)
     .values({
@@ -140,7 +152,7 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
       supplierId: data.supplierId,
       costPrice: data.costPrice,
       costCurrency: data.costCurrency,
-      minimumSellPriceUgx: data.minimumSellPriceUgx ?? '0',
+      minimumSellPriceUgx: data.minimumSellPriceUgx,
       lowStockThreshold: data.lowStockThreshold ?? null,
     })
     .returning()
