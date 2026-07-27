@@ -106,9 +106,9 @@ function SupplyRoutesPage() {
             {
               header: 'Suppliers',
               cell: (r) =>
-                Array.from(
-                  new Set(r.items.map((i) => i.supplier?.name).filter(Boolean)),
-                ).join(', ') || '-',
+                Array.from(new Set(r.items.map((i) => i.supplier.name))).join(
+                  ', ',
+                ) || '-',
               hideOnMobile: true,
             },
             {

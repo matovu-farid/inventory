@@ -10,12 +10,12 @@
  * server-fn machinery under runWithStartContext, then reads the DB to
  * verify the side effects).
  */
-import { describe, it, expect, afterAll, vi } from 'vitest'
+import { describe, it, expect, afterAll, beforeAll, vi } from 'vitest'
 import { eq, inArray } from 'drizzle-orm'
 import { runWithStartContext } from '@tanstack/start-storage-context'
 
 import { db } from '#/db'
-import { items, itemColors, variants } from '#/db/schema'
+import { items, itemColors, variants, suppliers } from '#/db/schema'
 import { createItem } from '#/server/functions/items/items'
 import { addItemColor } from '#/server/functions/items/colors'
 
@@ -27,9 +27,10 @@ vi.mock('#/server/middleware/auth', () => ({
 vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
-  requireSessionAndRole: () => Promise.resolve({
-    user: { id: TEST_USER_ID, role: 'admin' },
-  }),
+  requireSessionAndRole: () =>
+    Promise.resolve({
+      user: { id: TEST_USER_ID, role: 'admin' },
+    }),
 }))
 
 const stubStartContext = {
@@ -48,11 +49,22 @@ function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
 
 const SUFFIX = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const createdItemIds: string[] = []
+let supplierId = ''
+
+beforeAll(async () => {
+  const [supplier] = await db
+    .insert(suppliers)
+    .values({ name: `Create item supplier ${SUFFIX}`, type: 'international' })
+    .returning()
+  supplierId = supplier.id
+})
 
 afterAll(async () => {
   if (createdItemIds.length > 0) {
     await db.delete(variants).where(inArray(variants.itemId, createdItemIds))
     await db.delete(items).where(inArray(items.id, createdItemIds))
+    if (supplierId)
+      await db.delete(suppliers).where(eq(suppliers.id, supplierId))
   }
 })
 
@@ -68,6 +80,10 @@ describe('createItem — materializes variants when colors + sizes given', () =>
           articleNumber,
           name: 'Materialize tester',
           category: 'Test',
+          supplierId,
+          costPrice: '10.00',
+          costCurrency: 'RMB',
+          minimumSellPriceUgx: '50000',
           sizes: ['S', 'M', 'L'],
           colors: [
             { colorName: 'Indigo', colorHex: '#2a3a8b' },
@@ -107,6 +123,10 @@ describe('createItem — materializes variants when colors + sizes given', () =>
           articleNumber,
           name: 'Materialize tester B',
           category: 'Test',
+          supplierId,
+          costPrice: '10.00',
+          costCurrency: 'RMB',
+          minimumSellPriceUgx: '50000',
           sizes: [],
           colors: [],
         },

@@ -7,12 +7,12 @@
  * mock auth/rbac, run server-fns under runWithStartContext, then read
  * the DB to verify side effects.
  */
-import { describe, it, expect, afterAll, vi } from 'vitest'
+import { describe, it, expect, afterAll, beforeAll, vi } from 'vitest'
 import { eq, inArray } from 'drizzle-orm'
 import { runWithStartContext } from '@tanstack/start-storage-context'
 
 import { db } from '#/db'
-import { items, variants } from '#/db/schema'
+import { items, variants, suppliers } from '#/db/schema'
 import { createItem } from '#/server/functions/items/items'
 
 const TEST_USER_ID = '00000000-0000-0000-0000-0000000000c9'
@@ -23,9 +23,10 @@ vi.mock('#/server/middleware/auth', () => ({
 vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
-  requireSessionAndRole: () => Promise.resolve({
-    user: { id: TEST_USER_ID, role: 'admin' },
-  }),
+  requireSessionAndRole: () =>
+    Promise.resolve({
+      user: { id: TEST_USER_ID, role: 'admin' },
+    }),
 }))
 
 const stubStartContext = {
@@ -44,11 +45,22 @@ function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
 
 const SUFFIX = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const createdItemIds: string[] = []
+let supplierId = ''
+
+beforeAll(async () => {
+  const [supplier] = await db
+    .insert(suppliers)
+    .values({ name: `Min price supplier ${SUFFIX}`, type: 'international' })
+    .returning()
+  supplierId = supplier.id
+})
 
 afterAll(async () => {
   if (createdItemIds.length > 0) {
     await db.delete(variants).where(inArray(variants.itemId, createdItemIds))
     await db.delete(items).where(inArray(items.id, createdItemIds))
+    if (supplierId)
+      await db.delete(suppliers).where(eq(suppliers.id, supplierId))
   }
 })
 
@@ -61,6 +73,9 @@ describe('createItem — variant-flexibility fields', () => {
           articleNumber,
           name: 'Min Test',
           category: 'Tops',
+          supplierId,
+          costPrice: '10.00',
+          costCurrency: 'RMB',
           sizes: [],
           colors: [],
           minimumSellPriceUgx: '9500.00',
@@ -77,25 +92,20 @@ describe('createItem — variant-flexibility fields', () => {
     expect(row?.lowStockThreshold).toBe(5)
   })
 
-  it('defaults minimumSellPriceUgx to 0 and lowStockThreshold to null', async () => {
+  it('rejects items without a complete commercial profile', async () => {
     const articleNumber = `tr-def-${SUFFIX}`
-    await callServerFn(() =>
-      createItem({
-        data: {
-          articleNumber,
-          name: 'Default Test',
-          category: 'Tops',
-          sizes: [],
-          colors: [],
-        },
-      }),
-    )
-    const row = await db.query.items.findFirst({
-      where: eq(items.articleNumber, articleNumber),
-    })
-    expect(row).toBeDefined()
-    if (row) createdItemIds.push(row.id)
-    expect(row?.minimumSellPriceUgx).toBe('0.00')
-    expect(row?.lowStockThreshold).toBeNull()
+    await expect(
+      callServerFn(() =>
+        createItem({
+          data: {
+            articleNumber,
+            name: 'Default Test',
+            category: 'Tops',
+            sizes: [],
+            colors: [],
+          },
+        }),
+      ),
+    ).rejects.toThrow('Supplier, supplier cost')
   })
 })

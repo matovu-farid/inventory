@@ -10,10 +10,10 @@
  * RBAC + wrapper coverage.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { inArray } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 
 import { db } from '#/db'
-import { items } from '#/db/schema'
+import { items, suppliers } from '#/db/schema'
 import {
   createItemQuery,
   listItemCategoriesQuery,
@@ -22,15 +22,23 @@ import { listItemCategories } from '#/server/functions/items/items'
 
 const SUFFIX = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const createdItemIds: string[] = []
+let supplierId = ''
 
 afterAll(async () => {
   if (createdItemIds.length > 0) {
     await db.delete(items).where(inArray(items.id, createdItemIds))
+    if (supplierId)
+      await db.delete(suppliers).where(eq(suppliers.id, supplierId))
   }
 })
 
 describe('listItemCategories', () => {
   beforeAll(async () => {
+    const [supplier] = await db
+      .insert(suppliers)
+      .values({ name: `Category supplier ${SUFFIX}`, type: 'international' })
+      .returning()
+    supplierId = supplier.id
     for (const [an, cat] of [
       [`lic-${SUFFIX}-1`, `lic-${SUFFIX}-Shoes`],
       [`lic-${SUFFIX}-2`, `lic-${SUFFIX}-Bags`],
@@ -40,6 +48,10 @@ describe('listItemCategories', () => {
         articleNumber: an,
         name: an,
         category: cat,
+        supplierId,
+        costPrice: '10.00',
+        costCurrency: 'RMB',
+        minimumSellPriceUgx: '50000',
         sizes: [],
         colors: [],
       })

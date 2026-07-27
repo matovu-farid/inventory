@@ -41,7 +41,8 @@ const createdIds: string[] = []
 
 afterAll(async () => {
   if (createdIds.length > 0) {
-    await db.delete(supplyRoutes).where(eq(supplyRoutes.id, createdIds[0]!))
+    const id = createdIds[0]
+    if (id) await db.delete(supplyRoutes).where(eq(supplyRoutes.id, id))
   }
 })
 
@@ -87,18 +88,16 @@ describe('createSupplyRoute', () => {
 
   it('rejects return date before departure date', async () => {
     const name = `Bad Dates ${Date.now()}`
-    await callServerFn(() =>
-      createSupplyRoute({
-        data: {
-          name,
-          departureDate: '2026-05-15',
-          returnDate: '2026-05-01',
-        },
-      }),
-    )
-    const route = await db.query.supplyRoutes.findFirst({
-      where: eq(supplyRoutes.name, name),
-    })
-    expect(route).toBeUndefined()
+    await expect(
+      callServerFn(() =>
+        createSupplyRoute({
+          data: {
+            name,
+            departureDate: '2026-05-15',
+            returnDate: '2026-05-01',
+          },
+        }),
+      ),
+    ).rejects.toThrow('Return date')
   })
 })

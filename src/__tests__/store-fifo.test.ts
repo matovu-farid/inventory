@@ -56,6 +56,7 @@ describe('pickStoreStockFifo — unresolved-first FIFO', () => {
         storeStockId: stockId,
         quantity: 4,
         costPerUnitUgx: '100.00',
+        minimumSellPriceUgx: '0.00',
         supplyRouteLineId: lineId,
       },
     ])
@@ -248,6 +249,7 @@ describe('pickStoreStockFifo — unresolved-first FIFO', () => {
         storeStockId: vStock,
         quantity: 3,
         costPerUnitUgx: '100.00',
+        minimumSellPriceUgx: '0.00',
         supplyRouteLineId: variantLine,
       },
     ])

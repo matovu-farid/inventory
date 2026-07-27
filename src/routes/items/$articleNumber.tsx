@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react'
 import { requireUiPermission, useCan } from '#/lib/permissions'
 import {
@@ -276,7 +276,7 @@ function CommercialEditor({
   )
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  React.useEffect(() => {
+  useEffect(() => {
     void listSuppliersForSelect().then(setSuppliers)
   }, [])
   async function save() {

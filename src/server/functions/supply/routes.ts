@@ -75,6 +75,14 @@ export const createSupplyRoute = createServerFn()
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin'])
 
+    if (
+      data.departureDate &&
+      data.returnDate &&
+      data.departureDate > data.returnDate
+    ) {
+      throw new Error('Return date must be on or after departure date')
+    }
+
     const { supplierIds, ...routeData } = data
 
     return db.transaction(async (tx) => {
