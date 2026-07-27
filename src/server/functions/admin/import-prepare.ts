@@ -70,6 +70,7 @@ export function prepareImportItem(
     totalAmountForeign: totalForeign.toFixed(2),
     totalAmountUsd,
     totalCostUgx,
+    minimumSellPriceUgx: '0',
   }
 
   return Object.assign(base, {

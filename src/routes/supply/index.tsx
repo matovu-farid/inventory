@@ -22,7 +22,6 @@ import { Plus, ArrowRight } from 'lucide-react'
 import {
   listSupplyRoutes,
   createSupplyRoute,
-  listSuppliersForSelect,
 } from '#/server/functions/supply/routes'
 import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
 import { getSupplyPrereqs } from '#/server/functions/prereqs/supply'
@@ -30,12 +29,11 @@ import { getSupplyPrereqs } from '#/server/functions/prereqs/supply'
 export const Route = createFileRoute('/supply/')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
   loader: async () => {
-    const [routes, suppliers, prerequisites] = await Promise.all([
+    const [routes, prerequisites] = await Promise.all([
       listSupplyRoutes(),
-      listSuppliersForSelect(),
       getSupplyPrereqs(),
     ])
-    return { routes, suppliers, prerequisites }
+    return { routes, prerequisites }
   },
   component: SupplyRoutesPage,
 })
@@ -108,7 +106,9 @@ function SupplyRoutesPage() {
             {
               header: 'Suppliers',
               cell: (r) =>
-                r.suppliers.map((s) => s.supplier.name).join(', ') || '-',
+                Array.from(
+                  new Set(r.items.map((i) => i.supplier?.name).filter(Boolean)),
+                ).join(', ') || '-',
               hideOnMobile: true,
             },
             {

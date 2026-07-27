@@ -77,3 +77,32 @@ export const setItemMinimumSellPrice = createServerFn()
     if (!updated) throw new Error('Item not found')
     return updated
   })
+
+export const updateItemCommercialProfile = createServerFn()
+  .inputValidator(
+    z.object({
+      itemId: z.uuid(),
+      supplierId: z.uuid(),
+      costPrice: priceAmount,
+      costCurrency: z.enum(['RMB', 'USD', 'UGX']),
+      minimumSellPriceUgx: priceAmount.refine(
+        (v) => Number(v) > 0,
+        'Minimum sell price must be positive',
+      ),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor'])
+    const updated = await db
+      .update(items)
+      .set({
+        supplierId: data.supplierId,
+        costPrice: data.costPrice,
+        costCurrency: data.costCurrency,
+        minimumSellPriceUgx: data.minimumSellPriceUgx,
+      })
+      .where(eq(items.id, data.itemId))
+      .returning()
+    if (!updated[0]) throw new Error('Item not found')
+    return updated[0]
+  })

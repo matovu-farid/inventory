@@ -6,11 +6,11 @@ The system is one codebase serving three role-based front ends that share a comm
 
 ## Modules
 
-| Module | Primary users | Core responsibility |
-| --- | --- | --- |
-| **Supply** | Admin, Supervisor | Procurement, supplier management, import-cost tracking (RMB to USD to UGX) |
-| **Store** | Admin, Supervisor | Warehouse management, stock control, distribution to shops |
-| **Shop** | Sales personnel, Supervisor | Retail point of sale, pricing, daily accounts |
+| Module     | Primary users               | Core responsibility                                                        |
+| ---------- | --------------------------- | -------------------------------------------------------------------------- |
+| **Supply** | Admin, Supervisor           | Procurement, supplier management, import-cost tracking (RMB to USD to UGX) |
+| **Store**  | Admin, Supervisor           | Warehouse management, stock control, distribution to shops                 |
+| **Shop**   | Sales personnel, Supervisor | Retail point of sale, pricing, daily accounts                              |
 
 ## What it does
 
@@ -18,6 +18,7 @@ The system is one codebase serving three role-based front ends that share a comm
 - **Point of sale.** A `/pos` route for fast retail checkout with minimum-price enforcement and daily X / Z reports.
 - **Stock control.** Stock-in, stock-out, restock workflows, stock-takes, audit-logged variants by article number.
 - **Multi-currency procurement.** Records purchases in RMB, converts to USD then UGX with the trip's actual rates, so cost-of-goods reflects reality and not an averaged guess.
+- **Item-centered procurement.** Items hold the current supplier, supplier cost, currency, and minimum sell price. Supply routes provide changing FX defaults; route lines snapshot the resolved commercial values.
 - **Audit trail.** Every mutation goes through the server, gets validated, and is logged. Settings has a viewer.
 - **User management.** Email-invite onboarding, photo upload via signed token URL, role-based access.
 
@@ -50,19 +51,19 @@ pnpm dev           # start the TanStack Start dev server on :3000
 
 ## Scripts
 
-| Script | What it does |
-| --- | --- |
-| `pnpm dev` | Vite + TanStack Start dev server, Sentry instrumented |
-| `pnpm build` | Production build for Cloudflare Workers |
-| `pnpm deploy` | Build and deploy to Cloudflare with Wrangler |
-| `pnpm test` | Vitest unit tests |
-| `pnpm test:e2e` | Cypress E2E suite |
-| `pnpm typecheck` | `tsc --noEmit` |
-| `pnpm format` | Prettier check |
-| `pnpm check` | Prettier write plus eslint fix |
-| `pnpm db:studio` | Drizzle Studio for browsing data |
-| `pnpm backfill:audit` | One-off script to backfill audit logs |
-| `pnpm backfill:variants` | One-off script to backfill item variants |
+| Script                   | What it does                                          |
+| ------------------------ | ----------------------------------------------------- |
+| `pnpm dev`               | Vite + TanStack Start dev server, Sentry instrumented |
+| `pnpm build`             | Production build for Cloudflare Workers               |
+| `pnpm deploy`            | Build and deploy to Cloudflare with Wrangler          |
+| `pnpm test`              | Vitest unit tests                                     |
+| `pnpm test:e2e`          | Cypress E2E suite                                     |
+| `pnpm typecheck`         | `tsc --noEmit`                                        |
+| `pnpm format`            | Prettier check                                        |
+| `pnpm check`             | Prettier write plus eslint fix                        |
+| `pnpm db:studio`         | Drizzle Studio for browsing data                      |
+| `pnpm backfill:audit`    | One-off script to backfill audit logs                 |
+| `pnpm backfill:variants` | One-off script to backfill item variants              |
 
 ## Status
 

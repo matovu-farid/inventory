@@ -824,6 +824,12 @@ Total Cost (shs) = RATE(rmb) / EX.RATE(rmb/dollar) * USD_RATE(shs/dollar) * QTY
 
 ### 6.4 Local Purchases
 
+#### 6.4.1 Item commercial source of truth
+
+Items own the current supplier, supplier purchase cost, cost currency, and minimum sell price. Supply routes provide changing FX defaults, with optional per-line overrides. When a route line is added, the resolved supplier, cost, FX rates, and minimum sell price are snapshotted; later item edits do not change historical calculations.
+
+Freight, customs, transportation, and other route expenses remain separate from supplier purchase cost.
+
 For local suppliers, purchases are directly in UGX. No currency conversion is needed, but the system must still support recording the purchase price and computing margins.
 
 ---

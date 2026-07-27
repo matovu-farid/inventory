@@ -35,7 +35,14 @@ import {
   TableHeader,
   TableRow,
 } from '#/components/ui/table'
-import { Plus, Trash2, Split, ChevronDown, ChevronRight } from 'lucide-react'
+import {
+  Plus,
+  Trash2,
+  Split,
+  ChevronDown,
+  ChevronRight,
+  Pencil,
+} from 'lucide-react'
 import {
   getSupplyRoute,
   updateSupplyRoute,
@@ -43,6 +50,7 @@ import {
 import {
   addSupplyRouteVariants,
   deleteSupplyRouteItem,
+  updateSupplyRouteLineQuantity,
 } from '#/server/functions/supply/items'
 import { ItemPicker } from '#/components/items/item-picker'
 import type { ItemSummary } from '#/components/items/item-picker'
@@ -175,6 +183,16 @@ function RouteDetailPage() {
 
   async function handleDeleteItem(id: string) {
     await deleteSupplyRouteItem({ data: { id } })
+    void router.invalidate()
+  }
+
+  async function handleEditQuantity(item: RouteItem) {
+    if (route.status !== 'planning') return
+    const raw = window.prompt('New quantity', String(item.quantity))
+    if (raw === null) return
+    const quantity = Number(raw)
+    if (!Number.isInteger(quantity) || quantity <= 0) return
+    await updateSupplyRouteLineQuantity({ data: { id: item.id, quantity } })
     void router.invalidate()
   }
 
@@ -471,6 +489,18 @@ function RouteDetailPage() {
                                     >
                                       <Split className="mr-1 h-3.5 w-3.5" />
                                       Split
+                                    </Button>
+                                  )}
+                                  {route.status === 'planning' && (
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      title="Edit quantity"
+                                      onClick={() =>
+                                        void handleEditQuantity(item)
+                                      }
+                                    >
+                                      <Pencil className="h-4 w-4" />
                                     </Button>
                                   )}
                                   <Button

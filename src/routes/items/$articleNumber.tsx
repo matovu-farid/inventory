@@ -10,7 +10,9 @@ import {
   listItemStockPrices,
   // Plan 2b removed setShopStockMinimumPrice — shop floors are item-wide now.
   setItemMinimumSellPrice,
+  updateItemCommercialProfile,
 } from '#/server/functions/items/prices'
+import { listSuppliersForSelect } from '#/server/functions/supply/routes'
 import { countVariantStockLocations } from '#/server/functions/items/variant-stock-counts'
 import { createVariant, deleteVariant } from '#/server/functions/items/variants'
 import { ColorEditor } from '#/components/items/color-editor'
@@ -22,6 +24,7 @@ import { deriveSizes } from '#/lib/variants'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { MoneyInput } from '#/components/ui/money-input'
+import { Combobox } from '#/components/ui/combobox'
 import { Badge } from '#/components/ui/badge'
 import { InfoTip } from '#/components/ui/info-tip'
 import {
@@ -57,6 +60,7 @@ function ProductDetailPage() {
   const canSeeActivity = useCan('audit.viewArticleActivity')
   const [colorDialogOpen, setColorDialogOpen] = useState(false)
   const [priceDialogOpen, setPriceDialogOpen] = useState(false)
+  const [commercialDialogOpen, setCommercialDialogOpen] = useState(false)
   const [activeColorId, setActiveColorId] = useState<string | undefined>(
     product.colors[0]?.id,
   )
@@ -169,13 +173,22 @@ function ProductDetailPage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Prices</h2>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setPriceDialogOpen(true)}
-            >
-              <Pencil className="mr-1 size-3" /> Edit prices
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCommercialDialogOpen(true)}
+              >
+                <Pencil className="mr-1 size-3" /> Edit item pricing
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPriceDialogOpen(true)}
+              >
+                Edit stock floor
+              </Button>
+            </div>
           </div>
           <PriceSummary prices={prices} />
         </section>
@@ -214,9 +227,118 @@ function ProductDetailPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={commercialDialogOpen}
+        onOpenChange={setCommercialDialogOpen}
+      >
+        <DialogContent aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Edit item commercial profile</DialogTitle>
+          </DialogHeader>
+          <CommercialEditor
+            item={product}
+            onSaved={() => {
+              setCommercialDialogOpen(false)
+              void router.invalidate()
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
       {canSeeActivity && (
         <AuditActivityPanel articleNumber={product.articleNumber} />
       )}
+    </div>
+  )
+}
+
+function CommercialEditor({
+  item,
+  onSaved,
+}: {
+  item: {
+    id: string
+    supplier?: { id: string; name: string } | null
+    costPrice?: string | null
+    costCurrency?: string | null
+    minimumSellPriceUgx: string
+  }
+  onSaved: () => void
+}) {
+  const [suppliers, setSuppliers] = useState<
+    Array<{ id: string; name: string }>
+  >([])
+  const [supplierId, setSupplierId] = useState(item.supplier?.id ?? '')
+  const [costPrice, setCostPrice] = useState(item.costPrice ?? '')
+  const [costCurrency, setCostCurrency] = useState(item.costCurrency ?? 'RMB')
+  const [minimumSellPriceUgx, setMinimumSellPriceUgx] = useState(
+    item.minimumSellPriceUgx,
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  React.useEffect(() => {
+    void listSuppliersForSelect().then(setSuppliers)
+  }, [])
+  async function save() {
+    setSaving(true)
+    setError(null)
+    try {
+      await updateItemCommercialProfile({
+        data: {
+          itemId: item.id,
+          supplierId,
+          costPrice,
+          costCurrency: costCurrency as 'RMB' | 'USD' | 'UGX',
+          minimumSellPriceUgx,
+        },
+      })
+      onSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save item pricing')
+    } finally {
+      setSaving(false)
+    }
+  }
+  return (
+    <div className="space-y-4">
+      <Combobox
+        options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+        value={supplierId}
+        onChange={setSupplierId}
+        placeholder="Select supplier"
+        searchPlaceholder="Search suppliers…"
+        emptyMessage="No suppliers found."
+      />
+      <MoneyInput
+        value={costPrice}
+        onChange={setCostPrice}
+        currency={costCurrency}
+        decimals={2}
+      />
+      <select
+        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+        value={costCurrency}
+        onChange={(e) => setCostCurrency(e.target.value)}
+      >
+        <option>RMB</option>
+        <option>USD</option>
+        <option>UGX</option>
+      </select>
+      <MoneyInput
+        value={minimumSellPriceUgx}
+        onChange={setMinimumSellPriceUgx}
+        currency="UGX"
+        decimals={2}
+        roundTo={50}
+      />
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <Button
+        className="w-full"
+        onClick={() => void save()}
+        disabled={saving || !supplierId || !costPrice || !minimumSellPriceUgx}
+      >
+        {saving ? 'Saving…' : 'Save item pricing'}
+      </Button>
     </div>
   )
 }
