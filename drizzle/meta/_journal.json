@@ -15,6 +15,48 @@
       "when": 1785146311792,
       "tag": "0001_sour_xavin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786167169101,
+      "tag": "0002_lying_nebula",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786170626563,
+      "tag": "0003_guided_supply_route_entry",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786170978128,
+      "tag": "0004_numerous_moondragon",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786171326386,
+      "tag": "0005_watery_drax",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786171498976,
+      "tag": "0006_burly_tusk",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786198632297,
+      "tag": "0007_public_newton_destine",
+      "breakpoints": true
     }
   ]
 }

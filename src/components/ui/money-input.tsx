@@ -2,14 +2,29 @@ import * as React from 'react'
 import BigNumber from 'bignumber.js'
 import { cn } from '#/lib/utils'
 
-/**
- * Format a numeric string with thousand separators.
- * Preserves decimal portion if present.
- */
-function formatWithCommas(value: string): string {
+/** Apply the configured decimal precision without adding display formatting. */
+function normalizeNumericValue(value: string, decimals: number): string {
   if (!value) return ''
   const isNegative = value.startsWith('-')
   const cleaned = value.replace(/[^0-9.]/g, '')
+  const parts = cleaned.split('.')
+  const intPart = parts[0]
+  const hasDecimal = parts.length > 1
+  const fraction = decimals > 0 ? (parts[1] ?? '').slice(0, decimals) : ''
+  const normalized =
+    hasDecimal && decimals > 0 ? `${intPart}.${fraction}` : intPart
+  return isNegative ? `-${normalized}` : normalized
+}
+
+/**
+ * Format a numeric string with thousand separators.
+ * Preserves allowed decimal portion if present.
+ */
+function formatWithCommas(value: string, decimals: number): string {
+  const normalized = normalizeNumericValue(value, decimals)
+  if (!normalized) return ''
+  const isNegative = normalized.startsWith('-')
+  const cleaned = normalized.replace(/[^0-9.]/g, '')
   const parts = cleaned.split('.')
   const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',')
   const formatted = parts.length > 1 ? `${intPart}.${parts[1]}` : intPart
@@ -49,7 +64,9 @@ function MoneyInput({
   roundTo,
   ...props
 }: MoneyInputProps) {
-  const [display, setDisplay] = React.useState(() => formatWithCommas(value))
+  const [display, setDisplay] = React.useState(() =>
+    formatWithCommas(value, decimals),
+  )
   const displayRef = React.useRef(display)
   displayRef.current = display
 
@@ -57,9 +74,9 @@ function MoneyInput({
   React.useEffect(() => {
     const stripped = stripCommas(displayRef.current)
     if (stripped !== value) {
-      setDisplay(formatWithCommas(value))
+      setDisplay(formatWithCommas(value, decimals))
     }
-  }, [value])
+  }, [decimals, value])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value.replace(/[^0-9.,-]/g, '')
@@ -88,14 +105,14 @@ function MoneyInput({
       return
     }
 
-    setDisplay(formatWithCommas(normalized))
+    setDisplay(formatWithCommas(normalized, decimals))
     onChange(normalized)
   }
 
   function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
     // Strip a trailing dot left over from partial input
     const raw = display.endsWith('.') ? display.slice(0, -1) : display
-    let stripped = stripCommas(raw)
+    let stripped = normalizeNumericValue(stripCommas(raw), decimals)
 
     if (roundTo && stripped !== '' && stripped !== '-') {
       const bn = new BigNumber(stripped)
@@ -107,8 +124,8 @@ function MoneyInput({
       }
     }
 
-    if (stripped !== stripCommas(display)) {
-      setDisplay(formatWithCommas(stripped))
+    if (stripped !== stripCommas(display) || stripped !== value) {
+      setDisplay(formatWithCommas(stripped, decimals))
       onChange(stripped)
     }
     props.onBlur?.(e)
@@ -150,77 +167,4 @@ function MoneyInput({
   )
 }
 
-/**
- * Simpler variant for exchange rate inputs.
- * Shows a descriptive label pair like "RMB / USD" as prefix.
- */
-interface RateInputProps extends Omit<
-  React.ComponentProps<'input'>,
-  'onChange' | 'value' | 'type'
-> {
-  /** Label shown as prefix, e.g. "RMB/USD" */
-  label?: string
-  value: string
-  onChange: (value: string) => void
-  /** Number of decimal places. Default: 6 for exchange rates */
-  decimals?: number
-  error?: string
-}
-
-function RateInput({
-  className,
-  label,
-  value,
-  onChange,
-  decimals = 6,
-  error,
-  ...props
-}: RateInputProps) {
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value.replace(/[^0-9.]/g, '')
-
-    if (raw === '') {
-      onChange('')
-      return
-    }
-
-    const parts = raw.split('.')
-    if (parts.length > 2) return
-    if (parts[1] && parts[1].length > decimals) return
-    if (raw !== '.' && isNaN(Number(raw))) return
-
-    onChange(raw)
-  }
-
-  return (
-    <div className="space-y-1">
-      <div
-        className={cn(
-          'flex h-9 w-full rounded-md border border-input bg-transparent shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50',
-          error &&
-            'border-destructive ring-destructive/20 dark:ring-destructive/40',
-          props.disabled && 'opacity-50 cursor-not-allowed',
-          className,
-        )}
-      >
-        {label && (
-          <span className="flex items-center pl-3 text-xs font-medium text-muted-foreground select-none whitespace-nowrap">
-            {label}
-          </span>
-        )}
-        <input
-          {...props}
-          type="text"
-          inputMode="decimal"
-          aria-invalid={!!error || undefined}
-          value={value}
-          onChange={handleChange}
-          className="h-full w-full min-w-0 bg-transparent px-3 py-1 text-base text-right font-mono outline-none placeholder:text-muted-foreground disabled:pointer-events-none md:text-sm"
-        />
-      </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
-  )
-}
-
-export { MoneyInput, RateInput }
+export { MoneyInput }

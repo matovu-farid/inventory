@@ -8,9 +8,9 @@ import {
   integer,
   timestamp,
   index,
-  unique,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import { suppliers } from './suppliers'
 import { itemColors, items } from './items'
 
@@ -80,6 +80,7 @@ export const supplyRouteLines = pgTable(
   'supply_route_lines',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    entryId: uuid('entry_id').defaultRandom().notNull(),
     supplyRouteId: uuid('supply_route_id')
       .notNull()
       .references(() => supplyRoutes.id, { onDelete: 'cascade' }),
@@ -148,16 +149,20 @@ export const supplyRouteLines = pgTable(
       .notNull(),
   },
   (table) => [
+    index('idx_srl_entry').on(table.entryId),
     index('idx_srl_route').on(table.supplyRouteId),
     index('idx_srl_supplier').on(table.supplierId),
     index('idx_srl_color').on(table.colorId),
     index('idx_srl_item').on(table.itemId),
-    unique('uq_srl_variant').on(
-      table.supplyRouteId,
-      table.supplierId,
-      table.colorId,
-      table.size,
-    ),
+    uniqueIndex('uq_srl_entry_variant')
+      .on(
+        table.supplyRouteId,
+        table.entryId,
+        table.supplierId,
+        sql`coalesce(${table.colorId}::text, '')`,
+        sql`coalesce(${table.size}, '')`,
+      )
+      .where(sql`${table.itemId} IS NOT NULL`),
   ],
 )
 

@@ -341,8 +341,8 @@ export function OpeningBalanceForm({
                             }
                           />
                           <p className="text-xs text-muted-foreground">
-                            Quantities are per color. Stock is recorded as
-                            size {openingBalanceImplicitSize(b.item)}.
+                            Quantities are per color. Stock is recorded as size{' '}
+                            {openingBalanceImplicitSize(b.item)}.
                           </p>
                         </div>
                       )}
@@ -358,7 +358,7 @@ export function OpeningBalanceForm({
                     <MoneyInput
                       currency="UGX"
                       roundTo={50}
-                      decimals={2}
+                      decimals={0}
                       value={b.unitCostUgx}
                       onChange={(v) => updateBlock(b.id, { unitCostUgx: v })}
                       placeholder="0"

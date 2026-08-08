@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { FieldLabel } from '#/components/ui/field-label'
-import { MoneyInput } from '#/components/ui/money-input'
+import { Input } from '#/components/ui/input'
 import { VariantGrid } from '#/components/items/variant-grid'
 import { deriveSizes } from '#/lib/variants'
 import { getItemByArticle } from '#/server/functions/items/items'
@@ -243,10 +243,12 @@ export function ColorQuantityList({
                   </span>
                 </td>
                 <td className="p-1.5 w-32">
-                  <MoneyInput
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
                     value={c.id in values ? values[c.id].toString() : ''}
-                    onChange={(v) => set(c.id, v)}
-                    decimals={0}
+                    onChange={(event) => set(c.id, event.target.value)}
                     placeholder="0"
                   />
                 </td>

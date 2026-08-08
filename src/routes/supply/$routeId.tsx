@@ -1,12 +1,11 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Outlet, useRouter } from '@tanstack/react-router'
 import * as React from 'react'
 import { useState } from 'react'
 import { requireUiPermission } from '#/lib/permissions'
-import { deriveSizes } from '#/lib/variants'
 import BigNumber from 'bignumber.js'
 import { Button } from '#/components/ui/button'
 import { Textarea } from '#/components/ui/textarea'
-import { MoneyInput, RateInput } from '#/components/ui/money-input'
+import { MoneyInput } from '#/components/ui/money-input'
 import { FieldLabel } from '#/components/ui/field-label'
 import { InfoTip } from '#/components/ui/info-tip'
 import { Badge } from '#/components/ui/badge'
@@ -48,29 +47,17 @@ import {
   updateSupplyRoute,
 } from '#/server/functions/supply/routes'
 import {
-  addSupplyRouteVariants,
   deleteSupplyRouteItem,
   updateSupplyRouteLineQuantity,
 } from '#/server/functions/supply/items'
-import { ItemPicker } from '#/components/items/item-picker'
-import type { ItemSummary } from '#/components/items/item-picker'
-import { ItemEditor } from '#/components/items/item-editor'
-import { ColorEditor } from '#/components/items/color-editor'
-import { VariantGrid } from '#/components/items/variant-grid'
-import {
-  SplitItemForm,
-  ColorQuantityList,
-} from '#/components/supply/split-item-form'
-import {
-  getItemByArticle,
-  listItemCategories,
-} from '#/server/functions/items/items'
-import { deleteItemColor } from '#/server/functions/items/colors'
+import { SplitItemForm } from '#/components/supply/split-item-form'
+import { listItemCategories } from '#/server/functions/items/items'
 import {
   addSupplyRouteExpense,
   deleteSupplyRouteExpense,
 } from '#/server/functions/supply/expenses'
 import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
+import { AddItemForm as ExtractedAddItemForm } from '#/components/supply/add-item-form'
 import { getSupplyRouteDetailPrereqs } from '#/server/functions/prereqs/supply'
 import {
   roundUgxFloor50,
@@ -189,6 +176,10 @@ function RouteDetailPage() {
     void router.invalidate()
   }
 
+  if (router.state.location.pathname.endsWith('/entry')) {
+    return <Outlet />
+  }
+
   // Build supplier lookup for items form
 
   return (
@@ -204,8 +195,14 @@ function RouteDetailPage() {
             {route.returnDate && ` | Returned: ${route.returnDate}`}
           </p>
         </div>
-        <Badge variant={route.status === 'received' ? 'secondary' : 'outline'}>
-          {route.status === 'received' ? 'Received' : 'Open'}
+        <Badge
+          variant={route.displayStatus === 'received' ? 'secondary' : 'outline'}
+        >
+          {route.displayStatus === 'partially_received'
+            ? 'Partially received'
+            : route.displayStatus === 'received'
+              ? 'Received'
+              : 'Open'}
         </Badge>
       </div>
 
@@ -269,7 +266,7 @@ function RouteDetailPage() {
             <h2 className="text-lg font-semibold">Items</h2>
             <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" disabled={route.status !== 'open'}>
                   <Plus className="mr-1 h-4 w-4" />
                   Add Item
                 </Button>
@@ -278,11 +275,15 @@ function RouteDetailPage() {
                 <DialogHeader>
                   <DialogTitle>Add Item</DialogTitle>
                 </DialogHeader>
-                <AddItemForm
+                <ExtractedAddItemForm
                   supplyRouteId={route.id}
                   rateUgxPerUsd={route.rateUgxPerUsd}
                   rateRmbPerUsd={route.rateRmbPerUsd}
                   categories={categories}
+                  suppliers={route.suppliers.map((entry) => ({
+                    id: entry.supplier.id,
+                    name: entry.supplier.name,
+                  }))}
                   onSuccess={() => {
                     setItemDialogOpen(false)
                     void router.invalidate()
@@ -452,41 +453,47 @@ function RouteDetailPage() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center justify-end gap-1">
-                                  {(!item.itemColor || !item.size) && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-7"
-                                      onClick={() =>
-                                        setSplittingItemId(item.id)
-                                      }
-                                    >
-                                      <Split className="mr-1 h-3.5 w-3.5" />
-                                      Split
-                                    </Button>
-                                  )}
-                                  {route.status === 'open' && (
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      title="Edit quantity"
-                                      onClick={() =>
-                                        void handleEditQuantity(item)
-                                      }
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-destructive"
-                                    onClick={() => {
-                                      void handleDeleteItem(item.id)
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  {route.status === 'open' &&
+                                    !item.received &&
+                                    (!item.itemColor || !item.size) && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7"
+                                        onClick={() =>
+                                          setSplittingItemId(item.id)
+                                        }
+                                      >
+                                        <Split className="mr-1 h-3.5 w-3.5" />
+                                        Split
+                                      </Button>
+                                    )}
+                                  {route.status === 'open' &&
+                                    !item.received && (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        title="Edit quantity"
+                                        onClick={() =>
+                                          void handleEditQuantity(item)
+                                        }
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  {route.status === 'open' &&
+                                    !item.received && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-destructive"
+                                        onClick={() => {
+                                          void handleDeleteItem(item.id)
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    )}
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -627,360 +634,6 @@ function RouteDetailPage() {
   )
 }
 
-/* ------------------------------------------------------------------ */
-/* Add Item Form                                                       */
-/* ------------------------------------------------------------------ */
-
-function AddItemForm({
-  supplyRouteId,
-  rateUgxPerUsd,
-  rateRmbPerUsd,
-  categories,
-  onSuccess,
-}: {
-  supplyRouteId: string
-  rateUgxPerUsd?: string | null
-  rateRmbPerUsd?: string | null
-  categories: ReadonlyArray<string>
-  onSuccess: () => void
-}) {
-  const [pending, setPending] = useState(false)
-  const [product, setProduct] = useState<ItemSummary | undefined>()
-  const [productEditorOpen, setProductEditorOpen] = useState(false)
-  const [colorEditorOpen, setColorEditorOpen] = useState(false)
-  // Procurement detail level. Aggregate = total qty only; colors = qty per
-  // color; variants = qty per color × size (the existing behaviour).
-  const [detailMode, setDetailMode] = useState<
-    'aggregate' | 'colors' | 'variants'
-  >('variants')
-  const [aggregateQty, setAggregateQty] = useState('')
-  const [colorQtys, setColorQtys] = useState<Record<string, number>>({})
-  const [quantities, setQuantities] = useState<Record<string, number>>({})
-  const initialCurrency = 'RMB'
-  const initialFxToUsd = rateRmbPerUsd ?? ''
-  const [currency, setCurrency] = useState<string>(initialCurrency)
-  const [fxToUsd, setFxToUsd] = useState(initialFxToUsd)
-  const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? '')
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-
-  async function refreshProduct(articleNumber: string) {
-    const p = await getItemByArticle({ data: { articleNumber } })
-    if (p) setProduct(p)
-  }
-
-  async function handleRemoveColor(itemColorId: string) {
-    if (!product) return
-    const colorName =
-      product.colors.find((c) => c.id === itemColorId)?.colorName ??
-      'this color'
-    if (!confirm(`Remove "${colorName}" from this product?`)) return
-    try {
-      await deleteItemColor({ data: { id: itemColorId } })
-      setQuantities((prev) => {
-        const next = { ...prev }
-        for (const k of Object.keys(next)) {
-          if (k.startsWith(`${itemColorId}|`)) delete next[k]
-        }
-        return next
-      })
-      setColorQtys((prev) => {
-        if (!(itemColorId in prev)) return prev
-        const next = { ...prev }
-        delete next[itemColorId]
-        return next
-      })
-      await refreshProduct(product.articleNumber)
-      setFormErrors((prev) => {
-        if (!prev.removeColor) return prev
-        const { removeColor: _, ...rest } = prev
-        return rest
-      })
-    } catch (err) {
-      setFormErrors((prev) => ({
-        ...prev,
-        removeColor:
-          err instanceof Error
-            ? err.message
-            : `Could not remove "${colorName}" — it may be in use.`,
-      }))
-    }
-  }
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const cells: Array<{
-      itemColorId?: string
-      size?: string
-      quantity: number
-    }> =
-      detailMode === 'aggregate'
-        ? aggregateQty && Number(aggregateQty) > 0
-          ? [{ quantity: Number(aggregateQty) }]
-          : []
-        : detailMode === 'colors'
-          ? Object.entries(colorQtys)
-              .filter(([, q]) => q > 0)
-              .map(([itemColorId, q]) => ({
-                itemColorId,
-                quantity: q,
-              }))
-          : Object.entries(quantities)
-              .filter(([, q]) => q > 0)
-              .map(([key, q]) => {
-                const [itemColorId, size] = key.split('|')
-                return { itemColorId, size, quantity: q }
-              })
-
-    const errs: Record<string, string> = {}
-    if (!product) errs.product = 'Pick a product'
-    if (cells.length === 0) errs.quantities = 'Enter at least one quantity'
-    if (currency !== 'UGX') {
-      if (currency !== 'USD') {
-        if (!fxToUsd || Number(fxToUsd) <= 0)
-          errs.fxToUsd = 'Enter a valid rate'
-      }
-      if (!usdToUgx || Number(usdToUgx) <= 0)
-        errs.usdToUgx = 'Enter a valid rate'
-    }
-    setFormErrors(errs)
-    if (Object.keys(errs).length > 0 || !product) return
-
-    setPending(true)
-    try {
-      await addSupplyRouteVariants({
-        data: {
-          supplyRouteId,
-          itemId: product.id,
-          exchangeRateForeignToUsd:
-            currency !== 'UGX' && currency !== 'USD'
-              ? fxToUsd || undefined
-              : undefined,
-          exchangeRateUsdToUgx:
-            currency !== 'UGX' ? usdToUgx || undefined : undefined,
-          cells,
-        },
-      })
-      onSuccess()
-    } catch (err) {
-      setFormErrors({
-        form: err instanceof Error ? err.message : 'Failed to save',
-      })
-    } finally {
-      setPending(false)
-    }
-  }
-
-  return (
-    <form
-      onSubmit={(e) => {
-        void handleSubmit(e)
-      }}
-      className="space-y-4"
-    >
-      <div className="space-y-2">
-        <FieldLabel help="item.name">Item *</FieldLabel>
-        <ItemPicker
-          value={product?.id}
-          onChange={(_, p) => {
-            setProduct(p)
-            setQuantities({})
-            if (
-              p?.costCurrency === 'RMB' ||
-              p?.costCurrency === 'USD' ||
-              p?.costCurrency === 'UGX'
-            ) {
-              setCurrency(p.costCurrency)
-            }
-          }}
-          onCreateNew={() => setProductEditorOpen(true)}
-        />
-        {formErrors.product && (
-          <p className="text-xs text-destructive">{formErrors.product}</p>
-        )}
-      </div>
-
-      {product && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">
-              {product.articleNumber} — {product.name}
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setColorEditorOpen(true)}
-            >
-              <Plus className="mr-1 size-3" /> Add color
-            </Button>
-          </div>
-
-          <div className="space-y-1.5">
-            <FieldLabel help="item.detailMode">Detail level</FieldLabel>
-            <div className="inline-flex rounded-md border p-0.5 text-xs">
-              {(
-                [
-                  { value: 'aggregate', label: 'Total only' },
-                  { value: 'colors', label: 'Per color' },
-                  { value: 'variants', label: 'Per color × size' },
-                ] as const
-              ).map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setDetailMode(opt.value)}
-                  className={
-                    'px-3 py-1.5 rounded transition-colors ' +
-                    (detailMode === opt.value
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted')
-                  }
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {detailMode === 'aggregate'
-                ? "Just record how many units you're buying. An admin can split into colors/sizes later before receiving."
-                : detailMode === 'colors'
-                  ? 'Record quantity per color. Sizes can be filled in later.'
-                  : 'Full breakdown by color and size.'}
-            </p>
-          </div>
-
-          {detailMode === 'aggregate' && (
-            <div className="space-y-2">
-              <FieldLabel help="item.aggregateQty">Total quantity *</FieldLabel>
-              <MoneyInput
-                value={aggregateQty}
-                onChange={setAggregateQty}
-                decimals={0}
-                placeholder="0"
-                error={formErrors.quantities}
-              />
-            </div>
-          )}
-
-          {detailMode === 'colors' && (
-            <ColorQuantityList
-              colors={product.colors}
-              values={colorQtys}
-              onChange={setColorQtys}
-              onRemoveColor={(id) => {
-                void handleRemoveColor(id)
-              }}
-              error={formErrors.quantities}
-            />
-          )}
-
-          {detailMode === 'variants' && (
-            <>
-              <VariantGrid
-                sizes={deriveSizes(product.variants ?? [])}
-                colors={product.colors}
-                quantities={quantities}
-                onChange={setQuantities}
-                onRemoveColor={(id) => {
-                  void handleRemoveColor(id)
-                }}
-              />
-              {formErrors.quantities && (
-                <p className="text-xs text-destructive">
-                  {formErrors.quantities}
-                </p>
-              )}
-            </>
-          )}
-          {formErrors.removeColor && (
-            <p className="text-xs text-destructive">{formErrors.removeColor}</p>
-          )}
-        </div>
-      )}
-
-      <p className="text-xs text-muted-foreground">
-        Supplier and purchase cost come from the item. These optional rates
-        override the route defaults for this line only.
-      </p>
-
-      {currency !== 'UGX' && (
-        <div className="grid grid-cols-2 gap-4">
-          {currency !== 'USD' && (
-            <div className="space-y-2">
-              <FieldLabel help="item.sourceRate">
-                {currency} per 1 USD *
-              </FieldLabel>
-              <RateInput
-                label={`${currency}/USD`}
-                value={fxToUsd}
-                onChange={setFxToUsd}
-                decimals={6}
-                placeholder={`e.g. 7.25`}
-                error={formErrors.fxToUsd}
-              />
-            </div>
-          )}
-          <div className="space-y-2">
-            <FieldLabel help="item.ugxPerUsd">UGX per 1 USD *</FieldLabel>
-            <RateInput
-              label="UGX/USD"
-              value={usdToUgx}
-              onChange={setUsdToUgx}
-              decimals={2}
-              placeholder="e.g. 3750"
-              error={formErrors.usdToUgx}
-            />
-          </div>
-        </div>
-      )}
-
-      {formErrors.form && (
-        <p className="text-sm text-destructive">{formErrors.form}</p>
-      )}
-
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? 'Adding...' : 'Add Items'}
-      </Button>
-
-      <Dialog open={productEditorOpen} onOpenChange={setProductEditorOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New item</DialogTitle>
-          </DialogHeader>
-          <ItemEditor
-            categories={categories}
-            onCreated={(_id, articleNumber) => {
-              setProductEditorOpen(false)
-              void refreshProduct(articleNumber)
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={colorEditorOpen} onOpenChange={setColorEditorOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add color</DialogTitle>
-          </DialogHeader>
-          {product && (
-            <ColorEditor
-              itemId={product.id}
-              onCreated={() => {
-                setColorEditorOpen(false)
-                void refreshProduct(product.articleNumber)
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </form>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Add Expense Form                                                    */
-/* ------------------------------------------------------------------ */
-
 function AddExpenseForm({
   supplyRouteId,
   rateUgxPerUsd,
@@ -1098,11 +751,11 @@ function AddExpenseForm({
       {currency !== 'UGX' && (
         <div className="space-y-2">
           <FieldLabel help="item.ugxPerUsd">UGX per 1 USD *</FieldLabel>
-          <RateInput
-            label="UGX/USD"
+          <MoneyInput
+            currency="UGX/USD"
             value={usdToUgx}
             onChange={setUsdToUgx}
-            decimals={2}
+            decimals={0}
             placeholder="e.g. 3750"
             error={formErrors.usdToUgx}
           />
@@ -1192,18 +845,18 @@ function TripRatesSection({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <FieldLabel>UGX per 1 USD</FieldLabel>
-          <RateInput
-            label="UGX/USD"
+          <MoneyInput
+            currency="UGX/USD"
             value={ugxPerUsd}
             onChange={setUgxPerUsd}
-            decimals={2}
+            decimals={0}
             placeholder="e.g. 3750"
           />
         </div>
         <div className="space-y-2">
           <FieldLabel>RMB per 1 USD</FieldLabel>
-          <RateInput
-            label="RMB/USD"
+          <MoneyInput
+            currency="RMB/USD"
             value={rmbPerUsd}
             onChange={setRmbPerUsd}
             decimals={6}

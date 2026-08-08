@@ -5,6 +5,9 @@ import { requireUiPermission, useCan } from '#/lib/permissions'
 import {
   getItemByArticle,
   listItemCategories,
+  archiveItem,
+  deleteItem,
+  restoreItem,
 } from '#/server/functions/items/items'
 import {
   listItemStockPrices,
@@ -39,7 +42,7 @@ export const Route = createFileRoute('/items/$articleNumber')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'items.view'),
   loader: async ({ params }) => {
     const product = await getItemByArticle({
-      data: { articleNumber: params.articleNumber },
+      data: { articleNumber: params.articleNumber, includeArchived: true },
     })
     if (!product) throw new Error(`Product not found: ${params.articleNumber}`)
     const [prices, variantStockCounts, categories] = await Promise.all([
@@ -61,33 +64,100 @@ function ProductDetailPage() {
   const [colorDialogOpen, setColorDialogOpen] = useState(false)
   const [priceDialogOpen, setPriceDialogOpen] = useState(false)
   const [commercialDialogOpen, setCommercialDialogOpen] = useState(false)
+  const [mutationError, setMutationError] = useState('')
   const [activeColorId, setActiveColorId] = useState<string | undefined>(
     product.colors[0]?.id,
   )
   const active =
-    product.colors.find((c) => c.id === activeColorId) ?? product.colors[0]
+    product.colors.find((c) => c.id === activeColorId) ??
+    product.colors.at(0) ??
+    null
   const hasColors = product.colors.length > 0
   const sizes = deriveSizes(product.variants)
 
+  async function handleArchive() {
+    if (!confirm(`Archive "${product.name}"?`)) return
+    await archiveItem({ data: { id: product.id } })
+    await router.navigate({ to: '/items' })
+  }
+
+  async function handleRestore() {
+    try {
+      await restoreItem({ data: { id: product.id } })
+      await router.invalidate()
+    } catch (cause) {
+      setMutationError(
+        cause instanceof Error ? cause.message : 'Could not restore item',
+      )
+    }
+  }
+
+  async function handlePermanentDelete() {
+    if (
+      !confirm(
+        `Permanently delete "${product.name}"? This is only allowed when it has no historical references.`,
+      )
+    )
+      return
+    try {
+      await deleteItem({ data: { id: product.id } })
+      await router.navigate({ to: '/items' })
+    } catch (cause) {
+      setMutationError(
+        cause instanceof Error ? cause.message : 'Could not delete item',
+      )
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <p className="font-mono text-sm text-muted-foreground">
-          {product.articleNumber}
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold">{product.name}</h1>
-          <CategoryEditPopover
-            itemId={product.id}
-            articleNumber={product.articleNumber}
-            name={product.name}
-            current={product.category}
-            categories={categories}
-            canEdit={canManage}
-            onSaved={() => void router.invalidate()}
-          />
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="font-mono text-sm text-muted-foreground">
+            {product.articleNumber}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold">{product.name}</h1>
+            <CategoryEditPopover
+              itemId={product.id}
+              articleNumber={product.articleNumber}
+              name={product.name}
+              current={product.category}
+              categories={categories}
+              canEdit={canManage}
+              onSaved={() => void router.invalidate()}
+            />
+          </div>
         </div>
+        {canManage && (
+          <div className="flex flex-wrap justify-end gap-2">
+            {product.deletedAt ? (
+              <Button variant="outline" onClick={() => void handleRestore()}>
+                Restore item
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="text-destructive"
+                onClick={() => void handleArchive()}
+              >
+                <Trash2 className="mr-1 size-4" /> Archive item
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              className="text-destructive"
+              onClick={() => void handlePermanentDelete()}
+            >
+              Delete permanently
+            </Button>
+          </div>
+        )}
       </div>
+
+      {mutationError && (
+        <p className="text-sm text-destructive">{mutationError}</p>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
@@ -313,7 +383,7 @@ function CommercialEditor({
         value={costPrice}
         onChange={setCostPrice}
         currency={costCurrency}
-        decimals={2}
+        decimals={costCurrency === 'UGX' ? 0 : 2}
       />
       <select
         className="h-10 w-full rounded-md border bg-background px-3 text-sm"
@@ -328,7 +398,7 @@ function CommercialEditor({
         value={minimumSellPriceUgx}
         onChange={setMinimumSellPriceUgx}
         currency="UGX"
-        decimals={2}
+        decimals={0}
         roundTo={50}
       />
       {error && <p className="text-sm text-destructive">{error}</p>}

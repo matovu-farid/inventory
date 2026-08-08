@@ -1,0 +1,2 @@
+ALTER TABLE "supply_route_lines" DROP CONSTRAINT "uq_srl_entry_variant";--> statement-breakpoint
+CREATE UNIQUE INDEX "uq_srl_entry_variant" ON "supply_route_lines" USING btree ("supply_route_id","entry_id","supplier_id",coalesce("color_id"::text, ''),coalesce("size", '')) WHERE "supply_route_lines"."item_id" IS NOT NULL;

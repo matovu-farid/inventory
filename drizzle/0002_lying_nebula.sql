@@ -1,0 +1,1 @@
+ALTER TABLE "suppliers" ADD COLUMN "deleted_at" timestamp with time zone;

@@ -5,18 +5,11 @@ import BigNumber from 'bignumber.js'
 import { roundUgxBankers50 } from '#/lib/format'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { MoneyInput, RateInput } from '#/components/ui/money-input'
+import { MoneyInput } from '#/components/ui/money-input'
 import { FieldLabel } from '#/components/ui/field-label'
 import { Textarea } from '#/components/ui/textarea'
 import { Badge } from '#/components/ui/badge'
 import { DatePicker } from '#/components/ui/date-picker'
-import {
-  ResponsiveDialog as Dialog,
-  ResponsiveDialogContent as DialogContent,
-  ResponsiveDialogHeader as DialogHeader,
-  ResponsiveDialogTitle as DialogTitle,
-} from '#/components/ui/responsive-dialog'
-import { DialogTrigger } from '#/components/ui/dialog'
 import { ResponsiveTable } from '#/components/ui/responsive-table'
 import { Plus, ArrowRight } from 'lucide-react'
 import {
@@ -43,12 +36,13 @@ const STATUS_COLORS: Record<
   'default' | 'secondary' | 'destructive' | 'outline'
 > = {
   open: 'outline',
+  partially_received: 'default',
   received: 'secondary',
 }
 
 function SupplyRoutesPage() {
   const { routes, prerequisites } = Route.useLoaderData()
-  const [open, setOpen] = useState(false)
+  const recentOpenRoute = routes.find((route) => route.status === 'open')
 
   return (
     <div className="space-y-6">
@@ -59,21 +53,30 @@ function SupplyRoutesPage() {
             Manage buying trips and procurement routes.
           </p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Route
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Create Supply Route</DialogTitle>
-            </DialogHeader>
-            <CreateRouteForm onSuccess={() => setOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        <Link to="/supply/new">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            New Route
+          </Button>
+        </Link>
       </div>
+
+      {recentOpenRoute && (
+        <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium">Continue your most recent open route</p>
+            <p className="text-sm text-muted-foreground">
+              {recentOpenRoute.name} · {recentOpenRoute.items.length} item rows
+            </p>
+          </div>
+          <Link
+            to="/supply/$routeId/entry"
+            params={{ routeId: recentOpenRoute.id }}
+          >
+            <Button>Continue route</Button>
+          </Link>
+        </div>
+      )}
 
       <PagePrerequisites result={prerequisites}>
         <ResponsiveTable
@@ -97,8 +100,8 @@ function SupplyRoutesPage() {
             {
               header: 'Status',
               cell: (r) => (
-                <Badge variant={STATUS_COLORS[r.status] ?? 'outline'}>
-                  {r.status.replace('_', ' ')}
+                <Badge variant={STATUS_COLORS[r.displayStatus] ?? 'outline'}>
+                  {r.displayStatus.replace('_', ' ')}
                 </Badge>
               ),
             },
@@ -148,11 +151,16 @@ function SupplyRoutesPage() {
               header: '',
               cell: (r) => (
                 <Link
-                  to="/supply/$routeId"
+                  to={
+                    r.status === 'open'
+                      ? '/supply/$routeId/entry'
+                      : '/supply/$routeId'
+                  }
                   params={{ routeId: r.id }}
                   className="text-primary hover:underline inline-flex items-center gap-1 text-sm"
                 >
-                  View <ArrowRight className="h-3 w-3" />
+                  {r.status === 'open' ? 'Continue setup' : 'View'}{' '}
+                  <ArrowRight className="h-3 w-3" />
                 </Link>
               ),
             },
@@ -163,7 +171,11 @@ function SupplyRoutesPage() {
   )
 }
 
-function CreateRouteForm({ onSuccess }: { onSuccess: () => void }) {
+export function CreateRouteForm({
+  onSuccess,
+}: {
+  onSuccess: (routeId: string) => void
+}) {
   const [pending, setPending] = useState(false)
   const [budgetUsd, setBudgetUsd] = useState('')
   const [rateUgxPerUsd, setRateUgxPerUsd] = useState('')
@@ -191,7 +203,7 @@ function CreateRouteForm({ onSuccess }: { onSuccess: () => void }) {
 
     setPending(true)
     try {
-      await createSupplyRoute({
+      const route = await createSupplyRoute({
         data: {
           name,
           departureDate: (form.get('departureDate') as string) || undefined,
@@ -203,7 +215,7 @@ function CreateRouteForm({ onSuccess }: { onSuccess: () => void }) {
         },
       })
       void router.invalidate()
-      onSuccess()
+      onSuccess(route.id)
     } catch (err) {
       console.error('Failed to create route:', err)
     } finally {
@@ -259,6 +271,7 @@ function CreateRouteForm({ onSuccess }: { onSuccess: () => void }) {
         <MoneyInput
           id="budgetUsd"
           currency="USD"
+          decimals={2}
           value={budgetUsd}
           onChange={setBudgetUsd}
           placeholder="0"
@@ -271,18 +284,18 @@ function CreateRouteForm({ onSuccess }: { onSuccess: () => void }) {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <FieldLabel>UGX per 1 USD</FieldLabel>
-            <RateInput
-              label="UGX/USD"
+            <MoneyInput
+              currency="UGX/USD"
               value={rateUgxPerUsd}
               onChange={setRateUgxPerUsd}
-              decimals={2}
+              decimals={0}
               placeholder="e.g. 3750"
             />
           </div>
           <div className="space-y-2">
             <FieldLabel>RMB per 1 USD</FieldLabel>
-            <RateInput
-              label="RMB/USD"
+            <MoneyInput
+              currency="RMB/USD"
               value={rateRmbPerUsd}
               onChange={setRateRmbPerUsd}
               decimals={6}

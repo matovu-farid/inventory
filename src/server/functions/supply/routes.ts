@@ -1,9 +1,25 @@
 import { createServerFn } from '@tanstack/react-start'
-import { eq } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
-import { supplyRoutes, supplyRouteSuppliers, suppliers } from '#/db/schema'
+import {
+  supplyRoutes,
+  supplyRouteSuppliers,
+  storeReceivings,
+  suppliers,
+} from '#/db/schema'
+import { deriveSupplyRouteDisplayStatus } from '#/lib/supply-route-status'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { listSuppliersForSelectQuery } from './supplier-queries'
+
+async function getReceivedLineIds(lineIds: string[]) {
+  if (lineIds.length === 0) return new Set<string>()
+  const received = await db
+    .select({ lineId: storeReceivings.supplyRouteLineId })
+    .from(storeReceivings)
+    .where(inArray(storeReceivings.supplyRouteLineId, lineIds))
+  return new Set(received.map((row) => row.lineId))
+}
 
 export const listSupplyRoutes = createServerFn().handler(async () => {
   await requireSessionAndRole(['admin'])
@@ -19,7 +35,23 @@ export const listSupplyRoutes = createServerFn().handler(async () => {
     },
   })
 
-  return routes
+  const receivedIds = await getReceivedLineIds(
+    routes.flatMap((route) => route.items.map((line) => line.id)),
+  )
+  return routes.map((route) => ({
+    ...route,
+    displayStatus:
+      route.status === 'received'
+        ? 'received'
+        : deriveSupplyRouteDisplayStatus({
+            totalLineIds: route.items.map((line) => line.id),
+            receivedLineIds: new Set(
+              route.items
+                .filter((line) => receivedIds.has(line.id))
+                .map((line) => line.id),
+            ),
+          }),
+  }))
 })
 
 export const getSupplyRoute = createServerFn()
@@ -48,7 +80,27 @@ export const getSupplyRoute = createServerFn()
     })
 
     if (!route) throw new Error('Supply route not found')
-    return route
+    const receivedIds = await getReceivedLineIds(
+      route.items.map((line) => line.id),
+    )
+    return {
+      ...route,
+      items: route.items.map((line) => ({
+        ...line,
+        received: receivedIds.has(line.id),
+      })),
+      displayStatus:
+        route.status === 'received'
+          ? 'received'
+          : deriveSupplyRouteDisplayStatus({
+              totalLineIds: route.items.map((line) => line.id),
+              receivedLineIds: new Set(
+                route.items
+                  .filter((line) => receivedIds.has(line.id))
+                  .map((line) => line.id),
+              ),
+            }),
+    }
   })
 
 const createRouteInput = z
@@ -108,13 +160,12 @@ const updateRouteInput = z
   .object({
     id: z.uuid(),
     name: z.string().min(1).optional(),
-    status: z.enum(['planning', 'in_transit', 'received']).optional(),
-    departureDate: z.string().optional(),
-    returnDate: z.string().optional(),
-    budgetUsd: z.string().optional(),
-    rateUgxPerUsd: z.string().optional(),
-    rateRmbPerUsd: z.string().optional(),
-    notes: z.string().optional(),
+    departureDate: z.string().nullable().optional(),
+    returnDate: z.string().nullable().optional(),
+    budgetUsd: z.string().nullable().optional(),
+    rateUgxPerUsd: z.string().nullable().optional(),
+    rateRmbPerUsd: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
   })
   .refine(
     (d) => !d.departureDate || !d.returnDate || d.departureDate <= d.returnDate,
@@ -130,6 +181,12 @@ export const updateSupplyRoute = createServerFn()
     await requireSessionAndRole(['admin'])
 
     const { id, ...fields } = data
+    const existing = await db.query.supplyRoutes.findFirst({
+      where: eq(supplyRoutes.id, id),
+    })
+    if (!existing) throw new Error('Supply route not found')
+    if (existing.status !== 'open')
+      throw new Error('Only open routes can be edited')
     const route = (
       await db
         .update(supplyRoutes)
@@ -152,6 +209,29 @@ export const addSupplierToRoute = createServerFn()
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin'])
 
+    const supplier = await db.query.suppliers.findFirst({
+      where: and(
+        eq(suppliers.id, data.supplierId),
+        isNull(suppliers.deletedAt),
+      ),
+    })
+    if (!supplier) throw new Error('Supplier not found')
+
+    const route = await db.query.supplyRoutes.findFirst({
+      where: eq(supplyRoutes.id, data.supplyRouteId),
+    })
+    if (!route) throw new Error('Supply route not found')
+    if (route.status !== 'open')
+      throw new Error('Only open routes can be edited')
+
+    const existing = await db.query.supplyRouteSuppliers.findFirst({
+      where: and(
+        eq(supplyRouteSuppliers.supplyRouteId, data.supplyRouteId),
+        eq(supplyRouteSuppliers.supplierId, data.supplierId),
+      ),
+    })
+    if (existing) return existing
+
     const [link] = await db
       .insert(supplyRouteSuppliers)
       .values(data)
@@ -169,16 +249,25 @@ export const removeSupplierFromRoute = createServerFn()
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin'])
 
+    const link = await db.query.supplyRouteSuppliers.findFirst({
+      where: eq(supplyRouteSuppliers.id, data.id),
+      with: { supplyRoute: true },
+    })
+    if (!link) throw new Error('Route supplier link not found')
+    if (link.supplyRoute.status !== 'open')
+      throw new Error('Only open routes can be edited')
+
     await db
       .delete(supplyRouteSuppliers)
       .where(eq(supplyRouteSuppliers.id, data.id))
   })
 
-export const listSuppliersForSelect = createServerFn().handler(async () => {
-  await requireSessionAndRole(['admin', 'supervisor'])
+export const listSuppliersForSelect = createServerFn()
+  .inputValidator(
+    z.object({ includeArchived: z.boolean().optional() }).optional(),
+  )
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor'])
 
-  return db
-    .select({ id: suppliers.id, name: suppliers.name, type: suppliers.type })
-    .from(suppliers)
-    .orderBy(suppliers.name)
-})
+    return listSuppliersForSelectQuery(data)
+  })

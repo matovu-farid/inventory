@@ -13,11 +13,14 @@ import { z } from 'zod'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 import {
   createItemQuery,
+  deleteItemQuery,
   getItemByArticleQuery,
+  archiveItemQuery,
   listItemCategoriesQuery,
   listItemSizesQuery,
   listItemsQuery,
   searchItemsQuery,
+  restoreItemQuery,
   updateInput,
   updateItemQuery,
   upsertInput,
@@ -27,20 +30,31 @@ import {
 // Read endpoints allow admin/supervisor/sales; write endpoints are
 // restricted to admin/supervisor.
 
-export const listItems = createServerFn().handler(async () => {
-  await requireSessionAndRole(['admin', 'supervisor', 'sales'])
-  return listItemsQuery()
-})
+export const listItems = createServerFn()
+  .inputValidator(
+    z.object({ includeArchived: z.boolean().optional() }).optional(),
+  )
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor', 'sales'])
+    return listItemsQuery(data)
+  })
 
 export const getItemByArticle = createServerFn()
-  .inputValidator(z.object({ articleNumber: z.string().min(1) }))
+  .inputValidator(
+    z.object({
+      articleNumber: z.string().min(1),
+      includeArchived: z.boolean().optional(),
+    }),
+  )
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor', 'sales'])
     return getItemByArticleQuery(data)
   })
 
 export const searchItems = createServerFn()
-  .inputValidator(z.object({ query: z.string() }))
+  .inputValidator(
+    z.object({ query: z.string(), includeArchived: z.boolean().optional() }),
+  )
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor', 'sales'])
     return searchItemsQuery(data)
@@ -67,6 +81,27 @@ export const updateItem = createServerFn()
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor'])
     return updateItemQuery(data)
+  })
+
+export const archiveItem = createServerFn()
+  .inputValidator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor'])
+    return archiveItemQuery(data)
+  })
+
+export const restoreItem = createServerFn()
+  .inputValidator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor'])
+    return restoreItemQuery(data)
+  })
+
+export const deleteItem = createServerFn()
+  .inputValidator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin'])
+    return deleteItemQuery(data)
   })
 
 /**

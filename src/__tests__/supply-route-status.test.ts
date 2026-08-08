@@ -1,18 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canEditSupplyRouteEntry,
   canEditSupplyRouteLine,
   deriveSupplyRouteDisplayStatus,
-  type ReceiptState,
 } from '#/lib/supply-route-status'
+import type { ReceiptState } from '#/lib/supply-route-status'
 
 const state = (received: number, total: number): ReceiptState => ({
   receivedLineIds: new Set(
     Array.from({ length: received }, (_, index) => `line-${index}`),
   ),
-  totalLineIds: Array.from(
-    { length: total },
-    (_, index) => `line-${index}`,
-  ),
+  totalLineIds: Array.from({ length: total }, (_, index) => `line-${index}`),
 })
 
 describe('supply route display status', () => {
@@ -36,11 +34,28 @@ describe('supply route line editability', () => {
     expect(
       canEditSupplyRouteLine({ routeState: 'open', received: false }),
     ).toBe(true)
-    expect(
-      canEditSupplyRouteLine({ routeState: 'open', received: true }),
-    ).toBe(false)
+    expect(canEditSupplyRouteLine({ routeState: 'open', received: true })).toBe(
+      false,
+    )
     expect(
       canEditSupplyRouteLine({ routeState: 'received', received: false }),
     ).toBe(false)
+  })
+
+  it('rejects editing an entry when any materialized row is received', () => {
+    expect(
+      canEditSupplyRouteEntry({
+        routeState: 'open',
+        lineIds: ['row-1', 'row-2'],
+        receivedLineIds: new Set(['row-1']),
+      }),
+    ).toBe(false)
+    expect(
+      canEditSupplyRouteEntry({
+        routeState: 'open',
+        lineIds: ['row-1', 'row-2'],
+        receivedLineIds: new Set(),
+      }),
+    ).toBe(true)
   })
 })

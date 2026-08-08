@@ -5,7 +5,11 @@ import { Textarea } from '#/components/ui/textarea'
 import { Badge } from '#/components/ui/badge'
 import { CreatableCombobox } from '#/components/ui/creatable-combobox'
 import { X } from 'lucide-react'
-import { createItem } from '#/server/functions/items/items'
+import {
+  createItem,
+  listItems,
+  updateItem,
+} from '#/server/functions/items/items'
 import { listSuppliersForSelect } from '#/server/functions/supply/routes'
 import { matchPaletteHex } from '#/lib/colors/match-palette'
 import { CLOTHING_PALETTE } from '#/lib/colors/palette'
@@ -14,13 +18,29 @@ import { InfoTip } from '#/components/ui/info-tip'
 import { FieldLabel } from '#/components/ui/field-label'
 import { MoneyInput } from '#/components/ui/money-input'
 import { Combobox } from '#/components/ui/combobox'
+import { suggestArticleNumber } from '#/lib/items/article-number'
 
 const SIZE_QUICK_PICKS = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 interface Props {
   categories: ReadonlyArray<string>
   suppliers?: ReadonlyArray<{ id: string; name: string }>
-  onCreated: (itemId: string, articleNumber: string) => void
+  onCreated?: (itemId: string, articleNumber: string) => void
+  item?: {
+    id: string
+    articleNumber: string
+    name: string
+    description?: string | null
+    category: string
+    supplier?: { id: string; name: string } | null
+    costPrice?: string | null
+    costCurrency?: string | null
+    minimumSellPriceUgx?: string | null
+    lowStockThreshold?: number | null
+    colors?: ColorDraft[]
+    variants?: Array<{ size: string }>
+  }
+  onUpdated?: (articleNumber: string) => void
 }
 
 interface ColorDraft {
@@ -38,29 +58,45 @@ export function ItemEditor({
   categories,
   suppliers: suppliedSuppliers,
   onCreated,
+  item,
+  onUpdated,
 }: Props) {
-  const [articleNumber, setArticleNumber] = useState('')
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
-  const [supplierId, setSupplierId] = useState('')
+  const [articleNumber, setArticleNumber] = useState(item?.articleNumber ?? '')
+  const [name, setName] = useState(item?.name ?? '')
+  const [description, setDescription] = useState(item?.description ?? '')
+  const [category, setCategory] = useState(item?.category ?? '')
+  const [supplierId, setSupplierId] = useState(item?.supplier?.id ?? '')
   const [suppliers, setSuppliers] = useState<
     ReadonlyArray<{ id: string; name: string }>
   >(suppliedSuppliers ?? [])
-  const [costPrice, setCostPrice] = useState('')
-  const [costCurrency, setCostCurrency] = useState<'RMB' | 'USD' | 'UGX'>('RMB')
-  const [minimumSellPriceUgx, setMinimumSellPriceUgx] = useState<string>('')
-  const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
-    null,
+  const [costPrice, setCostPrice] = useState(item?.costPrice ?? '')
+  const [costCurrency, setCostCurrency] = useState<'RMB' | 'USD' | 'UGX'>(
+    item?.costCurrency === 'USD' || item?.costCurrency === 'UGX'
+      ? item.costCurrency
+      : 'RMB',
   )
-  const [sizes, setSizes] = useState<string[]>([])
+  const [minimumSellPriceUgx, setMinimumSellPriceUgx] = useState<string>(
+    item?.minimumSellPriceUgx ?? '',
+  )
+  const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
+    item?.lowStockThreshold ?? null,
+  )
+  const [sizes, setSizes] = useState<string[]>(
+    item?.variants
+      ? [...new Set(item.variants.map((variant) => variant.size))]
+      : [],
+  )
   const [sizeDraft, setSizeDraft] = useState('')
-  const [colors, setColors] = useState<ColorDraft[]>([])
+  const [colors, setColors] = useState<ColorDraft[]>(item?.colors ?? [])
   const [colorNameDraft, setColorNameDraft] = useState('')
   const [colorHexDraft, setColorHexDraft] = useState('#000000')
   const lastSuggestedName = useRef<string>('')
+  const articleNumberEdited = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [existingArticleNumbers, setExistingArticleNumbers] = useState<
+    ReadonlySet<string>
+  >(new Set())
 
   useEffect(() => {
     if (suppliedSuppliers) {
@@ -69,6 +105,42 @@ export function ItemEditor({
     }
     void listSuppliersForSelect().then(setSuppliers)
   }, [suppliedSuppliers])
+
+  useEffect(() => {
+    if (!item) return
+    setArticleNumber(item.articleNumber)
+    setName(item.name)
+    setDescription(item.description ?? '')
+    setCategory(item.category)
+    setSupplierId(item.supplier?.id ?? '')
+    setCostPrice(item.costPrice ?? '')
+    setCostCurrency(
+      item.costCurrency === 'USD' || item.costCurrency === 'UGX'
+        ? item.costCurrency
+        : 'RMB',
+    )
+    setMinimumSellPriceUgx(item.minimumSellPriceUgx ?? '')
+    setLowStockThreshold(item.lowStockThreshold ?? null)
+    setSizes(
+      item.variants
+        ? [...new Set(item.variants.map((variant) => variant.size))]
+        : [],
+    )
+    setColors(item.colors ?? [])
+    articleNumberEdited.current = true
+  }, [item])
+
+  useEffect(() => {
+    void listItems().then((records) => {
+      setExistingArticleNumbers(
+        new Set(
+          records
+            .filter((record) => record.id !== item?.id)
+            .map((record) => record.articleNumber),
+        ),
+      )
+    })
+  }, [item?.id])
 
   function handleHexChange(hex: string) {
     setColorHexDraft(hex)
@@ -90,6 +162,32 @@ export function ItemEditor({
     if (tile) {
       setColorHexDraft(tile.hex)
       lastSuggestedName.current = tile.name
+    }
+  }
+
+  function handleItemNameChange(value: string) {
+    setName(value)
+    if (!articleNumberEdited.current) {
+      setArticleNumber(
+        suggestArticleNumber({
+          category,
+          name: value,
+          existingArticleNumbers,
+        }),
+      )
+    }
+  }
+
+  function handleCategoryChange(value: string) {
+    setCategory(value)
+    if (!articleNumberEdited.current) {
+      setArticleNumber(
+        suggestArticleNumber({
+          category: value,
+          name,
+          existingArticleNumbers,
+        }),
+      )
     }
   }
 
@@ -121,22 +219,40 @@ export function ItemEditor({
     setSubmitting(true)
     setError(null)
     try {
-      const created = await createItem({
-        data: {
-          articleNumber,
-          name,
-          description: description || undefined,
-          category: category.trim(),
-          supplierId,
-          costPrice,
-          costCurrency,
-          sizes,
-          colors,
-          minimumSellPriceUgx,
-          lowStockThreshold,
-        },
-      })
-      onCreated(created.id, created.articleNumber)
+      if (item) {
+        const updated = await updateItem({
+          data: {
+            id: item.id,
+            articleNumber,
+            name,
+            description,
+            category: category.trim(),
+            supplierId,
+            costPrice,
+            costCurrency,
+            minimumSellPriceUgx,
+            lowStockThreshold,
+          },
+        })
+        onUpdated?.(updated.articleNumber)
+      } else {
+        const created = await createItem({
+          data: {
+            articleNumber,
+            name,
+            description: description || undefined,
+            category: category.trim(),
+            supplierId,
+            costPrice,
+            costCurrency,
+            sizes,
+            colors,
+            minimumSellPriceUgx,
+            lowStockThreshold,
+          },
+        })
+        onCreated?.(created.id, created.articleNumber)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create item.')
     } finally {
@@ -146,13 +262,26 @@ export function ItemEditor({
 
   return (
     <div className="space-y-4">
+      <div className="space-y-2">
+        <FieldLabel>Current supplier</FieldLabel>
+        <Combobox
+          options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+          value={supplierId}
+          onChange={setSupplierId}
+          placeholder="Select supplier"
+          searchPlaceholder="Search suppliers…"
+          emptyMessage="Create a supplier before creating an item."
+        />
+      </div>
       <div className="space-y-1">
-        <FieldLabel help="item.articleNumber">Article number</FieldLabel>
-        <Input
-          className="h-11 text-base"
-          value={articleNumber}
-          onChange={(e) => setArticleNumber(e.target.value)}
-          placeholder="TR-001"
+        <FieldLabel help="itemForm.category">Category</FieldLabel>
+        <CreatableCombobox
+          options={categories}
+          value={category}
+          onChange={handleCategoryChange}
+          placeholder="Pick or type a category"
+          searchPlaceholder="Search categories…"
+          emptyMessage="Type to create a new category."
         />
       </div>
       <div className="space-y-1">
@@ -160,7 +289,7 @@ export function ItemEditor({
         <Input
           className="h-11 text-base"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => handleItemNameChange(e.target.value)}
           placeholder="Crew-neck T-shirt"
         />
       </div>
@@ -174,197 +303,201 @@ export function ItemEditor({
         />
       </div>
       <div className="space-y-1">
-        <FieldLabel help="itemForm.category">Category</FieldLabel>
-        <CreatableCombobox
-          options={categories}
-          value={category}
-          onChange={setCategory}
-          placeholder="Pick or type a category"
-          searchPlaceholder="Search categories…"
-          emptyMessage="Type to create a new category."
+        <FieldLabel help="item.articleNumber">Article number</FieldLabel>
+        <Input
+          className="h-11 text-base"
+          value={articleNumber}
+          onChange={(e) => {
+            articleNumberEdited.current = true
+            setArticleNumber(e.target.value)
+          }}
+          placeholder="Generated after category and name"
         />
+        <p className="text-xs text-muted-foreground">
+          Suggested automatically; edit it if your catalog uses a different
+          code.
+        </p>
       </div>
-      <div className="space-y-2">
-        <FieldLabel>Current supplier</FieldLabel>
-        <Combobox
-          options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
-          value={supplierId}
-          onChange={setSupplierId}
-          placeholder="Select supplier"
-          searchPlaceholder="Search suppliers…"
-          emptyMessage="Create a supplier before creating an item."
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
+      <details open className="space-y-3 rounded-md border p-3">
+        <summary className="cursor-pointer font-medium">
+          Commercial profile
+        </summary>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <FieldLabel>Current supplier cost</FieldLabel>
+            <MoneyInput
+              value={costPrice}
+              onChange={setCostPrice}
+              currency={costCurrency}
+              decimals={costCurrency === 'UGX' ? 0 : 2}
+            />
+          </div>
+          <div className="space-y-2">
+            <FieldLabel>Cost currency</FieldLabel>
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+              value={costCurrency}
+              onChange={(e) =>
+                setCostCurrency(e.target.value as typeof costCurrency)
+              }
+            >
+              <option value="RMB">RMB</option>
+              <option value="USD">USD</option>
+              <option value="UGX">UGX</option>
+            </select>
+          </div>
+        </div>
         <div className="space-y-2">
-          <FieldLabel>Current supplier cost</FieldLabel>
+          <FieldLabel help="item.minSellPrice">
+            Minimum sell price (UGX)
+          </FieldLabel>
           <MoneyInput
-            value={costPrice}
-            onChange={setCostPrice}
-            currency={costCurrency}
-            decimals={2}
+            value={minimumSellPriceUgx}
+            onChange={(v) => setMinimumSellPriceUgx(v)}
+            currency="UGX"
+            decimals={0}
+            roundTo={50}
           />
         </div>
         <div className="space-y-2">
-          <FieldLabel>Cost currency</FieldLabel>
-          <select
-            className="h-10 rounded-md border bg-background px-3 text-sm"
-            value={costCurrency}
-            onChange={(e) =>
-              setCostCurrency(e.target.value as typeof costCurrency)
-            }
-          >
-            <option value="RMB">RMB</option>
-            <option value="USD">USD</option>
-            <option value="UGX">UGX</option>
-          </select>
+          <FieldLabel help="item.lowStockThreshold">
+            Low-stock threshold
+          </FieldLabel>
+          <Input
+            type="number"
+            min={0}
+            step={1}
+            placeholder="No alert"
+            value={lowStockThreshold ?? ''}
+            onChange={(e) => {
+              const v = e.target.value
+              setLowStockThreshold(
+                v === '' ? null : Math.max(0, Math.floor(Number(v))),
+              )
+            }}
+          />
         </div>
-      </div>
-      <div className="space-y-2">
-        <FieldLabel help="item.minSellPrice">
-          Minimum sell price (UGX)
-        </FieldLabel>
-        <MoneyInput
-          value={minimumSellPriceUgx}
-          onChange={(v) => setMinimumSellPriceUgx(v)}
-          currency="UGX"
-          decimals={2}
-          roundTo={50}
-        />
-      </div>
-      <div className="space-y-2">
-        <FieldLabel help="item.lowStockThreshold">
-          Low-stock threshold
-        </FieldLabel>
-        <Input
-          type="number"
-          min={0}
-          step={1}
-          placeholder="No alert"
-          value={lowStockThreshold ?? ''}
-          onChange={(e) => {
-            const v = e.target.value
-            setLowStockThreshold(
-              v === '' ? null : Math.max(0, Math.floor(Number(v))),
-            )
-          }}
-        />
-      </div>
-      <div className="space-y-2">
-        <FieldLabel help="item.sizes">Sizes (optional)</FieldLabel>
-        <p className="text-sm text-muted-foreground">
-          Optional. Add sizes if you want to track stock by size. You can also
-          add them later from the item detail page or while receiving.
-        </p>
-        <Input
-          className="h-11 text-base"
-          value={sizeDraft}
-          onChange={(e) => setSizeDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              addSizes(sizeDraft)
-            }
-          }}
-          onBlur={() => {
-            if (sizeDraft.trim()) addSizes(sizeDraft)
-          }}
-          placeholder="Type sizes separated by commas, then Enter"
-        />
-        {sizes.length > 0 && (
+      </details>
+      <details open className="space-y-3 rounded-md border p-3">
+        <summary className="cursor-pointer font-medium">
+          Variants and colors
+        </summary>
+        <div className="space-y-2">
+          <FieldLabel help="item.sizes">Sizes (optional)</FieldLabel>
+          <p className="text-sm text-muted-foreground">
+            Optional. Add sizes if you want to track stock by size. You can also
+            add them later from the item detail page or while receiving.
+          </p>
+          <Input
+            className="h-11 text-base"
+            value={sizeDraft}
+            onChange={(e) => setSizeDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                addSizes(sizeDraft)
+              }
+            }}
+            onBlur={() => {
+              if (sizeDraft.trim()) addSizes(sizeDraft)
+            }}
+            placeholder="Type sizes separated by commas, then Enter"
+          />
+          {sizes.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {sizes.map((s) => (
+                <Badge key={s} variant="secondary" className="gap-1">
+                  {s}
+                  <button
+                    type="button"
+                    onClick={() => setSizes(sizes.filter((x) => x !== s))}
+                    aria-label={`remove ${s}`}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap gap-1">
-            {sizes.map((s) => (
-              <Badge key={s} variant="secondary" className="gap-1">
+            {SIZE_QUICK_PICKS.filter((s) => !sizes.includes(s)).map((s) => (
+              <Button
+                key={s}
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => addSizes(s)}
+              >
                 {s}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <FieldLabel help="item.initialColors">
+            Initial colors (optional)
+          </FieldLabel>
+          <p className="text-sm text-muted-foreground">
+            Optional. Add colors if you want to track stock by color. You can
+            also add them later from this page or while receiving.{' '}
+            <InfoTip term="item.variantsOptional" />
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {colors.map((c) => (
+              <Badge
+                key={c.colorName}
+                variant="secondary"
+                className="gap-1"
+                style={{ borderColor: c.colorHex }}
+              >
+                <span
+                  className="inline-block size-3 rounded-full border"
+                  style={{ backgroundColor: c.colorHex }}
+                  aria-hidden
+                />
+                {c.colorName}
                 <button
                   type="button"
-                  onClick={() => setSizes(sizes.filter((x) => x !== s))}
-                  aria-label={`remove ${s}`}
+                  onClick={() =>
+                    setColors(colors.filter((x) => x.colorName !== c.colorName))
+                  }
+                  aria-label={`remove ${c.colorName}`}
                 >
                   <X className="size-3" />
                 </button>
               </Badge>
             ))}
           </div>
-        )}
-        <div className="flex flex-wrap gap-1">
-          {SIZE_QUICK_PICKS.filter((s) => !sizes.includes(s)).map((s) => (
+          <div className="flex items-center gap-2">
+            <Input
+              className="h-10 text-sm"
+              value={colorNameDraft}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="Color name (e.g. Burgundy)"
+              list="clothing-palette-names"
+            />
+            <datalist id="clothing-palette-names">
+              {CLOTHING_PALETTE.map((t) => (
+                <option key={t.name} value={t.name} />
+              ))}
+            </datalist>
+            <HexColorField
+              value={colorHexDraft}
+              onChange={handleHexChange}
+              ariaLabel="Pick color"
+            />
             <Button
-              key={s}
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => addSizes(s)}
+              onClick={addColor}
+              disabled={!colorNameDraft.trim()}
             >
-              {s}
+              Add color
             </Button>
-          ))}
+          </div>
         </div>
-      </div>
-      <div className="space-y-2">
-        <FieldLabel help="item.initialColors">
-          Initial colors (optional)
-        </FieldLabel>
-        <p className="text-sm text-muted-foreground">
-          Optional. Add colors if you want to track stock by color. You can also
-          add them later from this page or while receiving.{' '}
-          <InfoTip term="item.variantsOptional" />
-        </p>
-        <div className="flex flex-wrap gap-1">
-          {colors.map((c) => (
-            <Badge
-              key={c.colorName}
-              variant="secondary"
-              className="gap-1"
-              style={{ borderColor: c.colorHex }}
-            >
-              <span
-                className="inline-block size-3 rounded-full border"
-                style={{ backgroundColor: c.colorHex }}
-                aria-hidden
-              />
-              {c.colorName}
-              <button
-                type="button"
-                onClick={() =>
-                  setColors(colors.filter((x) => x.colorName !== c.colorName))
-                }
-                aria-label={`remove ${c.colorName}`}
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <Input
-            className="h-10 text-sm"
-            value={colorNameDraft}
-            onChange={(e) => handleNameChange(e.target.value)}
-            placeholder="Color name (e.g. Burgundy)"
-            list="clothing-palette-names"
-          />
-          <datalist id="clothing-palette-names">
-            {CLOTHING_PALETTE.map((t) => (
-              <option key={t.name} value={t.name} />
-            ))}
-          </datalist>
-          <HexColorField
-            value={colorHexDraft}
-            onChange={handleHexChange}
-            ariaLabel="Pick color"
-          />
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={addColor}
-            disabled={!colorNameDraft.trim()}
-          >
-            Add color
-          </Button>
-        </div>
-      </div>
+      </details>
       {error && (
         <p className="text-sm text-destructive" role="alert">
           {error}
@@ -383,7 +516,7 @@ export function ItemEditor({
             submitting
           }
         >
-          {submitting ? 'Saving…' : 'Create item'}
+          {submitting ? 'Saving…' : item ? 'Save changes' : 'Create item'}
         </Button>
       </div>
     </div>

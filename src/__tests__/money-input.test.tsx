@@ -57,3 +57,69 @@ describe('MoneyInput with roundTo={50}', () => {
     expect(onChange).toHaveBeenLastCalledWith('1200')
   })
 })
+
+describe('MoneyInput precision and formatting', () => {
+  it('groups decimal values while sending the raw value', () => {
+    const onChange = vi.fn()
+
+    function Harness() {
+      const [value, setValue] = React.useState('')
+      return (
+        <MoneyInput
+          currency="USD"
+          decimals={2}
+          value={value}
+          onChange={(next) => {
+            onChange(next)
+            setValue(next)
+          }}
+        />
+      )
+    }
+
+    render(<Harness />)
+    const input = screen.getByRole<HTMLInputElement>('textbox')
+    fireEvent.change(input, { target: { value: '1234567.5' } })
+
+    expect(input.value).toBe('1,234,567.5')
+    expect(onChange).toHaveBeenLastCalledWith('1234567.5')
+  })
+
+  it('does not accept decimals for whole-number money', () => {
+    const onChange = vi.fn()
+    render(
+      <MoneyInput currency="UGX" decimals={0} value="" onChange={onChange} />,
+    )
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: '3750.5' },
+    })
+
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('removes fractional digits from an externally supplied whole-number value', () => {
+    render(
+      <MoneyInput
+        currency="UGX"
+        decimals={0}
+        value="200000.50"
+        onChange={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('200,000')
+  })
+
+  it('formats a supplied raw large value', () => {
+    render(
+      <MoneyInput
+        currency="UGX"
+        decimals={0}
+        value="200000"
+        onChange={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('200,000')
+  })
+})

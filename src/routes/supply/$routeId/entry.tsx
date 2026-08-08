@@ -1,0 +1,33 @@
+import { createFileRoute } from '@tanstack/react-router'
+import { requireUiPermission } from '#/lib/permissions'
+import {
+  getSupplyRoute,
+  listSuppliersForSelect,
+} from '#/server/functions/supply/routes'
+import { listItemCategories } from '#/server/functions/items/items'
+import { SupplyRouteWizard } from '#/components/supply/supply-route-wizard'
+
+export const Route = createFileRoute('/supply/$routeId/entry')({
+  beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
+  loader: async ({ params }) => {
+    const [route, categories, suppliers] = await Promise.all([
+      getSupplyRoute({ data: { id: params.routeId } }),
+      listItemCategories(),
+      listSuppliersForSelect(),
+    ])
+    return { route, categories, suppliers }
+  },
+  component: ExistingSupplyRouteEntry,
+})
+
+function ExistingSupplyRouteEntry() {
+  const { route, categories, suppliers } = Route.useLoaderData()
+  return (
+    <SupplyRouteWizard
+      initialRoute={route}
+      initialCategories={categories}
+      initialSuppliers={suppliers}
+      initialStep="items"
+    />
+  )
+}

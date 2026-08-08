@@ -26,6 +26,7 @@ export const suppliers = pgTable(
     contactEmail: text('contact_email'),
     address: text('address'),
     notes: text('notes'),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

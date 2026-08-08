@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { eq, ilike } from 'drizzle-orm'
+import { and, eq, ilike, inArray, isNull } from 'drizzle-orm'
 import BigNumber from 'bignumber.js'
 import { z } from 'zod'
 import { db } from '#/db'
@@ -7,7 +7,9 @@ import {
   supplyRouteLines,
   items,
   itemColors,
+  suppliers,
   supplyRoutes,
+  supplyRouteSuppliers,
   storeReceivings,
 } from '#/db/schema'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
@@ -31,6 +33,14 @@ export const addSupplyRouteVariants = createServerFn()
     ])
     if (!item) throw new Error('Item not found')
     if (!route) throw new Error('Supply route not found')
+    if (route.status !== 'open')
+      throw new Error('Only open routes can be edited')
+    const supplierId = data.supplierId ?? item.supplierId
+    if (!supplierId) throw new Error('Select a supplier for this purchase')
+    const supplier = await db.query.suppliers.findFirst({
+      where: and(eq(suppliers.id, supplierId), isNull(suppliers.deletedAt)),
+    })
+    if (!supplier) throw new Error('Supplier not found')
     if (
       !item.supplierId ||
       !item.costPrice ||
@@ -59,14 +69,130 @@ export const addSupplyRouteVariants = createServerFn()
       throw new Error('Set the USD/UGX route rate or provide a line override')
     const rows = materializeVariantRows({
       ...data,
-      supplierId: item.supplierId,
+      supplierId,
       unitPriceForeign: item.costPrice,
       foreignCurrency: item.costCurrency,
       minimumSellPriceUgx: item.minimumSellPriceUgx,
       exchangeRateForeignToUsd,
       exchangeRateUsdToUgx,
     })
-    return db.insert(supplyRouteLines).values(rows).returning()
+    return db.transaction(async (tx) => {
+      const routeSupplier = await tx.query.supplyRouteSuppliers.findFirst({
+        where: and(
+          eq(supplyRouteSuppliers.supplyRouteId, route.id),
+          eq(supplyRouteSuppliers.supplierId, supplierId),
+        ),
+      })
+      if (!routeSupplier) {
+        await tx.insert(supplyRouteSuppliers).values({
+          supplyRouteId: route.id,
+          supplierId,
+        })
+      }
+      return tx.insert(supplyRouteLines).values(rows).returning()
+    })
+  })
+
+const replaceSupplyRouteEntryInput = variantInput.extend({
+  entryId: z.uuid(),
+})
+
+/**
+ * Replaces one editable purchase entry atomically. An entry may materialize
+ * into several route lines, so receipt checks are made against every member
+ * before any row is removed.
+ */
+export const replaceSupplyRouteEntry = createServerFn()
+  .inputValidator(replaceSupplyRouteEntryInput)
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin'])
+    return db.transaction(async (tx) => {
+      const existing = await tx.query.supplyRouteLines.findMany({
+        where: and(
+          eq(supplyRouteLines.supplyRouteId, data.supplyRouteId),
+          eq(supplyRouteLines.entryId, data.entryId),
+        ),
+        with: { supplyRoute: true },
+      })
+      if (existing.length === 0) throw new Error('Supply route entry not found')
+      if (existing[0].supplyRoute.status !== 'open')
+        throw new Error('Only open routes can be edited')
+      const received = await tx.query.storeReceivings.findFirst({
+        where: inArray(
+          storeReceivings.supplyRouteLineId,
+          existing.map((line) => line.id),
+        ),
+      })
+      if (received) throw new Error('Received entries cannot be replaced')
+
+      const item = await tx.query.items.findFirst({
+        where: and(eq(items.id, data.itemId), isNull(items.deletedAt)),
+      })
+      if (!item) throw new Error('Item not found')
+      const supplierId = data.supplierId ?? item.supplierId
+      if (!supplierId) throw new Error('Select a supplier for this purchase')
+      const supplier = await tx.query.suppliers.findFirst({
+        where: and(eq(suppliers.id, supplierId), isNull(suppliers.deletedAt)),
+      })
+      if (!supplier) throw new Error('Supplier not found')
+      if (
+        !item.supplierId ||
+        !item.costPrice ||
+        Number(item.costPrice) <= 0 ||
+        !item.costCurrency ||
+        !item.minimumSellPriceUgx ||
+        Number(item.minimumSellPriceUgx) <= 0
+      ) {
+        throw new Error(
+          'Configure the item supplier, cost, currency, and minimum sell price before purchasing it',
+        )
+      }
+      const foreignRate =
+        data.exchangeRateForeignToUsd ??
+        (item.costCurrency === 'RMB'
+          ? (existing[0].exchangeRateForeignToUsd ?? undefined)
+          : undefined)
+      const usdRate =
+        data.exchangeRateUsdToUgx ??
+        (item.costCurrency !== 'UGX'
+          ? (existing[0].exchangeRateUsdToUgx ?? undefined)
+          : undefined)
+      if (item.costCurrency === 'RMB' && !foreignRate)
+        throw new Error('Set the RMB/USD route rate or provide a line override')
+      if (item.costCurrency !== 'UGX' && !usdRate)
+        throw new Error('Set the USD/UGX route rate or provide a line override')
+
+      const rows = materializeVariantRows({
+        ...data,
+        supplierId,
+        unitPriceForeign: item.costPrice,
+        foreignCurrency: item.costCurrency,
+        minimumSellPriceUgx: item.minimumSellPriceUgx,
+        exchangeRateForeignToUsd: foreignRate,
+        exchangeRateUsdToUgx: usdRate,
+      })
+      const routeSupplier = await tx.query.supplyRouteSuppliers.findFirst({
+        where: and(
+          eq(supplyRouteSuppliers.supplyRouteId, data.supplyRouteId),
+          eq(supplyRouteSuppliers.supplierId, supplierId),
+        ),
+      })
+      if (!routeSupplier) {
+        await tx.insert(supplyRouteSuppliers).values({
+          supplyRouteId: data.supplyRouteId,
+          supplierId,
+        })
+      }
+      await tx
+        .delete(supplyRouteLines)
+        .where(
+          and(
+            eq(supplyRouteLines.supplyRouteId, data.supplyRouteId),
+            eq(supplyRouteLines.entryId, data.entryId),
+          ),
+        )
+      return tx.insert(supplyRouteLines).values(rows).returning()
+    })
   })
 
 export const deleteSupplyRouteItem = createServerFn()
@@ -80,11 +206,28 @@ export const deleteSupplyRouteItem = createServerFn()
     if (!line) throw new Error('Supply route line not found')
     if (line.supplyRoute.status !== 'open')
       throw new Error('Only open routes can be edited')
-    const received = await db.query.storeReceivings.findFirst({
-      where: eq(storeReceivings.supplyRouteLineId, data.id),
+    const group = await db.query.supplyRouteLines.findMany({
+      where: and(
+        eq(supplyRouteLines.supplyRouteId, line.supplyRouteId),
+        eq(supplyRouteLines.entryId, line.entryId),
+      ),
+      columns: { id: true },
     })
-    if (received) throw new Error('Received lines cannot be deleted')
-    await db.delete(supplyRouteLines).where(eq(supplyRouteLines.id, data.id))
+    const received = await db.query.storeReceivings.findFirst({
+      where: inArray(
+        storeReceivings.supplyRouteLineId,
+        group.map((member) => member.id),
+      ),
+    })
+    if (received) throw new Error('Received entries cannot be deleted')
+    await db
+      .delete(supplyRouteLines)
+      .where(
+        and(
+          eq(supplyRouteLines.supplyRouteId, line.supplyRouteId),
+          eq(supplyRouteLines.entryId, line.entryId),
+        ),
+      )
   })
 
 export const updateSupplyRouteLineQuantity = createServerFn()
@@ -101,10 +244,20 @@ export const updateSupplyRouteLineQuantity = createServerFn()
       if (!line) throw new Error('Supply route line not found')
       if (line.supplyRoute.status !== 'open')
         throw new Error('Only open routes can be edited')
-      const received = await tx.query.storeReceivings.findFirst({
-        where: eq(storeReceivings.supplyRouteLineId, data.id),
+      const group = await tx.query.supplyRouteLines.findMany({
+        where: and(
+          eq(supplyRouteLines.supplyRouteId, line.supplyRouteId),
+          eq(supplyRouteLines.entryId, line.entryId),
+        ),
+        columns: { id: true },
       })
-      if (received) throw new Error('Received lines cannot be edited')
+      const received = await tx.query.storeReceivings.findFirst({
+        where: inArray(
+          storeReceivings.supplyRouteLineId,
+          group.map((member) => member.id),
+        ),
+      })
+      if (received) throw new Error('Received entries cannot be edited')
       const unit = new BigNumber(line.unitPriceForeign)
       const totalForeign = unit.times(data.quantity).toFixed(2)
       const isUgx = line.foreignCurrency === 'UGX'
@@ -141,7 +294,7 @@ export const getItemNameSuggestions = createServerFn()
     await requireSessionAndRole(['admin'])
     const like = `%${data.query}%`
     return db.query.items.findMany({
-      where: ilike(items.name, like),
+      where: and(ilike(items.name, like), isNull(items.deletedAt)),
       limit: 20,
     })
   })
@@ -173,8 +326,25 @@ export const splitSupplyRouteItem = createServerFn()
     return db.transaction(async (tx) => {
       const original = await tx.query.supplyRouteLines.findFirst({
         where: eq(supplyRouteLines.id, data.itemId),
+        with: { supplyRoute: true },
       })
       if (!original) throw new Error('Supply route item not found')
+      if (original.supplyRoute.status !== 'open')
+        throw new Error('Only open routes can be edited')
+      const group = await tx.query.supplyRouteLines.findMany({
+        where: and(
+          eq(supplyRouteLines.supplyRouteId, original.supplyRouteId),
+          eq(supplyRouteLines.entryId, original.entryId),
+        ),
+        columns: { id: true },
+      })
+      const received = await tx.query.storeReceivings.findFirst({
+        where: inArray(
+          storeReceivings.supplyRouteLineId,
+          group.map((member) => member.id),
+        ),
+      })
+      if (received) throw new Error('Received entries cannot be split')
 
       // We need an itemId to attach to each new row. Prefer the row's own
       // itemId; if missing (existing aggregate rows pre-migration), fall
@@ -194,7 +364,7 @@ export const splitSupplyRouteItem = createServerFn()
         new Set(data.cells.map((c) => c.itemColorId)),
       )
       const referencedColors = await tx.query.itemColors.findMany({
-        where: (t, { inArray }) => inArray(t.id, referencedColorIds),
+        where: inArray(itemColors.id, referencedColorIds),
         columns: { id: true, itemId: true },
       })
       for (const c of referencedColors) {
@@ -214,6 +384,7 @@ export const splitSupplyRouteItem = createServerFn()
           exchangeRateForeignToUsd: original.exchangeRateForeignToUsd,
           exchangeRateUsdToUgx: original.exchangeRateUsdToUgx,
           minimumSellPriceUgx: original.minimumSellPriceUgx,
+          entryId: original.entryId,
         },
         itemIdFallback,
         data.cells,

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import BigNumber from 'bignumber.js'
+import { randomUUID } from 'node:crypto'
 
 /**
  * A "cell" is one slot in the procurement entry grid. Three shapes are valid:
@@ -31,6 +32,7 @@ export const variantInput = z.object({
   exchangeRateForeignToUsd: z.string().optional(),
   exchangeRateUsdToUgx: z.string().optional(),
   supplierId: z.uuid().optional(),
+  entryId: z.uuid().optional(),
   unitPriceForeign: z.string().optional(),
   foreignCurrency: z.string().optional(),
   minimumSellPriceUgx: z.string().optional(),
@@ -39,6 +41,7 @@ export const variantInput = z.object({
 
 export type MaterializedRow = {
   supplyRouteId: string
+  entryId: string
   supplierId: string
   // Column names match supply_route_lines after the #6 / #8 renames
   // (product_id → item_id, product_color_id → color_id; table renamed
@@ -65,6 +68,7 @@ export function materializeVariantRows(
     throw new Error('Supplier and item cost snapshot are required')
   }
   const supplierId = input.supplierId
+  const entryId = input.entryId ?? randomUUID()
   const unitPriceForeign = input.unitPriceForeign
   const foreignCurrency = input.foreignCurrency
   const unitPrice = new BigNumber(unitPriceForeign)
@@ -100,6 +104,7 @@ export function materializeVariantRows(
     }
     return {
       supplyRouteId: input.supplyRouteId,
+      entryId,
       supplierId,
       itemId: input.itemId,
       colorId: cell.itemColorId ?? null,
@@ -128,6 +133,7 @@ export function materializeVariantRows(
  */
 export interface SplitSourceRow {
   supplyRouteId: string
+  entryId?: string | null
   supplierId: string
   itemId: string | null
   quantity: number
@@ -157,6 +163,7 @@ export function materializeSplitRows(
   }
   return materializeVariantRows({
     supplyRouteId: source.supplyRouteId,
+    entryId: source.entryId ?? undefined,
     supplierId: source.supplierId,
     itemId: source.itemId ?? itemIdFallback,
     unitPriceForeign: source.unitPriceForeign,

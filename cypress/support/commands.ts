@@ -1,6 +1,6 @@
 /// <reference types="cypress" />
 
-const ORIGIN = 'http://localhost:3000'
+const ORIGIN = Cypress.config('baseUrl') ?? 'http://localhost:3000'
 
 /**
  * Sign up a test user via Better Auth API.

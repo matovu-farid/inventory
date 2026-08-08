@@ -102,4 +102,25 @@ describe('materializeVariantRows', () => {
     expect(rows[0].colorId).toBe('c-red')
     expect(rows[1].colorId).toBe('c-blue')
   })
+
+  it('keeps one editable entry identity across its materialized rows', () => {
+    const rows = materializeVariantRows({
+      supplyRouteId: 'r1',
+      supplierId: 'route-supplier',
+      itemId: 'p1',
+      entryId: 'entry-1',
+      unitPriceForeign: '10',
+      foreignCurrency: 'UGX',
+      cells: [
+        { itemColorId: 'c-red', size: 'S', quantity: 3 },
+        { itemColorId: 'c-red', size: 'M', quantity: 2 },
+      ],
+    })
+
+    expect(rows.map((row) => row.supplierId)).toEqual([
+      'route-supplier',
+      'route-supplier',
+    ])
+    expect(new Set(rows.map((row) => row.entryId))).toEqual(new Set(['entry-1']))
+  })
 })

@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
-import { supplyRouteExpenses } from '#/db/schema'
+import { supplyRouteExpenses, supplyRoutes } from '#/db/schema'
 import { postJournalEntry } from '#/lib/accounting/ledger'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { convertExpenseToUgx } from './expense-fx'
@@ -46,6 +46,12 @@ export const addSupplyRouteExpense = createServerFn()
   .handler(async ({ data }) => {
     const session = await requireSessionAndRole(['admin'])
     const userId = session.user.id
+
+    const route = await db.query.supplyRoutes.findFirst({
+      where: eq(supplyRoutes.id, data.supplyRouteId),
+    })
+    if (!route) throw new Error('Supply route not found')
+    if (route.status !== 'open') throw new Error('Only open routes can be edited')
 
     const store = await db.query.stores.findFirst()
     if (!store) throw new Error('Store not configured')
@@ -106,6 +112,13 @@ export const updateSupplyRouteExpense = createServerFn()
     await requireSessionAndRole(['admin'])
 
     const { id, ...fields } = data
+    const existing = await db.query.supplyRouteExpenses.findFirst({
+      where: eq(supplyRouteExpenses.id, id),
+      with: { supplyRoute: true },
+    })
+    if (!existing) throw new Error('Expense not found')
+    if (existing.supplyRoute.status !== 'open')
+      throw new Error('Only open routes can be edited')
     const expense = (
       await db
         .update(supplyRouteExpenses)
@@ -124,6 +137,14 @@ export const deleteSupplyRouteExpense = createServerFn()
   .inputValidator(deleteExpenseInput)
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin'])
+
+    const existing = await db.query.supplyRouteExpenses.findFirst({
+      where: eq(supplyRouteExpenses.id, data.id),
+      with: { supplyRoute: true },
+    })
+    if (!existing) throw new Error('Expense not found')
+    if (existing.supplyRoute.status !== 'open')
+      throw new Error('Only open routes can be edited')
 
     await db
       .delete(supplyRouteExpenses)

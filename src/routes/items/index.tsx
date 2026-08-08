@@ -1,51 +1,32 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { requireUiPermission, useCan } from '#/lib/permissions'
-import {
-  listItemCategories,
-  listItems,
-  searchItems,
-} from '#/server/functions/items/items'
+import { listItems, searchItems } from '#/server/functions/items/items'
 import { ItemCard } from '#/components/items/item-card'
-import { ItemEditor } from '#/components/items/item-editor'
 import { Input } from '#/components/ui/input'
 import { Button } from '#/components/ui/button'
-import {
-  ResponsiveDialog as Dialog,
-  ResponsiveDialogContent as DialogContent,
-  ResponsiveDialogHeader as DialogHeader,
-  ResponsiveDialogTitle as DialogTitle,
-} from '#/components/ui/responsive-dialog'
 
 export const Route = createFileRoute('/items/')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'items.view'),
-  loader: async () => {
-    const [products, categories] = await Promise.all([
-      listItems(),
-      listItemCategories(),
-    ])
-    return { products, categories }
-  },
+  loader: async () => ({ products: await listItems() }),
   component: ProductsPage,
 })
 
 function ProductsPage() {
-  const { products: initial, categories } = Route.useLoaderData()
-  const router = useRouter()
+  const { products: initial } = Route.useLoaderData()
   const canManage = useCan('items.manage')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(initial)
-  const [editorOpen, setEditorOpen] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
 
   async function handleSearch(value: string) {
     setQuery(value)
-    setResults(await searchItems({ data: { query: value } }))
-  }
-
-  async function refreshList() {
-    setResults(await searchItems({ data: { query } }))
-    void router.invalidate()
+    setResults(
+      await searchItems({
+        data: { query: value, includeArchived: showArchived },
+      }),
+    )
   }
 
   return (
@@ -57,20 +38,40 @@ function ProductsPage() {
             {results.length} item{results.length === 1 ? '' : 's'}
           </p>
           {canManage && (
-            <Button size="sm" onClick={() => setEditorOpen(true)}>
-              <Plus className="mr-1 size-4" /> Create item
+            <Button asChild size="sm">
+              <Link to="/items/new">
+                <Plus className="mr-1 size-4" /> Create item
+              </Link>
             </Button>
           )}
         </div>
       </div>
-      <Input
-        placeholder="Search by article or name…"
-        value={query}
-        onChange={(e) => {
-          void handleSearch(e.target.value)
-        }}
-        className="max-w-md"
-      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          placeholder="Search by article or name…"
+          value={query}
+          onChange={(e) => {
+            void handleSearch(e.target.value)
+          }}
+          className="max-w-md"
+        />
+        {canManage && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const next = !showArchived
+              setShowArchived(next)
+              void searchItems({
+                data: { query, includeArchived: next },
+              }).then(setResults)
+            }}
+          >
+            {showArchived ? 'Hide archived' : 'Search archived'}
+          </Button>
+        )}
+      </div>
       {results.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {query
@@ -87,6 +88,7 @@ function ProductsPage() {
               data={{
                 articleNumber: p.articleNumber,
                 name: p.name,
+                archived: !!p.deletedAt,
                 // Sizes used to live on items.sizes; after #7 they
                 // derive from the variants array on the ItemCard side.
                 variants: p.variants,
@@ -101,21 +103,6 @@ function ProductsPage() {
           ))}
         </div>
       )}
-
-      <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New item</DialogTitle>
-          </DialogHeader>
-          <ItemEditor
-            categories={categories}
-            onCreated={() => {
-              setEditorOpen(false)
-              void refreshList()
-            }}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -28,3 +28,14 @@ export function canEditSupplyRouteLine(input: {
 }): boolean {
   return input.routeState === 'open' && !input.received
 }
+
+export function canEditSupplyRouteEntry(input: {
+  routeState: 'open' | 'received'
+  lineIds: readonly string[]
+  receivedLineIds: ReadonlySet<string>
+}): boolean {
+  return (
+    input.routeState === 'open' &&
+    input.lineIds.every((lineId) => !input.receivedLineIds.has(lineId))
+  )
+}

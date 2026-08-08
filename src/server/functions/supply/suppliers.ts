@@ -1,15 +1,20 @@
 import { createServerFn } from '@tanstack/react-start'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
 import { suppliers } from '#/db/schema'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { listSuppliersQuery } from './supplier-queries'
 
-export const listSuppliers = createServerFn().handler(async () => {
-  await requireSessionAndRole(['admin'])
+export const listSuppliers = createServerFn()
+  .inputValidator(
+    z.object({ includeArchived: z.boolean().optional() }).optional(),
+  )
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin'])
 
-  return db.select().from(suppliers).orderBy(suppliers.name)
-})
+    return listSuppliersQuery(data)
+  })
 
 const createSupplierInput = z.object({
   name: z.string().min(1),
@@ -54,7 +59,7 @@ export const updateSupplier = createServerFn()
       await db
         .update(suppliers)
         .set(fields)
-        .where(eq(suppliers.id, id))
+        .where(and(eq(suppliers.id, id), isNull(suppliers.deletedAt)))
         .returning()
     ).at(0)
 
@@ -62,5 +67,41 @@ export const updateSupplier = createServerFn()
       throw new Error('Supplier not found')
     }
 
+    return supplier
+  })
+
+const archiveSupplierInput = z.object({ id: z.uuid() })
+
+export const archiveSupplier = createServerFn()
+  .inputValidator(archiveSupplierInput)
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin'])
+
+    const supplier = (
+      await db
+        .update(suppliers)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(suppliers.id, data.id), isNull(suppliers.deletedAt)))
+        .returning()
+    ).at(0)
+
+    if (!supplier) throw new Error('Supplier not found')
+    return supplier
+  })
+
+export const restoreSupplier = createServerFn()
+  .inputValidator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin'])
+
+    const supplier = (
+      await db
+        .update(suppliers)
+        .set({ deletedAt: null })
+        .where(eq(suppliers.id, data.id))
+        .returning()
+    ).at(0)
+
+    if (!supplier) throw new Error('Supplier not found')
     return supplier
   })

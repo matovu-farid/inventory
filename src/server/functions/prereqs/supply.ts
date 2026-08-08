@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { sql } from 'drizzle-orm'
+import { isNull, sql } from 'drizzle-orm'
 import { db } from '#/db'
 import { suppliers } from '#/db/schema'
 import { deriveSupplyPrereqs } from '#/lib/prerequisites/derive'
@@ -8,6 +8,7 @@ const supplierCountQuery = async () => {
   const row = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(suppliers)
+    .where(isNull(suppliers.deletedAt))
   return row[0]?.count ?? 0
 }
 

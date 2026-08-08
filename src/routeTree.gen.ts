@@ -25,6 +25,7 @@ import { Route as ItemsIndexRouteImport } from './routes/items/index'
 import { Route as CustomersIndexRouteImport } from './routes/customers/index'
 import { Route as UploadPhotoTokenRouteImport } from './routes/upload-photo.$token'
 import { Route as SupplySuppliersRouteImport } from './routes/supply/suppliers'
+import { Route as SupplyNewRouteImport } from './routes/supply/new'
 import { Route as SupplyRouteIdRouteImport } from './routes/supply/$routeId'
 import { Route as StoreTransfersRouteImport } from './routes/store/transfers'
 import { Route as StoreRestockRequisitionsRouteImport } from './routes/store/restock-requisitions'
@@ -38,7 +39,10 @@ import { Route as SettingsAuditLogRouteImport } from './routes/settings/audit-lo
 import { Route as ReportsZRouteImport } from './routes/reports/z'
 import { Route as ReportsXRouteImport } from './routes/reports/x'
 import { Route as ReportsLedgerRouteImport } from './routes/reports/ledger'
+import { Route as ItemsNewRouteImport } from './routes/items/new'
 import { Route as ItemsArticleNumberRouteImport } from './routes/items/$articleNumber'
+import { Route as SupplyWizardRouteIdRouteImport } from './routes/supply/wizard.$routeId'
+import { Route as SupplyRouteIdEntryRouteImport } from './routes/supply/$routeId/entry'
 import { Route as ShopShopIdRestockRouteImport } from './routes/shop/$shopId/restock'
 import { Route as ReportsZIdRouteImport } from './routes/reports/z.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -124,6 +128,11 @@ const SupplySuppliersRoute = SupplySuppliersRouteImport.update({
   path: '/supply/suppliers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SupplyNewRoute = SupplyNewRouteImport.update({
+  id: '/supply/new',
+  path: '/supply/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SupplyRouteIdRoute = SupplyRouteIdRouteImport.update({
   id: '/supply/$routeId',
   path: '/supply/$routeId',
@@ -190,10 +199,25 @@ const ReportsLedgerRoute = ReportsLedgerRouteImport.update({
   path: '/reports/ledger',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ItemsNewRoute = ItemsNewRouteImport.update({
+  id: '/items/new',
+  path: '/items/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ItemsArticleNumberRoute = ItemsArticleNumberRouteImport.update({
   id: '/items/$articleNumber',
   path: '/items/$articleNumber',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SupplyWizardRouteIdRoute = SupplyWizardRouteIdRouteImport.update({
+  id: '/supply/wizard/$routeId',
+  path: '/supply/wizard/$routeId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupplyRouteIdEntryRoute = SupplyRouteIdEntryRouteImport.update({
+  id: '/entry',
+  path: '/entry',
+  getParentRoute: () => SupplyRouteIdRoute,
 } as any)
 const ShopShopIdRestockRoute = ShopShopIdRestockRouteImport.update({
   id: '/shop/$shopId/restock',
@@ -226,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/items/$articleNumber': typeof ItemsArticleNumberRoute
+  '/items/new': typeof ItemsNewRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
@@ -238,7 +263,8 @@ export interface FileRoutesByFullPath {
   '/store/receiving': typeof StoreReceivingRoute
   '/store/restock-requisitions': typeof StoreRestockRequisitionsRoute
   '/store/transfers': typeof StoreTransfersRoute
-  '/supply/$routeId': typeof SupplyRouteIdRoute
+  '/supply/$routeId': typeof SupplyRouteIdRouteWithChildren
+  '/supply/new': typeof SupplyNewRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
   '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers/': typeof CustomersIndexRoute
@@ -251,6 +277,8 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/reports/z/$id': typeof ReportsZIdRoute
   '/shop/$shopId/restock': typeof ShopShopIdRestockRoute
+  '/supply/$routeId/entry': typeof SupplyRouteIdEntryRoute
+  '/supply/wizard/$routeId': typeof SupplyWizardRouteIdRoute
   '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
 }
 export interface FileRoutesByTo {
@@ -262,6 +290,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/items/$articleNumber': typeof ItemsArticleNumberRoute
+  '/items/new': typeof ItemsNewRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
@@ -274,7 +303,8 @@ export interface FileRoutesByTo {
   '/store/receiving': typeof StoreReceivingRoute
   '/store/restock-requisitions': typeof StoreRestockRequisitionsRoute
   '/store/transfers': typeof StoreTransfersRoute
-  '/supply/$routeId': typeof SupplyRouteIdRoute
+  '/supply/$routeId': typeof SupplyRouteIdRouteWithChildren
+  '/supply/new': typeof SupplyNewRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
   '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers': typeof CustomersIndexRoute
@@ -287,6 +317,8 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/reports/z/$id': typeof ReportsZIdRoute
   '/shop/$shopId/restock': typeof ShopShopIdRestockRoute
+  '/supply/$routeId/entry': typeof SupplyRouteIdEntryRoute
+  '/supply/wizard/$routeId': typeof SupplyWizardRouteIdRoute
   '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
 }
 export interface FileRoutesById {
@@ -299,6 +331,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email-sent': typeof VerifyEmailSentRoute
   '/items/$articleNumber': typeof ItemsArticleNumberRoute
+  '/items/new': typeof ItemsNewRoute
   '/reports/ledger': typeof ReportsLedgerRoute
   '/reports/x': typeof ReportsXRoute
   '/reports/z': typeof ReportsZRouteWithChildren
@@ -311,7 +344,8 @@ export interface FileRoutesById {
   '/store/receiving': typeof StoreReceivingRoute
   '/store/restock-requisitions': typeof StoreRestockRequisitionsRoute
   '/store/transfers': typeof StoreTransfersRoute
-  '/supply/$routeId': typeof SupplyRouteIdRoute
+  '/supply/$routeId': typeof SupplyRouteIdRouteWithChildren
+  '/supply/new': typeof SupplyNewRoute
   '/supply/suppliers': typeof SupplySuppliersRoute
   '/upload-photo/$token': typeof UploadPhotoTokenRoute
   '/customers/': typeof CustomersIndexRoute
@@ -324,6 +358,8 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/reports/z/$id': typeof ReportsZIdRoute
   '/shop/$shopId/restock': typeof ShopShopIdRestockRoute
+  '/supply/$routeId/entry': typeof SupplyRouteIdEntryRoute
+  '/supply/wizard/$routeId': typeof SupplyWizardRouteIdRoute
   '/settings/shops/$shopId/overrides': typeof SettingsShopsShopIdOverridesRoute
 }
 export interface FileRouteTypes {
@@ -337,6 +373,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email-sent'
     | '/items/$articleNumber'
+    | '/items/new'
     | '/reports/ledger'
     | '/reports/x'
     | '/reports/z'
@@ -350,6 +387,7 @@ export interface FileRouteTypes {
     | '/store/restock-requisitions'
     | '/store/transfers'
     | '/supply/$routeId'
+    | '/supply/new'
     | '/supply/suppliers'
     | '/upload-photo/$token'
     | '/customers/'
@@ -362,6 +400,8 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/reports/z/$id'
     | '/shop/$shopId/restock'
+    | '/supply/$routeId/entry'
+    | '/supply/wizard/$routeId'
     | '/settings/shops/$shopId/overrides'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -373,6 +413,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email-sent'
     | '/items/$articleNumber'
+    | '/items/new'
     | '/reports/ledger'
     | '/reports/x'
     | '/reports/z'
@@ -386,6 +427,7 @@ export interface FileRouteTypes {
     | '/store/restock-requisitions'
     | '/store/transfers'
     | '/supply/$routeId'
+    | '/supply/new'
     | '/supply/suppliers'
     | '/upload-photo/$token'
     | '/customers'
@@ -398,6 +440,8 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/reports/z/$id'
     | '/shop/$shopId/restock'
+    | '/supply/$routeId/entry'
+    | '/supply/wizard/$routeId'
     | '/settings/shops/$shopId/overrides'
   id:
     | '__root__'
@@ -409,6 +453,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email-sent'
     | '/items/$articleNumber'
+    | '/items/new'
     | '/reports/ledger'
     | '/reports/x'
     | '/reports/z'
@@ -422,6 +467,7 @@ export interface FileRouteTypes {
     | '/store/restock-requisitions'
     | '/store/transfers'
     | '/supply/$routeId'
+    | '/supply/new'
     | '/supply/suppliers'
     | '/upload-photo/$token'
     | '/customers/'
@@ -434,6 +480,8 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/reports/z/$id'
     | '/shop/$shopId/restock'
+    | '/supply/$routeId/entry'
+    | '/supply/wizard/$routeId'
     | '/settings/shops/$shopId/overrides'
   fileRoutesById: FileRoutesById
 }
@@ -446,6 +494,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailSentRoute: typeof VerifyEmailSentRoute
   ItemsArticleNumberRoute: typeof ItemsArticleNumberRoute
+  ItemsNewRoute: typeof ItemsNewRoute
   ReportsLedgerRoute: typeof ReportsLedgerRoute
   ReportsXRoute: typeof ReportsXRoute
   ReportsZRoute: typeof ReportsZRouteWithChildren
@@ -458,7 +507,8 @@ export interface RootRouteChildren {
   StoreReceivingRoute: typeof StoreReceivingRoute
   StoreRestockRequisitionsRoute: typeof StoreRestockRequisitionsRoute
   StoreTransfersRoute: typeof StoreTransfersRoute
-  SupplyRouteIdRoute: typeof SupplyRouteIdRoute
+  SupplyRouteIdRoute: typeof SupplyRouteIdRouteWithChildren
+  SupplyNewRoute: typeof SupplyNewRoute
   SupplySuppliersRoute: typeof SupplySuppliersRoute
   UploadPhotoTokenRoute: typeof UploadPhotoTokenRoute
   CustomersIndexRoute: typeof CustomersIndexRoute
@@ -470,6 +520,7 @@ export interface RootRouteChildren {
   SupplyIndexRoute: typeof SupplyIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ShopShopIdRestockRoute: typeof ShopShopIdRestockRoute
+  SupplyWizardRouteIdRoute: typeof SupplyWizardRouteIdRoute
   SettingsShopsShopIdOverridesRoute: typeof SettingsShopsShopIdOverridesRoute
 }
 
@@ -587,6 +638,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SupplySuppliersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/supply/new': {
+      id: '/supply/new'
+      path: '/supply/new'
+      fullPath: '/supply/new'
+      preLoaderRoute: typeof SupplyNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/supply/$routeId': {
       id: '/supply/$routeId'
       path: '/supply/$routeId'
@@ -678,12 +736,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsLedgerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/items/new': {
+      id: '/items/new'
+      path: '/items/new'
+      fullPath: '/items/new'
+      preLoaderRoute: typeof ItemsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/items/$articleNumber': {
       id: '/items/$articleNumber'
       path: '/items/$articleNumber'
       fullPath: '/items/$articleNumber'
       preLoaderRoute: typeof ItemsArticleNumberRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/supply/wizard/$routeId': {
+      id: '/supply/wizard/$routeId'
+      path: '/supply/wizard/$routeId'
+      fullPath: '/supply/wizard/$routeId'
+      preLoaderRoute: typeof SupplyWizardRouteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/supply/$routeId/entry': {
+      id: '/supply/$routeId/entry'
+      path: '/entry'
+      fullPath: '/supply/$routeId/entry'
+      preLoaderRoute: typeof SupplyRouteIdEntryRouteImport
+      parentRoute: typeof SupplyRouteIdRoute
     }
     '/shop/$shopId/restock': {
       id: '/shop/$shopId/restock'
@@ -728,6 +807,18 @@ const ReportsZRouteWithChildren = ReportsZRoute._addFileChildren(
   ReportsZRouteChildren,
 )
 
+interface SupplyRouteIdRouteChildren {
+  SupplyRouteIdEntryRoute: typeof SupplyRouteIdEntryRoute
+}
+
+const SupplyRouteIdRouteChildren: SupplyRouteIdRouteChildren = {
+  SupplyRouteIdEntryRoute: SupplyRouteIdEntryRoute,
+}
+
+const SupplyRouteIdRouteWithChildren = SupplyRouteIdRoute._addFileChildren(
+  SupplyRouteIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcceptInviteRoute: AcceptInviteRoute,
@@ -737,6 +828,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailSentRoute: VerifyEmailSentRoute,
   ItemsArticleNumberRoute: ItemsArticleNumberRoute,
+  ItemsNewRoute: ItemsNewRoute,
   ReportsLedgerRoute: ReportsLedgerRoute,
   ReportsXRoute: ReportsXRoute,
   ReportsZRoute: ReportsZRouteWithChildren,
@@ -749,7 +841,8 @@ const rootRouteChildren: RootRouteChildren = {
   StoreReceivingRoute: StoreReceivingRoute,
   StoreRestockRequisitionsRoute: StoreRestockRequisitionsRoute,
   StoreTransfersRoute: StoreTransfersRoute,
-  SupplyRouteIdRoute: SupplyRouteIdRoute,
+  SupplyRouteIdRoute: SupplyRouteIdRouteWithChildren,
+  SupplyNewRoute: SupplyNewRoute,
   SupplySuppliersRoute: SupplySuppliersRoute,
   UploadPhotoTokenRoute: UploadPhotoTokenRoute,
   CustomersIndexRoute: CustomersIndexRoute,
@@ -761,6 +854,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupplyIndexRoute: SupplyIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ShopShopIdRestockRoute: ShopShopIdRestockRoute,
+  SupplyWizardRouteIdRoute: SupplyWizardRouteIdRoute,
   SettingsShopsShopIdOverridesRoute: SettingsShopsShopIdOverridesRoute,
 }
 export const routeTree = rootRouteImport

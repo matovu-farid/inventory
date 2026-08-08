@@ -7,6 +7,7 @@ import { cn } from '#/lib/utils'
 interface ItemCardData {
   articleNumber: string
   name: string
+  archived?: boolean
   variants: VariantLike[]
   colors: Array<{
     id: string
@@ -53,6 +54,11 @@ export function ItemCard({
             {data.articleNumber}
           </span>
           <span className="font-medium truncate">{data.name}</span>
+          {data.archived && (
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              Archived
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           {data.colors.map((c) => (

@@ -58,6 +58,7 @@ export const items = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => [
     index('idx_items_article').on(table.articleNumber),

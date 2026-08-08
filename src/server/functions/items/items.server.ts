@@ -12,10 +12,26 @@
 //   - src/__tests__/list-item-categories.test.ts (vitest, server-side)
 //   - other vitest tests that need to exercise data semantics directly
 
-import { asc, eq, ilike, isNull, or } from 'drizzle-orm'
+import { and, asc, eq, ilike, isNull, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
-import { itemCategories, items, itemColors, variants } from '#/db/schema'
+import {
+  itemCategories,
+  items,
+  itemColors,
+  lowStockAlerts,
+  notificationThresholdOverrides,
+  restockRequisitions,
+  shopReturnLines,
+  shopSaleLines,
+  shopStock,
+  stockTakeLines,
+  storeReturnLines,
+  storeStock,
+  storeTransferLines,
+  supplyRouteLines,
+  variants,
+} from '#/db/schema'
 import { materializeVariantsFromColorsSizes } from './variants-materialize'
 import { findOrCreateItemCategoryQuery } from './categories.server'
 
@@ -65,6 +81,8 @@ export const updateInput = upsertInput
   // variant + color endpoints; ignore them here so callers don't have
   // to send the full payload. Category may be patched.
   .partial({
+    articleNumber: true,
+    name: true,
     sizes: true,
     colors: true,
     category: true,
@@ -93,30 +111,150 @@ const ITEM_DETAIL_WITH = {
 // swallows return values when called outside SSR, so tests assert against
 // the pure helpers; route + Cypress coverage exercises the wrapper layer.
 
-export async function listItemsQuery() {
+export async function listItemsQuery(input?: { includeArchived?: boolean }) {
   return db.query.items.findMany({
+    where: input?.includeArchived ? undefined : isNull(items.deletedAt),
     with: ITEM_DETAIL_WITH,
     orderBy: (p) => [asc(p.articleNumber)],
   })
 }
 
-export async function getItemByArticleQuery(input: { articleNumber: string }) {
+export async function getItemByArticleQuery(input: {
+  articleNumber: string
+  includeArchived?: boolean
+}) {
   return db.query.items.findFirst({
-    where: eq(items.articleNumber, input.articleNumber),
+    where: input.includeArchived
+      ? eq(items.articleNumber, input.articleNumber)
+      : and(
+          eq(items.articleNumber, input.articleNumber),
+          isNull(items.deletedAt),
+        ),
     with: ITEM_DETAIL_WITH,
   })
 }
 
-export async function searchItemsQuery(input: { query: string }) {
+export async function searchItemsQuery(input: {
+  query: string
+  includeArchived?: boolean
+}) {
+  const activeFilter = input.includeArchived
+    ? undefined
+    : isNull(items.deletedAt)
   if (!input.query.trim()) {
-    return db.query.items.findMany({ with: ITEM_DETAIL_WITH, limit: 20 })
+    return db.query.items.findMany({
+      where: activeFilter,
+      with: ITEM_DETAIL_WITH,
+      limit: 20,
+    })
   }
   const like = `%${input.query}%`
   return db.query.items.findMany({
-    where: or(ilike(items.articleNumber, like), ilike(items.name, like)),
+    where: and(
+      activeFilter,
+      or(ilike(items.articleNumber, like), ilike(items.name, like)),
+    ),
     with: ITEM_DETAIL_WITH,
     limit: 20,
   })
+}
+
+export async function archiveItemQuery(input: { id: string }) {
+  const archivedRows = await db
+    .update(items)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(items.id, input.id), isNull(items.deletedAt)))
+    .returning()
+  if (archivedRows.length === 0) throw new Error('Item not found')
+  return archivedRows[0]
+}
+
+export async function restoreItemQuery(input: { id: string }) {
+  const restoredRows = await db
+    .update(items)
+    .set({ deletedAt: null })
+    .where(eq(items.id, input.id))
+    .returning()
+  if (restoredRows.length === 0) throw new Error('Item not found')
+  return restoredRows[0]
+}
+
+/**
+ * Permanently deletes an item only when it has no historical or inventory
+ * references. Referenced items must be archived so audit history remains
+ * intact. Variants and colors are intentionally left to their FK cascades.
+ */
+export async function deleteItemQuery(input: { id: string }) {
+  const referenceRows = await Promise.all([
+    db
+      .select({ id: supplyRouteLines.id })
+      .from(supplyRouteLines)
+      .where(eq(supplyRouteLines.itemId, input.id))
+      .limit(1),
+    db
+      .select({ id: storeStock.id })
+      .from(storeStock)
+      .where(eq(storeStock.itemId, input.id))
+      .limit(1),
+    db
+      .select({ id: shopStock.id })
+      .from(shopStock)
+      .where(eq(shopStock.itemId, input.id))
+      .limit(1),
+    db
+      .select({ id: storeTransferLines.id })
+      .from(storeTransferLines)
+      .where(eq(storeTransferLines.itemId, input.id))
+      .limit(1),
+    db
+      .select({ id: shopSaleLines.id })
+      .from(shopSaleLines)
+      .where(eq(shopSaleLines.itemId, input.id))
+      .limit(1),
+    db
+      .select({ id: shopReturnLines.id })
+      .from(shopReturnLines)
+      .where(eq(shopReturnLines.itemId, input.id))
+      .limit(1),
+    db
+      .select({ id: storeReturnLines.id })
+      .from(storeReturnLines)
+      .where(eq(storeReturnLines.itemId, input.id))
+      .limit(1),
+    db
+      .select({ id: stockTakeLines.id })
+      .from(stockTakeLines)
+      .where(eq(stockTakeLines.itemId, input.id))
+      .limit(1),
+    db
+      .select({ id: notificationThresholdOverrides.id })
+      .from(notificationThresholdOverrides)
+      .where(eq(notificationThresholdOverrides.itemId, input.id))
+      .limit(1),
+    db
+      .select({ id: lowStockAlerts.id })
+      .from(lowStockAlerts)
+      .where(eq(lowStockAlerts.itemId, input.id))
+      .limit(1),
+    db
+      .select({ id: restockRequisitions.id })
+      .from(restockRequisitions)
+      .where(eq(restockRequisitions.itemId, input.id))
+      .limit(1),
+  ])
+
+  if (referenceRows.some((rows) => rows.length > 0)) {
+    throw new Error(
+      'Item has historical or inventory references. Archive it instead of deleting it permanently.',
+    )
+  }
+
+  const deletedRows = await db
+    .delete(items)
+    .where(eq(items.id, input.id))
+    .returning({ id: items.id })
+  if (deletedRows.length === 0) throw new Error('Item not found')
+  return deletedRows[0]
 }
 
 /**
@@ -201,12 +339,14 @@ export async function updateItemQuery(data: z.infer<typeof updateInput>) {
       ? undefined
       : (await findOrCreateItemCategoryQuery({ name: category })).id
   const patch = {
-    articleNumber: fields.articleNumber,
-    name: fields.name,
-    description: fields.description,
-    ...(category === undefined
+    ...(fields.articleNumber === undefined
       ? {}
-      : { category, categoryId }),
+      : { articleNumber: fields.articleNumber }),
+    ...(fields.name === undefined ? {} : { name: fields.name }),
+    ...(fields.description === undefined
+      ? {}
+      : { description: fields.description }),
+    ...(category === undefined ? {} : { category, categoryId }),
     ...(fields.supplierId === undefined
       ? {}
       : { supplierId: fields.supplierId }),
@@ -221,12 +361,13 @@ export async function updateItemQuery(data: z.infer<typeof updateInput>) {
     ...(minimumSellPriceUgx === undefined ? {} : { minimumSellPriceUgx }),
     ...(lowStockThreshold === undefined ? {} : { lowStockThreshold }),
   }
-  const [row] = await db
+  const rows = await db
     .update(items)
     .set(patch)
-    .where(eq(items.id, id))
+    .where(and(eq(items.id, id), isNull(items.deletedAt)))
     .returning()
-  return row
+  if (rows.length === 0) throw new Error('Item not found')
+  return rows[0]
 }
 
 /**

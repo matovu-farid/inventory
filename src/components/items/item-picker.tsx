@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { searchItems } from '#/server/functions/items/items'
+import { restoreItem, searchItems } from '#/server/functions/items/items'
 import { Combobox } from '#/components/ui/combobox'
 import type { ComboboxOption } from '#/components/ui/combobox'
 
@@ -7,10 +7,13 @@ export interface ItemSummary {
   id: string
   articleNumber: string
   name: string
+  category: string
+  description?: string | null
   costPrice?: string | null
   costCurrency?: 'RMB' | 'USD' | 'UGX' | string | null
   supplier?: { id: string; name: string } | null
   minimumSellPriceUgx?: string
+  deletedAt?: Date | string | null
   colors: Array<{
     id: string
     colorName: string
@@ -34,20 +37,27 @@ interface Props {
   value?: string
   onChange: (itemId: string, item: ItemSummary | undefined) => void
   onCreateNew?: () => void
+  allowArchived?: boolean
 }
 
-export function ItemPicker({ value, onChange, onCreateNew }: Props) {
+export function ItemPicker({
+  value,
+  onChange,
+  onCreateNew,
+  allowArchived = false,
+}: Props) {
   const [results, setResults] = useState<ItemSummary[]>([])
+  const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => {
-    void searchItems({ data: { query: '' } }).then((rs) =>
-      setResults(rs as ItemSummary[]),
-    )
-  }, [])
+    void searchItems({
+      data: { query: '', includeArchived: showArchived },
+    }).then((rs) => setResults(rs as ItemSummary[]))
+  }, [showArchived])
 
   const options: ComboboxOption[] = results.map((p) => ({
     value: p.id,
-    label: `${p.articleNumber} — ${p.name}`,
+    label: `${p.deletedAt ? '[Archived] ' : ''}${p.articleNumber} — ${p.name}`,
   }))
 
   return (
@@ -55,12 +65,26 @@ export function ItemPicker({ value, onChange, onCreateNew }: Props) {
       <Combobox
         options={options}
         value={value}
-        onChange={(id) =>
-          onChange(
-            id,
-            results.find((r) => r.id === id),
-          )
-        }
+        onChange={(id) => {
+          const selected = results.find((r) => r.id === id)
+          if (!selected) return
+          if (selected.deletedAt) {
+            if (!window.confirm(`Restore ${selected.name} before using it?`)) {
+              return
+            }
+            void restoreItem({ data: { id: selected.id } }).then(() => {
+              const restored = { ...selected, deletedAt: null }
+              setResults((current) =>
+                current.map((item) =>
+                  item.id === restored.id ? restored : item,
+                ),
+              )
+              onChange(restored.id, restored)
+            })
+            return
+          }
+          onChange(id, selected)
+        }}
         placeholder="Select item…"
         searchPlaceholder="Type article number…"
         emptyMessage={
@@ -78,6 +102,15 @@ export function ItemPicker({ value, onChange, onCreateNew }: Props) {
           </div>
         }
       />
+      {allowArchived && (
+        <button
+          type="button"
+          className="text-xs text-muted-foreground underline"
+          onClick={() => setShowArchived((current) => !current)}
+        >
+          {showArchived ? 'Hide archived items' : 'Search archived items'}
+        </button>
+      )}
     </div>
   )
 }
