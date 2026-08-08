@@ -12,11 +12,12 @@
 //   - src/__tests__/list-item-categories.test.ts (vitest, server-side)
 //   - other vitest tests that need to exercise data semantics directly
 
-import { asc, eq, ilike, or } from 'drizzle-orm'
+import { asc, eq, ilike, isNull, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
-import { items, itemColors, variants } from '#/db/schema'
+import { itemCategories, items, itemColors, variants } from '#/db/schema'
 import { materializeVariantsFromColorsSizes } from './variants-materialize'
+import { findOrCreateItemCategoryQuery } from './categories.server'
 
 const colorInput = z.object({
   colorName: z.string().min(1).max(40),
@@ -79,6 +80,7 @@ export const updateInput = upsertInput
 // pair back to a `variantId` client-side.
 const ITEM_DETAIL_WITH = {
   supplier: { columns: { id: true, name: true } },
+  categoryRecord: { columns: { id: true, name: true, deletedAt: true } },
   colors: true,
   variants: {
     columns: { id: true, colorId: true, size: true },
@@ -123,9 +125,10 @@ export async function searchItemsQuery(input: { query: string }) {
  */
 export async function listItemCategoriesQuery() {
   const rows = await db
-    .selectDistinct({ category: items.category })
-    .from(items)
-    .orderBy(asc(items.category))
+    .select({ category: itemCategories.name })
+    .from(itemCategories)
+    .where(isNull(itemCategories.deletedAt))
+    .orderBy(asc(itemCategories.name))
   return rows.map((r) => r.category)
 }
 
@@ -142,6 +145,7 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
       'Supplier, supplier cost, cost currency, and a positive minimum sell price are required',
     )
   }
+  const category = await findOrCreateItemCategoryQuery({ name: data.category })
   const [row] = await db
     .insert(items)
     .values({
@@ -149,6 +153,7 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
       name: data.name,
       description: data.description,
       category: data.category,
+      categoryId: category.id,
       supplierId: data.supplierId,
       costPrice: data.costPrice,
       costCurrency: data.costCurrency,
@@ -191,11 +196,17 @@ export async function updateItemQuery(data: z.infer<typeof updateInput>) {
   } = data
   void _sizes
   void _colors
+  const categoryId =
+    category === undefined
+      ? undefined
+      : (await findOrCreateItemCategoryQuery({ name: category })).id
   const patch = {
     articleNumber: fields.articleNumber,
     name: fields.name,
     description: fields.description,
-    ...(category === undefined ? {} : { category }),
+    ...(category === undefined
+      ? {}
+      : { category, categoryId }),
     ...(fields.supplierId === undefined
       ? {}
       : { supplierId: fields.supplierId }),

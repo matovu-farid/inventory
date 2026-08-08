@@ -14,6 +14,7 @@ import { relations } from 'drizzle-orm'
 import { variants } from './variants'
 import { storeStock } from './store'
 import { suppliers } from './suppliers'
+import { itemCategories } from './item-categories'
 
 /**
  * Catalog: items and item_colors. After the items-free-text-category change
@@ -35,6 +36,9 @@ export const items = pgTable(
      * `listItemCategories()`.
      */
     category: text('category').notNull(),
+    categoryId: uuid('category_id').references(() => itemCategories.id, {
+      onDelete: 'restrict',
+    }),
     supplierId: uuid('supplier_id').references(() => suppliers.id, {
       onDelete: 'restrict',
     }),
@@ -89,6 +93,10 @@ export const itemRelations = relations(items, ({ one, many }) => ({
   supplier: one(suppliers, {
     fields: [items.supplierId],
     references: [suppliers.id],
+  }),
+  categoryRecord: one(itemCategories, {
+    fields: [items.categoryId],
+    references: [itemCategories.id],
   }),
   colors: many(itemColors),
   // `variants` (one row per item × color × size) was added in #2 and is
