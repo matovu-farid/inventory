@@ -172,7 +172,7 @@ beforeAll(async () => {
     .insert(supplyRoutes)
     .values({
       name: `Route ${SUFFIX}`,
-      status: 'in_transit',
+      status: 'open',
       departureDate: '2026-04-01',
     })
     .returning()

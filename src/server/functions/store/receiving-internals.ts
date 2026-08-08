@@ -11,3 +11,12 @@ export function filterRoutesWithUnreceivedItems<
       r.items.length > 0 && r.items.some((it) => !receivedItemIds.has(it.id)),
   )
 }
+
+export function shouldMarkSupplyRouteReceived(
+  lineIds: readonly string[],
+  receivedLineIds: ReadonlySet<string>,
+): boolean {
+  return (
+    lineIds.length > 0 && lineIds.every((lineId) => receivedLineIds.has(lineId))
+  )
+}

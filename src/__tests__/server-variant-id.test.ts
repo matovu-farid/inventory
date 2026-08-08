@@ -278,7 +278,7 @@ describe('supply_route_lines renamed catalog columns (#6)', () => {
     // still names the columns `itemId` / `itemColorId`.
     const [route] = await db
       .insert(supplyRoutes)
-      .values({ name: 'SV-Route-rename', status: 'planning' })
+      .values({ name: 'SV-Route-rename', status: 'open' })
       .returning()
 
     const [row] = await db
@@ -367,7 +367,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
       .insert(supplyRoutes)
       .values({
         name: 'SV-Route-autocreate',
-        status: 'in_transit',
+        status: 'open',
         departureDate: '2026-01-01',
       })
       .returning()
@@ -427,7 +427,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
       .insert(supplyRoutes)
       .values({
         name: 'SV-Route-aggregate',
-        status: 'in_transit',
+        status: 'open',
         departureDate: '2026-01-01',
       })
       .returning()
@@ -470,7 +470,7 @@ describe('receiveGoods — variant resolution + audit metadata (#6)', () => {
       .insert(supplyRoutes)
       .values({
         name: 'SV-Route-audit',
-        status: 'in_transit',
+        status: 'open',
         departureDate: '2026-01-01',
       })
       .returning()

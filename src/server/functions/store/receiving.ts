@@ -22,18 +22,21 @@ import {
   validateDiscrepancyNotes,
   validateQuantityReceived,
 } from './receive-validate'
-import { filterRoutesWithUnreceivedItems } from './receiving-internals'
+import {
+  filterRoutesWithUnreceivedItems,
+  shouldMarkSupplyRouteReceived,
+} from './receiving-internals'
 
 /**
  * List supply routes that still have items waiting to be received at the
- * store. A route is "receivable" when its status is "in_transit" or
- * "received" AND at least one of its items has no StoreReceiving record yet.
+ * store. A route is receivable when it is open and at least one of its items
+ * has no StoreReceiving record yet.
  */
 export const listReceivableRoutes = createServerFn().handler(async () => {
   await requireSessionAndRole(['admin'])
 
   const routes = await db.query.supplyRoutes.findMany({
-    where: (r, { inArray }) => inArray(r.status, ['in_transit', 'received']),
+    where: (r, { eq }) => eq(r.status, 'open'),
     with: {
       items: {
         with: {
@@ -406,10 +409,34 @@ export const receiveGoods = createServerFn()
         })
       }
 
-      // Update route status to "received" if not already
+      const routeLineIds = await tx
+        .select({ id: supplyRouteLines.id })
+        .from(supplyRouteLines)
+        .where(eq(supplyRouteLines.supplyRouteId, data.supplyRouteId))
+      const routeReceivedLineIds = new Set(
+        (
+          await tx
+            .select({ supplyRouteLineId: storeReceivings.supplyRouteLineId })
+            .from(storeReceivings)
+            .where(
+              sql`${storeReceivings.supplyRouteLineId} IN (${sql.join(
+                routeLineIds.map((line) => sql`${line.id}`),
+                sql`, `,
+              )})`,
+            )
+        ).map((row) => row.supplyRouteLineId),
+      )
+
       await tx
         .update(supplyRoutes)
-        .set({ status: 'received' })
+        .set({
+          status: shouldMarkSupplyRouteReceived(
+            routeLineIds.map((line) => line.id),
+            routeReceivedLineIds,
+          )
+            ? 'received'
+            : 'open',
+        })
         .where(eq(supplyRoutes.id, data.supplyRouteId))
 
       const totalReceived = results.reduce((sum, r) => sum + r.received, 0)

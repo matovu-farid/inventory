@@ -78,8 +78,8 @@ export const deleteSupplyRouteItem = createServerFn()
       with: { supplyRoute: true },
     })
     if (!line) throw new Error('Supply route line not found')
-    if (line.supplyRoute.status !== 'planning')
-      throw new Error('Only planning routes can be edited')
+    if (line.supplyRoute.status !== 'open')
+      throw new Error('Only open routes can be edited')
     const received = await db.query.storeReceivings.findFirst({
       where: eq(storeReceivings.supplyRouteLineId, data.id),
     })
@@ -99,8 +99,8 @@ export const updateSupplyRouteLineQuantity = createServerFn()
         with: { supplyRoute: true },
       })
       if (!line) throw new Error('Supply route line not found')
-      if (line.supplyRoute.status !== 'planning')
-        throw new Error('Only planning routes can be edited')
+      if (line.supplyRoute.status !== 'open')
+        throw new Error('Only open routes can be edited')
       const received = await tx.query.storeReceivings.findFirst({
         where: eq(storeReceivings.supplyRouteLineId, data.id),
       })

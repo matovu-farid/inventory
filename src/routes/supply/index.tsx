@@ -42,8 +42,7 @@ const STATUS_COLORS: Record<
   string,
   'default' | 'secondary' | 'destructive' | 'outline'
 > = {
-  planning: 'outline',
-  in_transit: 'default',
+  open: 'outline',
   received: 'secondary',
 }
 

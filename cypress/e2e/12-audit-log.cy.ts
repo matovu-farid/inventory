@@ -4,7 +4,7 @@
  * Backdated-receipt audit log golden path E2E
  *
  * Seeds the minimum state needed to drive the receiving form:
- * - admin user, store (defensive insert), supplier, supply_route (in_transit,
+ * - admin user, store (defensive insert), supplier, supply_route (open,
  *   departed 2026-04-01), product + color + supply_route_item.
  *
  * Drives the admin-visible flow:
@@ -64,7 +64,7 @@ describe('Backdated receipt audit log', () => {
 
     cy.task(
       'dbQuery',
-      `INSERT INTO supply_routes (id, name, status, departure_date) VALUES (gen_random_uuid(), '${ROUTE_NAME}', 'in_transit', '2026-04-01') RETURNING id;`,
+      `INSERT INTO supply_routes (id, name, status, departure_date) VALUES (gen_random_uuid(), '${ROUTE_NAME}', 'open', '2026-04-01') RETURNING id;`,
     ).as('routeId')
 
     cy.then(function () {

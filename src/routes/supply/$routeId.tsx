@@ -91,8 +91,6 @@ export const Route = createFileRoute('/supply/$routeId')({
   component: RouteDetailPage,
 })
 
-const STATUSES = ['planning', 'in_transit', 'received'] as const
-
 const EXPENSE_CATEGORIES = [
   'freight',
   'shipping',
@@ -171,23 +169,13 @@ function RouteDetailPage() {
   )
   const grandTotal = totalItemCost.plus(totalExpenses)
 
-  async function handleStatusChange(status: string) {
-    await updateSupplyRoute({
-      data: {
-        id: route.id,
-        status: status as (typeof STATUSES)[number],
-      },
-    })
-    void router.invalidate()
-  }
-
   async function handleDeleteItem(id: string) {
     await deleteSupplyRouteItem({ data: { id } })
     void router.invalidate()
   }
 
   async function handleEditQuantity(item: RouteItem) {
-    if (route.status !== 'planning') return
+    if (route.status !== 'open') return
     const raw = window.prompt('New quantity', String(item.quantity))
     if (raw === null) return
     const quantity = Number(raw)
@@ -216,23 +204,9 @@ function RouteDetailPage() {
             {route.returnDate && ` | Returned: ${route.returnDate}`}
           </p>
         </div>
-        <Select
-          value={route.status}
-          onValueChange={(v) => {
-            void handleStatusChange(v)
-          }}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s.replace('_', ' ')}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Badge variant={route.status === 'received' ? 'secondary' : 'outline'}>
+          {route.status === 'received' ? 'Received' : 'Open'}
+        </Badge>
       </div>
 
       <PagePrerequisites result={prerequisites}>
@@ -491,7 +465,7 @@ function RouteDetailPage() {
                                       Split
                                     </Button>
                                   )}
-                                  {route.status === 'planning' && (
+                                  {route.status === 'open' && (
                                     <Button
                                       size="icon"
                                       variant="ghost"

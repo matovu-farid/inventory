@@ -153,17 +153,14 @@ describe.skip('Full Inventory Workflow', () => {
     })
   })
 
-  it('06 - changes route status to in_transit', () => {
+  it('06 - keeps the route open until receiving completes', () => {
     cy.visit('/supply')
     waitForHydration()
     cy.get('a').contains('View').first().click()
     cy.contains('Test Route 47', { timeout: 10000 }).should('be.visible')
     waitForHydration()
 
-    // Click status dropdown at top of page
-    cy.get('main').find('button[role="combobox"]').first().click()
-    cy.get('[role="option"]').contains('in transit').click()
-    cy.wait(2000) // Wait for server update
+    cy.contains('Open').should('be.visible')
     cy.screenshot('08-status-changed')
   })
 

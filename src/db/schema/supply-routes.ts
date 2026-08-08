@@ -15,8 +15,7 @@ import { suppliers } from './suppliers'
 import { itemColors, items } from './items'
 
 export const supplyRouteStatusEnum = pgEnum('supply_route_status', [
-  'planning',
-  'in_transit',
+  'open',
   'received',
 ])
 
@@ -38,7 +37,7 @@ export const supplyRoutes = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
-    status: supplyRouteStatusEnum('status').notNull().default('planning'),
+    status: supplyRouteStatusEnum('status').notNull().default('open'),
     departureDate: date('departure_date'),
     returnDate: date('return_date'),
     budgetUsd: numeric('budget_usd', { precision: 15, scale: 2 }),

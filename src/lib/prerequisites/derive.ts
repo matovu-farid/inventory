@@ -35,7 +35,7 @@ const noSuppliersPrereq: MissingPrereq = Object.freeze({
 // ---------- per-page derive functions ---------------------------------------
 
 export interface ReceivingPrereqInput {
-  /** Count of supply routes in in_transit/received status with ≥1 unreceived item. */
+  /** Count of open supply routes with ≥1 unreceived item. */
   receivableRouteCount: number
 }
 
@@ -50,7 +50,7 @@ export function deriveReceivingPrereqs(
         id: 'no-receivable-routes',
         severity: 'soft',
         title: 'No supply routes ready to receive',
-        why: "Nothing is in transit right now. When you mark a supply route 'in transit' or 'received', it will show up here for receiving.",
+        why: 'No open supply routes have outstanding items to receive yet.',
         actions: [{ label: 'Go to Supply Routes', href: '/supply' }],
       },
     ],

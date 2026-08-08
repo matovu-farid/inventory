@@ -74,8 +74,8 @@ export const promoteRequisitionsToRoute = createServerFn()
           .from(supplyRoutes)
           .where(eq(supplyRoutes.id, data.supplyRouteId))
       ).at(0)
-      if (!route || route.status !== 'planning') {
-        throw new Error("Supply route must be in 'planning' status.")
+      if (!route || route.status !== 'open') {
+        throw new Error("Supply route must be 'open'.")
       }
 
       for (const req of stillOpen) {

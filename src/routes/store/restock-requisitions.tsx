@@ -21,9 +21,9 @@ export const Route = createFileRoute('/store/restock-requisitions')({
       listSupplyRoutes(),
       listSuppliers(),
     ])
-    // Filter routes client-side to status='planning'
+    // Only open routes can receive promoted requisitions.
     const routes = allRoutes
-      .filter((r) => r.status === 'planning')
+      .filter((r) => r.status === 'open')
       .map((r) => ({ id: r.id, name: r.name }))
     return {
       requisitions,
@@ -44,7 +44,7 @@ function RequisitionsPage() {
         <CardHeader>
           <CardTitle>Open requisitions</CardTitle>
           <CardDescription>
-            Items the store needs more of. Select and add them to a planning
+            Items the store needs more of. Select and add them to an open
             supply route, or dismiss with a reason.
           </CardDescription>
         </CardHeader>

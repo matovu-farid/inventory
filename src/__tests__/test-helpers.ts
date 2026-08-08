@@ -145,7 +145,7 @@ export async function seedSupplyRoute(input?: {
     input?.name ?? `Test Route ${Math.random().toString(36).slice(2, 8)}`
   const [row] = await db
     .insert(supplyRoutes)
-    .values({ name, status: 'in_transit' })
+    .values({ name, status: 'open' })
     .returning()
   assertDefined(row, 'seedSupplyRoute: insert returned no row')
   return row.id

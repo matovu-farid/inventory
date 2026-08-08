@@ -47,7 +47,7 @@ afterAll(async () => {
 })
 
 describe('createSupplyRoute', () => {
-  it('creates a minimal planning route', async () => {
+  it('creates a minimal open route', async () => {
     const name = `Vitest Route ${Date.now()}`
     await callServerFn(() =>
       createSupplyRoute({
@@ -59,7 +59,7 @@ describe('createSupplyRoute', () => {
     })
     expect(route).toBeDefined()
     if (route) createdIds.push(route.id)
-    expect(route?.status).toBe('planning')
+    expect(route?.status).toBe('open')
   })
 
   it('creates a route with optional budget and rates', async () => {

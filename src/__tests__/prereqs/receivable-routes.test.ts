@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { filterRoutesWithUnreceivedItems } from '#/server/functions/store/receiving-internals'
+import {
+  filterRoutesWithUnreceivedItems,
+  shouldMarkSupplyRouteReceived,
+} from '#/server/functions/store/receiving-internals'
 
 describe('filterRoutesWithUnreceivedItems', () => {
   it('excludes a route whose every item has been received (the China Trip bug)', () => {
@@ -18,7 +21,7 @@ describe('filterRoutesWithUnreceivedItems', () => {
     const routes = [
       {
         id: 'route-mixed',
-        status: 'in_transit' as const,
+        status: 'open' as const,
         items: [{ id: 'item-a' }, { id: 'item-b' }],
       },
     ]
@@ -32,7 +35,7 @@ describe('filterRoutesWithUnreceivedItems', () => {
     const routes = [
       {
         id: 'route-fresh',
-        status: 'in_transit' as const,
+        status: 'open' as const,
         items: [{ id: 'item-x' }],
       },
     ]
@@ -45,10 +48,31 @@ describe('filterRoutesWithUnreceivedItems', () => {
     const routes = [
       {
         id: 'route-empty',
-        status: 'in_transit' as const,
+        status: 'open' as const,
         items: [],
       },
     ]
     expect(filterRoutesWithUnreceivedItems(routes, new Set())).toEqual([])
+  })
+})
+
+describe('shouldMarkSupplyRouteReceived', () => {
+  it('returns false when a route has no lines', () => {
+    expect(shouldMarkSupplyRouteReceived([], new Set())).toBe(false)
+  })
+
+  it('returns false when any line remains unreceived', () => {
+    expect(
+      shouldMarkSupplyRouteReceived(['line-a', 'line-b'], new Set(['line-a'])),
+    ).toBe(false)
+  })
+
+  it('returns true only when every line has a receipt', () => {
+    expect(
+      shouldMarkSupplyRouteReceived(
+        ['line-a', 'line-b'],
+        new Set(['line-a', 'line-b']),
+      ),
+    ).toBe(true)
   })
 })
