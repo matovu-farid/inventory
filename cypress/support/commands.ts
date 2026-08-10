@@ -71,6 +71,13 @@ Cypress.Commands.add('cleanupAllTestData', () => {
   cy.task('cleanupAllTestData', null)
 })
 
+Cypress.Commands.add('waitForHydration', () => {
+  cy.get('body', { timeout: 10000 }).should('be.visible')
+  cy.window({ timeout: 15000 }).should((win) => {
+    expect((win as unknown as { $_TSR?: unknown }).$_TSR).to.be.undefined
+  })
+})
+
 declare global {
   namespace Cypress {
     interface Chainable {
@@ -80,6 +87,7 @@ declare global {
       dbQuery(sql: string): Chainable
       cleanupTestUser(email: string): Chainable
       cleanupAllTestData(): Chainable
+      waitForHydration(): Chainable
     }
   }
 }

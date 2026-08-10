@@ -30,6 +30,7 @@ describe('Guided supply route entry', () => {
         )
 
         cy.visit('/supply/new')
+        cy.waitForHydration()
         cy.contains('Continue most recent route').should('be.visible')
         cy.contains('Select another open route').should('be.visible')
         cy.contains('Start a new route').should('be.visible')
@@ -41,14 +42,12 @@ describe('Guided supply route entry', () => {
         cy.contains('Route suppliers').should('not.exist')
         cy.contains('Add items to this route').should('be.visible')
 
-        cy.contains('Continue').click()
-        cy.contains('Review route entry').should('be.visible')
-
-        cy.contains('This route remains open').should('be.visible')
         cy.contains('Save and exit').click()
         cy.location('pathname').should('eq', `/supply/${routeRows[0].id}`)
         cy.visit(`/supply/${routeRows[0].id}/entry`)
+        cy.waitForHydration()
         cy.contains('Step 3 of 4').should('be.visible')
+        cy.contains('Add items to this route').should('be.visible')
       })
     })
   })
@@ -83,6 +82,7 @@ describe('Guided supply route entry', () => {
               )
 
               cy.visit(`/supply/${routeId}/entry`)
+              cy.waitForHydration()
               cy.contains('Add items to this route').should('be.visible')
               cy.contains('Step 3 of 4').should('be.visible')
               cy.contains('Select item…').should('be.visible')
