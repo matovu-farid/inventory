@@ -48,6 +48,13 @@ describe('Guided supply route entry', () => {
         cy.waitForHydration()
         cy.contains('Step 3 of 4').should('be.visible')
         cy.contains('Add items to this route').should('be.visible')
+
+        cy.contains('button', 'Review').click()
+        cy.contains('Review route entry').should('be.visible')
+        cy.contains('button', 'Finish route').click()
+        cy.location('pathname').should('eq', '/supply')
+        cy.contains('Supply route saved').should('be.visible')
+        cy.contains('Guided Test Route').should('be.visible')
       })
     })
   })

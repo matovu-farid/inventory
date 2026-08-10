@@ -211,6 +211,14 @@ export function SupplyRouteWizard({
     })
   }
 
+  async function finishRoute() {
+    if (!(await persistBasics())) return
+    await router.navigate({
+      to: '/supply',
+      search: { completedRoute: route.id },
+    })
+  }
+
   async function addExistingSupplier(supplierId: string) {
     if (routeSupplierIds.has(supplierId)) return
     setSupplierPending(true)
@@ -776,7 +784,7 @@ export function SupplyRouteWizard({
               Continue <ArrowRight className="ml-1 size-4" />
             </Button>
           ) : (
-            <Button type="button" onClick={() => void exitWizard()}>
+            <Button type="button" onClick={() => void finishRoute()}>
               Finish route
             </Button>
           )}

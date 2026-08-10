@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { z } from 'zod'
 import { requireUiPermission } from '#/lib/permissions'
 import { useState } from 'react'
 import BigNumber from 'bignumber.js'
@@ -11,7 +12,8 @@ import { Textarea } from '#/components/ui/textarea'
 import { Badge } from '#/components/ui/badge'
 import { DatePicker } from '#/components/ui/date-picker'
 import { ResponsiveTable } from '#/components/ui/responsive-table'
-import { Plus, ArrowRight } from 'lucide-react'
+import { Card, CardContent } from '#/components/ui/card'
+import { Plus, ArrowRight, CheckCircle2 } from 'lucide-react'
 import {
   listSupplyRoutes,
   createSupplyRoute,
@@ -21,6 +23,7 @@ import { getSupplyPrereqs } from '#/server/functions/prereqs/supply'
 
 export const Route = createFileRoute('/supply/')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
+  validateSearch: z.object({ completedRoute: z.uuid().optional() }),
   loader: async () => {
     const [routes, prerequisites] = await Promise.all([
       listSupplyRoutes(),
@@ -42,7 +45,11 @@ const STATUS_COLORS: Record<
 
 function SupplyRoutesPage() {
   const { routes, prerequisites } = Route.useLoaderData()
+  const { completedRoute } = Route.useSearch()
   const recentOpenRoute = routes.find((route) => route.status === 'open')
+  const completed = completedRoute
+    ? routes.find((route) => route.id === completedRoute)
+    : undefined
 
   return (
     <div className="space-y-6">
@@ -60,6 +67,32 @@ function SupplyRoutesPage() {
           </Button>
         </Link>
       </div>
+
+      {completed && (
+        <Card role="status" aria-live="polite" className="border-primary/40">
+          <CardContent className="flex items-start justify-between gap-4 p-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-primary" />
+              <div>
+                <p className="font-medium">Supply route saved</p>
+                <p className="text-sm text-muted-foreground">
+                  {completed.name} is open and ready to continue.{' '}
+                  {completed.items.length} item row
+                  {completed.items.length === 1 ? '' : 's'} saved.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/supply/$routeId/entry"
+              params={{ routeId: completed.id }}
+            >
+              <Button variant="outline" size="sm">
+                Open route
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {recentOpenRoute && (
         <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
