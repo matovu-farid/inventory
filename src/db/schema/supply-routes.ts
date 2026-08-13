@@ -111,6 +111,10 @@ export const supplyRouteLines = pgTable(
       onDelete: 'restrict',
     }),
     size: text('size'),
+    supplierNameSnapshot: text('supplier_name_snapshot'),
+    articleNumberSnapshot: text('article_number_snapshot'),
+    itemNameSnapshot: text('item_name_snapshot'),
+    colorNameSnapshot: text('color_name_snapshot'),
     quantity: integer('quantity').notNull(),
     unitPriceForeign: numeric('unit_price_foreign', {
       precision: 15,

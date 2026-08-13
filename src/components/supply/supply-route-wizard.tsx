@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
-import BigNumber from 'bignumber.js'
 import {
   getSupplyRoute,
   addSupplierToRoute,
@@ -15,9 +14,12 @@ import {
 import { deleteSupplyRouteItem } from '#/server/functions/supply/items'
 import { AddItemForm } from '#/components/supply/add-item-form'
 import type { SupplyRouteEntryDraft } from '#/components/supply/add-item-form'
+import { SupplyRouteExpenses } from '#/components/supply/supply-route-expenses'
+import { SupplyRouteReview } from '#/components/supply/supply-route-review'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { MoneyInput } from '#/components/ui/money-input'
+import { DatePicker } from '#/components/ui/date-picker'
 import { Textarea } from '#/components/ui/textarea'
 import { FieldLabel } from '#/components/ui/field-label'
 import { Badge } from '#/components/ui/badge'
@@ -41,11 +43,13 @@ export function SupplyRouteWizard({
   initialCategories,
   initialSuppliers,
   initialStep = 'basics',
+  onStepChange,
 }: {
   initialRoute: RouteData
   initialCategories: ReadonlyArray<string>
   initialSuppliers: ReadonlyArray<SupplierOption>
   initialStep?: SupplyRouteStepId
+  onStepChange?: (step: SupplyRouteStepId) => void
 }) {
   const router = useRouter()
   const [route, setRoute] = useState(initialRoute)
@@ -79,6 +83,10 @@ export function SupplyRouteWizard({
   const [showArchivedSuppliers, setShowArchivedSuppliers] = useState(false)
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
 
+  useEffect(() => {
+    setStep(initialStep)
+  }, [initialStep])
+
   const routeSupplierIds = useMemo(
     () => new Set(route.suppliers.map((entry) => entry.supplier.id)),
     [route.suppliers],
@@ -93,6 +101,31 @@ export function SupplyRouteWizard({
     }
     return [...groups.values()]
   }, [route])
+
+  const reviewLines = useMemo(
+    () =>
+      route.items.map((line) => {
+        const item = line.item ?? line.itemColor?.item
+        return {
+          date: route.departureDate,
+          supplierName: line.supplierNameSnapshot ?? line.supplier.name,
+          articleNumber: line.articleNumberSnapshot ?? item?.articleNumber,
+          itemName: line.itemNameSnapshot ?? item?.name,
+          colorName: line.colorNameSnapshot ?? line.itemColor?.colorName,
+          size: line.size,
+          quantity: line.quantity,
+          unitPriceForeign: line.unitPriceForeign,
+          foreignCurrency: line.foreignCurrency,
+          exchangeRateForeignToUsd: line.exchangeRateForeignToUsd,
+          exchangeRateUsdToUgx: line.exchangeRateUsdToUgx,
+          totalAmountForeign: line.totalAmountForeign,
+          totalAmountUsd: line.totalAmountUsd,
+          totalCostUgx: line.totalCostUgx,
+          minimumSellPriceUgx: line.minimumSellPriceUgx,
+        }
+      }),
+    [route.departureDate, route.items],
+  )
 
   const editingEntry = useMemo<SupplyRouteEntryDraft | undefined>(() => {
     if (!editingEntryId) return undefined
@@ -198,9 +231,11 @@ export function SupplyRouteWizard({
     setBasicsDirty(true)
   }
 
-  function goTo(nextStep: SupplyRouteStepId) {
+  async function goTo(nextStep: SupplyRouteStepId) {
+    if (!(await persistBasics())) return
     setError('')
     setStep(nextStep)
+    onStepChange?.(nextStep)
   }
 
   async function exitWizard() {
@@ -308,12 +343,12 @@ export function SupplyRouteWizard({
             Add or update route information over multiple sessions. Your open
             route stays available until receiving is complete.
           </p>
-          {initialStep !== 'basics' && (
+          {initialStep !== 'basics' && !isLocked && (
             <Button
               type="button"
               variant="link"
               className="h-auto p-0 text-sm"
-              onClick={() => setStep('basics')}
+              onClick={() => void goTo('basics')}
             >
               Edit route details
             </Button>
@@ -332,7 +367,10 @@ export function SupplyRouteWizard({
         </Badge>
       </div>
 
-      <SupplyRouteStepper activeStep={step} onStep={goTo} />
+      <SupplyRouteStepper
+        activeStep={step}
+        onStep={(nextStep) => void goTo(nextStep)}
+      />
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>
@@ -360,6 +398,7 @@ export function SupplyRouteWizard({
               <Input
                 id="wizard-route-name"
                 value={basics.name}
+                disabled={isLocked}
                 onChange={(e) => updateBasic('name', e.target.value)}
               />
             </div>
@@ -368,50 +407,58 @@ export function SupplyRouteWizard({
                 <FieldLabel htmlFor="wizard-departure">
                   Departure date
                 </FieldLabel>
-                <Input
+                <DatePicker
                   id="wizard-departure"
-                  type="date"
                   value={basics.departureDate}
-                  onChange={(e) => updateBasic('departureDate', e.target.value)}
+                  disabled={isLocked}
+                  onChange={(value) => updateBasic('departureDate', value)}
+                  placeholder="Select departure date"
                 />
               </div>
               <div className="space-y-2">
                 <FieldLabel htmlFor="wizard-return">Return date</FieldLabel>
-                <Input
+                <DatePicker
                   id="wizard-return"
-                  type="date"
                   value={basics.returnDate}
-                  onChange={(e) => updateBasic('returnDate', e.target.value)}
+                  disabled={isLocked}
+                  onChange={(value) => updateBasic('returnDate', value)}
+                  placeholder="Select return date"
                 />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <FieldLabel>Budget (USD)</FieldLabel>
+                <FieldLabel htmlFor="wizard-budget">Budget (USD)</FieldLabel>
                 <MoneyInput
+                  id="wizard-budget"
                   currency="USD"
                   decimals={2}
                   value={basics.budgetUsd}
+                  disabled={isLocked}
                   onChange={(value) => updateBasic('budgetUsd', value)}
                   placeholder="0"
                 />
               </div>
               <div className="space-y-2">
-                <FieldLabel>UGX per USD</FieldLabel>
+                <FieldLabel htmlFor="wizard-rate-ugx">UGX per USD</FieldLabel>
                 <MoneyInput
+                  id="wizard-rate-ugx"
                   currency="UGX/USD"
                   decimals={0}
                   value={basics.rateUgxPerUsd}
+                  disabled={isLocked}
                   onChange={(value) => updateBasic('rateUgxPerUsd', value)}
                   placeholder="e.g. 3,750"
                 />
               </div>
               <div className="space-y-2">
-                <FieldLabel>RMB per USD</FieldLabel>
+                <FieldLabel htmlFor="wizard-rate-rmb">RMB per USD</FieldLabel>
                 <MoneyInput
+                  id="wizard-rate-rmb"
                   currency="RMB/USD"
                   decimals={6}
                   value={basics.rateRmbPerUsd}
+                  disabled={isLocked}
                   onChange={(value) => updateBasic('rateRmbPerUsd', value)}
                   placeholder="e.g. 7.25"
                 />
@@ -423,6 +470,7 @@ export function SupplyRouteWizard({
                 id="wizard-notes"
                 rows={4}
                 value={basics.notes}
+                disabled={isLocked}
                 onChange={(e) => updateBasic('notes', e.target.value)}
               />
             </div>
@@ -442,9 +490,13 @@ export function SupplyRouteWizard({
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Select
+                disabled={isLocked || supplierPending}
                 onValueChange={(value) => void addExistingSupplier(value)}
               >
-                <SelectTrigger className="flex-1">
+                <SelectTrigger
+                  disabled={isLocked || supplierPending}
+                  className="flex-1"
+                >
                   <SelectValue placeholder="Select an existing supplier" />
                 </SelectTrigger>
                 <SelectContent>
@@ -461,6 +513,7 @@ export function SupplyRouteWizard({
               <Button
                 type="button"
                 variant="outline"
+                disabled={isLocked || supplierPending}
                 onClick={() => setNewSupplierOpen((open) => !open)}
               >
                 <Plus className="mr-1 size-4" /> New supplier
@@ -468,6 +521,7 @@ export function SupplyRouteWizard({
               <Button
                 type="button"
                 variant="ghost"
+                disabled={isLocked || supplierPending}
                 onClick={() => {
                   const next = !showArchivedSuppliers
                   setShowArchivedSuppliers(next)
@@ -490,6 +544,7 @@ export function SupplyRouteWizard({
                     <Input
                       id="new-supplier-name"
                       value={newSupplier.name}
+                      disabled={isLocked || supplierPending}
                       onChange={(e) =>
                         setNewSupplier((current) => ({
                           ...current,
@@ -502,6 +557,7 @@ export function SupplyRouteWizard({
                     <FieldLabel>Type</FieldLabel>
                     <Select
                       value={newSupplier.type}
+                      disabled={isLocked || supplierPending}
                       onValueChange={(value: SupplierOption['type']) =>
                         setNewSupplier((current) => ({
                           ...current,
@@ -509,7 +565,7 @@ export function SupplyRouteWizard({
                         }))
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger disabled={isLocked || supplierPending}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -527,6 +583,7 @@ export function SupplyRouteWizard({
                     <Input
                       id="new-supplier-country"
                       value={newSupplier.country}
+                      disabled={isLocked || supplierPending}
                       onChange={(e) =>
                         setNewSupplier((current) => ({
                           ...current,
@@ -539,7 +596,7 @@ export function SupplyRouteWizard({
                 <Button
                   className="mt-3"
                   type="submit"
-                  disabled={supplierPending}
+                  disabled={isLocked || supplierPending}
                 >
                   {supplierPending ? 'Saving…' : 'Create and add supplier'}
                 </Button>
@@ -569,7 +626,7 @@ export function SupplyRouteWizard({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    disabled={supplierPending}
+                    disabled={isLocked || supplierPending}
                     onClick={() => void handleRemoveSupplier(entry.id)}
                     title="Remove supplier from route"
                   >
@@ -713,6 +770,17 @@ export function SupplyRouteWizard({
         </div>
       )}
 
+      {step === 'expenses' && (
+        <SupplyRouteExpenses
+          supplyRouteId={route.id}
+          rateUgxPerUsd={route.rateUgxPerUsd}
+          rateRmbPerUsd={route.rateRmbPerUsd}
+          expenses={route.expenses}
+          disabled={isLocked}
+          onChanged={() => void refreshRoute()}
+        />
+      )}
+
       {step === 'review' && (
         <Card>
           <CardHeader>
@@ -735,23 +803,20 @@ export function SupplyRouteWizard({
                 is the action that eventually closes the route.
               </p>
             </div>
-            <div className="space-y-2">
-              {route.items.slice(0, 8).map((line) => (
-                <div key={line.id} className="flex justify-between text-sm">
-                  <span>
-                    {line.item
-                      ? line.item.name
-                      : line.itemColor
-                        ? line.itemColor.item.name
-                        : 'Item'}
-                  </span>
-                  <span className="font-mono">
-                    {line.quantity} ·{' '}
-                    {new BigNumber(line.totalCostUgx).toFormat(0)} UGX
-                  </span>
-                </div>
-              ))}
-            </div>
+            <SupplyRouteReview
+              lines={reviewLines}
+              expenses={route.expenses}
+              routeDetails={{
+                name: route.name,
+                departureDate: route.departureDate,
+                returnDate: route.returnDate,
+                budgetUsd: route.budgetUsd,
+                rateUgxPerUsd: route.rateUgxPerUsd,
+                rateRmbPerUsd: route.rateRmbPerUsd,
+                notes: route.notes,
+                suppliers: route.suppliers.map((entry) => entry.supplier.name),
+              }}
+            />
           </CardContent>
         </Card>
       )}
@@ -771,7 +836,7 @@ export function SupplyRouteWizard({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setStep(SUPPLY_ROUTE_STEPS[currentIndex - 1].id)}
+              onClick={() => void goTo(SUPPLY_ROUTE_STEPS[currentIndex - 1].id)}
             >
               <ArrowLeft className="mr-1 size-4" /> Back
             </Button>
@@ -784,7 +849,11 @@ export function SupplyRouteWizard({
               Continue <ArrowRight className="ml-1 size-4" />
             </Button>
           ) : (
-            <Button type="button" onClick={() => void finishRoute()}>
+            <Button
+              type="button"
+              disabled={isLocked}
+              onClick={() => void finishRoute()}
+            >
               Finish route
             </Button>
           )}

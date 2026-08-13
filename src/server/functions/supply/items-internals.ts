@@ -49,6 +49,10 @@ export type MaterializedRow = {
   itemId: string
   colorId: string | null
   size: string | null
+  supplierNameSnapshot?: string | null
+  articleNumberSnapshot?: string | null
+  itemNameSnapshot?: string | null
+  colorNameSnapshot?: string | null
   quantity: number
   unitPriceForeign: string
   foreignCurrency: string
@@ -60,8 +64,81 @@ export type MaterializedRow = {
   minimumSellPriceUgx: string
 }
 
+type MaterializeInput = z.infer<typeof variantInput> & {
+  supplierNameSnapshot?: string | null
+  articleNumberSnapshot?: string | null
+  itemNameSnapshot?: string | null
+  colorNameById?: Readonly<Record<string, string>>
+}
+
+function normalizeRate(
+  value: string | null | undefined,
+  scale: number,
+  label: string,
+) {
+  if (value === undefined || value === null) return undefined
+  const rate = new BigNumber(value)
+  const normalized = rate.dp(scale, BigNumber.ROUND_HALF_UP)
+  if (!rate.isFinite() || rate.lte(0) || normalized.lte(0)) {
+    throw new Error(`${label} must be positive`)
+  }
+  return normalized.toFixed(scale)
+}
+
+export function calculateSupplyLineAmounts(input: {
+  quantity: number
+  unitPriceForeign: string
+  foreignCurrency: string
+  exchangeRateForeignToUsd?: string | null
+  exchangeRateUsdToUgx?: string | null
+}) {
+  const unitPrice = new BigNumber(input.unitPriceForeign)
+  if (!unitPrice.isFinite() || unitPrice.lte(0)) {
+    throw new Error('Unit purchase price must be positive')
+  }
+  if (!Number.isInteger(input.quantity) || input.quantity <= 0) {
+    throw new Error('Quantity must be positive')
+  }
+
+  const totalAmountForeign = unitPrice.times(input.quantity).toFixed(2)
+  if (input.foreignCurrency === 'UGX') {
+    return {
+      totalAmountForeign,
+      totalAmountUsd: null,
+      totalCostUgx: totalAmountForeign,
+    }
+  }
+
+  const fxToUsd = new BigNumber(
+    input.foreignCurrency === 'USD'
+      ? '1'
+      : (input.exchangeRateForeignToUsd ?? ''),
+  )
+  if (!fxToUsd.isFinite() || fxToUsd.lte(0)) {
+    throw new Error('Foreign exchange rate must be positive')
+  }
+  const usdToUgx = new BigNumber(input.exchangeRateUsdToUgx ?? '')
+  if (!usdToUgx.isFinite() || usdToUgx.lte(0)) {
+    throw new Error('UGX exchange rate must be positive')
+  }
+
+  return {
+    totalAmountForeign,
+    totalAmountUsd: new BigNumber(totalAmountForeign)
+      .div(fxToUsd)
+      .dp(2, BigNumber.ROUND_HALF_UP)
+      .toFixed(2),
+    totalCostUgx: unitPrice
+      .div(fxToUsd)
+      .times(usdToUgx)
+      .times(input.quantity)
+      .dp(2, BigNumber.ROUND_HALF_UP)
+      .toFixed(2),
+  }
+}
+
 export function materializeVariantRows(
-  input: z.infer<typeof variantInput>,
+  input: MaterializeInput,
 ): MaterializedRow[] {
   const cells = input.cells.filter((c) => c.quantity > 0)
   if (!input.supplierId || !input.unitPriceForeign || !input.foreignCurrency) {
@@ -71,37 +148,24 @@ export function materializeVariantRows(
   const entryId = input.entryId ?? randomUUID()
   const unitPriceForeign = input.unitPriceForeign
   const foreignCurrency = input.foreignCurrency
-  const unitPrice = new BigNumber(unitPriceForeign)
-  const isUsd = foreignCurrency === 'USD'
-  const fxToUsdStr = isUsd
-    ? (input.exchangeRateForeignToUsd ?? '1')
-    : input.exchangeRateForeignToUsd
-
+  const exchangeRateForeignToUsd = normalizeRate(
+    input.exchangeRateForeignToUsd,
+    6,
+    'Foreign exchange rate',
+  )
+  const exchangeRateUsdToUgx = normalizeRate(
+    input.exchangeRateUsdToUgx,
+    2,
+    'UGX exchange rate',
+  )
   return cells.map((cell) => {
-    const totalAmountForeign = unitPrice.times(cell.quantity).toFixed(2)
-    let totalAmountUsd: string | null = null
-    let totalCostUgx: string
-    if (
-      foreignCurrency === 'UGX' ||
-      !fxToUsdStr ||
-      !input.exchangeRateUsdToUgx
-    ) {
-      totalCostUgx = totalAmountForeign
-    } else {
-      const fxToUsd = new BigNumber(fxToUsdStr)
-      if (fxToUsd.isZero()) throw new Error('Exchange rate cannot be zero')
-      const usdToUgx = new BigNumber(input.exchangeRateUsdToUgx)
-      totalAmountUsd = new BigNumber(totalAmountForeign)
-        .div(fxToUsd)
-        .dp(2, BigNumber.ROUND_HALF_UP)
-        .toFixed(2)
-      totalCostUgx = unitPrice
-        .div(fxToUsd)
-        .times(usdToUgx)
-        .times(cell.quantity)
-        .dp(2, BigNumber.ROUND_HALF_UP)
-        .toFixed(2)
-    }
+    const amounts = calculateSupplyLineAmounts({
+      quantity: cell.quantity,
+      unitPriceForeign,
+      foreignCurrency,
+      exchangeRateForeignToUsd,
+      exchangeRateUsdToUgx,
+    })
     return {
       supplyRouteId: input.supplyRouteId,
       entryId,
@@ -109,14 +173,19 @@ export function materializeVariantRows(
       itemId: input.itemId,
       colorId: cell.itemColorId ?? null,
       size: cell.size ?? null,
+      supplierNameSnapshot: input.supplierNameSnapshot,
+      articleNumberSnapshot: input.articleNumberSnapshot,
+      itemNameSnapshot: input.itemNameSnapshot,
+      colorNameSnapshot:
+        cell.itemColorId && input.colorNameById
+          ? (input.colorNameById[cell.itemColorId] ?? null)
+          : null,
       quantity: cell.quantity,
       unitPriceForeign,
       foreignCurrency,
-      exchangeRateForeignToUsd: input.exchangeRateForeignToUsd,
-      exchangeRateUsdToUgx: input.exchangeRateUsdToUgx,
-      totalAmountForeign,
-      totalAmountUsd,
-      totalCostUgx,
+      exchangeRateForeignToUsd,
+      exchangeRateUsdToUgx,
+      ...amounts,
       minimumSellPriceUgx: input.minimumSellPriceUgx ?? '0',
     }
   })
@@ -142,6 +211,10 @@ export interface SplitSourceRow {
   exchangeRateForeignToUsd: string | null
   exchangeRateUsdToUgx: string | null
   minimumSellPriceUgx?: string | null
+  supplierNameSnapshot?: string | null
+  articleNumberSnapshot?: string | null
+  itemNameSnapshot?: string | null
+  colorNameById?: Readonly<Record<string, string>>
 }
 
 export interface SplitCell {
@@ -171,6 +244,10 @@ export function materializeSplitRows(
     exchangeRateForeignToUsd: source.exchangeRateForeignToUsd ?? undefined,
     exchangeRateUsdToUgx: source.exchangeRateUsdToUgx ?? undefined,
     minimumSellPriceUgx: source.minimumSellPriceUgx ?? '0',
+    supplierNameSnapshot: source.supplierNameSnapshot,
+    articleNumberSnapshot: source.articleNumberSnapshot,
+    itemNameSnapshot: source.itemNameSnapshot,
+    colorNameById: source.colorNameById,
     cells: cells.map((c) => ({
       itemColorId: c.itemColorId,
       size: c.size,

@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
+import BigNumber from 'bignumber.js'
 import { z } from 'zod'
 import { db } from '#/db'
 import {
@@ -20,6 +21,11 @@ async function getReceivedLineIds(lineIds: string[]) {
     .where(inArray(storeReceivings.supplyRouteLineId, lineIds))
   return new Set(received.map((row) => row.lineId))
 }
+
+const positiveRate = z.string().refine((value) => {
+  const rate = new BigNumber(value)
+  return rate.isFinite() && rate.gt(0)
+}, 'Exchange rate must be a positive number')
 
 export const listSupplyRoutes = createServerFn().handler(async () => {
   await requireSessionAndRole(['admin'])
@@ -109,8 +115,8 @@ const createRouteInput = z
     departureDate: z.string().optional(),
     returnDate: z.string().optional(),
     budgetUsd: z.string().optional(),
-    rateUgxPerUsd: z.string().optional(),
-    rateRmbPerUsd: z.string().optional(),
+    rateUgxPerUsd: positiveRate.optional(),
+    rateRmbPerUsd: positiveRate.optional(),
     notes: z.string().optional(),
     supplierIds: z.array(z.uuid()).optional(),
   })
@@ -163,8 +169,8 @@ const updateRouteInput = z
     departureDate: z.string().nullable().optional(),
     returnDate: z.string().nullable().optional(),
     budgetUsd: z.string().nullable().optional(),
-    rateUgxPerUsd: z.string().nullable().optional(),
-    rateRmbPerUsd: z.string().nullable().optional(),
+    rateUgxPerUsd: positiveRate.nullable().optional(),
+    rateRmbPerUsd: positiveRate.nullable().optional(),
     notes: z.string().nullable().optional(),
   })
   .refine(

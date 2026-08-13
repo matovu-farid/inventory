@@ -1,6 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
 import { and, eq, ilike, inArray, isNull } from 'drizzle-orm'
-import BigNumber from 'bignumber.js'
 import { z } from 'zod'
 import { db } from '#/db'
 import {
@@ -16,6 +15,7 @@ import { requireSessionAndRole } from '#/server/middleware/rbac'
 import {
   materializeSplitRows,
   materializeVariantRows,
+  calculateSupplyLineAmounts,
   variantInput,
 } from './items-internals'
 
@@ -41,6 +41,19 @@ export const addSupplyRouteVariants = createServerFn()
       where: and(eq(suppliers.id, supplierId), isNull(suppliers.deletedAt)),
     })
     if (!supplier) throw new Error('Supplier not found')
+    const colorIds = Array.from(
+      new Set(
+        data.cells.flatMap((cell) =>
+          cell.itemColorId ? [cell.itemColorId] : [],
+        ),
+      ),
+    )
+    const colors = colorIds.length
+      ? await db.query.itemColors.findMany({
+          where: inArray(itemColors.id, colorIds),
+          columns: { id: true, colorName: true },
+        })
+      : []
     if (
       !item.supplierId ||
       !item.costPrice ||
@@ -75,6 +88,12 @@ export const addSupplyRouteVariants = createServerFn()
       minimumSellPriceUgx: item.minimumSellPriceUgx,
       exchangeRateForeignToUsd,
       exchangeRateUsdToUgx,
+      supplierNameSnapshot: supplier.name,
+      articleNumberSnapshot: item.articleNumber,
+      itemNameSnapshot: item.name,
+      colorNameById: Object.fromEntries(
+        colors.map((color) => [color.id, color.colorName]),
+      ),
     })
     return db.transaction(async (tx) => {
       const routeSupplier = await tx.query.supplyRouteSuppliers.findFirst({
@@ -129,19 +148,52 @@ export const replaceSupplyRouteEntry = createServerFn()
         where: and(eq(items.id, data.itemId), isNull(items.deletedAt)),
       })
       if (!item) throw new Error('Item not found')
-      const supplierId = data.supplierId ?? item.supplierId
+      const snapshot =
+        existing[0].itemId === data.itemId
+          ? {
+              unitPriceForeign: existing[0].unitPriceForeign,
+              foreignCurrency: existing[0].foreignCurrency,
+              minimumSellPriceUgx: existing[0].minimumSellPriceUgx,
+            }
+          : {
+              unitPriceForeign: item.costPrice,
+              foreignCurrency: item.costCurrency,
+              minimumSellPriceUgx: item.minimumSellPriceUgx,
+            }
+      const supplierId = data.supplierId ?? existing[0].supplierId
       if (!supplierId) throw new Error('Select a supplier for this purchase')
       const supplier = await tx.query.suppliers.findFirst({
         where: and(eq(suppliers.id, supplierId), isNull(suppliers.deletedAt)),
       })
       if (!supplier) throw new Error('Supplier not found')
+      const colorIds = Array.from(
+        new Set(
+          data.cells.flatMap((cell) =>
+            cell.itemColorId ? [cell.itemColorId] : [],
+          ),
+        ),
+      )
+      const colors = colorIds.length
+        ? await tx.query.itemColors.findMany({
+            where: inArray(itemColors.id, colorIds),
+            columns: { id: true, colorName: true },
+          })
+        : []
+      const colorNameById = Object.fromEntries(
+        colors.map((color) => [color.id, color.colorName]),
+      )
+      if (existing[0].itemId === data.itemId) {
+        for (const line of existing) {
+          if (line.colorId && line.colorNameSnapshot) {
+            colorNameById[line.colorId] = line.colorNameSnapshot
+          }
+        }
+      }
       if (
-        !item.supplierId ||
-        !item.costPrice ||
-        Number(item.costPrice) <= 0 ||
-        !item.costCurrency ||
-        !item.minimumSellPriceUgx ||
-        Number(item.minimumSellPriceUgx) <= 0
+        !snapshot.unitPriceForeign ||
+        !snapshot.foreignCurrency ||
+        !snapshot.minimumSellPriceUgx ||
+        Number(snapshot.minimumSellPriceUgx) <= 0
       ) {
         throw new Error(
           'Configure the item supplier, cost, currency, and minimum sell price before purchasing it',
@@ -149,27 +201,46 @@ export const replaceSupplyRouteEntry = createServerFn()
       }
       const foreignRate =
         data.exchangeRateForeignToUsd ??
-        (item.costCurrency === 'RMB'
-          ? (existing[0].exchangeRateForeignToUsd ?? undefined)
+        (snapshot.foreignCurrency === 'RMB'
+          ? (existing[0].exchangeRateForeignToUsd ??
+            (existing[0].itemId === data.itemId
+              ? undefined
+              : (existing[0].supplyRoute.rateRmbPerUsd ?? undefined)))
           : undefined)
       const usdRate =
         data.exchangeRateUsdToUgx ??
-        (item.costCurrency !== 'UGX'
-          ? (existing[0].exchangeRateUsdToUgx ?? undefined)
+        (snapshot.foreignCurrency !== 'UGX'
+          ? (existing[0].exchangeRateUsdToUgx ??
+            (existing[0].itemId === data.itemId
+              ? undefined
+              : (existing[0].supplyRoute.rateUgxPerUsd ?? undefined)))
           : undefined)
-      if (item.costCurrency === 'RMB' && !foreignRate)
+      if (snapshot.foreignCurrency === 'RMB' && !foreignRate)
         throw new Error('Set the RMB/USD route rate or provide a line override')
-      if (item.costCurrency !== 'UGX' && !usdRate)
+      if (snapshot.foreignCurrency !== 'UGX' && !usdRate)
         throw new Error('Set the USD/UGX route rate or provide a line override')
 
       const rows = materializeVariantRows({
         ...data,
         supplierId,
-        unitPriceForeign: item.costPrice,
-        foreignCurrency: item.costCurrency,
-        minimumSellPriceUgx: item.minimumSellPriceUgx,
+        unitPriceForeign: snapshot.unitPriceForeign,
+        foreignCurrency: snapshot.foreignCurrency,
+        minimumSellPriceUgx: snapshot.minimumSellPriceUgx,
         exchangeRateForeignToUsd: foreignRate,
         exchangeRateUsdToUgx: usdRate,
+        supplierNameSnapshot:
+          existing[0].supplierId === supplierId
+            ? (existing[0].supplierNameSnapshot ?? supplier.name)
+            : supplier.name,
+        articleNumberSnapshot:
+          existing[0].itemId === data.itemId
+            ? (existing[0].articleNumberSnapshot ?? item.articleNumber)
+            : item.articleNumber,
+        itemNameSnapshot:
+          existing[0].itemId === data.itemId
+            ? (existing[0].itemNameSnapshot ?? item.name)
+            : item.name,
+        colorNameById,
       })
       const routeSupplier = await tx.query.supplyRouteSuppliers.findFirst({
         where: and(
@@ -258,30 +329,18 @@ export const updateSupplyRouteLineQuantity = createServerFn()
         ),
       })
       if (received) throw new Error('Received entries cannot be edited')
-      const unit = new BigNumber(line.unitPriceForeign)
-      const totalForeign = unit.times(data.quantity).toFixed(2)
-      const isUgx = line.foreignCurrency === 'UGX'
-      const isUsd = line.foreignCurrency === 'USD'
-      const totalUsd = isUgx
-        ? null
-        : isUsd
-          ? totalForeign
-          : new BigNumber(totalForeign)
-              .div(line.exchangeRateForeignToUsd ?? '1')
-              .toFixed(2)
-      const totalCostUgx = isUgx
-        ? totalForeign
-        : new BigNumber(totalForeign)
-            .div(isUsd ? '1' : (line.exchangeRateForeignToUsd ?? '1'))
-            .times(line.exchangeRateUsdToUgx ?? '1')
-            .toFixed(2)
+      const amounts = calculateSupplyLineAmounts({
+        quantity: data.quantity,
+        unitPriceForeign: line.unitPriceForeign,
+        foreignCurrency: line.foreignCurrency,
+        exchangeRateForeignToUsd: line.exchangeRateForeignToUsd,
+        exchangeRateUsdToUgx: line.exchangeRateUsdToUgx,
+      })
       return tx
         .update(supplyRouteLines)
         .set({
           quantity: data.quantity,
-          totalAmountForeign: totalForeign,
-          totalAmountUsd: totalUsd,
-          totalCostUgx,
+          ...amounts,
         })
         .where(eq(supplyRouteLines.id, data.id))
         .returning()
@@ -365,12 +424,18 @@ export const splitSupplyRouteItem = createServerFn()
       )
       const referencedColors = await tx.query.itemColors.findMany({
         where: inArray(itemColors.id, referencedColorIds),
-        columns: { id: true, itemId: true },
+        columns: { id: true, itemId: true, colorName: true },
       })
       for (const c of referencedColors) {
         if (c.itemId !== itemIdFallback) {
           throw new Error('All colors in a split must belong to the same item')
         }
+      }
+      const colorNameById = Object.fromEntries(
+        referencedColors.map((color) => [color.id, color.colorName]),
+      )
+      if (original.colorId && original.colorNameSnapshot) {
+        colorNameById[original.colorId] = original.colorNameSnapshot
       }
 
       const rows = materializeSplitRows(
@@ -384,6 +449,10 @@ export const splitSupplyRouteItem = createServerFn()
           exchangeRateForeignToUsd: original.exchangeRateForeignToUsd,
           exchangeRateUsdToUgx: original.exchangeRateUsdToUgx,
           minimumSellPriceUgx: original.minimumSellPriceUgx,
+          supplierNameSnapshot: original.supplierNameSnapshot,
+          articleNumberSnapshot: original.articleNumberSnapshot,
+          itemNameSnapshot: original.itemNameSnapshot,
+          colorNameById,
           entryId: original.entryId,
         },
         itemIdFallback,

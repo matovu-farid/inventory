@@ -1,4 +1,3 @@
-import '#/sentry'
 import { useEffect } from 'react'
 import {
   HeadContent,

@@ -4,20 +4,12 @@ import { useState } from 'react'
 import { requireUiPermission } from '#/lib/permissions'
 import BigNumber from 'bignumber.js'
 import { Button } from '#/components/ui/button'
-import { Textarea } from '#/components/ui/textarea'
 import { MoneyInput } from '#/components/ui/money-input'
 import { FieldLabel } from '#/components/ui/field-label'
 import { InfoTip } from '#/components/ui/info-tip'
 import { Badge } from '#/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Separator } from '#/components/ui/separator'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '#/components/ui/select'
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
@@ -52,13 +44,12 @@ import {
 } from '#/server/functions/supply/items'
 import { SplitItemForm } from '#/components/supply/split-item-form'
 import { listItemCategories } from '#/server/functions/items/items'
-import {
-  addSupplyRouteExpense,
-  deleteSupplyRouteExpense,
-} from '#/server/functions/supply/expenses'
+import { deleteSupplyRouteExpense } from '#/server/functions/supply/expenses'
 import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
 import { AddItemForm as ExtractedAddItemForm } from '#/components/supply/add-item-form'
+import { AddExpenseForm } from '#/components/supply/add-expense-form'
 import { getSupplyRouteDetailPrereqs } from '#/server/functions/prereqs/supply'
+import { convertExpenseToUgx } from '#/lib/currency/expense-conversion'
 import {
   roundUgxFloor50,
   roundUgxBankers50,
@@ -78,29 +69,23 @@ export const Route = createFileRoute('/supply/$routeId')({
   component: RouteDetailPage,
 })
 
-const EXPENSE_CATEGORIES = [
-  'freight',
-  'shipping',
-  'customs',
-  'ticket',
-  'transportation',
-  'insurance',
-  'rent',
-  'salary',
-  'tax',
-  'miscellaneous',
-] as const
-
 function expenseAmountUgx(exp: {
   amount: string
   currency?: string | null
   exchangeRate?: string | null
-}): BigNumber {
-  const amount = new BigNumber(exp.amount)
+}): BigNumber | null {
   const currency = exp.currency ?? 'UGX'
-  if (currency === 'UGX') return amount
-  if (!exp.exchangeRate) return amount
-  return amount.times(new BigNumber(exp.exchangeRate))
+  try {
+    return new BigNumber(
+      convertExpenseToUgx({
+        amount: exp.amount,
+        currency,
+        exchangeRate: exp.exchangeRate ?? undefined,
+      }),
+    )
+  } catch {
+    return null
+  }
 }
 
 function RouteDetailPage() {
@@ -108,6 +93,7 @@ function RouteDetailPage() {
   const router = useRouter()
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
+  const [expenseError, setExpenseError] = useState('')
   const [splittingItemId, setSplittingItemId] = useState<string | null>(null)
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(
     new Set(),
@@ -150,10 +136,13 @@ function RouteDetailPage() {
     (sum, i) => sum.plus(i.totalCostUgx),
     new BigNumber(0),
   )
-  const totalExpenses = route.expenses.reduce(
-    (sum, e) => sum.plus(expenseAmountUgx(e)),
-    new BigNumber(0),
-  )
+  const totalExpenses = route.expenses.reduce((sum, e) => {
+    const converted = expenseAmountUgx(e)
+    return converted ? sum.plus(converted) : sum
+  }, new BigNumber(0))
+  const unconvertedExpenseCount = route.expenses.filter(
+    (expense) => expenseAmountUgx(expense) === null,
+  ).length
   const grandTotal = totalItemCost.plus(totalExpenses)
 
   async function handleDeleteItem(id: string) {
@@ -172,8 +161,17 @@ function RouteDetailPage() {
   }
 
   async function handleDeleteExpense(id: string) {
-    await deleteSupplyRouteExpense({ data: { id } })
-    void router.invalidate()
+    if (route.status !== 'open') return
+    if (!window.confirm('Remove this expense?')) return
+    try {
+      await deleteSupplyRouteExpense({ data: { id } })
+      setExpenseError('')
+      await router.invalidate()
+    } catch (cause) {
+      setExpenseError(
+        cause instanceof Error ? cause.message : 'Could not remove expense',
+      )
+    }
   }
 
   if (router.state.location.pathname.endsWith('/entry')) {
@@ -241,6 +239,11 @@ function RouteDetailPage() {
               <p className="text-xs text-muted-foreground">
                 {route.expenses.length} entries
               </p>
+              {unconvertedExpenseCount > 0 && (
+                <p className="mt-1 text-xs text-destructive">
+                  {unconvertedExpenseCount} needs a conversion rate
+                </p>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -538,7 +541,7 @@ function RouteDetailPage() {
               onOpenChange={setExpenseDialogOpen}
             >
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" disabled={route.status !== 'open'}>
                   <Plus className="mr-1 h-4 w-4" />
                   Add Expense
                 </Button>
@@ -550,6 +553,7 @@ function RouteDetailPage() {
                 <AddExpenseForm
                   supplyRouteId={route.id}
                   rateUgxPerUsd={route.rateUgxPerUsd}
+                  rateRmbPerUsd={route.rateRmbPerUsd}
                   onSuccess={() => {
                     setExpenseDialogOpen(false)
                     void router.invalidate()
@@ -558,6 +562,12 @@ function RouteDetailPage() {
               </DialogContent>
             </Dialog>
           </div>
+
+          {expenseError && (
+            <p role="alert" className="text-sm text-destructive">
+              {expenseError}
+            </p>
+          )}
 
           <ResponsiveTable
             data={route.expenses}
@@ -605,9 +615,11 @@ function RouteDetailPage() {
                 align: 'right',
                 cell: (exp) => (
                   <span className="font-mono font-semibold">
-                    {roundUgxFloor50(expenseAmountUgx(exp).toString()).toFormat(
-                      0,
-                    )}
+                    {expenseAmountUgx(exp)
+                      ? roundUgxFloor50(
+                          expenseAmountUgx(exp)?.toString() ?? '0',
+                        ).toFormat(0)
+                      : 'Conversion needed'}
                   </span>
                 ),
               },
@@ -618,6 +630,8 @@ function RouteDetailPage() {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-destructive"
+                    disabled={route.status !== 'open'}
+                    aria-label="Remove expense"
                     onClick={() => {
                       void handleDeleteExpense(exp.id)
                     }}
@@ -634,145 +648,6 @@ function RouteDetailPage() {
   )
 }
 
-function AddExpenseForm({
-  supplyRouteId,
-  rateUgxPerUsd,
-  onSuccess,
-}: {
-  supplyRouteId: string
-  rateUgxPerUsd?: string | null
-  onSuccess: () => void
-}) {
-  const [pending, setPending] = useState(false)
-  const [category, setCategory] = useState('')
-  const [amount, setAmount] = useState('')
-  const [currency, setCurrency] = useState<string>('USD')
-  const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? '')
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const form = new FormData(e.currentTarget)
-
-    const errs: Record<string, string> = {}
-    if (!category) errs.category = 'Select a category'
-    if (!amount || Number(amount) <= 0) errs.amount = 'Enter a valid amount'
-    if (currency !== 'UGX' && (!usdToUgx || Number(usdToUgx) <= 0)) {
-      errs.usdToUgx = 'Enter a valid rate'
-    }
-    setFormErrors(errs)
-    if (Object.keys(errs).length > 0) return
-
-    setPending(true)
-    try {
-      await addSupplyRouteExpense({
-        data: {
-          supplyRouteId,
-          category: category as (typeof EXPENSE_CATEGORIES)[number],
-          description: (form.get('description') as string) || undefined,
-          amount,
-          currency,
-          exchangeRate: currency !== 'UGX' ? usdToUgx : undefined,
-        },
-      })
-      onSuccess()
-    } catch (err) {
-      console.error('Failed to add expense:', err)
-      setFormErrors({
-        form: err instanceof Error ? err.message : 'Failed to save',
-      })
-    } finally {
-      setPending(false)
-    }
-  }
-
-  return (
-    <form
-      onSubmit={(e) => {
-        void handleSubmit(e)
-      }}
-      className="space-y-4"
-    >
-      <div className="space-y-2">
-        <FieldLabel htmlFor="category" help="expense.category">
-          Category *
-        </FieldLabel>
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger aria-invalid={!!formErrors.category || undefined}>
-            <SelectValue placeholder="Select category" />
-          </SelectTrigger>
-          <SelectContent>
-            {EXPENSE_CATEGORIES.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c.charAt(0).toUpperCase() + c.slice(1)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {formErrors.category && (
-          <p className="text-xs text-destructive">{formErrors.category}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <FieldLabel htmlFor="description" help="expense.description">
-          Description
-        </FieldLabel>
-        <Textarea id="description" name="description" rows={3} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <FieldLabel help="expense.amount">Amount *</FieldLabel>
-          <MoneyInput
-            currency={currency}
-            decimals={currency === 'UGX' ? 0 : 2}
-            roundTo={currency === 'UGX' ? 50 : undefined}
-            value={amount}
-            onChange={setAmount}
-            placeholder="0"
-            error={formErrors.amount}
-          />
-        </div>
-        <div className="space-y-2">
-          <FieldLabel help="item.currency">Currency</FieldLabel>
-          <Select value={currency} onValueChange={setCurrency}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="USD">USD</SelectItem>
-              <SelectItem value="UGX">UGX</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {currency !== 'UGX' && (
-        <div className="space-y-2">
-          <FieldLabel help="item.ugxPerUsd">UGX per 1 USD *</FieldLabel>
-          <MoneyInput
-            currency="UGX/USD"
-            value={usdToUgx}
-            onChange={setUsdToUgx}
-            decimals={0}
-            placeholder="e.g. 3750"
-            error={formErrors.usdToUgx}
-          />
-        </div>
-      )}
-
-      {formErrors.form && (
-        <p className="text-sm text-destructive">{formErrors.form}</p>
-      )}
-
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? 'Adding...' : 'Add Expense'}
-      </Button>
-    </form>
-  )
-}
-
 /* ------------------------------------------------------------------ */
 /* Trip Rates Section                                                  */
 /* ------------------------------------------------------------------ */
@@ -782,6 +657,7 @@ function TripRatesSection({
 }: {
   route: {
     id: string
+    status: 'open' | 'received'
     rateUgxPerUsd: string | null
     rateRmbPerUsd: string | null
   }
@@ -832,7 +708,12 @@ function TripRatesSection({
               : 'No trip rates set. New items will need rates entered manually.'}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={route.status !== 'open'}
+          onClick={() => setEditing(true)}
+        >
           Edit
         </Button>
       </div>
@@ -848,6 +729,7 @@ function TripRatesSection({
           <MoneyInput
             currency="UGX/USD"
             value={ugxPerUsd}
+            disabled={route.status !== 'open' || pending}
             onChange={setUgxPerUsd}
             decimals={0}
             placeholder="e.g. 3750"
@@ -858,6 +740,7 @@ function TripRatesSection({
           <MoneyInput
             currency="RMB/USD"
             value={rmbPerUsd}
+            disabled={route.status !== 'open' || pending}
             onChange={setRmbPerUsd}
             decimals={6}
             placeholder="e.g. 7.25"

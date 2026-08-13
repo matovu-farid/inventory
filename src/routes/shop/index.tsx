@@ -53,6 +53,7 @@ import { listShops } from '#/server/functions/admin/locations'
 import { getShopStock, recordSale } from '#/server/functions/shop/sales'
 import { listTransfers } from '#/server/functions/store/transfers'
 import { getSession } from '#/server/middleware/auth'
+import { ShopExpensesCard } from '#/components/shops/shop-expenses-card'
 
 // Plan 2b: getShopStock returns rows with optional variant. The shop
 // list and the New Sale picker both consume RawShopStockItem directly;
@@ -302,6 +303,8 @@ function ShopPage() {
                 </Card>
               </div>
             )}
+
+            {canManage && shopId && <ShopExpensesCard shopId={shopId} />}
 
             {role === 'admin' && unresolved.length > 0 && (
               <div className="rounded-md border border-amber-300/60 bg-amber-50/80 p-4 text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-100">

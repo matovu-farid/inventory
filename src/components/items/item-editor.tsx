@@ -48,6 +48,45 @@ interface ColorDraft {
   colorHex: string
 }
 
+const MINIMUM_SELL_PRICE_ERROR = 'Minimum sell price must be positive'
+
+function getValidationMessage(error: unknown, field: string): string | null {
+  if (!(error instanceof Error)) return null
+
+  try {
+    const issues: unknown = JSON.parse(error.message)
+    if (!Array.isArray(issues)) return null
+
+    const issue = issues.find((candidate: unknown) => {
+      if (!candidate || typeof candidate !== 'object') return false
+      const record = candidate as Record<string, unknown>
+      return (
+        Array.isArray(record.path) &&
+        record.path.at(-1) === field &&
+        typeof record.message === 'string'
+      )
+    }) as Record<string, unknown> | undefined
+
+    return typeof issue?.message === 'string' ? issue.message : null
+  } catch {
+    return null
+  }
+}
+
+function getSafeErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return 'Failed to save item.'
+
+  try {
+    if (Array.isArray(JSON.parse(error.message))) {
+      return 'Please review the highlighted fields.'
+    }
+  } catch {
+    // Use the original message for regular server errors.
+  }
+
+  return error.message || 'Failed to save item.'
+}
+
 /**
  * Item create form. After issue #7 the server no longer persists
  * `items.sizes`; this editor collects sizes (and optional colors) so
@@ -94,6 +133,9 @@ export function ItemEditor({
   const articleNumberEdited = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [minimumSellPriceError, setMinimumSellPriceError] = useState<
+    string | null
+  >(null)
   const [existingArticleNumbers, setExistingArticleNumbers] = useState<
     ReadonlySet<string>
   >(new Set())
@@ -218,6 +260,15 @@ export function ItemEditor({
   async function save() {
     setSubmitting(true)
     setError(null)
+    setMinimumSellPriceError(null)
+
+    const minimumSellPrice = Number(minimumSellPriceUgx)
+    if (!Number.isFinite(minimumSellPrice) || minimumSellPrice <= 0) {
+      setMinimumSellPriceError(MINIMUM_SELL_PRICE_ERROR)
+      setSubmitting(false)
+      return
+    }
+
     try {
       if (item) {
         const updated = await updateItem({
@@ -254,7 +305,12 @@ export function ItemEditor({
         onCreated?.(created.id, created.articleNumber)
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create item.')
+      const validationMessage = getValidationMessage(e, 'minimumSellPriceUgx')
+      if (validationMessage) {
+        setMinimumSellPriceError(validationMessage)
+      } else {
+        setError(getSafeErrorMessage(e))
+      }
     } finally {
       setSubmitting(false)
     }
@@ -353,10 +409,14 @@ export function ItemEditor({
           </FieldLabel>
           <MoneyInput
             value={minimumSellPriceUgx}
-            onChange={(v) => setMinimumSellPriceUgx(v)}
+            onChange={(v) => {
+              setMinimumSellPriceUgx(v)
+              setMinimumSellPriceError(null)
+            }}
             currency="UGX"
             decimals={0}
             roundTo={50}
+            error={minimumSellPriceError ?? undefined}
           />
         </div>
         <div className="space-y-2">

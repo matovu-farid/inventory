@@ -64,6 +64,7 @@ function MoneyInput({
   roundTo,
   ...props
 }: MoneyInputProps) {
+  const errorId = props.id ? `${props.id}-error` : undefined
   const [display, setDisplay] = React.useState(() =>
     formatWithCommas(value, decimals),
   )
@@ -152,6 +153,9 @@ function MoneyInput({
           type="text"
           inputMode="decimal"
           aria-invalid={!!error || undefined}
+          aria-describedby={
+            props['aria-describedby'] ?? (error ? errorId : undefined)
+          }
           value={display}
           onChange={handleChange}
           onBlur={handleBlur}
@@ -162,7 +166,11 @@ function MoneyInput({
           )}
         />
       </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && (
+        <p id={errorId} className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

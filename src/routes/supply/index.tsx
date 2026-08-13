@@ -20,6 +20,7 @@ import {
 } from '#/server/functions/supply/routes'
 import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
 import { getSupplyPrereqs } from '#/server/functions/prereqs/supply'
+import { convertExpenseToUgx } from '#/lib/currency/expense-conversion'
 
 export const Route = createFileRoute('/supply/')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
@@ -141,9 +142,9 @@ function SupplyRoutesPage() {
             {
               header: 'Suppliers',
               cell: (r) =>
-                Array.from(new Set(r.items.map((i) => i.supplier.name))).join(
-                  ', ',
-                ) || '-',
+                Array.from(
+                  new Set(r.suppliers.map((entry) => entry.supplier.name)),
+                ).join(', ') || '-',
               hideOnMobile: true,
             },
             {
@@ -152,7 +153,7 @@ function SupplyRoutesPage() {
               cell: (r) => r.items.length,
             },
             {
-              header: 'Total Cost (UGX)',
+              header: 'Item Cost (UGX)',
               align: 'right',
               cell: (r) => (
                 <span className="font-mono">
@@ -171,12 +172,36 @@ function SupplyRoutesPage() {
               hideOnMobile: true,
               cell: (r) => (
                 <span className="font-mono">
-                  {roundUgxBankers50(
-                    r.expenses.reduce(
-                      (sum, e) => sum.plus(e.amount),
-                      new BigNumber(0),
-                    ),
-                  ).toFormat(0)}
+                  {(() => {
+                    const converted = r.expenses.reduce((sum, expense) => {
+                      try {
+                        return sum.plus(
+                          convertExpenseToUgx({
+                            amount: expense.amount,
+                            currency: expense.currency ?? 'UGX',
+                            exchangeRate: expense.exchangeRate ?? undefined,
+                          }),
+                        )
+                      } catch {
+                        return sum
+                      }
+                    }, new BigNumber(0))
+                    const missing = r.expenses.some((expense) => {
+                      try {
+                        convertExpenseToUgx({
+                          amount: expense.amount,
+                          currency: expense.currency ?? 'UGX',
+                          exchangeRate: expense.exchangeRate ?? undefined,
+                        })
+                        return false
+                      } catch {
+                        return true
+                      }
+                    })
+                    return missing
+                      ? `${roundUgxBankers50(converted).toFormat(0)} + needs rate`
+                      : roundUgxBankers50(converted).toFormat(0)
+                  })()}
                 </span>
               ),
             },
