@@ -9,7 +9,7 @@ import {
 import { ResponsiveTable } from '#/components/ui/responsive-table'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Separator } from '#/components/ui/separator'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import {
   getProfitAndLoss,
   getBalanceSheet,
@@ -42,7 +42,7 @@ function ReportsDashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Cash on Hand
-              <InfoTip term="kpi.cashOnHand" />
+              <InfoPopover term="kpi.cashOnHand" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -55,7 +55,7 @@ function ReportsDashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Bank Balance
-              <InfoTip term="kpi.bankBalance" />
+              <InfoPopover term="kpi.bankBalance" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -68,7 +68,7 @@ function ReportsDashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               Total Liquidity
-              <InfoTip term="kpi.totalLiquidity" />
+              <InfoPopover term="kpi.totalLiquidity" />
             </CardTitle>
           </CardHeader>
           <CardContent>

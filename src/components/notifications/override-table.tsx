@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '#/components/ui/select'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import {
   upsertOverride,
   deleteOverride,
@@ -68,20 +68,20 @@ export function OverrideTable({
             <TableHead>
               <span className="flex items-center gap-1">
                 Scope
-                <InfoTip term="notifications.overrides.scope" />
+                <InfoPopover term="notifications.overrides.scope" />
               </span>
             </TableHead>
             <TableHead>
               <span className="flex items-center gap-1">
                 Item
-                <InfoTip term="notifications.overrides.item" />
+                <InfoPopover term="notifications.overrides.item" />
               </span>
             </TableHead>
             {showShopColumn && <TableHead>Shop</TableHead>}
             <TableHead>
               <span className="flex items-center gap-1">
                 Rule
-                <InfoTip term="notifications.overrides.rule" />
+                <InfoPopover term="notifications.overrides.rule" />
               </span>
             </TableHead>
             <TableHead className="w-20"></TableHead>

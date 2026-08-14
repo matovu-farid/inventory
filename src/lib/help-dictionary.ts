@@ -2,7 +2,7 @@
  * Centralized in-app glossary.
  *
  * One entry per ambiguous term — used by `<FieldLabel help="…">` for form
- * fields and `<InfoTip term="…">` for everything else (KPI cards, table
+ * fields and `<InfoPopover term="…">` for everything else (KPI cards, table
  * headers, status badges, etc). The goal is that every domain term in the UI
  * has exactly one canonical explanation, so users learn the system as they
  * use it.
@@ -233,6 +233,111 @@ export const helpDict = {
   'kpi.shopStockValue': {
     description:
       'What it cost you to buy the stock currently at this shop, in UGX.',
+  },
+
+  // ─── Supply Route review ────────────────────────────────────────────
+  'review.routeDetails': {
+    description:
+      'The route information used to identify this buying trip and explain the exchange rates applied to its costs.',
+  },
+  'review.suppliers': {
+    description:
+      'The suppliers linked to this route. The names shown here are the suppliers associated with the purchase entries for this trip.',
+  },
+  'review.entryRows': {
+    description:
+      'The number of purchase rows recorded on the route. A row can represent one item entry and may contain several color or size variants.',
+    example: '3 rows can contain 12 individual color/size lines.',
+  },
+  'review.financialSummary': {
+    description:
+      "A calculation of the route's purchase spend, converted costs, expenses, expected selling value, and projected gross and net profit.",
+  },
+  'review.unitsPurchased': {
+    description:
+      'The total number of units across every item and variant entered on this route.',
+    example: '10 units of Black / M plus 5 units of Black / L = 15 units.',
+  },
+  'review.purchaseSpendRmb': {
+    description:
+      'Purchase amounts originally entered in RMB, before converting them to USD or UGX.',
+    example: '327.50 RMB for a supplier invoice line.',
+  },
+  'review.purchaseSpendUsd': {
+    description:
+      'Purchase amounts originally entered in USD, before converting them to UGX.',
+  },
+  'review.purchaseSpendUgx': {
+    description:
+      'Purchase amounts originally entered in UGX. These are already in the local reporting currency.',
+  },
+  'review.foreignPurchaseUsdEquivalent': {
+    description:
+      "The USD value of purchases entered in foreign currencies, using each item's source-currency exchange rate. Direct USD purchases are not counted again here.",
+  },
+  'review.totalSellingValue': {
+    description:
+      'The projected retail value of all entered units at their minimum sell prices. It is a planning figure, not confirmed sales revenue.',
+  },
+  'review.projectedGrossProfit': {
+    description:
+      'Projected selling value minus item cost. It assumes every unit sells at its minimum sell price and excludes route expenses.',
+    example: 'Selling value 500,000 UGX − item cost 300,000 UGX = 200,000 UGX.',
+  },
+  'review.projectedNetProfit': {
+    description:
+      'Projected gross profit minus valid route expenses converted to UGX. It assumes every unit sells at its minimum sell price.',
+    example:
+      'Gross profit 200,000 UGX − route expenses 25,000 UGX = 175,000 UGX.',
+  },
+  'review.expenseBreakdown': {
+    description:
+      'Route expenses grouped by category and shown in UGX after applying the recorded exchange rate where needed.',
+  },
+  'review.purchaseDetails': {
+    description:
+      'Every item and variant entered on this route, with its source price, conversions, landed cost, selling value, and projected profit.',
+  },
+  'review.recordedExpenses': {
+    description:
+      'The individual shipping, travel, tax, and other expenses recorded against this route.',
+  },
+  'review.ugxPerUsd': {
+    description:
+      'The route exchange rate used to convert one USD into UGX for local cost and profitability calculations.',
+    example: '3,750 UGX = 1 USD.',
+  },
+  'review.rmbPerUsd': {
+    description:
+      'The route exchange rate used to convert RMB purchase amounts into USD when an item does not have its own source-currency rate.',
+    example: '7.25 RMB = 1 USD.',
+  },
+  'reviewCol.routeDate': {
+    description:
+      'The route date copied onto each purchase line so the buying trip can be identified in the detailed review.',
+  },
+  'reviewCol.supplier': {
+    description: 'The supplier recorded for this purchase line.',
+  },
+  'reviewCol.sellingUnit': {
+    description:
+      'The minimum sell price in UGX for one unit of this item or variant.',
+  },
+  'reviewCol.totalSelling': {
+    description:
+      'Quantity multiplied by the minimum sell price, showing the projected retail value of this line.',
+  },
+  'reviewCol.grossProfit': {
+    description:
+      'Projected total selling value minus landed cost for this line, before considering whether the item actually sells.',
+  },
+  'reviewCol.expenseRate': {
+    description:
+      'The exchange rate used to convert a foreign expense into UGX. It is blank for UGX expenses.',
+  },
+  'reviewCol.expenseTotalUgx': {
+    description:
+      'The expense amount converted to UGX for inclusion in the route total. If conversion is missing, the expense is excluded from normalized totals.',
   },
 
   // ─── Table column headers ────────────────────────────────────────────

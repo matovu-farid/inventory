@@ -8,7 +8,7 @@ import {
   TableRow,
 } from '#/components/ui/table'
 import { Button } from '#/components/ui/button'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import { Badge } from '#/components/ui/badge'
 import { auditActionLabel } from '#/server/audit/descriptions'
 import { formatDayKampala } from '#/lib/business-date'
@@ -45,27 +45,27 @@ export function AuditLogTable({
           <TableRow>
             <TableHead>
               <span className="inline-flex items-center gap-1.5">
-                Business date <InfoTip term="col.businessDate" />
+                Business date <InfoPopover term="col.businessDate" />
               </span>
             </TableHead>
             <TableHead>
               <span className="inline-flex items-center gap-1.5">
-                Recorded <InfoTip term="col.recordedDate" />
+                Recorded <InfoPopover term="col.recordedDate" />
               </span>
             </TableHead>
             <TableHead>
               <span className="inline-flex items-center gap-1.5">
-                Who <InfoTip term="col.actor" />
+                Who <InfoPopover term="col.actor" />
               </span>
             </TableHead>
             <TableHead>
               <span className="inline-flex items-center gap-1.5">
-                Action <InfoTip term="col.action" />
+                Action <InfoPopover term="col.action" />
               </span>
             </TableHead>
             <TableHead>
               <span className="inline-flex items-center gap-1.5">
-                Activity <InfoTip term="col.activity" />
+                Activity <InfoPopover term="col.activity" />
               </span>
             </TableHead>
             <TableHead aria-label="Expand" />

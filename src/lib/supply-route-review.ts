@@ -72,6 +72,7 @@ export interface SupplyRouteReviewTotals {
   totalSellingValueUgx: BigNumber
   totalUsdEquivalent: BigNumber
   grossProfitUgx: BigNumber
+  netProfitUgx: BigNumber
   missingExpenseConversions: number
 }
 
@@ -223,6 +224,8 @@ export function buildSupplyRouteReview(
     new BigNumber(0),
   )
   const totalCostUgx = itemCostUgx.plus(expenseTotalUgx)
+  const grossProfitUgx = totalSellingValueUgx.minus(itemCostUgx)
+  const netProfitUgx = grossProfitUgx.minus(expenseTotalUgx)
 
   return {
     lines,
@@ -237,7 +240,8 @@ export function buildSupplyRouteReview(
       totalCostUgx,
       totalSellingValueUgx,
       totalUsdEquivalent,
-      grossProfitUgx: totalSellingValueUgx.minus(totalCostUgx),
+      grossProfitUgx,
+      netProfitUgx,
       missingExpenseConversions: expenses.filter(
         (expense) => expense.convertedAmountUgx === null,
       ).length,

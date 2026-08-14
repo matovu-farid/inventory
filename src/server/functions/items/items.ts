@@ -19,6 +19,7 @@ import {
   listItemCategoriesQuery,
   listItemSizesQuery,
   listItemsQuery,
+  returnDateFilter,
   searchItemsQuery,
   restoreItemQuery,
   updateInput,
@@ -32,7 +33,10 @@ import {
 
 export const listItems = createServerFn()
   .inputValidator(
-    z.object({ includeArchived: z.boolean().optional() }).optional(),
+    z
+      .object({ includeArchived: z.boolean().optional() })
+      .and(returnDateFilter)
+      .optional(),
   )
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor', 'sales'])
@@ -53,7 +57,9 @@ export const getItemByArticle = createServerFn()
 
 export const searchItems = createServerFn()
   .inputValidator(
-    z.object({ query: z.string(), includeArchived: z.boolean().optional() }),
+    z
+      .object({ query: z.string(), includeArchived: z.boolean().optional() })
+      .and(returnDateFilter),
   )
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor', 'sales'])

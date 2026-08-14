@@ -29,7 +29,7 @@ import { Input } from '#/components/ui/input'
 import { MoneyInput } from '#/components/ui/money-input'
 import { Combobox } from '#/components/ui/combobox'
 import { Badge } from '#/components/ui/badge'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import {
   Dialog,
   DialogContent,
@@ -68,12 +68,33 @@ function ProductDetailPage() {
   const [activeColorId, setActiveColorId] = useState<string | undefined>(
     product.colors[0]?.id,
   )
+  const [selectedImageKey, setSelectedImageKey] = useState<string | null>(
+    product.colors[0]?.imageS3Key ?? null,
+  )
   const active =
     product.colors.find((c) => c.id === activeColorId) ??
     product.colors.at(0) ??
     null
   const hasColors = product.colors.length > 0
   const sizes = deriveSizes(product.variants)
+  const imageKeys = active
+    ? [
+        ...new Set(
+          [
+            active.imageS3Key,
+            ...active.images.map((image) => image.imageS3Key),
+          ].filter((key): key is string => Boolean(key)),
+        ),
+      ]
+    : []
+  const previewImageKey =
+    selectedImageKey ?? (imageKeys.length > 0 ? imageKeys[0] : null)
+
+  useEffect(() => {
+    setSelectedImageKey(
+      active?.imageS3Key ?? active?.images[0]?.imageS3Key ?? null,
+    )
+  }, [active?.id, active?.imageS3Key, active?.images])
 
   async function handleArchive() {
     if (!confirm(`Archive "${product.name}"?`)) return
@@ -162,9 +183,9 @@ function ProductDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <div className="aspect-square rounded border bg-muted flex items-center justify-center overflow-hidden">
-            {active?.imageS3Key ? (
+            {previewImageKey ? (
               <img
-                src={itemImageUrl(active.imageS3Key)}
+                src={itemImageUrl(previewImageKey)}
                 alt=""
                 className="size-full object-cover"
               />
@@ -174,12 +195,41 @@ function ProductDetailPage() {
               </span>
             )}
           </div>
+          {imageKeys.length > 1 && (
+            <div
+              className="flex flex-wrap gap-2"
+              aria-label="Item color photos"
+            >
+              {imageKeys.map((key, index) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-label={`Show photo ${index + 1}`}
+                  onClick={() => setSelectedImageKey(key)}
+                  className={`size-14 overflow-hidden rounded border ${previewImageKey === key ? 'ring-2 ring-primary' : ''}`}
+                >
+                  <img
+                    src={itemImageUrl(key)}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap gap-1.5">
             {product.colors.map((c) => (
               <button
                 key={c.id}
                 type="button"
-                onClick={() => setActiveColorId(c.id)}
+                onClick={() => {
+                  setActiveColorId(c.id)
+                  setSelectedImageKey(
+                    c.imageS3Key
+                      ? c.imageS3Key
+                      : (c.images[0]?.imageS3Key ?? null),
+                  )
+                }}
                 className="inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs hover:bg-muted"
               >
                 <span
@@ -203,6 +253,7 @@ function ProductDetailPage() {
           {canManage && active && (
             <div className="pt-3 border-t mt-3">
               <PhotoHandoffQR
+                itemId={product.id}
                 itemColorId={active.id}
                 onUploaded={() => {
                   void router.invalidate()
@@ -761,7 +812,7 @@ function VariantsSection({
     <section className="space-y-3" data-cy="variants-section">
       <div className="flex items-center gap-2">
         <h2 className="text-lg font-semibold">Variants</h2>
-        <InfoTip term="variant.barcode" />
+        <InfoPopover term="variant.barcode" />
       </div>
 
       {sorted.length === 0 ? (

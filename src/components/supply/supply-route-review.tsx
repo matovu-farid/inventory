@@ -7,8 +7,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '#/components/ui/accordion'
+import { ReviewLabel } from '#/components/supply/review-label'
 import { cn } from '#/lib/utils'
 import { formatUgx, formatUgxTotal } from '#/lib/format'
+import type { HelpKey } from '#/lib/help-dictionary'
 import {
   buildSupplyRouteReview,
   groupSupplyRouteReviewLines,
@@ -47,18 +49,38 @@ function formatGroupSourceSpend(
     .join(' · ')
 }
 
+const purchaseReviewColumns = [
+  ['Route date', 'reviewCol.routeDate'],
+  ['Supplier', 'reviewCol.supplier'],
+  ['Variant', 'col.variant'],
+  ['Ex. rate', 'item.sourceRate'],
+  ['Qty', 'item.quantity'],
+  ['Unit price', 'item.unitPrice'],
+  ['Total amount', 'col.totalForeign'],
+  ['Total USD', 'col.totalUsd'],
+  ['USD rate', 'item.ugxPerUsd'],
+  ['Total cost (UGX)', 'col.totalUgx'],
+  ['Selling/unit', 'reviewCol.sellingUnit'],
+  ['Total selling', 'reviewCol.totalSelling'],
+  ['Gross profit', 'reviewCol.grossProfit'],
+] satisfies ReadonlyArray<[string, HelpKey]>
+
 function Stat({
   label,
   value,
+  help,
   tone = 'default',
 }: {
   label: string
   value: string
+  help: HelpKey
   tone?: 'default' | 'positive' | 'negative'
 }) {
   return (
     <div className="rounded-md border bg-card p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-xs text-muted-foreground">
+        <ReviewLabel label={label} help={help} />
+      </p>
       <p
         className={`mt-1 font-mono text-sm font-semibold ${
           tone === 'positive'
@@ -96,7 +118,10 @@ export function SupplyRouteReview({
   const itemGroups = groupSupplyRouteReviewLines(summary.lines)
   const [openItemKeys, setOpenItemKeys] = useState<string[]>([])
 
-  const profitTone = summary.totals.grossProfitUgx.isNegative()
+  const grossProfitTone = summary.totals.grossProfitUgx.isNegative()
+    ? 'negative'
+    : 'positive'
+  const netProfitTone = summary.totals.netProfitUgx.isNegative()
     ? 'negative'
     : 'positive'
 
@@ -105,21 +130,30 @@ export function SupplyRouteReview({
       {routeDetails && (
         <Card>
           <CardHeader>
-            <CardTitle>Route details</CardTitle>
+            <CardTitle>
+              <ReviewLabel label="Route details" help="review.routeDetails" />
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Stat label="Route" value={routeDetails.name} />
+              <Stat
+                label="Route"
+                help="supplyRoute.name"
+                value={routeDetails.name}
+              />
               <Stat
                 label="Route date"
+                help="supplyRoute.departureDate"
                 value={routeDetails.departureDate || 'Not set'}
               />
               <Stat
                 label="Return date"
+                help="supplyRoute.returnDate"
                 value={routeDetails.returnDate || 'Not set'}
               />
               <Stat
                 label="Budget"
+                help="supplyRoute.budgetUsd"
                 value={
                   routeDetails.budgetUsd
                     ? `${new BigNumber(routeDetails.budgetUsd).toFormat(2)} USD`
@@ -128,20 +162,25 @@ export function SupplyRouteReview({
               />
               <Stat
                 label="UGX per USD"
+                help="review.ugxPerUsd"
                 value={routeDetails.rateUgxPerUsd || 'Not set'}
               />
               <Stat
                 label="RMB per USD"
+                help="review.rmbPerUsd"
                 value={routeDetails.rateRmbPerUsd || 'Not set'}
               />
               <Stat
                 label="Suppliers"
+                help="review.suppliers"
                 value={routeDetails.suppliers.join(', ') || 'None linked'}
               />
             </div>
             {routeDetails.notes && (
               <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                <p className="text-xs text-muted-foreground">Notes</p>
+                <p className="text-xs text-muted-foreground">
+                  <ReviewLabel label="Notes" help="supplyRoute.notes" />
+                </p>
                 <p className="mt-1 whitespace-pre-wrap">{routeDetails.notes}</p>
               </div>
             )}
@@ -150,50 +189,71 @@ export function SupplyRouteReview({
       )}
       <Card>
         <CardHeader>
-          <CardTitle>Route financial summary</CardTitle>
+          <CardTitle>
+            <ReviewLabel
+              label="Route financial summary"
+              help="review.financialSummary"
+            />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Stat
               label="Units purchased"
+              help="review.unitsPurchased"
               value={summary.totals.units.toLocaleString('en-UG')}
             />
             <Stat
               label="Purchase spend in RMB"
+              help="review.purchaseSpendRmb"
               value={formatSourceAmount(summary.totals.sourceSpend.RMB, 'RMB')}
             />
             <Stat
               label="Purchase spend in USD"
+              help="review.purchaseSpendUsd"
               value={formatSourceAmount(summary.totals.sourceSpend.USD, 'USD')}
             />
             <Stat
               label="Purchase spend in UGX"
+              help="review.purchaseSpendUgx"
               value={formatSourceAmount(summary.totals.sourceSpend.UGX, 'UGX')}
             />
             <Stat
               label="Foreign purchase USD equivalent"
+              help="review.foreignPurchaseUsdEquivalent"
               value={`${summary.totals.totalUsdEquivalent.toFormat(2)} USD`}
             />
             <Stat
               label="Item cost in UGX"
+              help="kpi.itemCosts"
               value={formatUgxTotal(summary.totals.itemCostUgx)}
             />
             <Stat
               label="Route expenses in UGX"
+              help="kpi.expenses"
               value={formatUgxTotal(summary.totals.expenseTotalUgx)}
             />
             <Stat
               label="Total cost in UGX"
+              help="kpi.grandTotal"
               value={formatUgxTotal(summary.totals.totalCostUgx)}
             />
             <Stat
               label="Total selling value in UGX"
+              help="review.totalSellingValue"
               value={formatUgxTotal(summary.totals.totalSellingValueUgx)}
             />
             <Stat
               label="Projected gross profit at minimum sell price"
+              help="review.projectedGrossProfit"
               value={formatUgxTotal(summary.totals.grossProfitUgx)}
-              tone={profitTone}
+              tone={grossProfitTone}
+            />
+            <Stat
+              label="Projected net profit at minimum sell price"
+              help="review.projectedNetProfit"
+              value={formatUgxTotal(summary.totals.netProfitUgx)}
+              tone={netProfitTone}
             />
           </div>
           {summary.totals.missingExpenseConversions > 0 && (
@@ -219,7 +279,12 @@ export function SupplyRouteReview({
 
       <Card>
         <CardHeader>
-          <CardTitle>Expense breakdown</CardTitle>
+          <CardTitle>
+            <ReviewLabel
+              label="Expense breakdown"
+              help="review.expenseBreakdown"
+            />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {Object.keys(summary.totals.expenseByCategory).length === 0 ? (
@@ -248,7 +313,12 @@ export function SupplyRouteReview({
 
       <Card>
         <CardHeader>
-          <CardTitle>Purchase details</CardTitle>
+          <CardTitle>
+            <ReviewLabel
+              label="Purchase details"
+              help="review.purchaseDetails"
+            />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {itemGroups.length === 0 ? (
@@ -303,6 +373,14 @@ export function SupplyRouteReview({
                       </div>
                       <div>
                         <p className="text-xs font-normal text-muted-foreground">
+                          Selling total
+                        </p>
+                        <p className="font-mono text-sm">
+                          {formatUgxTotal(group.sellingValueUgx)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-normal text-muted-foreground">
                           Gross profit
                         </p>
                         <p
@@ -333,6 +411,12 @@ export function SupplyRouteReview({
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
+                        <span>Selling total</span>
+                        <span className="font-mono text-foreground">
+                          {formatUgxTotal(group.sellingValueUgx)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
                         <span>Gross profit</span>
                         <span
                           className={cn(
@@ -350,32 +434,20 @@ export function SupplyRouteReview({
                       <table className="w-full min-w-[1380px] text-xs">
                         <thead className="bg-muted/50 text-left text-muted-foreground">
                           <tr>
-                            {[
-                              'Route date',
-                              'Supplier',
-                              'Variant',
-                              'Ex. rate',
-                              'Qty',
-                              'Unit price',
-                              'Total amount',
-                              'Total USD',
-                              'USD rate',
-                              'Total cost (UGX)',
-                              'Selling/unit',
-                              'Total selling',
-                              'Gross profit',
-                            ].map((heading, index) => (
-                              <th
-                                key={heading}
-                                scope="col"
-                                className={cn(
-                                  'px-2 py-2 font-medium',
-                                  index > 2 && 'text-right',
-                                )}
-                              >
-                                {heading}
-                              </th>
-                            ))}
+                            {purchaseReviewColumns.map(
+                              ([heading, help], index) => (
+                                <th
+                                  key={heading}
+                                  scope="col"
+                                  className={cn(
+                                    'px-2 py-2 font-medium',
+                                    index > 2 && 'text-right',
+                                  )}
+                                >
+                                  <ReviewLabel label={heading} help={help} />
+                                </th>
+                              ),
+                            )}
                           </tr>
                         </thead>
                         <tbody>
@@ -487,7 +559,12 @@ export function SupplyRouteReview({
 
       <Card>
         <CardHeader>
-          <CardTitle>Recorded expenses</CardTitle>
+          <CardTitle>
+            <ReviewLabel
+              label="Recorded expenses"
+              help="review.recordedExpenses"
+            />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {summary.expenses.length === 0 ? (
@@ -500,25 +577,34 @@ export function SupplyRouteReview({
                 <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                   <tr>
                     <th scope="col" className="px-3 py-2 font-medium">
-                      Category
+                      <ReviewLabel label="Category" help="expense.category" />
                     </th>
                     <th scope="col" className="px-3 py-2 font-medium">
-                      Description
+                      <ReviewLabel
+                        label="Description"
+                        help="expense.description"
+                      />
                     </th>
                     <th
                       scope="col"
                       className="px-3 py-2 text-right font-medium"
                     >
-                      Amount
+                      <ReviewLabel label="Amount" help="expense.amount" />
                     </th>
                     <th
                       scope="col"
                       className="px-3 py-2 text-right font-medium"
                     >
-                      Rate
+                      <ReviewLabel label="Rate" help="reviewCol.expenseRate" />
                     </th>
-                    <th className="px-3 py-2 text-right font-medium">
-                      Total UGX
+                    <th
+                      scope="col"
+                      className="px-3 py-2 text-right font-medium"
+                    >
+                      <ReviewLabel
+                        label="Total UGX"
+                        help="reviewCol.expenseTotalUgx"
+                      />
                     </th>
                   </tr>
                 </thead>

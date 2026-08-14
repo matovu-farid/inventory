@@ -22,6 +22,8 @@ import { MoneyInput } from '#/components/ui/money-input'
 import { DatePicker } from '#/components/ui/date-picker'
 import { Textarea } from '#/components/ui/textarea'
 import { FieldLabel } from '#/components/ui/field-label'
+import { ReviewLabel } from '#/components/supply/review-label'
+import type { HelpKey } from '#/lib/help-dictionary'
 import { Badge } from '#/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import {
@@ -788,12 +790,21 @@ export function SupplyRouteWizard({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
-              <Summary label="Route" value={route.name} />
+              <Summary
+                label="Route"
+                help="supplyRoute.name"
+                value={route.name}
+              />
               <Summary
                 label="Suppliers"
+                help="review.suppliers"
                 value={String(route.suppliers.length)}
               />
-              <Summary label="Entry rows" value={String(route.items.length)} />
+              <Summary
+                label="Entry rows"
+                help="review.entryRows"
+                value={String(route.items.length)}
+              />
             </div>
             <div className="rounded-md bg-muted/50 p-4 text-sm">
               <p className="font-medium">This route remains open</p>
@@ -863,10 +874,20 @@ export function SupplyRouteWizard({
   )
 }
 
-function Summary({ label, value }: { label: string; value: string }) {
+function Summary({
+  label,
+  help,
+  value,
+}: {
+  label: string
+  help: HelpKey
+  value: string
+}) {
   return (
     <div className="rounded-md border p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-xs text-muted-foreground">
+        <ReviewLabel label={label} help={help} />
+      </p>
       <p className="mt-1 font-medium">{value}</p>
     </div>
   )

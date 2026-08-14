@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react'
 const QUERY = '(max-width: 767px)'
 
 export function useIsMobile(): boolean {
-  const [matches, setMatches] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return window.matchMedia(QUERY).matches
-  })
+  // Keep the server render and the first client render identical. The media
+  // query is read after hydration so responsive components do not branch
+  // differently during SSR and trigger a hydration mismatch.
+  const [matches, setMatches] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return

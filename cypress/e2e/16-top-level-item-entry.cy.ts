@@ -70,6 +70,7 @@ describe('Top-level item entry', () => {
           cy.visit(`/supply/${routeId}/entry`)
           cy.waitForHydration()
           cy.contains('Add items to this route').should('be.visible')
+          cy.contains('h3', 'New item').should('be.visible')
           cy.get('button[role="combobox"]')
             .first()
             .should('be.visible')
@@ -81,6 +82,58 @@ describe('Top-level item entry', () => {
           cy.get('[role="combobox"]')
             .eq(1)
             .should('contain', `Route Supplier ${suffix}`)
+        })
+      })
+    })
+  })
+
+  it('keeps create and edit item fields inline on the route items step', () => {
+    const suffix = Date.now()
+    cy.dbQuery(
+      `INSERT INTO suppliers (name, type) VALUES ('Inline Supplier ${suffix}', 'international'), ('Inline Route Supplier ${suffix}', 'international') RETURNING id`,
+    ).then((supplierRows: Array<{ id: string }>) => {
+      const itemSupplierId = supplierRows[0].id
+      const routeSupplierId = supplierRows[1].id
+      cy.dbQuery(
+        `INSERT INTO items (article_number, name, description, category, supplier_id, cost_price, cost_currency, minimum_sell_price_ugx)
+         VALUES ('INLINE-${suffix}', 'Inline item ${suffix}', 'Inline item description ${suffix}', 'Inline category ${suffix}', '${itemSupplierId}', 'USD', '25000') RETURNING id`,
+      ).then(() => {
+        cy.dbQuery(
+          `INSERT INTO supply_routes (name, status) VALUES ('Inline editor route ${suffix}', 'open') RETURNING id`,
+        ).then((routeRows: Array<{ id: string }>) => {
+          const routeId = routeRows[0].id
+          cy.dbQuery(
+            `INSERT INTO supply_route_suppliers (supply_route_id, supplier_id) VALUES ('${routeId}', '${routeSupplierId}'), ('${routeId}', '${itemSupplierId}')`,
+          )
+
+          cy.visit(`/supply/${routeId}/entry`)
+          cy.waitForHydration()
+          cy.get('button[role="combobox"]').first().click({ force: true })
+          cy.get('[role="option"]', { timeout: 20000 })
+            .contains(`INLINE-${suffix} — Inline item ${suffix}`)
+            .click({ force: true })
+
+          cy.contains('button', 'Edit item').click()
+          cy.contains('h3', 'Edit item details').should('be.visible')
+          cy.get('[role="dialog"]').should('not.exist')
+          cy.contains('button', 'Add Items').should('be.disabled')
+          cy.get('input').should(($inputs) => {
+            const values = [...$inputs].map((input) => input.value)
+            expect(values).to.include(`Inline item ${suffix}`)
+            expect(values).to.include(`INLINE-${suffix}`)
+            expect(values).to.include('25000')
+          })
+          cy.get('textarea').should(
+            'have.value',
+            `Inline item description ${suffix}`,
+          )
+
+          cy.contains('button', 'Cancel').click()
+          cy.contains('button', /^Create new item$/).click()
+          cy.contains('h3', 'New item').should('be.visible')
+          cy.contains('Current supplier').should('be.visible')
+          cy.get('[role="dialog"]').should('not.exist')
+          cy.contains('button', 'Add Items').should('be.disabled')
         })
       })
     })

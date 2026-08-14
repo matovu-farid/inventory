@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '#/components/ui/select'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import type { HelpKey } from '#/lib/help-dictionary'
 
 export interface ThresholdValue {
@@ -56,7 +56,7 @@ export function ThresholdField({
               <SelectItem value="units">Units</SelectItem>
             </SelectContent>
           </Select>
-          <InfoTip term={modeHelpKey} />
+          <InfoPopover term={modeHelpKey} />
         </div>
         <div className="flex items-center gap-1">
           <Input
@@ -69,7 +69,7 @@ export function ThresholdField({
             }
             className="w-32"
           />
-          <InfoTip term={valueHelpKey} />
+          <InfoPopover term={valueHelpKey} />
         </div>
         <span className="self-center text-sm text-muted-foreground">
           {value.mode === 'percent' ? '% of typical batch' : 'units left'}

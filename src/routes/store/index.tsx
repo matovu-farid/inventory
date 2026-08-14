@@ -6,7 +6,7 @@ import { formatUgx, formatUgxTotal } from '#/lib/format'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Badge } from '#/components/ui/badge'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import {
   Table,
   TableBody,
@@ -80,7 +80,7 @@ function StoreStockPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Total Items
-                <InfoTip term="kpi.totalItemsStore" />
+                <InfoPopover term="kpi.totalItemsStore" />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -91,7 +91,7 @@ function StoreStockPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Inventory Value
-                <InfoTip term="kpi.inventoryValue" />
+                <InfoPopover term="kpi.inventoryValue" />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -123,25 +123,25 @@ function StoreStockPage() {
                   <TableHead>
                     <span className="inline-flex items-center gap-1.5">
                       Article
-                      <InfoTip term="col.articleNumber" />
+                      <InfoPopover term="col.articleNumber" />
                     </span>
                   </TableHead>
                   <TableHead>
                     <span className="inline-flex items-center gap-1.5">
                       Category
-                      <InfoTip term="itemForm.category" />
+                      <InfoPopover term="itemForm.category" />
                     </span>
                   </TableHead>
                   <TableHead className="text-right">
                     <span className="inline-flex items-center gap-1.5">
                       Qty
-                      <InfoTip term="col.qtyOnHand" />
+                      <InfoPopover term="col.qtyOnHand" />
                     </span>
                   </TableHead>
                   <TableHead className="text-right">
                     <span className="inline-flex items-center gap-1.5">
                       Min Sell Price
-                      <InfoTip term="item.minSellPrice" />
+                      <InfoPopover term="item.minSellPrice" />
                     </span>
                   </TableHead>
                 </TableRow>

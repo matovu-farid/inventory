@@ -1,147 +1,173 @@
 import { useRef, useState } from 'react'
-import { extractDominantLab } from '#/lib/colors/extract-dominant'
-import { matchPaletteLab } from '#/lib/colors/match-palette'
-import { labToRgb, rgbToHex, rgbToLab } from '#/lib/colors/lab'
-import type { Rgb } from '#/lib/colors/lab'
 import { Button } from '#/components/ui/button'
+import { combineColorSuggestions } from '#/lib/colors/combine-suggestions'
+import type { ColorSuggestion } from '#/lib/colors/combine-suggestions'
+import { analyzeImage, sampleImageAt } from '#/lib/images/analyze-image'
+import type { AnalyzedImage } from '#/lib/images/analyze-image'
+
+export interface ImageAsset extends AnalyzedImage {
+  id: string
+}
 
 interface Props {
   initialUrl?: string | null
-  onBlobReady: (blob: Blob) => void
-  onSuggestColor?: (s: {
-    name: string
-    hex: string
-    sampledHex: string
-  }) => void
-  onEyedrop?: (s: { name: string; hex: string; sampledHex: string }) => void
+  onAssetsChange: (assets: ReadonlyArray<ImageAsset>) => void
+  onSuggestColor?: (suggestion: ColorSuggestion) => void
+  onEyedrop?: (suggestion: ColorSuggestion) => void
 }
 
-const MAX_DIM = 1600
+const MAX_IMAGES = 12
 
 export function ImageUploader({
   initialUrl,
-  onBlobReady,
+  onAssetsChange,
   onSuggestColor,
   onEyedrop,
 }: Props) {
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(
-    initialUrl ?? null,
-  )
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const libraryInputRef = useRef<HTMLInputElement>(null)
+  const [assets, setAssets] = useState<ImageAsset[]>([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  async function handleFile(file: File) {
-    const img = await loadImage(file)
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const { w, h } = fitWithin(img.naturalWidth, img.naturalHeight, MAX_DIM)
-    canvas.width = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.drawImage(img, 0, 0, w, h)
-
-    const small = downscale(ctx, w, h, 128)
-    const lab = extractDominantLab(small)
-    const tile = matchPaletteLab(lab)
-    const sampledHex = rgbToHex(labToRgb(lab))
-    onSuggestColor?.({ name: tile.name, hex: tile.hex, sampledHex })
-
-    canvas.toBlob(
-      (blob) => {
-        if (blob) onBlobReady(blob)
-      },
-      'image/jpeg',
-      0.82,
-    )
-    setPreviewUrl(canvas.toDataURL('image/jpeg', 0.5))
+  async function handleFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return
+    const remaining = MAX_IMAGES - assets.length
+    if (remaining <= 0) {
+      setError(`You can add at most ${MAX_IMAGES} images`)
+      return
+    }
+    setError(null)
+    setBusy(true)
+    try {
+      const next: ImageAsset[] = []
+      for (const file of [...fileList].slice(0, remaining)) {
+        const analyzed = await analyzeImage(file)
+        next.push({
+          ...analyzed,
+          id: `${Date.now()}-${next.length}-${file.name}`,
+        })
+      }
+      const merged = [...assets, ...next]
+      setAssets(merged)
+      onAssetsChange(merged)
+      const suggestion = combineColorSuggestions(
+        merged.map((asset) => asset.suggestion),
+      )
+      if (suggestion) onSuggestColor?.(suggestion)
+      if (fileList.length > remaining) {
+        setError(`Only ${MAX_IMAGES} images can be added`)
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+      if (cameraInputRef.current) cameraInputRef.current.value = ''
+      if (libraryInputRef.current) libraryInputRef.current.value = ''
+    }
   }
 
-  function handleCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
+  function removeAsset(id: string) {
+    const next = assets.filter((asset) => asset.id !== id)
+    setAssets(next)
+    onAssetsChange(next)
+    const suggestion = combineColorSuggestions(
+      next.map((asset) => asset.suggestion),
+    )
+    if (suggestion) onSuggestColor?.(suggestion)
+  }
+
+  async function handlePreviewClick(
+    asset: ImageAsset,
+    event: React.MouseEvent<HTMLImageElement>,
+  ) {
     if (!onEyedrop) return
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const x = Math.floor(((e.clientX - rect.left) / rect.width) * canvas.width)
-    const y = Math.floor(((e.clientY - rect.top) / rect.height) * canvas.height)
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    const data = ctx.getImageData(x, y, 1, 1).data
-    const rgb: Rgb = { r: data[0], g: data[1], b: data[2] }
-    const lab = rgbToLab(rgb)
-    const tile = matchPaletteLab(lab)
-    onEyedrop({ name: tile.name, hex: tile.hex, sampledHex: rgbToHex(rgb) })
+    const rect = event.currentTarget.getBoundingClientRect()
+    const suggestion = await sampleImageAt(asset.source, {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+      width: rect.width,
+      height: rect.height,
+    })
+    onEyedrop(suggestion)
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
         <input
-          ref={fileInputRef}
+          ref={cameraInputRef}
           type="file"
           accept="image/*"
           capture="environment"
           className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) void handleFile(f)
-          }}
+          onChange={(event) => void handleFiles(event.target.files)}
+        />
+        <input
+          ref={libraryInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(event) => void handleFiles(event.target.files)}
         />
         <Button
           type="button"
           variant="outline"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={busy}
         >
-          {previewUrl ? 'Replace image' : 'Upload image'}
+          Take photo
         </Button>
-        {previewUrl && (
-          <span className="text-xs text-muted-foreground">
-            Click the image to eyedrop
-          </span>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => libraryInputRef.current?.click()}
+          disabled={busy}
+        >
+          Upload photos
+        </Button>
+        {busy && (
+          <span className="text-xs text-muted-foreground">Preparing…</span>
         )}
       </div>
-      <canvas
-        ref={canvasRef}
-        onClick={handleCanvasClick}
-        className="rounded border cursor-crosshair max-h-72 object-contain"
-        style={{ display: previewUrl ? 'block' : 'none' }}
-      />
-      {!previewUrl && initialUrl && (
-        <img src={initialUrl} alt="" className="rounded border max-h-72" />
+
+      {error && <p className="text-xs text-destructive">{error}</p>}
+
+      {assets.length > 0 ? (
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {assets.map((asset, index) => (
+            <div key={asset.id} className="relative space-y-1">
+              <img
+                src={asset.previewUrl}
+                alt={`Selected image ${index + 1}`}
+                className="aspect-square w-full cursor-crosshair rounded border object-cover"
+                onClick={(event) => void handlePreviewClick(asset, event)}
+              />
+              <button
+                type="button"
+                className="w-full text-xs text-muted-foreground underline"
+                onClick={() => removeAsset(asset.id)}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : initialUrl ? (
+        <img
+          src={initialUrl}
+          alt="Current item color"
+          className="rounded border max-h-72"
+        />
+      ) : null}
+
+      {assets.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Click an image to sample a point; color suggestions use all selected
+          images.
+        </p>
       )}
     </div>
   )
-}
-
-function loadImage(file: File): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = reject
-    img.src = URL.createObjectURL(file)
-  })
-}
-function fitWithin(
-  w: number,
-  h: number,
-  max: number,
-): { w: number; h: number } {
-  if (w <= max && h <= max) return { w, h }
-  const ratio = w > h ? max / w : max / h
-  return { w: Math.round(w * ratio), h: Math.round(h * ratio) }
-}
-function downscale(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  target: number,
-) {
-  const tmp = document.createElement('canvas')
-  const ratio = Math.min(target / w, target / h, 1)
-  tmp.width = Math.max(1, Math.round(w * ratio))
-  tmp.height = Math.max(1, Math.round(h * ratio))
-  const tctx = tmp.getContext('2d')
-  if (!tctx) throw new Error('2d canvas context unavailable')
-  tctx.drawImage(ctx.canvas, 0, 0, tmp.width, tmp.height)
-  return tctx.getImageData(0, 0, tmp.width, tmp.height)
 }

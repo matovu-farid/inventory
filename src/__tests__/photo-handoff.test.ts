@@ -1,20 +1,19 @@
-/**
- * Photo-handoff internals — token validation and consumption.
- * Uses the real test DB, namespaces fixtures with Date.now() for isolation.
- */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { eq } from 'drizzle-orm'
+/** Photo-handoff session internals backed by the test Postgres database. */
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { and, eq } from 'drizzle-orm'
 import { db } from '#/db'
 import {
-  pictureUploadTokens,
-  items,
   itemColors,
+  items,
+  pictureUploadTokens,
+  pictureUploads,
   user as userTable,
 } from '#/db/schema'
-import * as _internal from '#/server/functions/items/photo-handoff-internals'
+import * as internal from '#/server/functions/items/photo-handoff-internals'
 
 let runId: string
 let userId: string
+let itemId: string
 let colorId: string
 
 async function seed() {
@@ -27,35 +26,39 @@ async function seed() {
     emailVerified: true,
     role: 'admin',
   })
-  const p = (
-    await db
-      .insert(items)
-      .values({
-        articleNumber: runId,
-        name: `T ${runId}`,
-        category: 'Test',
-      })
-      .returning()
-  )[0]
-  colorId = (
-    await db
-      .insert(itemColors)
-      .values({ itemId: p.id, colorName: 'Red', colorHex: '#dc2626' })
-      .returning()
-  )[0].id
+  const [item] = await db
+    .insert(items)
+    .values({ articleNumber: runId, name: `T ${runId}`, category: 'Test' })
+    .returning()
+  itemId = item.id
+  const [color] = await db
+    .insert(itemColors)
+    .values({ itemId, colorName: 'Red', colorHex: '#dc2626' })
+    .returning()
+  colorId = color.id
+}
+
+async function insertToken(
+  token: string,
+  values: Partial<typeof pictureUploadTokens.$inferInsert> = {},
+) {
+  await db.insert(pictureUploadTokens).values({
+    token,
+    itemId,
+    itemColorId: colorId,
+    createdBy: userId,
+    expiresAt: new Date(Date.now() + 60_000),
+    ...values,
+  })
 }
 
 async function teardown() {
+  await db.delete(pictureUploads).where(eq(pictureUploads.itemId, itemId))
   await db
     .delete(pictureUploadTokens)
-    .where(eq(pictureUploadTokens.itemColorId, colorId))
-  const p = await db.query.items.findFirst({
-    where: eq(items.articleNumber, runId),
-  })
-  if (p) {
-    await db.delete(itemColors).where(eq(itemColors.itemId, p.id))
-    await db.delete(items).where(eq(items.id, p.id))
-  }
+    .where(eq(pictureUploadTokens.itemId, itemId))
+  await db.delete(itemColors).where(eq(itemColors.itemId, itemId))
+  await db.delete(items).where(eq(items.id, itemId))
   await db.delete(userTable).where(eq(userTable.id, userId))
 }
 
@@ -63,71 +66,81 @@ describe('photo-handoff internals', () => {
   beforeEach(seed)
   afterEach(teardown)
 
-  it('validateToken rejects expired tokens', async () => {
+  it('rejects expired tokens', async () => {
     const token = `${runId}-old`
-    await db.insert(pictureUploadTokens).values({
-      token,
-      itemColorId: colorId,
-      createdBy: userId,
-      expiresAt: new Date(Date.now() - 60_000),
-    })
-    await expect(_internal.validateToken(token)).rejects.toThrow(/expired/i)
+    await insertToken(token, { expiresAt: new Date(Date.now() - 60_000) })
+    await expect(internal.validateToken(token)).rejects.toThrow(/expired/i)
   })
 
-  it('validateToken rejects consumed tokens', async () => {
+  it('rejects completed tokens', async () => {
     const token = `${runId}-used`
-    await db.insert(pictureUploadTokens).values({
-      token,
-      itemColorId: colorId,
-      createdBy: userId,
-      expiresAt: new Date(Date.now() + 60_000),
-      consumedAt: new Date(),
-    })
-    await expect(_internal.validateToken(token)).rejects.toThrow(
-      /already used/i,
-    )
+    await insertToken(token, { completedAt: new Date() })
+    await expect(internal.validateToken(token)).rejects.toThrow(/completed/i)
   })
 
-  it('validateToken rejects missing tokens', async () => {
-    await expect(_internal.validateToken('no-such-token')).rejects.toThrow(
+  it('rejects missing tokens', async () => {
+    await expect(internal.validateToken('no-such-token')).rejects.toThrow(
       /not found/i,
     )
   })
 
-  it('markConsumed sets consumedAt and updates itemColors.imageS3Key', async () => {
-    const token = `${runId}-good`
-    await db.insert(pictureUploadTokens).values({
-      token,
-      itemColorId: colorId,
-      createdBy: userId,
-      expiresAt: new Date(Date.now() + 60_000),
-    })
-    const key = `items/test/${colorId}.jpg`
-    await _internal.markConsumed(token, key)
+  it('allows several confirmed uploads before completion', async () => {
+    const token = `${runId}-multi`
+    await insertToken(token)
+    const first = await internal.reservePhotoUpload(token)
+    const second = await internal.reservePhotoUpload(token)
+    const suggestion = {
+      name: 'Navy',
+      hex: '#0a1d40',
+      sampledHex: '#112244',
+    }
+    await internal.confirmPhotoUploadRow(token, first.id, suggestion)
+    await internal.confirmPhotoUploadRow(token, second.id, suggestion)
 
-    const stored = await db.query.pictureUploadTokens.findFirst({
-      where: eq(pictureUploadTokens.token, token),
+    const uploads = await db.query.pictureUploads.findMany({
+      where: and(
+        eq(pictureUploads.itemId, itemId),
+        eq(pictureUploads.tokenId, first.tokenId),
+      ),
     })
-    expect(stored?.consumedAt).toBeTruthy()
-    expect(stored?.uploadedKey).toBe(key)
+    expect(uploads).toHaveLength(2)
+    expect(uploads.every((upload) => upload.uploadedAt)).toBe(true)
 
-    const color = await db.query.itemColors.findFirst({
-      where: eq(itemColors.id, colorId),
-    })
-    expect(color?.imageS3Key).toBe(key)
+    await internal.completePhotoUploadSession(token)
+    await expect(internal.reservePhotoUpload(token)).rejects.toThrow(
+      /completed/i,
+    )
   })
 
-  it('markConsumed throws if token is already consumed', async () => {
-    const token = `${runId}-once`
-    await db.insert(pictureUploadTokens).values({
-      token,
-      itemColorId: colorId,
-      createdBy: userId,
-      expiresAt: new Date(Date.now() + 60_000),
-      consumedAt: new Date(),
-    })
+  it('rejects a confirmation from another token', async () => {
+    const firstToken = `${runId}-first`
+    const secondToken = `${runId}-second`
+    await insertToken(firstToken)
+    await insertToken(secondToken)
+    const upload = await internal.reservePhotoUpload(firstToken)
     await expect(
-      _internal.markConsumed(token, 'products/x/y.jpg'),
-    ).rejects.toThrow(/already consumed/i)
+      internal.confirmPhotoUploadRow(secondToken, upload.id),
+    ).rejects.toThrow(/not found|owned/i)
+  })
+
+  it('rejects malformed suggestions and enforces the session image limit', async () => {
+    const token = `${runId}-limit`
+    await insertToken(token)
+    const first = await internal.reservePhotoUpload(token)
+
+    await expect(
+      internal.confirmPhotoUploadRow(token, first.id, {
+        name: 'Navy',
+        hex: '#not-hex',
+        sampledHex: '#112244',
+      }),
+    ).rejects.toThrow(/invalid color suggestion hex/i)
+
+    for (let index = 1; index < 12; index += 1) {
+      await internal.reservePhotoUpload(token)
+    }
+    await expect(internal.reservePhotoUpload(token)).rejects.toThrow(
+      /at most 12 images/i,
+    )
   })
 })

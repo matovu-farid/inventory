@@ -4,7 +4,7 @@ import { Input } from '#/components/ui/input'
 import { Textarea } from '#/components/ui/textarea'
 import { Badge } from '#/components/ui/badge'
 import { CreatableCombobox } from '#/components/ui/creatable-combobox'
-import { X } from 'lucide-react'
+import { ChevronDown, X } from 'lucide-react'
 import {
   createItem,
   listItems,
@@ -14,7 +14,7 @@ import { listSuppliersForSelect } from '#/server/functions/supply/routes'
 import { matchPaletteHex } from '#/lib/colors/match-palette'
 import { CLOTHING_PALETTE } from '#/lib/colors/palette'
 import { HexColorField } from './hex-color-field'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import { FieldLabel } from '#/components/ui/field-label'
 import { MoneyInput } from '#/components/ui/money-input'
 import { Combobox } from '#/components/ui/combobox'
@@ -139,6 +139,8 @@ export function ItemEditor({
   const [existingArticleNumbers, setExistingArticleNumbers] = useState<
     ReadonlySet<string>
   >(new Set())
+  const [commercialProfileOpen, setCommercialProfileOpen] = useState(true)
+  const [variantsOpen, setVariantsOpen] = useState(true)
 
   useEffect(() => {
     if (suppliedSuppliers) {
@@ -318,36 +320,56 @@ export function ItemEditor({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <FieldLabel>Current supplier</FieldLabel>
-        <Combobox
-          options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
-          value={supplierId}
-          onChange={setSupplierId}
-          placeholder="Select supplier"
-          searchPlaceholder="Search suppliers…"
-          emptyMessage="Create a supplier before creating an item."
-        />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <FieldLabel>Current supplier</FieldLabel>
+          <Combobox
+            options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+            value={supplierId}
+            onChange={setSupplierId}
+            placeholder="Select supplier"
+            searchPlaceholder="Search suppliers…"
+            emptyMessage="Create a supplier before creating an item."
+          />
+        </div>
+        <div className="space-y-1">
+          <FieldLabel help="itemForm.category">Category</FieldLabel>
+          <CreatableCombobox
+            options={categories}
+            value={category}
+            onChange={handleCategoryChange}
+            placeholder="Pick or type a category"
+            searchPlaceholder="Search categories…"
+            emptyMessage="Type to create a new category."
+          />
+        </div>
       </div>
-      <div className="space-y-1">
-        <FieldLabel help="itemForm.category">Category</FieldLabel>
-        <CreatableCombobox
-          options={categories}
-          value={category}
-          onChange={handleCategoryChange}
-          placeholder="Pick or type a category"
-          searchPlaceholder="Search categories…"
-          emptyMessage="Type to create a new category."
-        />
-      </div>
-      <div className="space-y-1">
-        <FieldLabel help="item.name">Item name</FieldLabel>
-        <Input
-          className="h-11 text-base"
-          value={name}
-          onChange={(e) => handleItemNameChange(e.target.value)}
-          placeholder="Crew-neck T-shirt"
-        />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="space-y-1">
+          <FieldLabel help="item.name">Item name</FieldLabel>
+          <Input
+            className="h-11 text-base"
+            value={name}
+            onChange={(e) => handleItemNameChange(e.target.value)}
+            placeholder="Crew-neck T-shirt"
+          />
+        </div>
+        <div className="space-y-1">
+          <FieldLabel help="item.articleNumber">Article number</FieldLabel>
+          <Input
+            className="h-11 text-base"
+            value={articleNumber}
+            onChange={(e) => {
+              articleNumberEdited.current = true
+              setArticleNumber(e.target.value)
+            }}
+            placeholder="Generated after category and name"
+          />
+          <p className="text-xs text-muted-foreground">
+            Suggested automatically; edit it if your catalog uses a different
+            code.
+          </p>
+        </div>
       </div>
       <div className="space-y-1">
         <FieldLabel help="item.description">Description (optional)</FieldLabel>
@@ -358,24 +380,16 @@ export function ItemEditor({
           rows={2}
         />
       </div>
-      <div className="space-y-1">
-        <FieldLabel help="item.articleNumber">Article number</FieldLabel>
-        <Input
-          className="h-11 text-base"
-          value={articleNumber}
-          onChange={(e) => {
-            articleNumberEdited.current = true
-            setArticleNumber(e.target.value)
-          }}
-          placeholder="Generated after category and name"
-        />
-        <p className="text-xs text-muted-foreground">
-          Suggested automatically; edit it if your catalog uses a different
-          code.
-        </p>
-      </div>
-      <details open className="space-y-3 rounded-md border p-3">
-        <summary className="cursor-pointer font-medium">
+      <details
+        open={commercialProfileOpen}
+        onToggle={(event) => setCommercialProfileOpen(event.currentTarget.open)}
+        className="space-y-3 rounded-md border p-3"
+      >
+        <summary className="flex cursor-pointer list-none items-center gap-2 font-medium [&::-webkit-details-marker]:hidden">
+          <ChevronDown
+            className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${commercialProfileOpen ? 'rotate-180' : ''}`}
+            aria-hidden="true"
+          />
           Commercial profile
         </summary>
         <div className="grid grid-cols-2 gap-4">
@@ -438,8 +452,16 @@ export function ItemEditor({
           />
         </div>
       </details>
-      <details open className="space-y-3 rounded-md border p-3">
-        <summary className="cursor-pointer font-medium">
+      <details
+        open={variantsOpen}
+        onToggle={(event) => setVariantsOpen(event.currentTarget.open)}
+        className="space-y-3 rounded-md border p-3"
+      >
+        <summary className="flex cursor-pointer list-none items-center gap-2 font-medium [&::-webkit-details-marker]:hidden">
+          <ChevronDown
+            className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${variantsOpen ? 'rotate-180' : ''}`}
+            aria-hidden="true"
+          />
           Variants and colors
         </summary>
         <div className="space-y-2">
@@ -500,7 +522,7 @@ export function ItemEditor({
           <p className="text-sm text-muted-foreground">
             Optional. Add colors if you want to track stock by color. You can
             also add them later from this page or while receiving.{' '}
-            <InfoTip term="item.variantsOptional" />
+            <InfoPopover term="item.variantsOptional" />
           </p>
           <div className="flex flex-wrap gap-1">
             {colors.map((c) => (
@@ -565,6 +587,7 @@ export function ItemEditor({
       )}
       <div className="flex justify-end">
         <Button
+          type="button"
           onClick={() => void save()}
           disabled={
             !articleNumber ||

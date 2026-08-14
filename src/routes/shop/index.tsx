@@ -34,7 +34,7 @@ import {
   CommandList,
 } from '#/components/ui/command'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import {
   ArrowLeft,
   Check,
@@ -281,7 +281,7 @@ function ShopPage() {
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                       Items in Stock
-                      <InfoTip term="kpi.itemsInStockShop" />
+                      <InfoPopover term="kpi.itemsInStockShop" />
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -292,7 +292,7 @@ function ShopPage() {
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                       Stock Value
-                      <InfoTip term="kpi.shopStockValue" />
+                      <InfoPopover term="kpi.shopStockValue" />
                     </CardTitle>
                   </CardHeader>
                   <CardContent>

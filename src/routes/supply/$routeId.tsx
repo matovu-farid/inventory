@@ -6,7 +6,7 @@ import BigNumber from 'bignumber.js'
 import { Button } from '#/components/ui/button'
 import { MoneyInput } from '#/components/ui/money-input'
 import { FieldLabel } from '#/components/ui/field-label'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import { Badge } from '#/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Separator } from '#/components/ui/separator'
@@ -213,7 +213,7 @@ function RouteDetailPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Item Costs
-                <InfoTip term="kpi.itemCosts" />
+                <InfoPopover term="kpi.itemCosts" />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -229,7 +229,7 @@ function RouteDetailPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Expenses
-                <InfoTip term="kpi.expenses" />
+                <InfoPopover term="kpi.expenses" />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -250,7 +250,7 @@ function RouteDetailPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 Grand Total
-                <InfoTip term="kpi.grandTotal" />
+                <InfoPopover term="kpi.grandTotal" />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -368,7 +368,7 @@ function RouteDetailPage() {
                           <TableCell>{group.name}</TableCell>
                           <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
                             {group.articleNumber}
-                            <InfoTip term="col.articleNumber" />
+                            <InfoPopover term="col.articleNumber" />
                           </TableCell>
                           <TableCell className="text-muted-foreground text-xs">
                             {group.items.length} variant

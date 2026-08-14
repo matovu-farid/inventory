@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '#/components/ui/card'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import {
   getThresholds,
   updateThresholds,
@@ -168,7 +168,7 @@ function NotificationsSettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-1.5">
             Product overrides
-            <InfoTip term="notifications.overrides.title" />
+            <InfoPopover term="notifications.overrides.title" />
           </CardTitle>
           <CardDescription>
             Override the global defaults for specific product variants. These

@@ -5,6 +5,11 @@ import { db } from '#/db'
 import { itemColors, variants } from '#/db/schema'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { materializeVariantsFromColorsSizes } from './variants-materialize'
+import {
+  assertItemColor,
+  attachItemColorImages,
+  isItemImageKeyForColor,
+} from './images.server'
 
 const hexRule = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 
@@ -94,12 +99,38 @@ export const setItemColorImage = createServerFn()
   .inputValidator(z.object({ id: z.uuid(), imageS3Key: z.string().min(1) }))
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor'])
-    const [row] = await db
-      .update(itemColors)
-      .set({ imageS3Key: data.imageS3Key })
-      .where(eq(itemColors.id, data.id))
-      .returning()
+    const color = await assertItemColor(db, data.id)
+    if (!isItemImageKeyForColor(data.imageS3Key, color.itemId, color.id)) {
+      throw new Error('Image key does not belong to color')
+    }
+    const [row] = await attachItemColorImages({
+      itemColorId: data.id,
+      imageS3Keys: [data.imageS3Key],
+    })
     return row
+  })
+
+export const attachItemColorImagesForColor = createServerFn()
+  .inputValidator(
+    z.object({
+      itemColorId: z.uuid(),
+      imageS3Keys: z.array(z.string().min(1)).min(1).max(12),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor'])
+    const color = await assertItemColor(db, data.itemColorId)
+    if (
+      data.imageS3Keys.some(
+        (key) => isItemImageKeyForColor(key, color.itemId, color.id) === false,
+      )
+    ) {
+      throw new Error('Image key does not belong to color')
+    }
+    return attachItemColorImages({
+      itemColorId: data.itemColorId,
+      imageS3Keys: data.imageS3Keys,
+    })
   })
 
 export const deleteItemColor = createServerFn()

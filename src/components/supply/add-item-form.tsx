@@ -72,8 +72,9 @@ export function AddItemForm({
 }) {
   const [pending, setPending] = useState(false)
   const [product, setProduct] = useState<ItemSummary | undefined>()
-  const [productEditorOpen, setProductEditorOpen] = useState(false)
-  const [productEditOpen, setProductEditOpen] = useState(false)
+  const [itemEditorMode, setItemEditorMode] = useState<
+    'create' | 'edit' | null
+  >(initialEntry ? null : 'create')
   const [colorEditorOpen, setColorEditorOpen] = useState(false)
   const [detailMode, setDetailMode] = useState<
     'aggregate' | 'colors' | 'variants'
@@ -89,6 +90,10 @@ export function AddItemForm({
   const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? '')
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [hasAddedItem, setHasAddedItem] = useState(false)
+
+  useEffect(() => {
+    setItemEditorMode(initialEntry ? null : 'create')
+  }, [initialEntry])
 
   useEffect(() => {
     if (!initialEntry) return
@@ -188,6 +193,7 @@ export function AddItemForm({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (itemEditorMode) return
     const cells: Array<{
       itemColorId?: string
       size?: string
@@ -293,6 +299,7 @@ export function AddItemForm({
               allowArchived
               onChange={(_, selected) => {
                 setProduct(selected)
+                setItemEditorMode(null)
                 setPurchaseSupplierId(
                   resolveDefaultPurchaseSupplierId({
                     itemSupplierId: selected?.supplier?.id,
@@ -310,14 +317,14 @@ export function AddItemForm({
                   setCurrency(selected.costCurrency)
                 }
               }}
-              onCreateNew={() => setProductEditorOpen(true)}
+              onCreateNew={() => setItemEditorMode('create')}
             />
           </div>
           <Button
             type="button"
             variant="outline"
             className="w-full shrink-0 sm:w-auto"
-            onClick={() => setProductEditorOpen(true)}
+            onClick={() => setItemEditorMode('create')}
           >
             <Plus className="size-4" /> Create new item
           </Button>
@@ -326,6 +333,48 @@ export function AddItemForm({
           <p className="text-xs text-destructive">{formErrors.product}</p>
         )}
       </div>
+
+      {itemEditorMode && (
+        <section
+          className="rounded-md border bg-muted/20 p-4"
+          aria-label={
+            itemEditorMode === 'create' ? 'New item' : 'Edit item details'
+          }
+        >
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h3 className="font-medium">
+              {itemEditorMode === 'create' ? 'New item' : 'Edit item details'}
+            </h3>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setItemEditorMode(null)}
+            >
+              Cancel
+            </Button>
+          </div>
+          {itemEditorMode === 'create' ? (
+            <ItemEditor
+              categories={categories}
+              onCreated={(_id, articleNumber) => {
+                setItemEditorMode(null)
+                void refreshProduct(articleNumber)
+              }}
+            />
+          ) : product ? (
+            <ItemEditor
+              categories={categories}
+              suppliers={suppliers}
+              item={product}
+              onUpdated={(articleNumber) => {
+                setItemEditorMode(null)
+                void refreshProduct(articleNumber)
+              }}
+            />
+          ) : null}
+        </section>
+      )}
 
       {product && (
         <div className="space-y-3">
@@ -345,7 +394,7 @@ export function AddItemForm({
               type="button"
               size="sm"
               variant="ghost"
-              onClick={() => setProductEditOpen(true)}
+              onClick={() => setItemEditorMode('edit')}
             >
               <Edit className="mr-1 size-3" /> Edit item
             </Button>
@@ -514,7 +563,11 @@ export function AddItemForm({
         <p className="text-sm text-destructive">{formErrors.form}</p>
       )}
 
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={pending || !!itemEditorMode}
+      >
         {pending
           ? 'Saving...'
           : initialEntry
@@ -523,40 +576,6 @@ export function AddItemForm({
               ? 'Add another item'
               : 'Add Items'}
       </Button>
-
-      <Dialog open={productEditorOpen} onOpenChange={setProductEditorOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New item</DialogTitle>
-          </DialogHeader>
-          <ItemEditor
-            categories={categories}
-            onCreated={(_id, articleNumber) => {
-              setProductEditorOpen(false)
-              void refreshProduct(articleNumber)
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={productEditOpen} onOpenChange={setProductEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit item details</DialogTitle>
-          </DialogHeader>
-          {product && (
-            <ItemEditor
-              categories={categories}
-              suppliers={suppliers}
-              item={product}
-              onUpdated={(articleNumber) => {
-                setProductEditOpen(false)
-                void refreshProduct(articleNumber)
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={colorEditorOpen} onOpenChange={setColorEditorOpen}>
         <DialogContent>

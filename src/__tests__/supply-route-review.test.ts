@@ -52,7 +52,7 @@ const expenses: SupplyRouteReviewExpenseInput[] = [
 ]
 
 describe('buildSupplyRouteReview', () => {
-  it('aggregates source spend, total cost, selling value, expenses, and gross profit', () => {
+  it('aggregates source spend, total cost, selling value, expenses, gross profit, and net profit', () => {
     const summary = buildSupplyRouteReview(lines, expenses)
 
     expect(summary.totals.units).toBe(12)
@@ -65,7 +65,8 @@ describe('buildSupplyRouteReview', () => {
     expect(summary.totals.totalCostUgx.toFixed(2)).toBe('281900.00')
     expect(summary.totals.totalUsdEquivalent.toFixed(2)).toBe('65.17')
     expect(summary.totals.totalSellingValueUgx.toFixed(2)).toBe('350000.00')
-    expect(summary.totals.grossProfitUgx.toFixed(2)).toBe('68100.00')
+    expect(summary.totals.grossProfitUgx.toFixed(2)).toBe('105600.00')
+    expect(summary.totals.netProfitUgx.toFixed(2)).toBe('68100.00')
   })
 
   it('preserves supplier, item, variant, source cost, rates, and line profit details', () => {
@@ -120,6 +121,19 @@ describe('buildSupplyRouteReview', () => {
     expect(summary.lines[0].itemName).toBe('Item')
     expect(summary.lines[0].grossProfitUgx.toFixed(2)).toBe('-10000.00')
     expect(summary.totals.grossProfitUgx.toFixed(2)).toBe('-10000.00')
+    expect(summary.totals.netProfitUgx.toFixed(2)).toBe('-10000.00')
+  })
+
+  it('excludes invalid expense conversions from projected net profit', () => {
+    const summary = buildSupplyRouteReview(
+      [lines[0]],
+      [{ category: 'tax', amount: '10', currency: 'USD' }],
+    )
+
+    expect(summary.totals.grossProfitUgx.toFixed(2)).toBe('80600.00')
+    expect(summary.totals.expenseTotalUgx.toFixed(2)).toBe('0.00')
+    expect(summary.totals.netProfitUgx.toFixed(2)).toBe('80600.00')
+    expect(summary.totals.missingExpenseConversions).toBe(1)
   })
 
   it('rounds converted route expenses exactly like the ledger conversion', () => {

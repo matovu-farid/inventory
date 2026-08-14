@@ -12,7 +12,7 @@ import { Button } from '#/components/ui/button'
 import { Label } from '#/components/ui/label'
 import { Input } from '#/components/ui/input'
 import { MoneyInput } from '#/components/ui/money-input'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import { useCart } from '#/components/pos/cart-context'
 import { itemImageUrl } from '#/lib/items'
 import { formatUgx, formatUgxTotal } from '#/lib/format'
@@ -270,7 +270,7 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
                 <Label className="flex items-center gap-1 text-xs text-amber-900">
                   Reason for selling below{' '}
                   {formatUgx(currentRow.minimumSellPriceUgx)}
-                  <InfoTip term="pos.belowMin" />
+                  <InfoPopover term="pos.belowMin" />
                 </Label>
                 <Input
                   className="h-10 bg-background text-sm"

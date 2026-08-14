@@ -12,7 +12,18 @@
 //   - src/__tests__/list-item-categories.test.ts (vitest, server-side)
 //   - other vitest tests that need to exercise data semantics directly
 
-import { and, asc, eq, ilike, isNull, or } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  eq,
+  exists,
+  gte,
+  ilike,
+  isNull,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
 import {
@@ -30,7 +41,9 @@ import {
   storeStock,
   storeTransferLines,
   supplyRouteLines,
+  supplyRoutes,
   variants,
+  itemColorImages,
 } from '#/db/schema'
 import { materializeVariantsFromColorsSizes } from './variants-materialize'
 import { findOrCreateItemCategoryQuery } from './categories.server'
@@ -39,6 +52,53 @@ const colorInput = z.object({
   colorName: z.string().min(1).max(40),
   colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
 })
+
+export const returnDateFilter = z
+  .object({
+    returnDateFrom: z.iso.date().optional(),
+    returnDateTo: z.iso.date().optional(),
+  })
+  .refine(
+    (value) =>
+      !value.returnDateFrom ||
+      !value.returnDateTo ||
+      value.returnDateFrom <= value.returnDateTo,
+    {
+      message: 'Return date from must be on or before return date to',
+      path: ['returnDateTo'],
+    },
+  )
+
+export type ReturnDateFilter = z.infer<typeof returnDateFilter>
+
+function parseReturnDateFilter(input?: ReturnDateFilter): ReturnDateFilter {
+  return returnDateFilter.parse(input ?? {})
+}
+
+function returnDateCondition(filter: ReturnDateFilter) {
+  if (!filter.returnDateFrom && !filter.returnDateTo) return undefined
+
+  return exists(
+    db
+      .select({ id: supplyRouteLines.id })
+      .from(supplyRouteLines)
+      .innerJoin(
+        supplyRoutes,
+        eq(supplyRouteLines.supplyRouteId, supplyRoutes.id),
+      )
+      .where(
+        and(
+          eq(supplyRouteLines.itemId, items.id),
+          filter.returnDateFrom
+            ? gte(supplyRoutes.returnDate, filter.returnDateFrom)
+            : undefined,
+          filter.returnDateTo
+            ? lte(supplyRoutes.returnDate, filter.returnDateTo)
+            : undefined,
+        ),
+      ),
+  )
+}
 
 export const upsertInput = z.object({
   articleNumber: z.string().min(1).max(64),
@@ -99,7 +159,13 @@ export const updateInput = upsertInput
 const ITEM_DETAIL_WITH = {
   supplier: { columns: { id: true, name: true } },
   categoryRecord: { columns: { id: true, name: true, deletedAt: true } },
-  colors: true,
+  colors: {
+    with: {
+      images: {
+        orderBy: sql`${itemColorImages.sortOrder} asc, ${itemColorImages.createdAt} asc`,
+      },
+    },
+  },
   variants: {
     columns: { id: true, colorId: true, size: true },
   },
@@ -111,9 +177,15 @@ const ITEM_DETAIL_WITH = {
 // swallows return values when called outside SSR, so tests assert against
 // the pure helpers; route + Cypress coverage exercises the wrapper layer.
 
-export async function listItemsQuery(input?: { includeArchived?: boolean }) {
+export async function listItemsQuery(
+  input?: { includeArchived?: boolean } & ReturnDateFilter,
+) {
+  const dateFilter = parseReturnDateFilter(input)
   return db.query.items.findMany({
-    where: input?.includeArchived ? undefined : isNull(items.deletedAt),
+    where: and(
+      input?.includeArchived ? undefined : isNull(items.deletedAt),
+      returnDateCondition(dateFilter),
+    ),
     with: ITEM_DETAIL_WITH,
     orderBy: (p) => [asc(p.articleNumber)],
   })
@@ -134,28 +206,35 @@ export async function getItemByArticleQuery(input: {
   })
 }
 
-export async function searchItemsQuery(input: {
-  query: string
-  includeArchived?: boolean
-}) {
+export async function searchItemsQuery(
+  input: {
+    query: string
+    includeArchived?: boolean
+  } & ReturnDateFilter,
+) {
+  const dateFilter = parseReturnDateFilter(input)
   const activeFilter = input.includeArchived
     ? undefined
     : isNull(items.deletedAt)
+  const routeReturnDateFilter = returnDateCondition(dateFilter)
   if (!input.query.trim()) {
     return db.query.items.findMany({
-      where: activeFilter,
+      where: and(activeFilter, routeReturnDateFilter),
       with: ITEM_DETAIL_WITH,
       limit: 20,
+      orderBy: (p) => [asc(p.articleNumber)],
     })
   }
   const like = `%${input.query}%`
   return db.query.items.findMany({
     where: and(
       activeFilter,
+      routeReturnDateFilter,
       or(ilike(items.articleNumber, like), ilike(items.name, like)),
     ),
     with: ITEM_DETAIL_WITH,
     limit: 20,
+    orderBy: (p) => [asc(p.articleNumber)],
   })
 }
 

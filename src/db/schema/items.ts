@@ -15,6 +15,7 @@ import { variants } from './variants'
 import { storeStock } from './store'
 import { suppliers } from './suppliers'
 import { itemCategories } from './item-categories'
+import { itemColorImages } from './item-color-images'
 
 /**
  * Catalog: items and item_colors. After the items-free-text-category change
@@ -108,9 +109,10 @@ export const itemRelations = relations(items, ({ one, many }) => ({
   storeStockRows: many(storeStock),
 }))
 
-export const itemColorRelations = relations(itemColors, ({ one }) => ({
+export const itemColorRelations = relations(itemColors, ({ one, many }) => ({
   item: one(items, {
     fields: [itemColors.itemId],
     references: [items.id],
   }),
+  images: many(itemColorImages),
 }))

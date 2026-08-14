@@ -78,6 +78,7 @@ function RootLayout() {
     '/forgot-password',
     '/reset-password',
     '/verify-email-sent',
+    '/upload-photo/$token',
   ])
   const isPublicPage = matches.some((m) => publicPaths.has(m.fullPath))
   const needsRedirect = !session && !isPublicPage

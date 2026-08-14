@@ -7,7 +7,7 @@ import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
 import { FieldLabel } from '#/components/ui/field-label'
 import { Badge } from '#/components/ui/badge'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import { Textarea } from '#/components/ui/textarea'
 import { SplitItemForm } from '#/components/supply/split-item-form'
 import {
@@ -246,12 +246,12 @@ function ReceivingPage() {
                     <TableHead>Supplier</TableHead>
                     <TableHead className="text-right">
                       <span className="inline-flex items-center gap-1.5">
-                        Expected <InfoTip term="col.expected" />
+                        Expected <InfoPopover term="col.expected" />
                       </span>
                     </TableHead>
                     <TableHead className="text-right">
                       <span className="inline-flex items-center gap-1.5">
-                        Received <InfoTip term="col.received" />
+                        Received <InfoPopover term="col.received" />
                       </span>
                     </TableHead>
                     <TableHead />

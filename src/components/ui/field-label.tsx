@@ -1,11 +1,11 @@
 import * as React from 'react'
 import { Label } from '#/components/ui/label'
-import { InfoTip } from '#/components/ui/info-tip'
+import { InfoPopover } from '#/components/ui/info-popover'
 import type { HelpKey } from '#/lib/help-dictionary'
 import { cn } from '#/lib/utils'
 
 interface FieldLabelProps extends React.ComponentProps<typeof Label> {
-  /** Key into the help dictionary. Renders an info icon + tooltip when set. */
+  /** Key into the help dictionary. Renders an info icon + popover when set. */
   help?: HelpKey
 }
 
@@ -14,7 +14,7 @@ function FieldLabel({ help, children, className, ...props }: FieldLabelProps) {
     <Label className={cn('gap-1.5', className)} {...props}>
       {children}
       {help && (
-        <InfoTip
+        <InfoPopover
           term={help}
           ariaLabel={
             typeof children === 'string'

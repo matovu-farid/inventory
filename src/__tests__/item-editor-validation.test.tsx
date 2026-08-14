@@ -34,6 +34,42 @@ beforeEach(() => {
 })
 
 describe('ItemEditor validation errors', () => {
+  it('uses custom chevrons for the collapsible item sections', () => {
+    const { container } = render(
+      <TooltipProvider>
+        <ItemEditor categories={['Tops']} item={item} />
+      </TooltipProvider>,
+    )
+
+    const summaries = [...container.querySelectorAll('summary')]
+
+    expect(summaries).toHaveLength(2)
+    expect(
+      summaries.every((summary) => summary.className.includes('list-none')),
+    ).toBe(true)
+    expect(container.querySelectorAll('summary svg')).toHaveLength(2)
+  })
+
+  it('groups the supplier and category fields into a responsive row', () => {
+    render(
+      <TooltipProvider>
+        <ItemEditor categories={['Tops']} item={item} />
+      </TooltipProvider>,
+    )
+
+    const supplierField = screen.getByText('Current supplier').closest('div')
+    const categoryField = screen.getByText('Category').closest('div')
+    const itemNameField = screen.getByText('Item name').closest('div')
+    const articleNumberField = screen.getByText('Article number').closest('div')
+    const supplierCategoryRow = supplierField?.parentElement
+    const itemArticleRow = itemNameField?.parentElement
+
+    expect(supplierCategoryRow?.className).toContain('md:grid-cols-2')
+    expect(supplierCategoryRow).toContain(categoryField)
+    expect(itemArticleRow?.className).toContain('md:grid-cols-2')
+    expect(itemArticleRow).toContain(articleNumberField)
+  })
+
   it('shows a field error and does not submit a zero minimum sell price', async () => {
     render(
       <TooltipProvider>
