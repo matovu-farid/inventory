@@ -11,6 +11,8 @@ import {
 } from '@tanstack/react-router'
 
 import { TooltipProvider } from '#/components/ui/tooltip'
+import { ErrorDialogProvider } from '#/components/error-dialog-provider'
+import { NotFoundPage, RouteErrorPage } from '#/components/error-pages'
 import { AppSidebar, SidebarTrigger } from '#/components/app-sidebar'
 import { Logo } from '#/components/logo'
 import { getSession } from '#/server/middleware/auth'
@@ -48,6 +50,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     if (!context.session) return { prereqsSummary: null }
     return { prereqsSummary: await getSystemPrereqs() }
   },
+  errorComponent: RouteErrorPage,
+  notFoundComponent: NotFoundPage,
   component: RootLayout,
   shellComponent: RootDocument,
 })
@@ -59,7 +63,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
-        <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
+        <TooltipProvider delayDuration={150}>
+          <ErrorDialogProvider>{children}</ErrorDialogProvider>
+        </TooltipProvider>
         <Scripts />
       </body>
     </html>
@@ -81,7 +87,8 @@ function RootLayout() {
     '/upload-photo/$token',
   ])
   const isPublicPage = matches.some((m) => publicPaths.has(m.fullPath))
-  const needsRedirect = !session && !isPublicPage
+  const isNotFoundPage = matches.some((match) => match.status === 'notFound')
+  const needsRedirect = !session && !isPublicPage && !isNotFoundPage
 
   const location = useLocation()
   const userRoleForRedirect =
@@ -92,6 +99,7 @@ function RootLayout() {
     !!session &&
     userRoleForRedirect === 'sales' &&
     !isPublicPage &&
+    !isNotFoundPage &&
     !isOnPosPath
 
   // All useEffect hooks must be called unconditionally before any early returns
