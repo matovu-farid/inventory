@@ -43,7 +43,7 @@ import {
   supplyRouteLines,
   supplyRoutes,
   variants,
-  itemColorImages,
+  itemImages,
 } from '#/db/schema'
 import { materializeVariantsFromColorsSizes } from './variants-materialize'
 import { findOrCreateItemCategoryQuery } from './categories.server'
@@ -160,11 +160,15 @@ const ITEM_DETAIL_WITH = {
   supplier: { columns: { id: true, name: true } },
   categoryRecord: { columns: { id: true, name: true, deletedAt: true } },
   colors: {
-    with: {
-      images: {
-        orderBy: sql`${itemColorImages.sortOrder} asc, ${itemColorImages.createdAt} asc`,
-      },
+    columns: {
+      id: true,
+      colorName: true,
+      colorHex: true,
+      imageS3Key: true,
     },
+  },
+  images: {
+    orderBy: sql`${itemImages.sortOrder} asc, ${itemImages.createdAt} asc`,
   },
   variants: {
     columns: { id: true, colorId: true, size: true },

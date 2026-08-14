@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { db } from '#/db'
 import { itemColorImages, itemColors, items } from '#/db/schema'
-import { attachItemColorImages } from '#/server/functions/items/images.server'
+import {
+  attachItemColorImages,
+  removeItemColorImageRecord,
+} from '#/server/functions/items/images.server'
 
 let itemId: string
 let colorId: string
@@ -44,5 +47,58 @@ describe('item color images', () => {
       where: eq(itemColors.id, colorId),
     })
     expect(color?.imageS3Key).toBe('items/x/one.jpg')
+  })
+
+  it('removes an image association and promotes the next image', async () => {
+    const first = `items/${itemId}/${colorId}/first.jpg`
+    const second = `items/${itemId}/${colorId}/second.jpg`
+    const third = `items/${itemId}/${colorId}/third.jpg`
+    await attachItemColorImages({
+      itemColorId: colorId,
+      imageS3Keys: [first, second, third],
+    })
+
+    const result = await removeItemColorImageRecord({
+      itemColorId: colorId,
+      imageS3Key: first,
+    })
+
+    expect(result).toEqual({
+      removedImageS3Key: first,
+      primaryImageS3Key: second,
+    })
+    const remaining = await db.query.itemColorImages.findMany({
+      where: eq(itemColorImages.itemColorId, colorId),
+      orderBy: (images, { asc }) => [asc(images.sortOrder)],
+    })
+    expect(remaining.map((row) => row.imageS3Key)).toEqual([second, third])
+  })
+
+  it('clears the primary when the final image is removed', async () => {
+    const only = `items/${itemId}/${colorId}/only.jpg`
+    await attachItemColorImages({
+      itemColorId: colorId,
+      imageS3Keys: [only],
+    })
+
+    const result = await removeItemColorImageRecord({
+      itemColorId: colorId,
+      imageS3Key: only,
+    })
+
+    expect(result.primaryImageS3Key).toBeNull()
+    const color = await db.query.itemColors.findFirst({
+      where: eq(itemColors.id, colorId),
+    })
+    expect(color?.imageS3Key).toBeNull()
+  })
+
+  it('rejects an image key that belongs to another color path', async () => {
+    await expect(
+      removeItemColorImageRecord({
+        itemColorId: colorId,
+        imageS3Key: `items/${itemId}/another-color/photo.jpg`,
+      }),
+    ).rejects.toThrow('Image key does not belong to color')
   })
 })

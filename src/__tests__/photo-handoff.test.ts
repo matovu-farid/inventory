@@ -4,12 +4,14 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '#/db'
 import {
   itemColors,
+  itemImages,
   items,
   pictureUploadTokens,
   pictureUploads,
   user as userTable,
 } from '#/db/schema'
 import * as internal from '#/server/functions/items/photo-handoff-internals'
+import { attachPhotoSessionImages } from '#/server/functions/items/images.server'
 
 let runId: string
 let userId: string
@@ -142,5 +144,41 @@ describe('photo-handoff internals', () => {
     await expect(internal.reservePhotoUpload(token)).rejects.toThrow(
       /at most 12 images/i,
     )
+  })
+
+  it('attaches a completed phone session to the item gallery', async () => {
+    const token = `${runId}-item-gallery`
+    await insertToken(token, { itemColorId: null })
+    const upload = await internal.reservePhotoUpload(token)
+    await internal.confirmPhotoUploadRow(token, upload.id, {
+      name: 'Navy',
+      hex: '#0a1d40',
+      sampledHex: '#112244',
+    })
+    await internal.completePhotoUploadSession(token)
+
+    const rows = await attachPhotoSessionImages({ token, itemId })
+
+    expect(rows).toHaveLength(1)
+    expect(
+      rows[0] && 'suggestedColorName' in rows[0]
+        ? rows[0].suggestedColorName
+        : undefined,
+    ).toBe('Navy')
+    const stored = await db.query.itemImages.findMany({
+      where: eq(itemImages.itemId, itemId),
+    })
+    expect(stored).toHaveLength(1)
+    expect(stored[0]?.suggestedColorHex).toBe('#0a1d40')
+  })
+
+  it('rejects an ambiguous item-and-color attachment destination', async () => {
+    const token = `${runId}-ambiguous`
+    await insertToken(token, { itemColorId: null })
+    await internal.completePhotoUploadSession(token)
+
+    await expect(
+      attachPhotoSessionImages({ token, itemId, itemColorId: colorId }),
+    ).rejects.toThrow(/exactly one/i)
   })
 })

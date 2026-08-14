@@ -36,7 +36,6 @@ interface UploadAttempt {
 
 function UploadPhotoPage() {
   const { token } = Route.useLoaderData()
-  const cameraInputRef = React.useRef<HTMLInputElement>(null)
   const libraryInputRef = React.useRef<HTMLInputElement>(null)
   const [state, setState] = React.useState<UiState>('idle')
   const [uploads, setUploads] = React.useState<UploadedPhoto[]>([])
@@ -96,7 +95,6 @@ function UploadPhotoPage() {
         setError('Only 12 photos can be added to one session')
       }
       setState(failed.length > 0 ? 'error' : 'idle')
-      if (cameraInputRef.current) cameraInputRef.current.value = ''
       if (libraryInputRef.current) libraryInputRef.current.value = ''
     }
   }
@@ -150,17 +148,9 @@ function UploadPhotoPage() {
     <PageShell>
       <h1 className="text-xl font-bold">Add product photos</h1>
       <p className="text-sm text-muted-foreground">
-        Take or choose several photos. You do not need to sign in on this phone.
+        Choose several photos. You do not need to sign in on this phone.
       </p>
 
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(event) => void onFiles(event.target.files ?? [])}
-      />
       <input
         ref={libraryInputRef}
         type="file"
@@ -173,14 +163,6 @@ function UploadPhotoPage() {
       <div className="flex flex-wrap justify-center gap-2">
         <Button
           size="lg"
-          onClick={() => cameraInputRef.current?.click()}
-          disabled={busy || noMorePhotos}
-        >
-          Take photo
-        </Button>
-        <Button
-          size="lg"
-          variant="outline"
           onClick={() => libraryInputRef.current?.click()}
           disabled={busy || noMorePhotos}
         >
@@ -189,10 +171,16 @@ function UploadPhotoPage() {
       </div>
 
       {busy && (
-        <div className="text-muted-foreground">Preparing and uploading…</div>
+        <div className="text-muted-foreground" role="status" aria-live="polite">
+          Preparing and uploading…
+        </div>
       )}
       {error && (
-        <div className="space-y-2 text-sm text-red-600">
+        <div
+          className="space-y-2 text-sm text-red-600"
+          role="alert"
+          aria-live="polite"
+        >
           <p>{error}</p>
           {failedAttempts.length > 0 && (
             <Button variant="outline" onClick={() => void retryFailed()}>

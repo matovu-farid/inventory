@@ -19,11 +19,14 @@ import { listSuppliersForSelect } from '#/server/functions/supply/routes'
 import { countVariantStockLocations } from '#/server/functions/items/variant-stock-counts'
 import { createVariant, deleteVariant } from '#/server/functions/items/variants'
 import { ColorEditor } from '#/components/items/color-editor'
+import { ItemImageActions } from '#/components/items/item-image-actions'
+import { ItemImageGallery } from '#/components/items/item-image-gallery'
 import { CategoryEditPopover } from '#/components/items/category-edit-popover'
-import { PhotoHandoffQR } from '#/components/items/photo-handoff-qr'
 import { AuditActivityPanel } from '#/components/audit/audit-activity-panel'
-import { itemImageUrl } from '#/lib/items'
 import { deriveSizes } from '#/lib/variants'
+import { rankColorSuggestions } from '#/lib/colors/rank-suggestions'
+import type { RankedColorSuggestion } from '#/lib/colors/rank-suggestions'
+import { addItemColor } from '#/server/functions/items/colors'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { MoneyInput } from '#/components/ui/money-input'
@@ -34,9 +37,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '#/components/ui/dialog'
+import { removeItemImage } from '#/server/functions/items/uploads'
 
 export const Route = createFileRoute('/items/$articleNumber')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'items.view'),
@@ -64,37 +69,134 @@ function ProductDetailPage() {
   const [colorDialogOpen, setColorDialogOpen] = useState(false)
   const [priceDialogOpen, setPriceDialogOpen] = useState(false)
   const [commercialDialogOpen, setCommercialDialogOpen] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<{
+    imageS3Key: string
+    index: number
+  } | null>(null)
+  const [removingImageKey, setRemovingImageKey] = useState<string | null>(null)
+  const [removeError, setRemoveError] = useState('')
   const [mutationError, setMutationError] = useState('')
+  const [colorSuggestions, setColorSuggestions] = useState<
+    RankedColorSuggestion[]
+  >([])
+  const [selectedSuggestionKeys, setSelectedSuggestionKeys] = useState<
+    Set<string>
+  >(new Set())
+  const [detectingColors, setDetectingColors] = useState(false)
+  const [addingSuggestedColors, setAddingSuggestedColors] = useState(false)
+  const [colorDetectionMessage, setColorDetectionMessage] = useState('')
   const [activeColorId, setActiveColorId] = useState<string | undefined>(
     product.colors[0]?.id,
   )
-  const [selectedImageKey, setSelectedImageKey] = useState<string | null>(
-    product.colors[0]?.imageS3Key ?? null,
-  )
-  const active =
-    product.colors.find((c) => c.id === activeColorId) ??
-    product.colors.at(0) ??
-    null
-  const hasColors = product.colors.length > 0
   const sizes = deriveSizes(product.variants)
-  const imageKeys = active
-    ? [
-        ...new Set(
-          [
-            active.imageS3Key,
-            ...active.images.map((image) => image.imageS3Key),
-          ].filter((key): key is string => Boolean(key)),
-        ),
-      ]
-    : []
-  const previewImageKey =
-    selectedImageKey ?? (imageKeys.length > 0 ? imageKeys[0] : null)
 
-  useEffect(() => {
-    setSelectedImageKey(
-      active?.imageS3Key ?? active?.images[0]?.imageS3Key ?? null,
+  async function handleRemoveImage() {
+    if (!removeTarget) return
+    setRemovingImageKey(removeTarget.imageS3Key)
+    setRemoveError('')
+    try {
+      await removeItemImage({
+        data: { itemId: product.id, imageS3Key: removeTarget.imageS3Key },
+      })
+      setRemoveTarget(null)
+      await router.invalidate()
+    } catch (cause) {
+      setRemoveError(
+        cause instanceof Error ? cause.message : 'Could not remove photo',
+      )
+    } finally {
+      setRemovingImageKey(null)
+    }
+  }
+
+  function requestRemoveImage(imageS3Key: string, index: number) {
+    setRemoveError('')
+    setRemoveTarget({
+      imageS3Key,
+      index,
+    })
+  }
+
+  function suggestionKey(
+    suggestion: Pick<RankedColorSuggestion, 'name' | 'hex'>,
+  ) {
+    return `${suggestion.name.trim().toLowerCase()}\u0000${suggestion.hex.toLowerCase()}`
+  }
+
+  function handleDetectColors() {
+    setDetectingColors(true)
+    setMutationError('')
+    const suggestions = rankColorSuggestions(
+      product.images.flatMap((image) =>
+        image.suggestedColorName && image.suggestedColorHex
+          ? [
+              {
+                name: image.suggestedColorName,
+                hex: image.suggestedColorHex,
+                sampledHex: image.sampledHex ?? image.suggestedColorHex,
+              },
+            ]
+          : [],
+      ),
     )
-  }, [active?.id, active?.imageS3Key, active?.images])
+    setColorSuggestions(suggestions)
+    setColorDetectionMessage(
+      suggestions.length === 0
+        ? 'No color could be detected yet. Add a clearer photo and try again.'
+        : '',
+    )
+    const existingNames = new Set(
+      product.colors.map((color) => color.colorName.trim().toLowerCase()),
+    )
+    setSelectedSuggestionKeys(
+      new Set(
+        suggestions
+          .filter(
+            (suggestion) =>
+              !existingNames.has(suggestion.name.trim().toLowerCase()),
+          )
+          .map(suggestionKey),
+      ),
+    )
+    setDetectingColors(false)
+  }
+
+  async function handleConfirmSuggestedColors() {
+    const existingNames = new Set(
+      product.colors.map((color) => color.colorName.trim().toLowerCase()),
+    )
+    const selected = colorSuggestions.filter(
+      (suggestion) =>
+        selectedSuggestionKeys.has(suggestionKey(suggestion)) &&
+        !existingNames.has(suggestion.name.trim().toLowerCase()),
+    )
+    if (selected.length === 0) return
+    setAddingSuggestedColors(true)
+    setMutationError('')
+    try {
+      for (const suggestion of selected) {
+        await addItemColor({
+          data: {
+            itemId: product.id,
+            colorName: suggestion.name,
+            colorHex: suggestion.hex,
+          },
+        })
+      }
+      setColorSuggestions([])
+      setSelectedSuggestionKeys(new Set())
+      setColorDetectionMessage('')
+      await router.invalidate()
+    } catch (cause) {
+      setMutationError(
+        cause instanceof Error
+          ? cause.message
+          : 'Could not add suggested colors',
+      )
+    } finally {
+      setAddingSuggestedColors(false)
+    }
+  }
 
   async function handleArchive() {
     if (!confirm(`Archive "${product.name}"?`)) return
@@ -177,90 +279,82 @@ function ProductDetailPage() {
       </div>
 
       {mutationError && (
-        <p className="text-sm text-destructive">{mutationError}</p>
+        <p className="text-sm text-destructive" role="alert" aria-live="polite">
+          {mutationError}
+        </p>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <div className="aspect-square rounded border bg-muted flex items-center justify-center overflow-hidden">
-            {previewImageKey ? (
-              <img
-                src={itemImageUrl(previewImageKey)}
-                alt=""
-                className="size-full object-cover"
-              />
-            ) : (
-              <span className="text-sm text-muted-foreground">
-                {hasColors ? 'no image' : 'add a color to upload an image'}
-              </span>
-            )}
-          </div>
-          {imageKeys.length > 1 && (
-            <div
-              className="flex flex-wrap gap-2"
-              aria-label="Item color photos"
-            >
-              {imageKeys.map((key, index) => (
+        <div className="space-y-4">
+          <ItemImageGallery
+            itemName={product.name}
+            images={product.images}
+            canManage={canManage}
+            actions={
+              canManage ? (
+                <ItemImageActions
+                  itemId={product.id}
+                  onUploaded={() => {
+                    setColorDetectionMessage('')
+                    setColorSuggestions([])
+                    setSelectedSuggestionKeys(new Set())
+                    void router.invalidate()
+                  }}
+                />
+              ) : undefined
+            }
+            onRequestRemove={requestRemoveImage}
+            onDetectColors={handleDetectColors}
+            detecting={detectingColors}
+            suggestions={colorSuggestions}
+            existingColorNames={product.colors.map((color) => color.colorName)}
+            selectedSuggestionKeys={selectedSuggestionKeys}
+            onToggleSuggestion={(key) => {
+              setSelectedSuggestionKeys((current) => {
+                const next = new Set(current)
+                if (next.has(key)) next.delete(key)
+                else next.add(key)
+                return next
+              })
+            }}
+            onConfirmSuggestions={() => void handleConfirmSuggestedColors()}
+            confirming={addingSuggestedColors}
+            detectionMessage={colorDetectionMessage}
+          />
+          <div className="space-y-2 border-t pt-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Color
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {product.colors.map((c) => (
                 <button
-                  key={key}
+                  key={c.id}
                   type="button"
-                  aria-label={`Show photo ${index + 1}`}
-                  onClick={() => setSelectedImageKey(key)}
-                  className={`size-14 overflow-hidden rounded border ${previewImageKey === key ? 'ring-2 ring-primary' : ''}`}
+                  aria-pressed={c.id === activeColorId}
+                  onClick={() => {
+                    setActiveColorId(c.id)
+                  }}
+                  className={`inline-flex touch-manipulation items-center gap-1.5 rounded-full border px-2 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${c.id === activeColorId ? 'border-foreground bg-muted font-medium ring-1 ring-foreground/20' : 'hover:bg-muted'}`}
                 >
-                  <img
-                    src={itemImageUrl(key)}
-                    alt=""
-                    className="size-full object-cover"
+                  <span
+                    className="size-3 rounded-full border"
+                    style={{ backgroundColor: c.colorHex }}
+                    aria-hidden
                   />
+                  {c.colorName}
                 </button>
               ))}
+              {canManage && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setColorDialogOpen(true)}
+                >
+                  <Plus className="size-3 mr-1" /> Add color
+                </Button>
+              )}
             </div>
-          )}
-          <div className="flex flex-wrap gap-1.5">
-            {product.colors.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => {
-                  setActiveColorId(c.id)
-                  setSelectedImageKey(
-                    c.imageS3Key
-                      ? c.imageS3Key
-                      : (c.images[0]?.imageS3Key ?? null),
-                  )
-                }}
-                className="inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs hover:bg-muted"
-              >
-                <span
-                  className="size-3 rounded-full border"
-                  style={{ backgroundColor: c.colorHex }}
-                  aria-hidden
-                />
-                {c.colorName}
-              </button>
-            ))}
-            {canManage && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setColorDialogOpen(true)}
-              >
-                <Plus className="size-3 mr-1" /> Add color
-              </Button>
-            )}
           </div>
-          {canManage && active && (
-            <div className="pt-3 border-t mt-3">
-              <PhotoHandoffQR
-                itemId={product.id}
-                itemColorId={active.id}
-                onUploaded={() => {
-                  void router.invalidate()
-                }}
-              />
-            </div>
-          )}
         </div>
 
         <div className="space-y-3">
@@ -316,9 +410,13 @@ function ProductDetailPage() {
       )}
 
       <Dialog open={colorDialogOpen} onOpenChange={setColorDialogOpen}>
-        <DialogContent aria-describedby={undefined}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Add color</DialogTitle>
+            <DialogDescription>
+              Choose a color for this item or enter a custom name and hex value.
+              Photos are managed in the item gallery.
+            </DialogDescription>
           </DialogHeader>
           <ColorEditor
             itemId={product.id}
@@ -327,6 +425,50 @@ function ProductDetailPage() {
               void router.invalidate()
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={removeTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !removingImageKey) setRemoveTarget(null)
+        }}
+      >
+        <DialogContent className="overscroll-contain">
+          <DialogHeader>
+            <DialogTitle>Remove photo?</DialogTitle>
+            <DialogDescription>
+              This removes photo {removeTarget ? removeTarget.index + 1 : ''}{' '}
+              from the item gallery. You can add it again later if needed.
+            </DialogDescription>
+          </DialogHeader>
+          {removeError && (
+            <p
+              className="text-sm text-destructive"
+              role="alert"
+              aria-live="polite"
+            >
+              {removeError}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRemoveTarget(null)}
+              disabled={removingImageKey !== null}
+            >
+              Keep photo
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void handleRemoveImage()}
+              disabled={removingImageKey !== null}
+            >
+              {removingImageKey ? 'Removing…' : 'Remove photo'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

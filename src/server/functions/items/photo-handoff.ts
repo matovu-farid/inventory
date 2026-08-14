@@ -134,7 +134,17 @@ export const completePhotoUploadSession = createServerFn()
   })
 
 export const attachPhotoSessionImages = createServerFn()
-  .inputValidator(z.object({ token: z.string().min(1), itemColorId: z.uuid() }))
+  .inputValidator(
+    z
+      .object({
+        token: z.string().min(1),
+        itemId: z.uuid().optional(),
+        itemColorId: z.uuid().optional(),
+      })
+      .refine((value) => Boolean(value.itemId) !== Boolean(value.itemColorId), {
+        message: 'Exactly one item or color is required',
+      }),
+  )
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor'])
     return attachSessionImages(data)

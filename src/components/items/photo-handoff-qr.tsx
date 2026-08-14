@@ -6,12 +6,12 @@ import { Button } from '#/components/ui/button'
 import { useIsMobile } from '#/lib/hooks/use-is-mobile'
 import { analyzeImage } from '#/lib/images/analyze-image'
 import {
-  attachPhotoSessionImages,
   createPhotoUploadToken,
   getPhotoUploadStatus,
+  attachPhotoSessionImages,
 } from '#/server/functions/items/photo-handoff'
 import {
-  attachUploadedItemColorImage,
+  attachUploadedItemImage,
   getItemImageUploadUrl,
 } from '#/server/functions/items/uploads'
 
@@ -30,7 +30,6 @@ export interface CompletedPhotoSession {
 
 interface Props {
   itemId: string
-  itemColorId?: string
   onUploaded?: (uploads: PhotoUploadResult[]) => void
   onSessionCompleted?: (session: CompletedPhotoSession) => void
   onSessionStateChange?: (active: boolean) => void
@@ -39,9 +38,8 @@ interface Props {
 /**
  * Device-aware product-photo capture.
  *
- * Existing colors can upload directly or through a multi-photo QR session.
- * Add-color passes only itemId, so QR uploads remain staged until the new
- * color is saved.
+ * Item galleries can upload directly or through a multi-photo QR session.
+ * Both paths attach photos to the item; colors are suggested separately.
  */
 export function PhotoCapture(props: Props) {
   const isMobile = useIsMobile()
@@ -53,15 +51,13 @@ export const PhotoHandoffQR = PhotoCapture
 type UploadState = 'idle' | 'shrinking' | 'uploading' | 'error'
 
 function UploadButton({
-  itemColorId,
+  itemId,
   onUploaded,
-  capture,
   idleLabel,
   size = 'default',
 }: {
-  itemColorId: string
+  itemId: string
   onUploaded: (uploads: PhotoUploadResult[]) => void
-  capture?: 'environment'
   idleLabel: string
   size?: 'sm' | 'default'
 }) {
@@ -79,7 +75,7 @@ function UploadButton({
         const analyzed = await analyzeImage(file)
         setState('uploading')
         const { uploadUrl, publicUrl, s3Key } = await getItemImageUploadUrl({
-          data: { itemColorId, contentType: 'image/jpeg' },
+          data: { itemId, contentType: 'image/jpeg' },
         })
         const response = await fetch(uploadUrl, {
           method: 'PUT',
@@ -87,11 +83,11 @@ function UploadButton({
           body: analyzed.blob,
         })
         if (!response.ok) throw new Error(`Upload failed (${response.status})`)
-        await attachUploadedItemColorImage({
-          data: { itemColorId, imageS3Key: s3Key },
+        await attachUploadedItemImage({
+          data: { itemId, imageS3Key: s3Key, suggestion: analyzed.suggestion },
         })
         uploads.push({
-          id: `${itemColorId}-${uploads.length}`,
+          id: `${itemId}-${uploads.length}`,
           imageUrl: publicUrl,
           suggestedColorName: analyzed.suggestion.name,
           suggestedColorHex: analyzed.suggestion.hex,
@@ -122,8 +118,7 @@ function UploadButton({
         ref={inputRef}
         type="file"
         accept="image/*"
-        multiple={!capture}
-        {...(capture ? { capture } : {})}
+        multiple
         className="hidden"
         onChange={(event) => void onFiles(event.target.files)}
       />
@@ -137,35 +132,21 @@ function UploadButton({
         {label}
       </Button>
       {state === 'error' && error && (
-        <div className="text-xs text-red-600">{error}</div>
+        <div className="text-xs text-red-600" role="alert" aria-live="polite">
+          {error}
+        </div>
       )}
     </div>
   )
 }
 
-function MobileCapture({
-  itemId,
-  itemColorId,
-  onUploaded,
-  onSessionCompleted,
-}: Props) {
-  if (!itemColorId) {
-    return (
-      <DesktopHandoff itemId={itemId} onSessionCompleted={onSessionCompleted} />
-    )
-  }
+function MobileCapture({ itemId, onUploaded, onSessionCompleted }: Props) {
   return (
     <div className="flex flex-wrap gap-2">
       <UploadButton
-        itemColorId={itemColorId}
+        itemId={itemId}
         onUploaded={onUploaded ?? (() => {})}
-        capture="environment"
-        idleLabel="Take photo"
-      />
-      <UploadButton
-        itemColorId={itemColorId}
-        onUploaded={onUploaded ?? (() => {})}
-        idleLabel="Upload photos"
+        idleLabel="Choose images"
       />
       {onSessionCompleted && (
         <span className="text-xs text-muted-foreground">
@@ -178,7 +159,6 @@ function MobileCapture({
 
 function DesktopHandoff({
   itemId,
-  itemColorId,
   onUploaded,
   onSessionCompleted,
   onSessionStateChange,
@@ -189,19 +169,32 @@ function DesktopHandoff({
   const [now, setNow] = React.useState(() => Date.now())
   const [generating, setGenerating] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const callbacks = React.useRef({
+    onUploaded,
+    onSessionCompleted,
+    onSessionStateChange,
+  })
+
+  React.useEffect(() => {
+    callbacks.current = {
+      onUploaded,
+      onSessionCompleted,
+      onSessionStateChange,
+    }
+  }, [onSessionCompleted, onSessionStateChange, onUploaded])
 
   async function generate() {
     setGenerating(true)
     setError(null)
     try {
       const result = await createPhotoUploadToken({
-        data: { itemId, itemColorId },
+        data: { itemId },
       })
       const png = await QRCode.toDataURL(result.url, { width: 256, margin: 1 })
       setDataUrl(png)
       setToken(result.token)
       setExpiresAt(new Date(result.expiresAt))
-      onSessionStateChange?.(true)
+      callbacks.current.onSessionStateChange?.(true)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -226,12 +219,12 @@ function DesktopHandoff({
               token,
               uploads: status.uploads,
             }
-            onSessionStateChange?.(false)
-            if (onSessionCompleted) {
-              onSessionCompleted(session)
-            } else if (itemColorId) {
-              await attachPhotoSessionImages({ data: { token, itemColorId } })
-              onUploaded?.(status.uploads)
+            callbacks.current.onSessionStateChange?.(false)
+            if (callbacks.current.onSessionCompleted) {
+              callbacks.current.onSessionCompleted(session)
+            } else {
+              await attachPhotoSessionImages({ data: { token, itemId } })
+              callbacks.current.onUploaded?.(status.uploads)
             }
             setDataUrl(null)
             setToken(null)
@@ -241,7 +234,7 @@ function DesktopHandoff({
             status.status === 'missing'
           ) {
             clearInterval(id)
-            onSessionStateChange?.(false)
+            callbacks.current.onSessionStateChange?.(false)
             setError(
               status.status === 'expired'
                 ? 'QR expired'
@@ -255,7 +248,7 @@ function DesktopHandoff({
       })()
     }, 2000)
     return () => clearInterval(id)
-  }, [itemColorId, onSessionCompleted, onSessionStateChange, onUploaded, token])
+  }, [itemId, token])
 
   const expired = !!(expiresAt && expiresAt.getTime() < now)
   const secondsLeft = expiresAt
@@ -268,23 +261,25 @@ function DesktopHandoff({
     return (
       <div className="space-y-2">
         <div className="flex flex-wrap gap-2">
+          <UploadButton
+            itemId={itemId}
+            onUploaded={onUploaded ?? (() => {})}
+            idleLabel="Choose images"
+          />
           <Button
             type="button"
             variant="outline"
             onClick={() => void generate()}
             disabled={generating}
           >
-            {generating ? 'Generating…' : 'Take with phone (QR)'}
+            {generating ? 'Generating…' : 'Use phone (QR)'}
           </Button>
-          {itemColorId && (
-            <UploadButton
-              itemColorId={itemColorId}
-              onUploaded={onUploaded ?? (() => {})}
-              idleLabel="Upload photos"
-            />
-          )}
         </div>
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && (
+          <p className="text-xs text-red-600" role="alert" aria-live="polite">
+            {error}
+          </p>
+        )}
       </div>
     )
   }
@@ -303,8 +298,18 @@ function DesktopHandoff({
           ? 'QR expired — generate a new one'
           : `Scan once and add several photos · expires in ${mm}:${ss}`}
       </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && (
+        <p className="text-xs text-red-600" role="alert" aria-live="polite">
+          {error}
+        </p>
+      )}
       <div className="flex flex-wrap justify-center gap-2">
+        <UploadButton
+          itemId={itemId}
+          onUploaded={onUploaded ?? (() => {})}
+          idleLabel="Choose images"
+          size="sm"
+        />
         <Button
           type="button"
           variant="outline"
@@ -314,14 +319,6 @@ function DesktopHandoff({
         >
           {generating ? 'Generating…' : 'Regenerate'}
         </Button>
-        {itemColorId && (
-          <UploadButton
-            itemColorId={itemColorId}
-            onUploaded={onUploaded ?? (() => {})}
-            idleLabel="Upload photos"
-            size="sm"
-          />
-        )}
       </div>
     </div>
   )

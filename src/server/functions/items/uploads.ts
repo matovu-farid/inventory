@@ -1,31 +1,31 @@
 import { createServerFn } from '@tanstack/react-start'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
+import { items } from '#/db/schema'
 import { presignPutUrl, publicUrlFor } from '#/lib/s3/sign'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 import {
-  assertItemColor,
-  attachItemColorImages,
-  isItemImageKeyForColor,
-  newItemImageKey,
+  attachItemImages,
+  isItemImageKeyForItem,
+  newGalleryImageKey,
+  removeItemImageRecord,
 } from './images.server'
 
 export const getItemImageUploadUrl = createServerFn()
   .inputValidator(
     z.object({
-      itemColorId: z.uuid(),
+      itemId: z.uuid(),
       contentType: z.string().regex(/^image\//),
     }),
   )
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor'])
-
-    const color = await assertItemColor(db, data.itemColorId)
-
-    // S3 key still uses the `items/<itemId>/...` prefix to avoid
-    // breaking existing object URLs; the rename of the prefix tracks
-    // with a future migration of the bucket layout, not this PR.
-    const key = newItemImageKey(color.itemId, color.id)
+    const item = await db.query.items.findFirst({
+      where: eq(items.id, data.itemId),
+    })
+    if (!item) throw new Error('Item not found')
+    const key = newGalleryImageKey(item.id)
     const uploadUrl = await presignPutUrl({
       key,
       contentType: data.contentType,
@@ -33,19 +33,39 @@ export const getItemImageUploadUrl = createServerFn()
     return { uploadUrl, publicUrl: publicUrlFor(key), s3Key: key }
   })
 
-export const attachUploadedItemColorImage = createServerFn()
+export const attachUploadedItemImage = createServerFn()
   .inputValidator(
-    z.object({ itemColorId: z.uuid(), imageS3Key: z.string().min(1) }),
+    z.object({
+      itemId: z.uuid(),
+      imageS3Key: z.string().min(1),
+      suggestion: z
+        .object({
+          name: z.string().trim().min(1).max(40),
+          hex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+          sampledHex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        })
+        .optional(),
+    }),
   )
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor'])
-    const color = await assertItemColor(db, data.itemColorId)
-    if (!isItemImageKeyForColor(data.imageS3Key, color.itemId, color.id)) {
-      throw new Error('Image key does not belong to color')
+    const item = await db.query.items.findFirst({
+      where: eq(items.id, data.itemId),
+    })
+    if (!item) throw new Error('Item not found')
+    if (!isItemImageKeyForItem(data.imageS3Key, item.id)) {
+      throw new Error('Image key does not belong to item')
     }
-    const [row] = await attachItemColorImages({
-      itemColorId: data.itemColorId,
-      imageS3Keys: [data.imageS3Key],
+    const [row] = await attachItemImages({
+      itemId: item.id,
+      images: [{ imageS3Key: data.imageS3Key, suggestion: data.suggestion }],
     })
     return row
+  })
+
+export const removeItemImage = createServerFn()
+  .inputValidator(z.object({ itemId: z.uuid(), imageS3Key: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor'])
+    return removeItemImageRecord(data)
   })
