@@ -48,13 +48,12 @@ describe('Top-level item entry', () => {
     cy.location('pathname').should('eq', `/items/TOP-${suffix}`)
   })
 
-  it('defaults the purchase supplier to a supplier on the current route', () => {
+  it('defaults the purchase supplier to the item supplier', () => {
     const suffix = Date.now()
     cy.dbQuery(
-      `INSERT INTO suppliers (name, type) VALUES ('Catalog Supplier ${suffix}', 'international'), ('Route Supplier ${suffix}', 'international') RETURNING id`,
+      `INSERT INTO suppliers (name, type) VALUES ('Catalog Supplier ${suffix}', 'international') RETURNING id`,
     ).then((supplierRows: Array<{ id: string }>) => {
       const catalogSupplierId = supplierRows[0].id
-      const routeSupplierId = supplierRows[1].id
       cy.dbQuery(
         `INSERT INTO items (article_number, name, category, supplier_id, cost_price, cost_currency)
          VALUES ('SUP-${suffix}', 'Supplier default item ${suffix}', 'General', '${catalogSupplierId}', '10', 'USD') RETURNING id`,
@@ -63,10 +62,6 @@ describe('Top-level item entry', () => {
           `INSERT INTO supply_routes (name, status) VALUES ('Supplier default route ${suffix}', 'open') RETURNING id`,
         ).then((routeRows: Array<{ id: string }>) => {
           const routeId = routeRows[0].id
-          cy.dbQuery(
-            `INSERT INTO supply_route_suppliers (supply_route_id, supplier_id) VALUES ('${routeId}', '${routeSupplierId}')`,
-          )
-
           cy.visit(`/supply/${routeId}/entry`)
           cy.waitForHydration()
           cy.contains('Add items to this route').should('be.visible')
@@ -81,7 +76,7 @@ describe('Top-level item entry', () => {
             .click({ force: true })
           cy.get('[role="combobox"]')
             .eq(1)
-            .should('contain', `Route Supplier ${suffix}`)
+            .should('contain', `Catalog Supplier ${suffix}`)
         })
       })
     })
@@ -90,10 +85,9 @@ describe('Top-level item entry', () => {
   it('keeps create and edit item fields inline on the route items step', () => {
     const suffix = Date.now()
     cy.dbQuery(
-      `INSERT INTO suppliers (name, type) VALUES ('Inline Supplier ${suffix}', 'international'), ('Inline Route Supplier ${suffix}', 'international') RETURNING id`,
+      `INSERT INTO suppliers (name, type) VALUES ('Inline Supplier ${suffix}', 'international') RETURNING id`,
     ).then((supplierRows: Array<{ id: string }>) => {
       const itemSupplierId = supplierRows[0].id
-      const routeSupplierId = supplierRows[1].id
       cy.dbQuery(
         `INSERT INTO items (article_number, name, description, category, supplier_id, cost_price, cost_currency, minimum_sell_price_ugx)
          VALUES ('INLINE-${suffix}', 'Inline item ${suffix}', 'Inline item description ${suffix}', 'Inline category ${suffix}', '${itemSupplierId}', 'USD', '25000') RETURNING id`,
@@ -102,10 +96,6 @@ describe('Top-level item entry', () => {
           `INSERT INTO supply_routes (name, status) VALUES ('Inline editor route ${suffix}', 'open') RETURNING id`,
         ).then((routeRows: Array<{ id: string }>) => {
           const routeId = routeRows[0].id
-          cy.dbQuery(
-            `INSERT INTO supply_route_suppliers (supply_route_id, supplier_id) VALUES ('${routeId}', '${routeSupplierId}'), ('${routeId}', '${itemSupplierId}')`,
-          )
-
           cy.visit(`/supply/${routeId}/entry`)
           cy.waitForHydration()
           cy.get('button[role="combobox"]').first().click({ force: true })

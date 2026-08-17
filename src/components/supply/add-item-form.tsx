@@ -17,13 +17,14 @@ import {
   ResponsiveDialogContent as DialogContent,
   ResponsiveDialogHeader as DialogHeader,
   ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogFooter as DialogFooter,
 } from '#/components/ui/responsive-dialog'
 import { Edit, Plus } from 'lucide-react'
 import {
   addSupplyRouteVariants,
   replaceSupplyRouteEntry,
 } from '#/server/functions/supply/items'
-import { ItemPicker } from '#/components/items/item-picker'
+import { SupplyRouteItemPicker } from '#/components/supply/supply-route-item-picker'
 import type { ItemSummary } from '#/components/items/item-picker'
 import { ItemEditor } from '#/components/items/item-editor'
 import { ColorEditor } from '#/components/items/color-editor'
@@ -53,13 +54,37 @@ export interface SupplyRouteEntryDraft {
   }>
 }
 
+type SupplyRouteEntryPayload = {
+  supplyRouteId: string
+  itemId: string
+  supplierId?: string
+  exchangeRateForeignToUsd?: string
+  exchangeRateUsdToUgx?: string
+  cells: Array<{
+    itemColorId?: string
+    size?: string
+    quantity: number
+  }>
+}
+
+type PendingSupplyRouteEntry = {
+  payload: SupplyRouteEntryPayload
+  product: ItemSummary
+  supplierName: string
+  currency: string
+  exchangeRateForeignToUsd?: string
+  exchangeRateUsdToUgx?: string
+  detailMode: 'aggregate' | 'colors' | 'variants'
+}
+
 export function AddItemForm({
   supplyRouteId,
   rateUgxPerUsd,
   rateRmbPerUsd,
   categories,
   suppliers,
-  onSuccess,
+  onSaved,
+  onDone,
   initialEntry,
 }: {
   supplyRouteId: string
@@ -67,7 +92,8 @@ export function AddItemForm({
   rateRmbPerUsd?: string | null
   categories: ReadonlyArray<string>
   suppliers?: ReadonlyArray<AddItemSupplierOption>
-  onSuccess: () => void
+  onSaved: () => void | Promise<void>
+  onDone: () => void | Promise<void>
   initialEntry?: SupplyRouteEntryDraft
 }) {
   const [pending, setPending] = useState(false)
@@ -83,17 +109,25 @@ export function AddItemForm({
   const [colorQtys, setColorQtys] = useState<Record<string, number>>({})
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [purchaseSupplierId, setPurchaseSupplierId] = useState('')
+  const [supplierOptions, setSupplierOptions] = useState<
+    ReadonlyArray<AddItemSupplierOption>
+  >(suppliers ?? [])
   const initialCurrency = 'RMB'
   const initialFxToUsd = rateRmbPerUsd ?? ''
   const [currency, setCurrency] = useState<string>(initialCurrency)
   const [fxToUsd, setFxToUsd] = useState(initialFxToUsd)
   const [usdToUgx, setUsdToUgx] = useState(rateUgxPerUsd ?? '')
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-  const [hasAddedItem, setHasAddedItem] = useState(false)
+  const [pendingPreview, setPendingPreview] =
+    useState<PendingSupplyRouteEntry | null>(null)
 
   useEffect(() => {
     setItemEditorMode(initialEntry ? null : 'create')
   }, [initialEntry])
+
+  useEffect(() => {
+    setSupplierOptions(suppliers ?? [])
+  }, [suppliers])
 
   useEffect(() => {
     if (!initialEntry) return
@@ -134,23 +168,46 @@ export function AddItemForm({
     }
     void getItemByArticle({
       data: { articleNumber: initialEntry.articleNumber },
-    }).then((selected) => {
-      if (selected) setProduct(selected)
     })
+      .then((selected) => {
+        if (selected) setProduct(selected)
+      })
+      .catch((err: unknown) => {
+        setFormErrors({
+          form:
+            err instanceof Error
+              ? err.message
+              : 'Could not load the existing item',
+        })
+      })
   }, [initialEntry, rateRmbPerUsd, rateUgxPerUsd])
 
-  async function refreshProduct(articleNumber: string) {
+  async function refreshProduct(
+    articleNumber: string,
+  ): Promise<ItemSummary | undefined> {
     const p = await getItemByArticle({ data: { articleNumber } })
     if (p) {
       setProduct(p)
+      if (p.supplier) {
+        const itemSupplier = p.supplier
+        setSupplierOptions((current) => {
+          if (current.some((supplier) => supplier.id === itemSupplier.id)) {
+            return current
+          }
+          return [...current, itemSupplier].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          )
+        })
+      }
       setPurchaseSupplierId(
         resolveDefaultPurchaseSupplierId({
           itemSupplierId: p.supplier?.id,
-          routeSupplierIds: suppliers?.map((supplier) => supplier.id) ?? [],
+          supplierIds: supplierOptions.map((supplier) => supplier.id),
           existingEntrySupplierId: initialEntry?.supplierId,
         }),
       )
     }
+    return p
   }
 
   async function handleRemoveColor(itemColorId: string) {
@@ -191,9 +248,7 @@ export function AddItemForm({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (itemEditorMode) return
+  function openPreviewForProduct(selectedProduct: ItemSummary | undefined) {
     const cells: Array<{
       itemColorId?: string
       size?: string
@@ -215,9 +270,9 @@ export function AddItemForm({
               })
 
     const errors: Record<string, string> = {}
-    if (!product) errors.product = 'Pick a product'
+    if (!selectedProduct) errors.product = 'Pick a product'
     if (cells.length === 0) errors.quantities = 'Enter at least one quantity'
-    if (suppliers?.length && !purchaseSupplierId) {
+    if (supplierOptions.length > 0 && !purchaseSupplierId) {
       errors.supplier = 'Select a purchase supplier'
     }
     if (currency !== 'UGX') {
@@ -229,51 +284,85 @@ export function AddItemForm({
       }
     }
     setFormErrors(errors)
-    if (Object.keys(errors).length > 0 || !product) return
+    if (Object.keys(errors).length > 0 || !selectedProduct) return
 
+    const entryData: SupplyRouteEntryPayload = {
+      supplyRouteId,
+      itemId: selectedProduct.id,
+      supplierId: purchaseSupplierId || undefined,
+      exchangeRateForeignToUsd:
+        currency !== 'UGX' && currency !== 'USD'
+          ? fxToUsd || undefined
+          : undefined,
+      exchangeRateUsdToUgx:
+        currency !== 'UGX' ? usdToUgx || undefined : undefined,
+      cells,
+    }
+    const selectedSupplier = supplierOptions.find(
+      (supplier) => supplier.id === purchaseSupplierId,
+    )
+    setPendingPreview({
+      payload: entryData,
+      product: selectedProduct,
+      supplierName:
+        selectedSupplier?.name ?? selectedProduct.supplier?.name ?? 'Not set',
+      currency,
+      exchangeRateForeignToUsd: fxToUsd || undefined,
+      exchangeRateUsdToUgx: usdToUgx || undefined,
+      detailMode,
+    })
+  }
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (itemEditorMode) return
+    openPreviewForProduct(product)
+  }
+
+  function resetForm() {
+    setProduct(undefined)
+    setDetailMode('variants')
+    setAggregateQty('')
+    setColorQtys({})
+    setQuantities({})
+    setPurchaseSupplierId('')
+    setCurrency(initialCurrency)
+    setFxToUsd(initialFxToUsd)
+    setUsdToUgx(rateUgxPerUsd ?? '')
+    setFormErrors({})
+  }
+
+  async function confirmPending(action: 'another' | 'done' | 'save') {
+    if (!pendingPreview || pending) return
     setPending(true)
+    setFormErrors({})
+    let saved = false
     try {
-      if (purchaseSupplierId && product.supplier?.id !== purchaseSupplierId) {
-        const selectedSupplier = suppliers?.find(
-          (supplier) => supplier.id === purchaseSupplierId,
+      const { payload, product: pendingProduct } = pendingPreview
+      if (
+        payload.supplierId &&
+        pendingProduct.supplier?.id !== payload.supplierId
+      ) {
+        const selectedSupplier = supplierOptions.find(
+          (supplier) => supplier.id === payload.supplierId,
         )
         const makeCurrent = window.confirm(
-          `Make ${selectedSupplier?.name ?? 'this supplier'} the current supplier for ${product.name}? Cancel keeps the current item supplier and uses this supplier only for this route entry.`,
+          `Make ${selectedSupplier?.name ?? 'this supplier'} the current supplier for ${pendingProduct.name}? Cancel keeps the current item supplier and uses this supplier only for this route entry.`,
         )
         if (makeCurrent) {
           await updateItem({
-            data: { id: product.id, supplierId: purchaseSupplierId },
+            data: { id: pendingProduct.id, supplierId: payload.supplierId },
           })
         }
       }
-      const entryData = {
-        supplyRouteId,
-        itemId: product.id,
-        supplierId: purchaseSupplierId || undefined,
-        exchangeRateForeignToUsd:
-          currency !== 'UGX' && currency !== 'USD'
-            ? fxToUsd || undefined
-            : undefined,
-        exchangeRateUsdToUgx:
-          currency !== 'UGX' ? usdToUgx || undefined : undefined,
-        cells,
-      }
       if (initialEntry) {
         await replaceSupplyRouteEntry({
-          data: { ...entryData, entryId: initialEntry.entryId },
+          data: { ...payload, entryId: initialEntry.entryId },
         })
       } else {
-        await addSupplyRouteVariants({ data: entryData })
+        await addSupplyRouteVariants({ data: payload })
       }
-      onSuccess()
-      setHasAddedItem(true)
-      setProduct(undefined)
-      setDetailMode('variants')
-      setAggregateQty('')
-      setColorQtys({})
-      setQuantities({})
-      setPurchaseSupplierId('')
-      setFormErrors({})
+      saved = true
     } catch (err) {
       setFormErrors({
         form: err instanceof Error ? err.message : 'Failed to save',
@@ -281,7 +370,48 @@ export function AddItemForm({
     } finally {
       setPending(false)
     }
+    if (!saved) return
+
+    setPendingPreview(null)
+    if (initialEntry || action === 'another') {
+      if (action === 'another') resetForm()
+      await onSaved()
+    } else {
+      await onDone()
+    }
   }
+
+  const exchangeRateFields =
+    currency !== 'UGX' ? (
+      <div className="grid grid-cols-2 gap-4">
+        {currency !== 'USD' && (
+          <div className="space-y-2">
+            <FieldLabel help="item.sourceRate">
+              {currency} per 1 USD *
+            </FieldLabel>
+            <MoneyInput
+              currency={`${currency}/USD`}
+              value={fxToUsd}
+              onChange={setFxToUsd}
+              decimals={6}
+              placeholder="e.g. 7.25"
+              error={formErrors.fxToUsd}
+            />
+          </div>
+        )}
+        <div className="space-y-2">
+          <FieldLabel help="item.ugxPerUsd">UGX per 1 USD *</FieldLabel>
+          <MoneyInput
+            currency="UGX/USD"
+            value={usdToUgx}
+            onChange={setUsdToUgx}
+            decimals={0}
+            placeholder="e.g. 3750"
+            error={formErrors.usdToUgx}
+          />
+        </div>
+      </div>
+    ) : null
 
   return (
     <form
@@ -294,7 +424,7 @@ export function AddItemForm({
         <FieldLabel help="item.name">Item *</FieldLabel>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
           <div className="min-w-0 flex-1">
-            <ItemPicker
+            <SupplyRouteItemPicker
               value={product?.id}
               allowArchived
               onChange={(_, selected) => {
@@ -303,8 +433,7 @@ export function AddItemForm({
                 setPurchaseSupplierId(
                   resolveDefaultPurchaseSupplierId({
                     itemSupplierId: selected?.supplier?.id,
-                    routeSupplierIds:
-                      suppliers?.map((supplier) => supplier.id) ?? [],
+                    supplierIds: supplierOptions.map((supplier) => supplier.id),
                     existingEntrySupplierId: initialEntry?.supplierId,
                   }),
                 )
@@ -317,17 +446,18 @@ export function AddItemForm({
                   setCurrency(selected.costCurrency)
                 }
               }}
-              onCreateNew={() => setItemEditorMode('create')}
             />
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full shrink-0 sm:w-auto"
-            onClick={() => setItemEditorMode('create')}
-          >
-            <Plus className="size-4" /> Create new item
-          </Button>
+          {!itemEditorMode && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full shrink-0 sm:w-auto"
+              onClick={() => setItemEditorMode('create')}
+            >
+              <Plus className="size-4" /> Create new item
+            </Button>
+          )}
         </div>
         {formErrors.product && (
           <p className="text-xs text-destructive">{formErrors.product}</p>
@@ -357,15 +487,30 @@ export function AddItemForm({
           {itemEditorMode === 'create' ? (
             <ItemEditor
               categories={categories}
+              suppliers={supplierOptions}
+              allowCreateSupplier
+              createSubmitLabel="Done"
+              beforeSubmitContent={exchangeRateFields}
               onCreated={(_id, articleNumber) => {
                 setItemEditorMode(null)
                 void refreshProduct(articleNumber)
+                  .then((selected) => openPreviewForProduct(selected))
+                  .catch((err: unknown) => {
+                    setFormErrors({
+                      form:
+                        err instanceof Error
+                          ? err.message
+                          : 'Could not load the new item',
+                    })
+                  })
               }}
             />
           ) : product ? (
             <ItemEditor
               categories={categories}
-              suppliers={suppliers}
+              suppliers={supplierOptions}
+              allowCreateSupplier
+              beforeSubmitContent={exchangeRateFields}
               item={product}
               onUpdated={(articleNumber) => {
                 setItemEditorMode(null)
@@ -400,7 +545,7 @@ export function AddItemForm({
             </Button>
           </div>
 
-          {suppliers && suppliers.length > 0 && (
+          {supplierOptions.length > 0 && (
             <div className="space-y-2">
               <FieldLabel help="item.supplierId">
                 Purchase supplier *
@@ -415,7 +560,7 @@ export function AddItemForm({
                   <SelectValue placeholder="Select supplier" />
                 </SelectTrigger>
                 <SelectContent>
-                  {suppliers.map((supplier) => (
+                  {supplierOptions.map((supplier) => (
                     <SelectItem key={supplier.id} value={supplier.id}>
                       {supplier.name}
                     </SelectItem>
@@ -528,54 +673,130 @@ export function AddItemForm({
         supplier and optional rates can be overridden for this line.
       </p>
 
-      {currency !== 'UGX' && (
-        <div className="grid grid-cols-2 gap-4">
-          {currency !== 'USD' && (
-            <div className="space-y-2">
-              <FieldLabel help="item.sourceRate">
-                {currency} per 1 USD *
-              </FieldLabel>
-              <MoneyInput
-                currency={`${currency}/USD`}
-                value={fxToUsd}
-                onChange={setFxToUsd}
-                decimals={6}
-                placeholder="e.g. 7.25"
-                error={formErrors.fxToUsd}
-              />
-            </div>
-          )}
-          <div className="space-y-2">
-            <FieldLabel help="item.ugxPerUsd">UGX per 1 USD *</FieldLabel>
-            <MoneyInput
-              currency="UGX/USD"
-              value={usdToUgx}
-              onChange={setUsdToUgx}
-              decimals={0}
-              placeholder="e.g. 3750"
-              error={formErrors.usdToUgx}
-            />
-          </div>
-        </div>
-      )}
+      {!itemEditorMode && exchangeRateFields}
 
       {formErrors.form && (
         <p className="text-sm text-destructive">{formErrors.form}</p>
       )}
 
-      <Button
-        type="submit"
-        className="w-full"
-        disabled={pending || !!itemEditorMode}
+      {!itemEditorMode && (
+        <Button type="submit" className="w-full" disabled={pending}>
+          Done
+        </Button>
+      )}
+
+      <Dialog
+        open={!!pendingPreview}
+        onOpenChange={(open) => {
+          if (!open && !pending) setPendingPreview(null)
+        }}
       >
-        {pending
-          ? 'Saving...'
-          : initialEntry
-            ? 'Save changes'
-            : hasAddedItem
-              ? 'Add another item'
-              : 'Add Items'}
-      </Button>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review item</DialogTitle>
+          </DialogHeader>
+          {pendingPreview && (
+            <div className="space-y-4 text-sm">
+              <div className="rounded-md border p-3">
+                <p className="font-medium">
+                  {pendingPreview.product.articleNumber} —{' '}
+                  {pendingPreview.product.name}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  Supplier: {pendingPreview.supplierName}
+                </p>
+                <p className="text-muted-foreground">
+                  Cost: {pendingPreview.product.costPrice ?? 'Not set'}{' '}
+                  {pendingPreview.currency}
+                </p>
+                <p className="text-muted-foreground">
+                  Minimum sell price:{' '}
+                  {pendingPreview.product.minimumSellPriceUgx ?? 'Not set'} UGX
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="font-medium">
+                  Quantity details ({pendingPreview.detailMode})
+                </p>
+                <ul className="space-y-1 rounded-md border p-3">
+                  {pendingPreview.payload.cells.map((cell, index) => {
+                    const color = cell.itemColorId
+                      ? pendingPreview.product.colors.find(
+                          (entry) => entry.id === cell.itemColorId,
+                        )?.colorName
+                      : undefined
+                    return (
+                      <li
+                        key={`${cell.itemColorId ?? 'all'}-${cell.size ?? index}`}
+                        className="flex justify-between gap-3"
+                      >
+                        <span>
+                          {color ?? 'All colors'}
+                          {cell.size ? ` / ${cell.size}` : ''}
+                        </span>
+                        <span className="font-mono">{cell.quantity}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+              {pendingPreview.currency !== 'UGX' && (
+                <div className="rounded-md border p-3 text-muted-foreground">
+                  {pendingPreview.currency !== 'USD' && (
+                    <p>
+                      {pendingPreview.currency}/USD rate:{' '}
+                      {pendingPreview.exchangeRateForeignToUsd ?? '—'}
+                    </p>
+                  )}
+                  <p>
+                    USD/UGX rate: {pendingPreview.exchangeRateUsdToUgx ?? '—'}
+                  </p>
+                </div>
+              )}
+              {formErrors.form && (
+                <p className="text-sm text-destructive">{formErrors.form}</p>
+              )}
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => setPendingPreview(null)}
+            >
+              Edit item
+            </Button>
+            {initialEntry ? (
+              <Button
+                type="button"
+                disabled={pending}
+                onClick={() => void confirmPending('save')}
+              >
+                Save changes
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => void confirmPending('another')}
+                >
+                  Add another item
+                </Button>
+                <Button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => void confirmPending('done')}
+                >
+                  Done
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={colorEditorOpen} onOpenChange={setColorEditorOpen}>
         <DialogContent>

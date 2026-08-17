@@ -3,7 +3,6 @@ import { createServerFn } from '@tanstack/react-start'
 import { getTransfersPrereqs } from './transfers'
 import { getShopSalesPrereqs, getShopOpeningBalancePrereqs } from './shop'
 import { getStorePrereqs } from './store'
-import { getSupplyPrereqs, getSupplyRouteDetailPrereqs } from './supply'
 import type {
   PrerequisiteResult,
   SystemPrereqsSummary,
@@ -31,12 +30,6 @@ const pageChecks: PageCheck[] = [
     fn: getShopOpeningBalancePrereqs,
   },
   { pageHref: '/store', pageLabel: 'Stock', fn: getStorePrereqs },
-  { pageHref: '/supply', pageLabel: 'Supply Routes', fn: getSupplyPrereqs },
-  {
-    pageHref: '/supply/$routeId',
-    pageLabel: 'Supply Route Details',
-    fn: getSupplyRouteDetailPrereqs,
-  },
 ]
 
 // Note: getShopPrereqs is intentionally excluded from system aggregation —

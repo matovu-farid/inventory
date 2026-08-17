@@ -56,26 +56,6 @@ export const supplyRoutes = pgTable(
   (table) => [index('idx_route_external_ref').on(table.externalRef)],
 )
 
-export const supplyRouteSuppliers = pgTable(
-  'supply_route_suppliers',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    supplyRouteId: uuid('supply_route_id')
-      .notNull()
-      .references(() => supplyRoutes.id, { onDelete: 'cascade' }),
-    supplierId: uuid('supplier_id')
-      .notNull()
-      .references(() => suppliers.id, { onDelete: 'restrict' }),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-  },
-  (table) => [
-    index('idx_srs_route').on(table.supplyRouteId),
-    index('idx_srs_supplier').on(table.supplierId),
-  ],
-)
-
 export const supplyRouteLines = pgTable(
   'supply_route_lines',
   {
@@ -195,7 +175,6 @@ export const supplyRouteExpenses = pgTable(
 
 // Relations
 export const supplyRouteRelations = relations(supplyRoutes, ({ many }) => ({
-  suppliers: many(supplyRouteSuppliers),
   // Relation key `items` retained as a stable JS API (`with: { items: true }`
   // call sites unchanged). The underlying table is now `supply_route_lines`
   // (#8). Keeping the relation key minimises diff scope; the spec's
@@ -204,20 +183,6 @@ export const supplyRouteRelations = relations(supplyRoutes, ({ many }) => ({
   items: many(supplyRouteLines),
   expenses: many(supplyRouteExpenses),
 }))
-
-export const supplyRouteSupplierRelations = relations(
-  supplyRouteSuppliers,
-  ({ one }) => ({
-    supplyRoute: one(supplyRoutes, {
-      fields: [supplyRouteSuppliers.supplyRouteId],
-      references: [supplyRoutes.id],
-    }),
-    supplier: one(suppliers, {
-      fields: [supplyRouteSuppliers.supplierId],
-      references: [suppliers.id],
-    }),
-  }),
-)
 
 export const supplyRouteLineRelations = relations(
   supplyRouteLines,

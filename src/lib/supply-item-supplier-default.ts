@@ -1,17 +1,12 @@
 export function resolveDefaultPurchaseSupplierId({
   itemSupplierId,
-  routeSupplierIds,
+  supplierIds,
   existingEntrySupplierId,
 }: {
   itemSupplierId?: string | null
-  routeSupplierIds: ReadonlyArray<string>
+  supplierIds: ReadonlyArray<string>
   existingEntrySupplierId?: string | null
 }) {
   if (existingEntrySupplierId) return existingEntrySupplierId
-  if (itemSupplierId && routeSupplierIds.includes(itemSupplierId)) {
-    return itemSupplierId
-  }
-  return routeSupplierIds.length > 0
-    ? routeSupplierIds[0]
-    : (itemSupplierId ?? '')
+  return itemSupplierId ?? supplierIds.at(0) ?? ''
 }

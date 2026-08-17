@@ -2,15 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import {
   getSupplyRoute,
-  addSupplierToRoute,
-  listSuppliersForSelect,
-  removeSupplierFromRoute,
   updateSupplyRoute,
 } from '#/server/functions/supply/routes'
-import {
-  createSupplier,
-  restoreSupplier,
-} from '#/server/functions/supply/suppliers'
+import type { listSuppliersForSelect } from '#/server/functions/supply/routes'
 import { deleteSupplyRouteItem } from '#/server/functions/supply/items'
 import { AddItemForm } from '#/components/supply/add-item-form'
 import type { SupplyRouteEntryDraft } from '#/components/supply/add-item-form'
@@ -26,16 +20,10 @@ import { ReviewLabel } from '#/components/supply/review-label'
 import type { HelpKey } from '#/lib/help-dictionary'
 import { Badge } from '#/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '#/components/ui/select'
-import { Plus, Trash2, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Trash2, ArrowLeft, ArrowRight } from 'lucide-react'
 import { SUPPLY_ROUTE_STEPS, SupplyRouteStepper } from './supply-route-steps'
 import type { SupplyRouteStepId } from './supply-route-steps'
+import { getDistinctRouteSuppliers } from '#/lib/supply-route-suppliers'
 
 type RouteData = Awaited<ReturnType<typeof getSupplyRoute>>
 type SupplierOption = Awaited<ReturnType<typeof listSuppliersForSelect>>[number]
@@ -57,8 +45,7 @@ export function SupplyRouteWizard({
   const [route, setRoute] = useState(initialRoute)
   const [step, setStep] = useState<SupplyRouteStepId>(initialStep)
   const [categories] = useState(initialCategories)
-  const [suppliers, setSuppliers] =
-    useState<ReadonlyArray<SupplierOption>>(initialSuppliers)
+  const suppliers = initialSuppliers
   const [basics, setBasics] = useState(() => ({
     name: initialRoute.name,
     departureDate: initialRoute.departureDate ?? '',
@@ -75,24 +62,11 @@ export function SupplyRouteWizard({
     'saved',
   )
   const [error, setError] = useState('')
-  const [newSupplierOpen, setNewSupplierOpen] = useState(false)
-  const [newSupplier, setNewSupplier] = useState({
-    name: '',
-    type: 'international' as SupplierOption['type'],
-    country: '',
-  })
-  const [supplierPending, setSupplierPending] = useState(false)
-  const [showArchivedSuppliers, setShowArchivedSuppliers] = useState(false)
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
 
   useEffect(() => {
     setStep(initialStep)
   }, [initialStep])
-
-  const routeSupplierIds = useMemo(
-    () => new Set(route.suppliers.map((entry) => entry.supplier.id)),
-    [route.suppliers],
-  )
 
   const entryGroups = useMemo(() => {
     const groups = new Map<string, typeof route.items>()
@@ -256,79 +230,6 @@ export function SupplyRouteWizard({
     })
   }
 
-  async function addExistingSupplier(supplierId: string) {
-    if (routeSupplierIds.has(supplierId)) return
-    setSupplierPending(true)
-    try {
-      const selected = suppliers.find((supplier) => supplier.id === supplierId)
-      if (selected?.deletedAt) {
-        if (
-          !window.confirm(
-            `Restore ${selected.name} before adding it to this route?`,
-          )
-        ) {
-          return
-        }
-        await restoreSupplier({ data: { id: supplierId } })
-        setSuppliers((current) =>
-          current.map((supplier) =>
-            supplier.id === supplierId
-              ? { ...supplier, deletedAt: null }
-              : supplier,
-          ),
-        )
-      }
-      await addSupplierToRoute({
-        data: { supplyRouteId: route.id, supplierId },
-      })
-      await refreshRoute()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add supplier')
-    } finally {
-      setSupplierPending(false)
-    }
-  }
-
-  async function handleCreateSupplier(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (!newSupplier.name.trim()) {
-      setError('Supplier name is required')
-      return
-    }
-    setSupplierPending(true)
-    try {
-      const supplier = await createSupplier({
-        data: {
-          name: newSupplier.name.trim(),
-          type: newSupplier.type,
-          country: newSupplier.country.trim() || undefined,
-        },
-      })
-      setSuppliers((current) =>
-        [...current, supplier].sort((a, b) => a.name.localeCompare(b.name)),
-      )
-      await addExistingSupplier(supplier.id)
-      setNewSupplier({ name: '', type: 'international', country: '' })
-      setNewSupplierOpen(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create supplier')
-    } finally {
-      setSupplierPending(false)
-    }
-  }
-
-  async function handleRemoveSupplier(linkId: string) {
-    setSupplierPending(true)
-    try {
-      await removeSupplierFromRoute({ data: { id: linkId } })
-      await refreshRoute()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not remove supplier')
-    } finally {
-      setSupplierPending(false)
-    }
-  }
-
   const currentIndex = SUPPLY_ROUTE_STEPS.findIndex(
     (entry) => entry.id === step,
   )
@@ -480,167 +381,6 @@ export function SupplyRouteWizard({
         </Card>
       )}
 
-      {step === 'suppliers' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Route suppliers</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Add every supplier you may purchase from on this route. You can
-              still choose a different supplier for an individual item.
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Select
-                disabled={isLocked || supplierPending}
-                onValueChange={(value) => void addExistingSupplier(value)}
-              >
-                <SelectTrigger
-                  disabled={isLocked || supplierPending}
-                  className="flex-1"
-                >
-                  <SelectValue placeholder="Select an existing supplier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers
-                    .filter((supplier) => !routeSupplierIds.has(supplier.id))
-                    .map((supplier) => (
-                      <SelectItem key={supplier.id} value={supplier.id}>
-                        {supplier.name}
-                        {supplier.deletedAt ? ' · Archived' : ''}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isLocked || supplierPending}
-                onClick={() => setNewSupplierOpen((open) => !open)}
-              >
-                <Plus className="mr-1 size-4" /> New supplier
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={isLocked || supplierPending}
-                onClick={() => {
-                  const next = !showArchivedSuppliers
-                  setShowArchivedSuppliers(next)
-                  void listSuppliersForSelect({
-                    data: { includeArchived: next },
-                  }).then(setSuppliers)
-                }}
-              >
-                {showArchivedSuppliers ? 'Hide archived' : 'Search archived'}
-              </Button>
-            </div>
-            {newSupplierOpen && (
-              <form
-                className="rounded-md border p-4"
-                onSubmit={(e) => void handleCreateSupplier(e)}
-              >
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="space-y-2">
-                    <FieldLabel htmlFor="new-supplier-name">Name *</FieldLabel>
-                    <Input
-                      id="new-supplier-name"
-                      value={newSupplier.name}
-                      disabled={isLocked || supplierPending}
-                      onChange={(e) =>
-                        setNewSupplier((current) => ({
-                          ...current,
-                          name: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <FieldLabel>Type</FieldLabel>
-                    <Select
-                      value={newSupplier.type}
-                      disabled={isLocked || supplierPending}
-                      onValueChange={(value: SupplierOption['type']) =>
-                        setNewSupplier((current) => ({
-                          ...current,
-                          type: value,
-                        }))
-                      }
-                    >
-                      <SelectTrigger disabled={isLocked || supplierPending}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="international">
-                          International
-                        </SelectItem>
-                        <SelectItem value="local">Local</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <FieldLabel htmlFor="new-supplier-country">
-                      Country
-                    </FieldLabel>
-                    <Input
-                      id="new-supplier-country"
-                      value={newSupplier.country}
-                      disabled={isLocked || supplierPending}
-                      onChange={(e) =>
-                        setNewSupplier((current) => ({
-                          ...current,
-                          country: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-                <Button
-                  className="mt-3"
-                  type="submit"
-                  disabled={isLocked || supplierPending}
-                >
-                  {supplierPending ? 'Saving…' : 'Create and add supplier'}
-                </Button>
-              </form>
-            )}
-            <div className="space-y-2">
-              {route.suppliers.length === 0 && (
-                <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                  No suppliers linked yet.
-                </p>
-              )}
-              {route.suppliers.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between rounded-md border p-3"
-                >
-                  <div>
-                    <p className="font-medium">{entry.supplier.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {entry.supplier.type}
-                      {entry.supplier.country
-                        ? ` · ${entry.supplier.country}`
-                        : ''}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={isLocked || supplierPending}
-                    onClick={() => void handleRemoveSupplier(entry.id)}
-                    title="Remove supplier from route"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {step === 'items' && (
         <div className="space-y-4">
           <Card>
@@ -662,28 +402,26 @@ export function SupplyRouteWizard({
               </div>
             </CardHeader>
             <CardContent>
-              {route.suppliers.length === 0 ? (
-                <p className="text-sm text-destructive">
-                  Add at least one supplier before adding items.
-                </p>
-              ) : isLocked ? (
+              {isLocked ? (
                 <p className="text-sm text-muted-foreground">
                   This route has been received and is locked.
                 </p>
               ) : (
                 <AddItemForm
+                  key={editingEntryId ?? 'new-entry'}
                   supplyRouteId={route.id}
                   rateUgxPerUsd={route.rateUgxPerUsd}
                   rateRmbPerUsd={route.rateRmbPerUsd}
                   categories={categories}
-                  suppliers={route.suppliers.map((entry) => ({
-                    id: entry.supplier.id,
-                    name: entry.supplier.name,
-                  }))}
+                  suppliers={suppliers}
                   initialEntry={editingEntry}
-                  onSuccess={() => {
+                  onSaved={() => {
                     setEditingEntryId(null)
-                    void refreshRoute()
+                    return refreshRoute()
+                  }}
+                  onDone={async () => {
+                    await refreshRoute()
+                    await goTo('expenses')
                   }}
                 />
               )}
@@ -798,7 +536,7 @@ export function SupplyRouteWizard({
               <Summary
                 label="Suppliers"
                 help="review.suppliers"
-                value={String(route.suppliers.length)}
+                value={String(getDistinctRouteSuppliers(route.items).length)}
               />
               <Summary
                 label="Entry rows"
@@ -825,7 +563,9 @@ export function SupplyRouteWizard({
                 rateUgxPerUsd: route.rateUgxPerUsd,
                 rateRmbPerUsd: route.rateRmbPerUsd,
                 notes: route.notes,
-                suppliers: route.suppliers.map((entry) => entry.supplier.name),
+                suppliers: getDistinctRouteSuppliers(route.items).map(
+                  (supplier) => supplier.name,
+                ),
               }}
             />
           </CardContent>

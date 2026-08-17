@@ -18,20 +18,13 @@ import {
   listSupplyRoutes,
   createSupplyRoute,
 } from '#/server/functions/supply/routes'
-import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
-import { getSupplyPrereqs } from '#/server/functions/prereqs/supply'
 import { convertExpenseToUgx } from '#/lib/currency/expense-conversion'
+import { getDistinctRouteSuppliers } from '#/lib/supply-route-suppliers'
 
 export const Route = createFileRoute('/supply/')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
   validateSearch: z.object({ completedRoute: z.uuid().optional() }),
-  loader: async () => {
-    const [routes, prerequisites] = await Promise.all([
-      listSupplyRoutes(),
-      getSupplyPrereqs(),
-    ])
-    return { routes, prerequisites }
-  },
+  loader: () => listSupplyRoutes(),
   component: SupplyRoutesPage,
 })
 
@@ -45,7 +38,7 @@ const STATUS_COLORS: Record<
 }
 
 function SupplyRoutesPage() {
-  const { routes, prerequisites } = Route.useLoaderData()
+  const routes = Route.useLoaderData()
   const { completedRoute } = Route.useSearch()
   const recentOpenRoute = routes.find((route) => route.status === 'open')
   const completed = completedRoute
@@ -112,119 +105,117 @@ function SupplyRoutesPage() {
         </div>
       )}
 
-      <PagePrerequisites result={prerequisites}>
-        <ResponsiveTable
-          data={routes}
-          getRowKey={(r) => r.id}
-          emptyMessage="No supply routes yet. Create your first route to start tracking procurement."
-          columns={[
-            {
-              header: 'Route',
-              cell: (r) => (
-                <div>
-                  <span className="font-medium">{r.name}</span>
-                  {r.departureDate && (
-                    <span className="text-muted-foreground ml-2 text-xs">
-                      {r.departureDate}
-                    </span>
-                  )}
-                </div>
-              ),
-            },
-            {
-              header: 'Status',
-              cell: (r) => (
-                <Badge variant={STATUS_COLORS[r.displayStatus] ?? 'outline'}>
-                  {r.displayStatus.replace('_', ' ')}
-                </Badge>
-              ),
-            },
-            {
-              header: 'Suppliers',
-              cell: (r) =>
-                Array.from(
-                  new Set(r.suppliers.map((entry) => entry.supplier.name)),
-                ).join(', ') || '-',
-              hideOnMobile: true,
-            },
-            {
-              header: 'Items',
-              align: 'right',
-              cell: (r) => r.items.length,
-            },
-            {
-              header: 'Item Cost (UGX)',
-              align: 'right',
-              cell: (r) => (
-                <span className="font-mono">
-                  {roundUgxBankers50(
-                    r.items.reduce(
-                      (sum, i) => sum.plus(i.totalCostUgx),
-                      new BigNumber(0),
-                    ),
-                  ).toFormat(0)}
-                </span>
-              ),
-            },
-            {
-              header: 'Expenses (UGX)',
-              align: 'right',
-              hideOnMobile: true,
-              cell: (r) => (
-                <span className="font-mono">
-                  {(() => {
-                    const converted = r.expenses.reduce((sum, expense) => {
-                      try {
-                        return sum.plus(
-                          convertExpenseToUgx({
-                            amount: expense.amount,
-                            currency: expense.currency ?? 'UGX',
-                            exchangeRate: expense.exchangeRate ?? undefined,
-                          }),
-                        )
-                      } catch {
-                        return sum
-                      }
-                    }, new BigNumber(0))
-                    const missing = r.expenses.some((expense) => {
-                      try {
+      <ResponsiveTable
+        data={routes}
+        getRowKey={(r) => r.id}
+        emptyMessage="No supply routes yet. Create your first route to start tracking procurement."
+        columns={[
+          {
+            header: 'Route',
+            cell: (r) => (
+              <div>
+                <span className="font-medium">{r.name}</span>
+                {r.departureDate && (
+                  <span className="text-muted-foreground ml-2 text-xs">
+                    {r.departureDate}
+                  </span>
+                )}
+              </div>
+            ),
+          },
+          {
+            header: 'Status',
+            cell: (r) => (
+              <Badge variant={STATUS_COLORS[r.displayStatus] ?? 'outline'}>
+                {r.displayStatus.replace('_', ' ')}
+              </Badge>
+            ),
+          },
+          {
+            header: 'Suppliers',
+            cell: (r) =>
+              getDistinctRouteSuppliers(r.items)
+                .map((supplier) => supplier.name)
+                .join(', ') || '-',
+            hideOnMobile: true,
+          },
+          {
+            header: 'Items',
+            align: 'right',
+            cell: (r) => r.items.length,
+          },
+          {
+            header: 'Item Cost (UGX)',
+            align: 'right',
+            cell: (r) => (
+              <span className="font-mono">
+                {roundUgxBankers50(
+                  r.items.reduce(
+                    (sum, i) => sum.plus(i.totalCostUgx),
+                    new BigNumber(0),
+                  ),
+                ).toFormat(0)}
+              </span>
+            ),
+          },
+          {
+            header: 'Expenses (UGX)',
+            align: 'right',
+            hideOnMobile: true,
+            cell: (r) => (
+              <span className="font-mono">
+                {(() => {
+                  const converted = r.expenses.reduce((sum, expense) => {
+                    try {
+                      return sum.plus(
                         convertExpenseToUgx({
                           amount: expense.amount,
                           currency: expense.currency ?? 'UGX',
                           exchangeRate: expense.exchangeRate ?? undefined,
-                        })
-                        return false
-                      } catch {
-                        return true
-                      }
-                    })
-                    return missing
-                      ? `${roundUgxBankers50(converted).toFormat(0)} + needs rate`
-                      : roundUgxBankers50(converted).toFormat(0)
-                  })()}
-                </span>
-              ),
-            },
-            {
-              header: '',
-              cell: (r) => (
-                <Link
-                  to={
-                    r.status === 'open'
-                      ? '/supply/$routeId/entry'
-                      : '/supply/$routeId'
-                  }
-                  params={{ routeId: r.id }}
-                  className="text-primary hover:underline inline-flex items-center gap-1 text-sm"
-                >
-                  {r.status === 'open' ? 'Continue setup' : 'View'}{' '}
-                  <ArrowRight className="h-3 w-3" />
-                </Link>
-              ),
-            },
-          ]}
-        />
-      </PagePrerequisites>
+                        }),
+                      )
+                    } catch {
+                      return sum
+                    }
+                  }, new BigNumber(0))
+                  const missing = r.expenses.some((expense) => {
+                    try {
+                      convertExpenseToUgx({
+                        amount: expense.amount,
+                        currency: expense.currency ?? 'UGX',
+                        exchangeRate: expense.exchangeRate ?? undefined,
+                      })
+                      return false
+                    } catch {
+                      return true
+                    }
+                  })
+                  return missing
+                    ? `${roundUgxBankers50(converted).toFormat(0)} + needs rate`
+                    : roundUgxBankers50(converted).toFormat(0)
+                })()}
+              </span>
+            ),
+          },
+          {
+            header: '',
+            cell: (r) => (
+              <Link
+                to={
+                  r.status === 'open'
+                    ? '/supply/$routeId/entry'
+                    : '/supply/$routeId'
+                }
+                params={{ routeId: r.id }}
+                className="text-primary hover:underline inline-flex items-center gap-1 text-sm"
+              >
+                {r.status === 'open' ? 'Continue setup' : 'View'}{' '}
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            ),
+          },
+        ]}
+      />
     </div>
   )
 }

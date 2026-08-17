@@ -8,7 +8,6 @@ import {
   itemColors,
   suppliers,
   supplyRoutes,
-  supplyRouteSuppliers,
   storeReceivings,
 } from '#/db/schema'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
@@ -96,18 +95,6 @@ export const addSupplyRouteVariants = createServerFn()
       ),
     })
     return db.transaction(async (tx) => {
-      const routeSupplier = await tx.query.supplyRouteSuppliers.findFirst({
-        where: and(
-          eq(supplyRouteSuppliers.supplyRouteId, route.id),
-          eq(supplyRouteSuppliers.supplierId, supplierId),
-        ),
-      })
-      if (!routeSupplier) {
-        await tx.insert(supplyRouteSuppliers).values({
-          supplyRouteId: route.id,
-          supplierId,
-        })
-      }
       return tx.insert(supplyRouteLines).values(rows).returning()
     })
   })
@@ -242,18 +229,6 @@ export const replaceSupplyRouteEntry = createServerFn()
             : item.name,
         colorNameById,
       })
-      const routeSupplier = await tx.query.supplyRouteSuppliers.findFirst({
-        where: and(
-          eq(supplyRouteSuppliers.supplyRouteId, data.supplyRouteId),
-          eq(supplyRouteSuppliers.supplierId, supplierId),
-        ),
-      })
-      if (!routeSupplier) {
-        await tx.insert(supplyRouteSuppliers).values({
-          supplyRouteId: data.supplyRouteId,
-          supplierId,
-        })
-      }
       await tx
         .delete(supplyRouteLines)
         .where(

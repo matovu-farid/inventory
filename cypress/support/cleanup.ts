@@ -40,7 +40,6 @@ export async function cleanupAllTestData(
        store_stock,
        supply_route_expenses,
        supply_route_lines,
-       supply_route_suppliers,
        supply_routes,
        suppliers,
        customers,

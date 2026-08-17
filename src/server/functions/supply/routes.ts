@@ -1,14 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import BigNumber from 'bignumber.js'
 import { z } from 'zod'
 import { db } from '#/db'
-import {
-  supplyRoutes,
-  supplyRouteSuppliers,
-  storeReceivings,
-  suppliers,
-} from '#/db/schema'
+import { supplyRoutes, storeReceivings } from '#/db/schema'
 import { deriveSupplyRouteDisplayStatus } from '#/lib/supply-route-status'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { listSuppliersForSelectQuery } from './supplier-queries'
@@ -33,9 +28,6 @@ export const listSupplyRoutes = createServerFn().handler(async () => {
   const routes = await db.query.supplyRoutes.findMany({
     orderBy: (r, { desc }) => [desc(r.createdAt)],
     with: {
-      suppliers: {
-        with: { supplier: true },
-      },
       items: { with: { supplier: true, itemColor: { with: { item: true } } } },
       expenses: true,
     },
@@ -68,9 +60,6 @@ export const getSupplyRoute = createServerFn()
     const route = await db.query.supplyRoutes.findFirst({
       where: eq(supplyRoutes.id, data.id),
       with: {
-        suppliers: {
-          with: { supplier: true },
-        },
         items: {
           with: {
             supplier: true,
@@ -118,7 +107,6 @@ const createRouteInput = z
     rateUgxPerUsd: positiveRate.optional(),
     rateRmbPerUsd: positiveRate.optional(),
     notes: z.string().optional(),
-    supplierIds: z.array(z.uuid()).optional(),
   })
   .refine(
     (d) => !d.departureDate || !d.returnDate || d.departureDate <= d.returnDate,
@@ -141,25 +129,8 @@ export const createSupplyRoute = createServerFn()
       throw new Error('Return date must be on or after departure date')
     }
 
-    const { supplierIds, ...routeData } = data
-
-    return db.transaction(async (tx) => {
-      const [route] = await tx
-        .insert(supplyRoutes)
-        .values(routeData)
-        .returning()
-
-      if (supplierIds?.length) {
-        await tx.insert(supplyRouteSuppliers).values(
-          supplierIds.map((supplierId) => ({
-            supplyRouteId: route.id,
-            supplierId,
-          })),
-        )
-      }
-
-      return route
-    })
+    const [route] = await db.insert(supplyRoutes).values(data).returning()
+    return route
   })
 
 const updateRouteInput = z
@@ -203,69 +174,6 @@ export const updateSupplyRoute = createServerFn()
 
     if (!route) throw new Error('Supply route not found')
     return route
-  })
-
-const addSupplierToRouteInput = z.object({
-  supplyRouteId: z.uuid(),
-  supplierId: z.uuid(),
-})
-
-export const addSupplierToRoute = createServerFn()
-  .inputValidator(addSupplierToRouteInput)
-  .handler(async ({ data }) => {
-    await requireSessionAndRole(['admin'])
-
-    const supplier = await db.query.suppliers.findFirst({
-      where: and(
-        eq(suppliers.id, data.supplierId),
-        isNull(suppliers.deletedAt),
-      ),
-    })
-    if (!supplier) throw new Error('Supplier not found')
-
-    const route = await db.query.supplyRoutes.findFirst({
-      where: eq(supplyRoutes.id, data.supplyRouteId),
-    })
-    if (!route) throw new Error('Supply route not found')
-    if (route.status !== 'open')
-      throw new Error('Only open routes can be edited')
-
-    const existing = await db.query.supplyRouteSuppliers.findFirst({
-      where: and(
-        eq(supplyRouteSuppliers.supplyRouteId, data.supplyRouteId),
-        eq(supplyRouteSuppliers.supplierId, data.supplierId),
-      ),
-    })
-    if (existing) return existing
-
-    const [link] = await db
-      .insert(supplyRouteSuppliers)
-      .values(data)
-      .returning()
-
-    return link
-  })
-
-const removeSupplierFromRouteInput = z.object({
-  id: z.uuid(),
-})
-
-export const removeSupplierFromRoute = createServerFn()
-  .inputValidator(removeSupplierFromRouteInput)
-  .handler(async ({ data }) => {
-    await requireSessionAndRole(['admin'])
-
-    const link = await db.query.supplyRouteSuppliers.findFirst({
-      where: eq(supplyRouteSuppliers.id, data.id),
-      with: { supplyRoute: true },
-    })
-    if (!link) throw new Error('Route supplier link not found')
-    if (link.supplyRoute.status !== 'open')
-      throw new Error('Only open routes can be edited')
-
-    await db
-      .delete(supplyRouteSuppliers)
-      .where(eq(supplyRouteSuppliers.id, data.id))
   })
 
 export const listSuppliersForSelect = createServerFn()

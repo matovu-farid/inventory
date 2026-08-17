@@ -9,7 +9,6 @@ import {
   stores,
   shops,
   supplyRoutes,
-  supplyRouteSuppliers,
   supplyRouteLines,
   storeStock,
   variants,
@@ -262,14 +261,6 @@ async function seed() {
     if (!route) throw new Error('Failed to seed supply route')
 
     if (!existingRoute) {
-      await db
-        .insert(supplyRouteSuppliers)
-        .values({
-          supplyRouteId: route.id,
-          supplierId: existingSupplier.id,
-        })
-        .onConflictDoNothing()
-
       // One row per (color, size).
       type RouteItemSeed = {
         itemColorId: string

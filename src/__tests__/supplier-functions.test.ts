@@ -126,6 +126,7 @@ describe('supplier server functions', () => {
           contactPhone: '+256700000000',
           contactEmail: 'amina@example.com',
           address: 'Kampala',
+          description: 'Reliable textile supplier',
           notes: 'Updated notes',
         },
       }),
@@ -141,6 +142,7 @@ describe('supplier server functions', () => {
       contactName: 'Amina',
       contactPhone: '+256700000000',
       address: 'Kampala',
+      description: 'Reliable textile supplier',
       notes: 'Updated notes',
     })
   })

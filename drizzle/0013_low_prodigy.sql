@@ -1,0 +1,1 @@
+DROP TABLE "supply_route_suppliers" CASCADE;

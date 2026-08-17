@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Textarea } from '#/components/ui/textarea'
@@ -19,12 +20,17 @@ import { FieldLabel } from '#/components/ui/field-label'
 import { MoneyInput } from '#/components/ui/money-input'
 import { Combobox } from '#/components/ui/combobox'
 import { suggestArticleNumber } from '#/lib/items/article-number'
+import { CreateSupplierDialog } from '#/components/supply/create-supplier-dialog'
+import type { CreatedSupplierOption } from '#/components/supply/create-supplier-dialog'
 
 const SIZE_QUICK_PICKS = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 interface Props {
   categories: ReadonlyArray<string>
   suppliers?: ReadonlyArray<{ id: string; name: string }>
+  allowCreateSupplier?: boolean
+  createSubmitLabel?: string
+  beforeSubmitContent?: ReactNode
   onCreated?: (itemId: string, articleNumber: string) => void
   item?: {
     id: string
@@ -96,6 +102,9 @@ function getSafeErrorMessage(error: unknown): string {
 export function ItemEditor({
   categories,
   suppliers: suppliedSuppliers,
+  allowCreateSupplier = false,
+  createSubmitLabel = 'Create item',
+  beforeSubmitContent,
   onCreated,
   item,
   onUpdated,
@@ -141,13 +150,17 @@ export function ItemEditor({
   >(new Set())
   const [commercialProfileOpen, setCommercialProfileOpen] = useState(true)
   const [variantsOpen, setVariantsOpen] = useState(true)
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false)
+  const [supplierCreateName, setSupplierCreateName] = useState('')
 
   useEffect(() => {
     if (suppliedSuppliers) {
       setSuppliers(suppliedSuppliers)
       return
     }
-    void listSuppliersForSelect().then(setSuppliers)
+    void listSuppliersForSelect()
+      .then(setSuppliers)
+      .catch((err: unknown) => setError(getSafeErrorMessage(err)))
   }, [suppliedSuppliers])
 
   useEffect(() => {
@@ -175,15 +188,17 @@ export function ItemEditor({
   }, [item])
 
   useEffect(() => {
-    void listItems().then((records) => {
-      setExistingArticleNumbers(
-        new Set(
-          records
-            .filter((record) => record.id !== item?.id)
-            .map((record) => record.articleNumber),
-        ),
-      )
-    })
+    void listItems()
+      .then((records) => {
+        setExistingArticleNumbers(
+          new Set(
+            records
+              .filter((record) => record.id !== item?.id)
+              .map((record) => record.articleNumber),
+          ),
+        )
+      })
+      .catch((err: unknown) => setError(getSafeErrorMessage(err)))
   }, [item?.id])
 
   function handleHexChange(hex: string) {
@@ -220,6 +235,17 @@ export function ItemEditor({
         }),
       )
     }
+  }
+
+  function handleSupplierCreated(supplier: CreatedSupplierOption) {
+    setSuppliers((current) =>
+      [...current.filter((option) => option.id !== supplier.id), supplier].sort(
+        (a, b) => a.name.localeCompare(b.name),
+      ),
+    )
+    setSupplierId(supplier.id)
+    setSupplierCreateName('')
+    setSupplierDialogOpen(false)
   }
 
   function handleCategoryChange(value: string) {
@@ -327,6 +353,14 @@ export function ItemEditor({
             options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
             value={supplierId}
             onChange={setSupplierId}
+            onCreateNew={
+              allowCreateSupplier
+                ? (value) => {
+                    setSupplierCreateName(value)
+                    setSupplierDialogOpen(true)
+                  }
+                : undefined
+            }
             placeholder="Select supplier"
             searchPlaceholder="Search suppliers…"
             emptyMessage="Create a supplier before creating an item."
@@ -585,6 +619,7 @@ export function ItemEditor({
           {error}
         </p>
       )}
+      {beforeSubmitContent}
       <div className="flex justify-end">
         <Button
           type="button"
@@ -599,9 +634,15 @@ export function ItemEditor({
             submitting
           }
         >
-          {submitting ? 'Saving…' : item ? 'Save changes' : 'Create item'}
+          {submitting ? 'Saving…' : item ? 'Save changes' : createSubmitLabel}
         </Button>
       </div>
+      <CreateSupplierDialog
+        open={supplierDialogOpen}
+        initialName={supplierCreateName}
+        onOpenChange={setSupplierDialogOpen}
+        onCreated={handleSupplierCreated}
+      />
     </div>
   )
 }

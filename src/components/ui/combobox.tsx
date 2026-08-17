@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { CheckIcon, ChevronsUpDownIcon } from 'lucide-react'
+import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from 'lucide-react'
 
 import { cn } from '#/lib/utils'
 import { Button } from '#/components/ui/button'
@@ -22,6 +22,8 @@ export type ComboboxOption = {
   label: string
 }
 
+const CREATE_SENTINEL = '\x00__create__'
+
 interface ComboboxProps {
   options: ReadonlyArray<ComboboxOption>
   value?: string
@@ -32,6 +34,7 @@ interface ComboboxProps {
   className?: string
   triggerClassName?: string
   disabled?: boolean
+  onCreateNew?: (value: string) => void
   id?: string
   'aria-invalid'?: boolean
 }
@@ -46,14 +49,27 @@ function Combobox({
   className,
   triggerClassName,
   disabled,
+  onCreateNew,
   id,
   'aria-invalid': ariaInvalid,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const [query, setQuery] = React.useState('')
   const selected = options.find((o) => o.value === value)
+  const trimmedQuery = query.trim()
+  const exactMatch = options.some(
+    (option) => option.label.toLowerCase() === trimmedQuery.toLowerCase(),
+  )
+  const showCreate = !!onCreateNew && trimmedQuery.length > 0 && !exactMatch
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (!nextOpen) setQuery('')
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           id={id}
@@ -77,11 +93,35 @@ function Combobox({
         className={cn('w-(--radix-popover-trigger-width) p-0', className)}
         align="start"
       >
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+        <Command
+          filter={(itemValue, search) => {
+            if (itemValue === CREATE_SENTINEL) return 1
+            return itemValue.toLowerCase().includes(search.toLowerCase())
+              ? 1
+              : 0
+          }}
+        >
+          <CommandInput
+            placeholder={searchPlaceholder}
+            value={query}
+            onValueChange={setQuery}
+          />
           <CommandList>
             <CommandEmpty>{emptyMessage}</CommandEmpty>
             <CommandGroup>
+              {showCreate && (
+                <CommandItem
+                  value={CREATE_SENTINEL}
+                  onSelect={() => {
+                    onCreateNew(trimmedQuery)
+                    setOpen(false)
+                    setQuery('')
+                  }}
+                >
+                  <PlusIcon className="mr-2 size-4" />
+                  Create &ldquo;{trimmedQuery}&rdquo;
+                </CommandItem>
+              )}
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
@@ -89,6 +129,7 @@ function Combobox({
                   onSelect={() => {
                     onChange(option.value)
                     setOpen(false)
+                    setQuery('')
                   }}
                 >
                   <CheckIcon

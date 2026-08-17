@@ -7,6 +7,7 @@ import {
 } from '#/server/functions/supply/routes'
 import { listItemCategories } from '#/server/functions/items/items'
 import { SupplyRouteWizard } from '#/components/supply/supply-route-wizard'
+import { getExistingSupplyRouteInitialStep } from '#/lib/supply-route-entry-step'
 
 export const Route = createFileRoute('/supply/$routeId/entry')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
@@ -35,7 +36,7 @@ function ExistingSupplyRouteEntry() {
       initialRoute={route}
       initialCategories={categories}
       initialSuppliers={suppliers}
-      initialStep={step ?? 'items'}
+      initialStep={getExistingSupplyRouteInitialStep(step)}
       onStepChange={(nextStep) => void navigate({ search: { step: nextStep } })}
     />
   )

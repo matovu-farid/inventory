@@ -7,7 +7,7 @@ import {
   unique,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
-import { supplyRouteSuppliers, supplyRouteLines } from './supply-routes'
+import { supplyRouteLines } from './supply-routes'
 
 export const supplierTypeEnum = pgEnum('supplier_type', [
   'local',
@@ -21,6 +21,7 @@ export const suppliers = pgTable(
     name: text('name').notNull(),
     type: supplierTypeEnum('type').notNull(),
     country: text('country'),
+    description: text('description'),
     contactName: text('contact_name'),
     contactPhone: text('contact_phone'),
     contactEmail: text('contact_email'),
@@ -40,6 +41,5 @@ export const suppliers = pgTable(
 
 // Relations
 export const supplierRelations = relations(suppliers, ({ many }) => ({
-  supplyRouteSuppliers: many(supplyRouteSuppliers),
   supplyRouteLines: many(supplyRouteLines),
 }))

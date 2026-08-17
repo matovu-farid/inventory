@@ -3,7 +3,6 @@ import { Button } from '#/components/ui/button'
 
 export const SUPPLY_ROUTE_STEPS = [
   { id: 'basics', label: 'Route basics' },
-  { id: 'suppliers', label: 'Suppliers' },
   { id: 'items', label: 'Items' },
   { id: 'expenses', label: 'Expenses' },
   { id: 'review', label: 'Review' },
@@ -25,7 +24,7 @@ export function SupplyRouteStepper({
   )
   return (
     <nav aria-label="Supply route steps" className="rounded-lg border p-3">
-      <ol className="grid gap-2 sm:grid-cols-5">
+      <ol className="grid gap-2 sm:grid-cols-4">
         {SUPPLY_ROUTE_STEPS.map((entry, index) => {
           const complete = index < currentIndex
           const active = entry.id === activeStep

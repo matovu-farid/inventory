@@ -7,26 +7,26 @@ describe('resolveDefaultPurchaseSupplierId', () => {
     expect(
       resolveDefaultPurchaseSupplierId({
         itemSupplierId: 'item-supplier',
-        routeSupplierIds: ['route-supplier'],
+        supplierIds: ['route-supplier'],
         existingEntrySupplierId: 'saved-supplier',
       }),
     ).toBe('saved-supplier')
   })
 
-  it('uses the item supplier when it is attached to the route', () => {
+  it('uses the item supplier as the default source of truth', () => {
     expect(
       resolveDefaultPurchaseSupplierId({
         itemSupplierId: 'item-supplier',
-        routeSupplierIds: ['route-supplier', 'item-supplier'],
+        supplierIds: ['route-supplier'],
       }),
     ).toBe('item-supplier')
   })
 
-  it('uses the first route supplier when the item supplier is not on the route', () => {
+  it('falls back to the first supplier when the item has none', () => {
     expect(
       resolveDefaultPurchaseSupplierId({
-        itemSupplierId: 'catalog-supplier',
-        routeSupplierIds: ['route-supplier'],
+        itemSupplierId: null,
+        supplierIds: ['route-supplier'],
       }),
     ).toBe('route-supplier')
   })
@@ -35,7 +35,7 @@ describe('resolveDefaultPurchaseSupplierId', () => {
     expect(
       resolveDefaultPurchaseSupplierId({
         itemSupplierId: 'catalog-supplier',
-        routeSupplierIds: [],
+        supplierIds: [],
       }),
     ).toBe('catalog-supplier')
   })

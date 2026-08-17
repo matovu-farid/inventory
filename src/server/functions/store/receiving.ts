@@ -36,7 +36,7 @@ export const listReceivableRoutes = createServerFn().handler(async () => {
   await requireSessionAndRole(['admin'])
 
   const routes = await db.query.supplyRoutes.findMany({
-    where: (r, { eq }) => eq(r.status, 'open'),
+    where: (r, { eq: whereEq }) => whereEq(r.status, 'open'),
     with: {
       items: {
         with: {
@@ -48,7 +48,6 @@ export const listReceivableRoutes = createServerFn().handler(async () => {
           itemColor: { with: { item: true } },
         },
       },
-      suppliers: { with: { supplier: true } },
     },
     orderBy: (r, { desc }) => [desc(r.createdAt)],
   })

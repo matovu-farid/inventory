@@ -22,16 +22,6 @@ const noStoreStockPrereq: MissingPrereq = Object.freeze({
   ] as const),
 })
 
-const noSuppliersPrereq: MissingPrereq = Object.freeze({
-  id: 'no-suppliers',
-  severity: 'soft',
-  title: 'No suppliers yet',
-  why: "You'll need at least one supplier before you can add items to a route.",
-  actions: Object.freeze([
-    { label: 'Go to Suppliers', href: '/supply/suppliers' },
-  ] as const),
-})
-
 // ---------- per-page derive functions ---------------------------------------
 
 export interface ReceivingPrereqInput {
@@ -164,19 +154,6 @@ export function deriveStorePrereqs(
         },
       ],
     }
-  }
-  return SATISFIED
-}
-
-export interface SupplyPrereqInput {
-  supplierCount: number
-}
-
-export function deriveSupplyPrereqs(
-  input: SupplyPrereqInput,
-): PrerequisiteResult {
-  if (input.supplierCount === 0) {
-    return { satisfied: true, missing: [noSuppliersPrereq] }
   }
   return SATISFIED
 }

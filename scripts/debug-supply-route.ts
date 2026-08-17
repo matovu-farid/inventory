@@ -16,7 +16,6 @@ async function main() {
       orderBy: (r, { desc }) => [desc(r.createdAt)],
       with: {
         items: { with: { itemColor: { with: { item: true } } } },
-        suppliers: { with: { supplier: true } },
         expenses: true,
       },
     })

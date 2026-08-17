@@ -6,7 +6,6 @@ import {
   deriveShopOpeningPrereqs,
   deriveShopPrereqs,
   deriveStorePrereqs,
-  deriveSupplyPrereqs,
 } from '#/lib/prerequisites/derive'
 
 describe('deriveReceivingPrereqs', () => {
@@ -120,18 +119,5 @@ describe('deriveStorePrereqs', () => {
     expect(r.satisfied).toBe(true)
     expect(r.missing.map((m) => m.id)).toEqual(['warehouse-empty'])
     expect(r.missing[0].actions).toHaveLength(2)
-  })
-})
-
-describe('deriveSupplyPrereqs', () => {
-  it('is satisfied with ≥1 supplier', () => {
-    expect(deriveSupplyPrereqs({ supplierCount: 1 }).satisfied).toBe(true)
-  })
-
-  it('soft-flags when zero suppliers', () => {
-    const r = deriveSupplyPrereqs({ supplierCount: 0 })
-    expect(r.satisfied).toBe(true)
-    expect(r.missing.map((m) => m.id)).toEqual(['no-suppliers'])
-    expect(r.missing[0].actions[0].href).toBe('/supply/suppliers')
   })
 })

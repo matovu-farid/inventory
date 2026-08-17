@@ -2,48 +2,17 @@ import { useEffect, useState } from 'react'
 import { restoreItem, searchItems } from '#/server/functions/items/items'
 import { Combobox } from '#/components/ui/combobox'
 import type { ComboboxOption } from '#/components/ui/combobox'
-
-export interface ItemSummary {
-  id: string
-  articleNumber: string
-  name: string
-  category: string
-  description?: string | null
-  costPrice?: string | null
-  costCurrency?: 'RMB' | 'USD' | 'UGX' | string | null
-  supplier?: { id: string; name: string } | null
-  minimumSellPriceUgx?: string
-  deletedAt?: Date | string | null
-  colors: Array<{
-    id: string
-    colorName: string
-    colorHex: string
-    imageS3Key: string | null
-  }>
-  /**
-   * Every materialised variant for this item. Consumers that pick a
-   * (color, size) cell — opening balance, supply route editor — use
-   * this to translate that pair back to a `variantId` (the unit of
-   * stock since #4 / #5 / #6). After issue #7 dropped `items.sizes`,
-   * this is also the source for "what sizes does this item come in" —
-   * call `deriveSizes(p.variants)` to render the size grid.
-   *
-   * Optional so callers that don't fetch variants still compile.
-   */
-  variants?: Array<{ id: string; colorId: string; size: string }>
-}
+import type { ItemSummary } from '#/components/items/item-picker'
 
 interface Props {
   value?: string
   onChange: (itemId: string, item: ItemSummary | undefined) => void
-  onCreateNew?: () => void
   allowArchived?: boolean
 }
 
-export function ItemPicker({
+export function SupplyRouteItemPicker({
   value,
   onChange,
-  onCreateNew,
   allowArchived = false,
 }: Props) {
   const [results, setResults] = useState<ItemSummary[]>([])
@@ -55,7 +24,9 @@ export function ItemPicker({
     void searchItems({
       data: { query: '', includeArchived: showArchived },
     })
-      .then((rs) => setResults(Array.isArray(rs) ? (rs as ItemSummary[]) : []))
+      .then((items) =>
+        setResults(Array.isArray(items) ? (items as ItemSummary[]) : []),
+      )
       .catch((err: unknown) => {
         setError(
           err instanceof Error && err.message
@@ -65,9 +36,9 @@ export function ItemPicker({
       })
   }, [showArchived])
 
-  const options: ComboboxOption[] = results.map((p) => ({
-    value: p.id,
-    label: `${p.deletedAt ? '[Archived] ' : ''}${p.articleNumber} — ${p.name}`,
+  const options: ComboboxOption[] = results.map((item) => ({
+    value: item.id,
+    label: `${item.deletedAt ? '[Archived] ' : ''}${item.articleNumber} — ${item.name}`,
   }))
 
   return (
@@ -76,7 +47,7 @@ export function ItemPicker({
         options={options}
         value={value}
         onChange={(id) => {
-          const selected = results.find((r) => r.id === id)
+          const selected = results.find((item) => item.id === id)
           if (!selected) return
           if (selected.deletedAt) {
             if (!window.confirm(`Restore ${selected.name} before using it?`)) {
@@ -107,20 +78,7 @@ export function ItemPicker({
         }}
         placeholder="Select item…"
         searchPlaceholder="Type article number…"
-        emptyMessage={
-          <div className="p-2 text-sm">
-            No matching item.{' '}
-            {onCreateNew && (
-              <button
-                type="button"
-                onClick={onCreateNew}
-                className="font-medium underline"
-              >
-                Create new
-              </button>
-            )}
-          </div>
-        }
+        emptyMessage="No matching item."
       />
       {allowArchived && (
         <button

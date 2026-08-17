@@ -2,18 +2,6 @@ import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { requireUiPermission } from '#/lib/permissions'
 import { Button } from '#/components/ui/button'
-import { Input } from '#/components/ui/input'
-import { FieldLabel } from '#/components/ui/field-label'
-import { Textarea } from '#/components/ui/textarea'
-import { Combobox } from '#/components/ui/combobox'
-import { COUNTRIES } from '#/lib/countries'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '#/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -31,26 +19,16 @@ import {
 } from '#/components/ui/table'
 import { Badge } from '#/components/ui/badge'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { getVisibleSuppliers } from '#/lib/supplier-list'
 import {
   archiveSupplier,
-  createSupplier,
   listSuppliers,
   restoreSupplier,
-  updateSupplier,
 } from '#/server/functions/supply/suppliers'
+import { SupplierForm } from '#/components/supply/supplier-form'
+import type { SupplierFormRecord } from '#/components/supply/supplier-form'
 
-type SupplierRecord = {
-  id: string
-  name: string
-  type: 'local' | 'international'
-  country: string | null
-  contactName: string | null
-  contactPhone: string | null
-  contactEmail: string | null
-  address: string | null
-  notes: string | null
-  deletedAt?: Date | null
-}
+type SupplierRecord = SupplierFormRecord
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong.'
@@ -63,8 +41,7 @@ export const Route = createFileRoute('/supply/suppliers')({
 })
 
 function SuppliersPage() {
-  const initialSuppliers = Route.useLoaderData()
-  const [suppliers, setSuppliers] = useState(initialSuppliers)
+  const activeSuppliers = Route.useLoaderData()
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<SupplierRecord | null>(
@@ -73,6 +50,26 @@ function SuppliersPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [mutationError, setMutationError] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
+  const [archivedSuppliers, setArchivedSuppliers] = useState<
+    typeof activeSuppliers | null
+  >(null)
+  const suppliers = getVisibleSuppliers(
+    activeSuppliers,
+    archivedSuppliers,
+    showArchived,
+  )
+
+  async function refreshArchivedSuppliers() {
+    if (!showArchived) return
+
+    try {
+      setArchivedSuppliers(
+        await listSuppliers({ data: { includeArchived: true } }),
+      )
+    } catch (error) {
+      setMutationError(getErrorMessage(error))
+    }
+  }
 
   async function handleArchive(supplier: SupplierRecord) {
     if (!window.confirm(`Delete supplier "${supplier.name}"?`)) return
@@ -82,6 +79,7 @@ function SuppliersPage() {
     try {
       await archiveSupplier({ data: { id: supplier.id } })
       await router.invalidate()
+      await refreshArchivedSuppliers()
     } catch (error) {
       setMutationError(getErrorMessage(error))
     } finally {
@@ -94,6 +92,7 @@ function SuppliersPage() {
     try {
       await restoreSupplier({ data: { id: supplier.id } })
       await router.invalidate()
+      await refreshArchivedSuppliers()
     } catch (error) {
       setMutationError(getErrorMessage(error))
     }
@@ -119,7 +118,13 @@ function SuppliersPage() {
             <DialogHeader>
               <DialogTitle>Add Supplier</DialogTitle>
             </DialogHeader>
-            <SupplierForm onSuccess={() => setOpen(false)} />
+            <SupplierForm
+              onSuccess={async () => {
+                await router.invalidate()
+                setOpen(false)
+                void refreshArchivedSuppliers()
+              }}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -140,9 +145,14 @@ function SuppliersPage() {
         onClick={() => {
           const next = !showArchived
           setShowArchived(next)
-          void listSuppliers({ data: { includeArchived: next } }).then(
-            setSuppliers,
-          )
+          setMutationError(null)
+          if (next) {
+            void listSuppliers({ data: { includeArchived: true } })
+              .then(setArchivedSuppliers)
+              .catch((error) => setMutationError(getErrorMessage(error)))
+          } else {
+            setArchivedSuppliers(null)
+          }
         }}
       >
         {showArchived ? 'Hide archived' : 'Search archived'}
@@ -162,7 +172,11 @@ function SuppliersPage() {
             <SupplierForm
               key={editingSupplier.id}
               supplier={editingSupplier}
-              onSuccess={() => setEditingSupplier(null)}
+              onSuccess={async () => {
+                await router.invalidate()
+                setEditingSupplier(null)
+                void refreshArchivedSuppliers()
+              }}
             />
           ) : null}
         </DialogContent>
@@ -250,172 +264,5 @@ function SuppliersPage() {
         </div>
       )}
     </div>
-  )
-}
-
-function SupplierForm({
-  supplier,
-  onSuccess,
-}: {
-  supplier?: SupplierRecord
-  onSuccess: () => void
-}) {
-  const [pending, setPending] = useState(false)
-  const [country, setCountry] = useState(supplier?.country ?? '')
-  const [type, setType] = useState<'local' | 'international'>(
-    supplier?.type ?? 'international',
-  )
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-  const isEditing = supplier !== undefined
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setPending(true)
-    setError(null)
-
-    const form = new FormData(e.currentTarget)
-    const values = {
-      name: form.get('name') as string,
-      type,
-      country: country || undefined,
-      contactName: (form.get('contactName') as string) || undefined,
-      contactPhone: (form.get('contactPhone') as string) || undefined,
-      contactEmail: (form.get('contactEmail') as string) || undefined,
-      address: (form.get('address') as string) || undefined,
-      notes: (form.get('notes') as string) || undefined,
-    }
-
-    try {
-      if (supplier) {
-        await updateSupplier({ data: { id: supplier.id, ...values } })
-      } else {
-        await createSupplier({ data: values })
-      }
-      await router.invalidate()
-      onSuccess()
-    } catch (err) {
-      setError(getErrorMessage(err))
-    } finally {
-      setPending(false)
-    }
-  }
-
-  return (
-    <form
-      onSubmit={(e) => {
-        void handleSubmit(e)
-      }}
-      className="space-y-4"
-    >
-      <div className="space-y-2">
-        <FieldLabel htmlFor="name" help="supplier.name">
-          Name *
-        </FieldLabel>
-        <Input id="name" name="name" defaultValue={supplier?.name} required />
-      </div>
-
-      <div className="space-y-2">
-        <FieldLabel htmlFor="type" help="supplier.type">
-          Type *
-        </FieldLabel>
-        <Select
-          value={type}
-          onValueChange={(value) => setType(value as 'local' | 'international')}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="local">Local</SelectItem>
-            <SelectItem value="international">International</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2">
-        <FieldLabel htmlFor="country" help="supplier.country">
-          Country
-        </FieldLabel>
-        <Combobox
-          id="country"
-          options={COUNTRIES}
-          value={country}
-          onChange={setCountry}
-          placeholder="Select country"
-          searchPlaceholder="Search countries..."
-          emptyMessage="No countries match."
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <FieldLabel htmlFor="contactName" help="supplier.contactName">
-            Contact Name
-          </FieldLabel>
-          <Input
-            id="contactName"
-            name="contactName"
-            defaultValue={supplier?.contactName ?? ''}
-          />
-        </div>
-        <div className="space-y-2">
-          <FieldLabel htmlFor="contactPhone" help="supplier.contactPhone">
-            Phone
-          </FieldLabel>
-          <Input
-            id="contactPhone"
-            name="contactPhone"
-            defaultValue={supplier?.contactPhone ?? ''}
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <FieldLabel htmlFor="contactEmail" help="supplier.contactEmail">
-          Email
-        </FieldLabel>
-        <Input
-          id="contactEmail"
-          name="contactEmail"
-          type="email"
-          defaultValue={supplier?.contactEmail ?? ''}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <FieldLabel htmlFor="address">Address</FieldLabel>
-        <Textarea
-          id="address"
-          name="address"
-          rows={2}
-          defaultValue={supplier?.address ?? ''}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <FieldLabel htmlFor="notes" help="supplier.notes">
-          Notes
-        </FieldLabel>
-        <Textarea
-          id="notes"
-          name="notes"
-          rows={2}
-          defaultValue={supplier?.notes ?? ''}
-        />
-      </div>
-
-      {error ? (
-        <div role="alert" className="text-sm text-destructive">
-          {error}
-        </div>
-      ) : null}
-
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? (isEditing ? 'Saving...' : 'Creating...') : null}
-        {!pending && isEditing ? 'Save Changes' : null}
-        {!pending && !isEditing ? 'Create Supplier' : null}
-      </Button>
-    </form>
   )
 }
