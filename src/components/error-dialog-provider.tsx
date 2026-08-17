@@ -6,6 +6,15 @@ interface ErrorDialogState {
   error: unknown
 }
 
+function isResizeObserverNotification(event: ErrorEvent) {
+  const message =
+    event.message.trim() ||
+    (event.error instanceof Error ? event.error.message.trim() : '')
+  return /^ResizeObserver loop (?:completed with undelivered notifications|limit exceeded)\.?$/i.test(
+    message,
+  )
+}
+
 export function ErrorDialogProvider({
   children,
 }: {
@@ -15,6 +24,7 @@ export function ErrorDialogProvider({
 
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
+      if (isResizeObserverNotification(event)) return
       if (!event.defaultPrevented) setState({ error: event.error })
     }
     const handleRejection = (event: PromiseRejectionEvent) => {

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -48,6 +49,29 @@ describe('ErrorDialogProvider', () => {
     await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy())
     expect(screen.queryByText('secret')).toBeNull()
     fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0])
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it.each([
+    'ResizeObserver loop completed with undelivered notifications',
+    'ResizeObserver loop completed with undelivered notifications.',
+    'ResizeObserver loop limit exceeded',
+  ])('ignores the browser ResizeObserver notification: %s', (message) => {
+    render(
+      <ErrorDialogProvider>
+        <div>Application</div>
+      </ErrorDialogProvider>,
+    )
+
+    act(() => {
+      window.dispatchEvent(
+        new ErrorEvent('error', {
+          message,
+          error: null,
+        }),
+      )
+    })
+
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
