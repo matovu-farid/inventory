@@ -1,6 +1,15 @@
 const REGION = 'eu-west-1'
 const BUCKET = 'fidexa-inventory-images'
 
+type ArticleNumber = { articleNumber: string }
+
+type ItemIdentity = {
+  id: string
+  articleNumbers: ReadonlyArray<ArticleNumber>
+  name: string
+  design: string
+}
+
 /**
  * Canonical "ARTICLE COLOR/SIZE" label for a stocked SKU. Used in error
  * messages, audit logs, and notifications so the format stays consistent.
@@ -46,7 +55,7 @@ interface StockRow {
   // Plan 2b: variant is optional — unresolved lots have a null variant.
   // Aggregation groups by item; unresolved rows still contribute their
   // quantity to the parent item's total without producing a variant entry.
-  item?: { id: string; articleNumber: string; name: string }
+  item?: ItemIdentity
   variant: {
     id: string
     size: string
@@ -55,13 +64,13 @@ interface StockRow {
       colorName: string
       colorHex: string
       imageS3Key: string | null
-      item: { id: string; articleNumber: string; name: string }
+      item: ItemIdentity
     }
   } | null
 }
 
 export interface AggregatedItem {
-  item: { id: string; articleNumber: string; name: string }
+  item: ItemIdentity & { articleNumber: string }
   colors: Array<{
     id: string
     colorName: string
@@ -88,11 +97,14 @@ export function aggregateStockByArticle(
     // shapes (e.g. POS variant picker).
     const parentItem = row.item ?? row.variant?.color.item
     if (!parentItem) continue
-    const key = parentItem.articleNumber
+    const key = parentItem.id
+    const articleNumber = parentItem.articleNumbers
+      .map((number) => number.articleNumber)
+      .join(', ')
     let entry = byArticle.get(key)
     if (!entry) {
       entry = {
-        item: parentItem,
+        item: { ...parentItem, articleNumber },
         colors: [],
         variants: [],
         total: 0,

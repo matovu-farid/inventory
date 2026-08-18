@@ -5,24 +5,24 @@ describe('suggestArticleNumber', () => {
   it('combines category and item name into an editable readable code', () => {
     expect(
       suggestArticleNumber({
-        category: 'Women’s tops',
+        design: 'Women’s tops',
         name: 'Crew neck T-shirt',
       }),
     ).toBe('WOMEN-S-CREW-NECK-T-SHIRT')
   })
 
   it('handles missing context without producing punctuation-only codes', () => {
-    expect(suggestArticleNumber({ category: '', name: 'Blue jeans' })).toBe(
+    expect(suggestArticleNumber({ design: '', name: 'Blue jeans' })).toBe(
       'BLUE-JEANS',
     )
-    expect(suggestArticleNumber({ category: 'Shoes', name: '' })).toBe('SHOES')
-    expect(suggestArticleNumber({ category: '', name: '' })).toBe('')
+    expect(suggestArticleNumber({ design: 'Shoes', name: '' })).toBe('SHOES')
+    expect(suggestArticleNumber({ design: '', name: '' })).toBe('')
   })
 
   it('adds the first available numeric suffix for a collision', () => {
     expect(
       suggestArticleNumber({
-        category: 'Shoes',
+        design: 'Shoes',
         name: 'Canvas',
         existingArticleNumbers: new Set(['SHOES-CANVAS', 'SHOES-CANVAS-2']),
       }),

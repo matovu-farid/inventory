@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db'
 import { shopSales, shops, customers } from '#/db/schema'
 import { renderSaleReceipt } from '#/lib/pdf/receipt-html'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 /**
  * Pure renderer — lives in a `.server.ts` companion so the client bundle
@@ -16,7 +17,7 @@ export async function buildSaleReceiptHtml(saleId: string): Promise<string> {
     with: {
       items: {
         with: {
-          item: true,
+          item: { with: { articleNumbers: true } },
           variant: { with: { color: true } },
         },
       },
@@ -44,8 +45,8 @@ export async function buildSaleReceiptHtml(saleId: string): Promise<string> {
     clerkName: sale.soldByUser.name,
     items: sale.items.map((i) => {
       const itemName = i.variant
-        ? `${i.item.articleNumber} ${i.item.name} · ${i.variant.color.colorName} / ${i.variant.size}`
-        : `${i.item.articleNumber} ${i.item.name}`
+        ? `${formatItemArticleNumbers(i.item.articleNumbers)} ${i.item.name} · ${i.variant.color.colorName} / ${i.variant.size}`
+        : `${formatItemArticleNumbers(i.item.articleNumbers)} ${i.item.name}`
       return {
         itemName,
         quantity: i.quantity,

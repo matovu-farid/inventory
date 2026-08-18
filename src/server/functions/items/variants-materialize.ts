@@ -1,4 +1,5 @@
 import { db } from '#/db'
+import type { DbOrTx } from '#/db'
 import { variants } from '#/db/schema'
 
 /**
@@ -23,6 +24,7 @@ export interface MaterializeResult {
 
 export async function materializeVariantsFromColorsSizes(
   input: MaterializeInput,
+  executor: DbOrTx = db,
 ): Promise<MaterializeResult> {
   const { itemId, colorIds, sizes } = input
   if (colorIds.length === 0 || sizes.length === 0) {
@@ -35,7 +37,7 @@ export async function materializeVariantsFromColorsSizes(
 
   // ON CONFLICT DO NOTHING keeps re-runs idempotent; .returning() then
   // tells us how many rows actually landed.
-  const inserted = await db
+  const inserted = await executor
     .insert(variants)
     .values(rows)
     .onConflictDoNothing({

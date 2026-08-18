@@ -14,6 +14,7 @@ import {
 import { ResponsiveTable } from '#/components/ui/responsive-table'
 import { confirmTransferReceipt } from '#/server/functions/store/transfers'
 import { formatDate } from '#/lib/format'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 export interface ReceivableTransfer {
   id: string
@@ -25,7 +26,7 @@ export interface ReceivableTransfer {
     // Plan 2a: transfer lines are item-level. `item` is always present;
     // `variant` is null for unresolved lots (item dispatched without a
     // chosen color/size). The display omits the color/size span when null.
-    item: { name: string; articleNumber: string }
+    item: { name: string; articleNumbers: Array<{ articleNumber: string }> }
     variant: {
       size: string
       color: {
@@ -149,7 +150,8 @@ export function ReceiveTransferForm({
                   return (
                     <div className="flex flex-col">
                       <span className="font-medium">
-                        {line.item.articleNumber} {line.item.name}
+                        {formatItemArticleNumbers(line.item.articleNumbers)}{' '}
+                        {line.item.name}
                       </span>
                       {v && (
                         <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
@@ -207,8 +209,8 @@ export function ReceiveTransferForm({
                 const missing = line.quantityDispatched - received
                 const v = line.variant
                 const label = v
-                  ? `${line.item.articleNumber} ${line.item.name} · ${v.color.colorName} · ${v.size}`
-                  : `${line.item.articleNumber} ${line.item.name}`
+                  ? `${formatItemArticleNumbers(line.item.articleNumbers)} ${line.item.name} · ${v.color.colorName} · ${v.size}`
+                  : `${formatItemArticleNumbers(line.item.articleNumbers)} ${line.item.name}`
                 return (
                   <div key={line.id} className="space-y-2">
                     <div className="flex items-center justify-between">

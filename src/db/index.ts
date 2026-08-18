@@ -80,7 +80,7 @@ export type Database = DbInstance
 export const db = new Proxy({} as DbInstance, {
   get(_target, prop, receiver) {
     const instance = getDbInstance()
-    const value = Reflect.get(instance as object, prop, receiver)
+    const value = Reflect.get(instance, prop, receiver)
     if (typeof value === 'function') {
       return (value as (...args: unknown[]) => unknown).bind(instance)
     }

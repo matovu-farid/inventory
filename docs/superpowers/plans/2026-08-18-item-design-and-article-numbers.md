@@ -23,7 +23,7 @@
 ## Task 1: Establish the failing contract tests and baseline
 
 **Files:**
-- Create: `src/lib/items/article-number.test.ts`
+- Create: `src/lib/items/__tests__/article-number.test.ts`
 - Create: `src/__tests__/items-article-numbers.test.ts`
 - Modify: `src/__tests__/test-helpers.ts`
 
@@ -96,7 +96,7 @@ database query layer.
 Run:
 
 ```bash
-pnpm vitest run src/lib/items/article-number.test.ts src/__tests__/items-article-numbers.test.ts
+pnpm vitest run src/lib/items/__tests__/article-number.test.ts src/__tests__/items-article-numbers.test.ts
 ```
 
 Expected: failure because `normalizeArticleNumber`, the child relation, and
@@ -210,7 +210,7 @@ Run:
 
 ```bash
 pnpm typecheck
-pnpm vitest run src/lib/items/article-number.test.ts
+pnpm vitest run src/lib/items/__tests__/article-number.test.ts
 ```
 
 Expected: normalization tests pass; integration tests remain RED until the
@@ -310,7 +310,7 @@ Run the focused integration tests from Task 1. First verify they fail for a
 real implementation reason before the server changes, then run:
 
 ```bash
-pnpm vitest run src/__tests__/items-article-numbers.test.ts src/lib/items/article-number.test.ts
+pnpm vitest run src/__tests__/items-article-numbers.test.ts src/lib/items/__tests__/article-number.test.ts
 ```
 
 Expected: all article-number contract tests pass.
@@ -481,7 +481,7 @@ the same item-level supplier cost and minimum selling price are shown.
 Run:
 
 ```bash
-pnpm vitest run src/lib/items/article-number.test.ts src/__tests__/items-article-numbers.test.ts src/__tests__/item-editor-validation.test.tsx
+pnpm vitest run src/lib/items/__tests__/article-number.test.ts src/__tests__/items-article-numbers.test.ts src/__tests__/item-editor-validation.test.tsx
 ```
 
 - [ ] **Step 5: Run the E2E flow against the test database.**

@@ -70,9 +70,9 @@ describe('createItem — variant-flexibility fields', () => {
     await callServerFn(() =>
       createItem({
         data: {
-          articleNumber,
           name: 'Min Test',
-          category: 'Tops',
+          design: 'Tops',
+          articleNumbers: [articleNumber],
           supplierId,
           costPrice: '10.00',
           costCurrency: 'RMB',
@@ -84,7 +84,7 @@ describe('createItem — variant-flexibility fields', () => {
       }),
     )
     const row = await db.query.items.findFirst({
-      where: eq(items.articleNumber, articleNumber),
+      where: eq(items.name, 'Min Test'),
     })
     expect(row).toBeDefined()
     if (row) createdItemIds.push(row.id)
@@ -98,9 +98,9 @@ describe('createItem — variant-flexibility fields', () => {
       callServerFn(() =>
         createItem({
           data: {
-            articleNumber,
             name: 'Default Test',
-            category: 'Tops',
+            design: 'Tops',
+            articleNumbers: [articleNumber],
             sizes: [],
             colors: [],
           },

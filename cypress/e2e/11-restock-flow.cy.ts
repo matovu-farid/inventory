@@ -38,21 +38,28 @@ describe('Low-stock restock flow', () => {
       `UPDATE "user" SET role = 'admin', email_verified = TRUE WHERE email = '${TEST_EMAIL}'`,
     )
 
-    // Seed item + color (items.category is free-text since the
-    // items-free-text-category change).
+    // Seed item + article number + color.
     cy.task(
       'dbQuery',
       `
-      INSERT INTO items (id, article_number, name, category)
+      INSERT INTO items (id, name, design)
       VALUES (
         gen_random_uuid(),
-        '${ART}',
         'Restock Test Product',
         'Test'
       )
       RETURNING id;
     `,
     ).as('productId')
+
+    cy.then(function () {
+      const productId = (this.productId as Array<{ id: string }>)[0].id
+      cy.task(
+        'dbQuery',
+        `INSERT INTO item_article_numbers (item_id, article_number)
+         VALUES ('${productId}', '${ART}')`,
+      )
+    })
 
     cy.then(function () {
       const productId = (this.productId as Array<{ id: string }>)[0].id

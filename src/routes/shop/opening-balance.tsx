@@ -5,7 +5,6 @@ import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites
 import { requireUiPermission } from '#/lib/permissions'
 import { listShops } from '#/server/functions/admin/locations'
 import { getShopOpeningBalancePrereqs } from '#/server/functions/prereqs/shop'
-import { listItemCategories } from '#/server/functions/items/items'
 
 const searchSchema = z.object({
   shopId: z.uuid().optional(),
@@ -17,18 +16,17 @@ export const Route = createFileRoute('/shop/opening-balance')({
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => ({ shopId: search.shopId }),
   loader: async () => {
-    const [shops, prerequisites, categories] = await Promise.all([
+    const [shops, prerequisites] = await Promise.all([
       listShops(),
       getShopOpeningBalancePrereqs(),
-      listItemCategories(),
     ])
-    return { shops, prerequisites, categories }
+    return { shops, prerequisites }
   },
   component: ShopOpeningBalancePage,
 })
 
 function ShopOpeningBalancePage() {
-  const { shops, prerequisites, categories } = Route.useLoaderData()
+  const { shops, prerequisites } = Route.useLoaderData()
   const { shopId } = Route.useSearch()
 
   return (
@@ -44,12 +42,7 @@ function ShopOpeningBalancePage() {
       </div>
 
       <PagePrerequisites result={prerequisites}>
-        <OpeningBalanceForm
-          scope="shop"
-          shops={shops}
-          initialShopId={shopId}
-          categories={categories}
-        />
+        <OpeningBalanceForm scope="shop" shops={shops} initialShopId={shopId} />
       </PagePrerequisites>
     </div>
   )

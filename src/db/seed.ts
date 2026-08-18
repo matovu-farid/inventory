@@ -4,6 +4,7 @@ import { eq, sql } from 'drizzle-orm'
 import * as schema from './schema'
 import {
   items,
+  itemArticleNumbers,
   itemColors,
   suppliers,
   stores,
@@ -143,32 +144,38 @@ async function seed() {
     async function upsertProduct(args: {
       articleNumber: string
       name: string
+      design: string
       sizes: string[]
       costPrice: string
       minimumSellPriceUgx: string
     }) {
       const existing = await db.query.items.findFirst({
-        where: eq(items.articleNumber, args.articleNumber),
+        where: eq(items.name, args.name),
+        with: { articleNumbers: true },
       })
       if (existing) return existing
       const [created] = await db
         .insert(items)
         .values({
-          articleNumber: args.articleNumber,
           name: args.name,
-          category: 'Uncategorized',
+          design: args.design,
           supplierId: seedSupplierId,
           costPrice: args.costPrice,
           costCurrency: 'RMB',
           minimumSellPriceUgx: args.minimumSellPriceUgx,
         })
         .returning()
+      await db.insert(itemArticleNumbers).values({
+        itemId: created.id,
+        articleNumber: args.articleNumber,
+      })
       return created
     }
 
     const tshirt = await upsertProduct({
       articleNumber: 'TR-001',
       name: 'Crew-neck T-shirt',
+      design: 'Round neck',
       sizes: ['S', 'M', 'L'],
       costPrice: '85.00',
       minimumSellPriceUgx: '80000.00',
@@ -176,6 +183,7 @@ async function seed() {
     const jacket = await upsertProduct({
       articleNumber: 'JK-100',
       name: 'Bomber Jacket',
+      design: 'Bomber',
       sizes: ['M', 'L', 'XL'],
       costPrice: '320.00',
       minimumSellPriceUgx: '300000.00',
@@ -183,6 +191,7 @@ async function seed() {
     const trouser = await upsertProduct({
       articleNumber: 'PT-200',
       name: 'Chino Trousers',
+      design: 'Straight leg',
       sizes: ['30', '32', '34'],
       costPrice: '140.00',
       minimumSellPriceUgx: '140000.00',

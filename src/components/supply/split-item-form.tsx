@@ -9,16 +9,20 @@ import { deriveSizes } from '#/lib/variants'
 import { getItemByArticle } from '#/server/functions/items/items'
 import { splitSupplyRouteItem } from '#/server/functions/supply/items'
 import type { ItemSummary } from '#/components/items/item-picker'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 export interface SplittableItem {
   id: string
   quantity: number
-  product?: { articleNumber: string; name: string } | null
+  product?: {
+    articleNumbers: Array<{ articleNumber: string }>
+    name: string
+  } | null
   itemColor?: {
     id: string
     colorName: string
     colorHex: string
-    item: { articleNumber: string; name: string }
+    item: { articleNumbers: Array<{ articleNumber: string }>; name: string }
   } | null
   size: string | null
 }
@@ -31,7 +35,8 @@ export function SplitItemForm({
   onSuccess: () => void
 }) {
   const articleNumber =
-    item.itemColor?.item.articleNumber ?? item.product?.articleNumber
+    item.itemColor?.item.articleNumbers[0]?.articleNumber ??
+    item.product?.articleNumbers[0]?.articleNumber
   const [product, setProduct] = useState<ItemSummary | undefined>()
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState<'colors' | 'variants'>(
@@ -106,8 +111,10 @@ export function SplitItemForm({
     <div className="space-y-4">
       <div className="rounded-md bg-muted/40 p-3 text-sm">
         <p>
-          <span className="font-medium">{product.articleNumber}</span> —{' '}
-          {product.name}
+          <span className="font-medium">
+            {formatItemArticleNumbers(product.articleNumbers)}
+          </span>{' '}
+          — {product.name}
         </p>
         <p className="text-muted-foreground">
           Original quantity: <span className="font-mono">{item.quantity}</span>

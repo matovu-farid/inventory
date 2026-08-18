@@ -32,6 +32,7 @@ import {
 import { ReceiveTransferForm } from '#/components/transfers/receive-transfer-form'
 import { getStoreStock } from '#/server/functions/store/receiving'
 import { listShops } from '#/server/functions/admin/locations'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 export const Route = createFileRoute('/store/transfers')({
   beforeLoad: ({ context }) =>
@@ -185,7 +186,7 @@ type StockGroup = {
   item: {
     id: string
     name: string
-    articleNumber: string
+    articleNumbers: Array<{ articleNumber: string }>
   }
   totalQty: number
   rows: Array<{
@@ -389,7 +390,7 @@ function CreateTransferForm({
                       </p>
                       <p className="text-xs text-muted-foreground">
                         <span className="font-mono">
-                          {g.item.articleNumber}
+                          {formatItemArticleNumbers(g.item.articleNumbers)}
                         </span>
                         {' · Available: '}
                         {g.totalQty}

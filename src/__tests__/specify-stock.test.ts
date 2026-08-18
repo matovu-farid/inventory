@@ -14,6 +14,7 @@ import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '#/db'
 import {
   items,
+  itemArticleNumbers,
   itemColors,
   stores,
   storeStock,
@@ -77,11 +78,14 @@ async function seedItem(opts: {
   const [row] = await db
     .insert(items)
     .values({
-      articleNumber: `${opts.articleSuffix}-${SUFFIX}`,
       name: opts.name,
-      category: 'Test',
+      design: 'Test',
     })
     .returning()
+  await db.insert(itemArticleNumbers).values({
+    itemId: row.id,
+    articleNumber: `${opts.articleSuffix}-${SUFFIX}`,
+  })
   createdItemIds.push(row.id)
   return row.id
 }

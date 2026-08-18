@@ -121,6 +121,8 @@ describe('materializeVariantRows', () => {
       'route-supplier',
       'route-supplier',
     ])
-    expect(new Set(rows.map((row) => row.entryId))).toEqual(new Set(['entry-1']))
+    expect(new Set(rows.map((row) => row.entryId))).toEqual(
+      new Set(['entry-1']),
+    )
   })
 })

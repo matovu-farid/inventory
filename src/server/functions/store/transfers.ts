@@ -19,6 +19,7 @@ import { formatItemLabel } from '#/lib/items'
 import { renderAuditDescription } from '#/server/audit/descriptions'
 import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
 import { getActorName } from '#/server/audit/actor'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 import {
   validateDiscrepancyNotes,
   validateQuantityReceived,
@@ -35,7 +36,7 @@ export const listTransfers = createServerFn().handler(async () => {
       shop: true,
       items: {
         with: {
-          item: true,
+          item: { with: { articleNumbers: true } },
           variant: { with: { color: true } },
           allocations: true,
         },
@@ -108,6 +109,7 @@ export const createTransfer = createServerFn()
       for (const item of data.items) {
         const itemRow = await tx.query.items.findFirst({
           where: eq(items.id, item.itemId),
+          with: { articleNumbers: true },
         })
         if (!itemRow) throw new Error(`Item not found: ${item.itemId}`)
 
@@ -125,7 +127,7 @@ export const createTransfer = createServerFn()
         if (plan.shortfall > 0) {
           const onHand = item.quantityDispatched - plan.shortfall
           throw new Error(
-            `Insufficient stock for ${itemRow.articleNumber} ${itemRow.name}: ` +
+            `Insufficient stock for ${formatItemArticleNumbers(itemRow.articleNumbers)} ${itemRow.name}: ` +
               `have ${onHand}, need ${item.quantityDispatched}`,
           )
         }
@@ -295,7 +297,7 @@ export const confirmTransferReceipt = createServerFn()
         with: {
           items: {
             with: {
-              item: true,
+              item: { with: { articleNumbers: true } },
               variant: { with: { color: true } },
               allocations: true,
             },
@@ -411,11 +413,11 @@ export const confirmTransferReceipt = createServerFn()
           const lossValue = new BigNumber(tl.unitPriceUgx).times(loss)
           const itemLabel = tl.variant
             ? formatItemLabel(
-                tl.item.articleNumber,
+                formatItemArticleNumbers(tl.item.articleNumbers),
                 tl.variant.color.colorName,
                 tl.variant.size,
               )
-            : `${tl.item.articleNumber} ${tl.item.name}`
+            : `${formatItemArticleNumbers(tl.item.articleNumbers)} ${tl.item.name}`
           await postJournalEntry(tx, {
             entries: [
               {

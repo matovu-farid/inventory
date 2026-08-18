@@ -19,6 +19,7 @@ import { formatUgx, formatUgxTotal } from '#/lib/format'
 import { cn } from '#/lib/utils'
 import type { AggregatedItem } from '#/lib/items'
 import { deriveSizes } from '#/lib/variants'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 type StockRow = {
   id: string
@@ -57,7 +58,7 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
     setQty(1)
     setPrice('')
     setReason('')
-  }, [open, item?.item.articleNumber])
+  }, [open, item?.item.id])
 
   // currentRow is derived below, but we need the id for the effect dep.
   // Compute it eagerly so we can reference it before the early return.
@@ -105,7 +106,7 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
     if (!currentRow || !colorId || !size || !item) return
     const color = item.colors.find((c) => c.id === colorId)
     if (!color) return
-    const label = `${item.item.articleNumber} · ${item.item.name} — ${color.colorName} / ${size}`
+    const label = `${formatItemArticleNumbers(item.item.articleNumbers)} · ${item.item.name} — ${color.colorName} / ${size}`
     add({
       shopStockId: currentRow.id,
       itemId: currentRow.itemId,
@@ -138,7 +139,9 @@ export function VariantPickerSheet({ item, stock, open, onOpenChange }: Props) {
       <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>
-            {item ? `${item.item.name} · ${item.item.articleNumber}` : ''}
+            {item
+              ? `${item.item.name} · ${formatItemArticleNumbers(item.item.articleNumbers)}`
+              : ''}
           </SheetTitle>
           <p className="text-xs text-muted-foreground">Step {step} of 3</p>
         </SheetHeader>

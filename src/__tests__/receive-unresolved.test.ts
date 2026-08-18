@@ -14,6 +14,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { db } from '#/db'
 import {
   items,
+  itemArticleNumbers,
   itemColors,
   stores,
   storeReceivings,
@@ -119,18 +120,20 @@ beforeAll(async () => {
   const [aggItem] = await db
     .insert(items)
     .values({
-      articleNumber: `AGG-A-${SUFFIX}`,
       name: 'Unresolved Polo',
-      category: 'Test',
+      design: 'Test',
     })
     .returning()
+  await db
+    .insert(itemArticleNumbers)
+    .values({ itemId: aggItem.id, articleNumber: `AGG-A-${SUFFIX}` })
   aggItemId = aggItem.id
 
   const [aggRoute] = await db
     .insert(supplyRoutes)
     .values({
       name: `Route Agg ${SUFFIX}`,
-        status: 'open',
+      status: 'open',
       departureDate: '2026-04-01',
     })
     .returning()
@@ -156,11 +159,13 @@ beforeAll(async () => {
   const [resItem] = await db
     .insert(items)
     .values({
-      articleNumber: `RES-A-${SUFFIX}`,
       name: 'Resolved Polo',
-      category: 'Test',
+      design: 'Test',
     })
     .returning()
+  await db
+    .insert(itemArticleNumbers)
+    .values({ itemId: resItem.id, articleNumber: `RES-A-${SUFFIX}` })
   resItemId = resItem.id
 
   const [resColor] = await db
@@ -178,7 +183,7 @@ beforeAll(async () => {
     .insert(supplyRoutes)
     .values({
       name: `Route Res ${SUFFIX}`,
-        status: 'open',
+      status: 'open',
       departureDate: '2026-04-01',
     })
     .returning()

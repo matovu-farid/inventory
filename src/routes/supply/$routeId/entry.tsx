@@ -5,7 +5,6 @@ import {
   getSupplyRoute,
   listSuppliersForSelect,
 } from '#/server/functions/supply/routes'
-import { listItemCategories } from '#/server/functions/items/items'
 import { SupplyRouteWizard } from '#/components/supply/supply-route-wizard'
 import { getExistingSupplyRouteInitialStep } from '#/lib/supply-route-entry-step'
 
@@ -17,24 +16,22 @@ export const Route = createFileRoute('/supply/$routeId/entry')({
       .optional(),
   }),
   loader: async ({ params }) => {
-    const [route, categories, suppliers] = await Promise.all([
+    const [route, suppliers] = await Promise.all([
       getSupplyRoute({ data: { id: params.routeId } }),
-      listItemCategories(),
       listSuppliersForSelect(),
     ])
-    return { route, categories, suppliers }
+    return { route, suppliers }
   },
   component: ExistingSupplyRouteEntry,
 })
 
 function ExistingSupplyRouteEntry() {
-  const { route, categories, suppliers } = Route.useLoaderData()
+  const { route, suppliers } = Route.useLoaderData()
   const { step } = Route.useSearch()
   const navigate = Route.useNavigate()
   return (
     <SupplyRouteWizard
       initialRoute={route}
-      initialCategories={categories}
       initialSuppliers={suppliers}
       initialStep={getExistingSupplyRouteInitialStep(step)}
       onStepChange={(nextStep) => void navigate({ search: { step: nextStep } })}

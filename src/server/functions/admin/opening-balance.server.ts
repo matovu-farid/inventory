@@ -131,8 +131,11 @@ async function normaliseOpeningBalanceCell(
     return { variantId: null, quantity: cell.quantity }
   }
 
-  const colorId = cell.colorId!
-  const size = cell.size!.trim()
+  if (cell.colorId === undefined || cell.size === undefined) {
+    throw new Error('Color and size are required for a variant opening balance')
+  }
+  const colorId = cell.colorId
+  const size = cell.size.trim()
 
   const color = await tx.query.itemColors.findFirst({
     where: eq(itemColors.id, colorId),

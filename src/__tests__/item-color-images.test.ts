@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { db } from '#/db'
-import { itemColorImages, itemColors, items } from '#/db/schema'
+import {
+  itemArticleNumbers,
+  itemColorImages,
+  itemColors,
+  items,
+} from '#/db/schema'
 import {
   attachItemColorImages,
   removeItemColorImageRecord,
@@ -14,9 +19,10 @@ const runId = `images-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 beforeEach(async () => {
   const [item] = await db
     .insert(items)
-    .values({ articleNumber: runId, name: 'Image test item', category: 'Test' })
+    .values({ name: 'Image test item', design: 'Test' })
     .returning()
   itemId = item.id
+  await db.insert(itemArticleNumbers).values({ itemId, articleNumber: runId })
   const [color] = await db
     .insert(itemColors)
     .values({ itemId, colorName: 'Navy', colorHex: '#0a1d40' })

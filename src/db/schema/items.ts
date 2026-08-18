@@ -14,33 +14,21 @@ import { relations } from 'drizzle-orm'
 import { variants } from './variants'
 import { storeStock } from './store'
 import { suppliers } from './suppliers'
-import { itemCategories } from './item-categories'
+import { itemArticleNumbers } from './item-article-numbers'
 import { itemColorImages } from './item-color-images'
 import { itemImages } from './item-images'
 
 /**
- * Catalog: items and item_colors. After the items-free-text-category change
- * (drizzle/0018_items_category_text.sql) categories live as a plain text
- * column here instead of an FK to a separate table — the combobox in
- * item-editor.tsx autocompletes from existing values.
+ * Catalog: items and item_colors. Item-level commercial data is shared by all
+ * article numbers in item_article_numbers.
  */
 export const items = pgTable(
   'items',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    articleNumber: text('article_number').notNull().unique(),
     name: text('name').notNull(),
     description: text('description'),
-    /**
-     * Free-text catalog grouping. NOT NULL — every item has a category.
-     * The set of categories on the system is implicit in the distinct
-     * values of this column; the UI combobox sources its options from
-     * `listItemCategories()`.
-     */
-    category: text('category').notNull(),
-    categoryId: uuid('category_id').references(() => itemCategories.id, {
-      onDelete: 'restrict',
-    }),
+    design: text('design').notNull(),
     supplierId: uuid('supplier_id').references(() => suppliers.id, {
       onDelete: 'restrict',
     }),
@@ -62,10 +50,7 @@ export const items = pgTable(
       .notNull(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
-  (table) => [
-    index('idx_items_article').on(table.articleNumber),
-    index('idx_items_category').on(table.category),
-  ],
+  (table) => [index('idx_items_design').on(table.design)],
 )
 
 export const itemColors = pgTable(
@@ -97,11 +82,8 @@ export const itemRelations = relations(items, ({ one, many }) => ({
     fields: [items.supplierId],
     references: [suppliers.id],
   }),
-  categoryRecord: one(itemCategories, {
-    fields: [items.categoryId],
-    references: [itemCategories.id],
-  }),
   colors: many(itemColors),
+  articleNumbers: many(itemArticleNumbers),
   // `variants` (one row per item × color × size) was added in #2 and is
   // now the unit of stock since #4 / #5 / #6.
   variants: many(variants),

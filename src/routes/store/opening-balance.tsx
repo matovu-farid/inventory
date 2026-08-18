@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { OpeningBalanceForm } from '#/components/opening-balance/opening-balance-form'
 import { requireUiPermission } from '#/lib/permissions'
-import { listItemCategories } from '#/server/functions/items/items'
 
 // No PagePrerequisites wrapper here by design: the opening-balance form is
 // the bootstrap mechanism for an empty warehouse, so it must always be
@@ -10,12 +9,11 @@ import { listItemCategories } from '#/server/functions/items/items'
 export const Route = createFileRoute('/store/opening-balance')({
   beforeLoad: ({ context }) =>
     requireUiPermission(context, 'warehouse.openingBalance'),
-  loader: async () => ({ categories: await listItemCategories() }),
+  loader: () => ({}),
   component: StoreOpeningBalancePage,
 })
 
 function StoreOpeningBalancePage() {
-  const { categories } = Route.useLoaderData()
   return (
     <div className="space-y-6">
       <div>
@@ -28,7 +26,7 @@ function StoreOpeningBalancePage() {
         </p>
       </div>
 
-      <OpeningBalanceForm scope="store" categories={categories} />
+      <OpeningBalanceForm scope="store" />
     </div>
   )
 }

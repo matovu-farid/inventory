@@ -16,9 +16,11 @@ import {
   deleteItemQuery,
   getItemByArticleQuery,
   archiveItemQuery,
-  listItemCategoriesQuery,
+  addItemArticleNumberQuery,
   listItemSizesQuery,
   listItemsQuery,
+  removeItemArticleNumberQuery,
+  replaceItemArticleNumbersQuery,
   returnDateFilter,
   searchItemsQuery,
   restoreItemQuery,
@@ -66,15 +68,6 @@ export const searchItems = createServerFn()
     return searchItemsQuery(data)
   })
 
-/**
- * Returns the distinct set of category values currently in use on items,
- * sorted ascending. Powers the create-item / detail-edit combobox.
- */
-export const listItemCategories = createServerFn().handler(async () => {
-  await requireSessionAndRole(['admin', 'supervisor', 'sales'])
-  return listItemCategoriesQuery()
-})
-
 export const createItem = createServerFn()
   .inputValidator(upsertInput)
   .handler(async ({ data }) => {
@@ -87,6 +80,34 @@ export const updateItem = createServerFn()
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor'])
     return updateItemQuery(data)
+  })
+
+export const addItemArticleNumber = createServerFn()
+  .inputValidator(
+    z.object({ itemId: z.uuid(), articleNumber: z.string().min(1).max(64) }),
+  )
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor'])
+    return addItemArticleNumberQuery(data)
+  })
+
+export const removeItemArticleNumber = createServerFn()
+  .inputValidator(z.object({ itemId: z.uuid(), articleNumberId: z.uuid() }))
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor'])
+    return removeItemArticleNumberQuery(data)
+  })
+
+export const replaceItemArticleNumbers = createServerFn()
+  .inputValidator(
+    z.object({
+      itemId: z.uuid(),
+      articleNumbers: z.array(z.string().min(1).max(64)).min(1),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor'])
+    return replaceItemArticleNumbersQuery(data)
   })
 
 export const archiveItem = createServerFn()

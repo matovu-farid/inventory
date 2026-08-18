@@ -11,6 +11,7 @@ import { eq, and } from 'drizzle-orm'
 import { db } from '#/db'
 import {
   items,
+  itemArticleNumbers,
   itemColors,
   variants,
   stores,
@@ -47,8 +48,11 @@ async function seed() {
   supplierId = s.id
   const [item] = await db
     .insert(items)
-    .values({ articleNumber: 'P2C-1', name: 'Polo', category: 'Test' })
+    .values({ name: 'Polo', design: 'Test' })
     .returning()
+  await db
+    .insert(itemArticleNumbers)
+    .values({ itemId: item.id, articleNumber: 'P2C-1' })
   itemId = item.id
   const [store] = await db
     .insert(stores)

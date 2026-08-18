@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll } from 'vitest'
 import { eq, inArray } from 'drizzle-orm'
 
 import { db } from '#/db'
-import { items, itemColors, variants } from '#/db/schema'
+import { items, itemArticleNumbers, itemColors, variants } from '#/db/schema'
 import { materializeVariantsFromColorsSizes } from '#/server/functions/items/variants-materialize'
 
 /**
@@ -34,11 +34,13 @@ describe('materializeVariantsFromColorsSizes', () => {
     const [item] = await db
       .insert(items)
       .values({
-        articleNumber: `${ART}-a`,
         name: 'materialize tester A',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: item.id, articleNumber: `${ART}-a` })
     createdItemIds.push(item.id)
 
     const [c1, c2] = await db
@@ -75,11 +77,13 @@ describe('materializeVariantsFromColorsSizes', () => {
     const [item] = await db
       .insert(items)
       .values({
-        articleNumber: `${ART}-b`,
         name: 'materialize tester B',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: item.id, articleNumber: `${ART}-b` })
     createdItemIds.push(item.id)
 
     const [c1] = await db
@@ -113,11 +117,13 @@ describe('materializeVariantsFromColorsSizes', () => {
     const [item] = await db
       .insert(items)
       .values({
-        articleNumber: `${ART}-c`,
         name: 'materialize tester C',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: item.id, articleNumber: `${ART}-c` })
     createdItemIds.push(item.id)
 
     const [c1] = await db
@@ -157,11 +163,13 @@ describe('materializeVariantsFromColorsSizes', () => {
     const [item] = await db
       .insert(items)
       .values({
-        articleNumber: `${ART}-d`,
         name: 'materialize tester D',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: item.id, articleNumber: `${ART}-d` })
     createdItemIds.push(item.id)
 
     const empty = await materializeVariantsFromColorsSizes({

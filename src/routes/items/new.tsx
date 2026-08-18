@@ -2,7 +2,7 @@ import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { ArrowLeft, Search } from 'lucide-react'
 import { requireUiPermission, useCan } from '#/lib/permissions'
-import { listItemCategories, searchItems } from '#/server/functions/items/items'
+import { searchItems } from '#/server/functions/items/items'
 import { ItemEditor } from '#/components/items/item-editor'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
@@ -11,17 +11,15 @@ import { Input } from '#/components/ui/input'
 export const Route = createFileRoute('/items/new')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'items.view'),
   loader: async () => {
-    const [items, categories] = await Promise.all([
-      searchItems({ data: { query: '', includeArchived: false } }),
-      listItemCategories(),
-    ])
-    return { items, categories }
+    return {
+      items: await searchItems({ data: { query: '', includeArchived: false } }),
+    }
   },
   component: NewItemEntry,
 })
 
 function NewItemEntry() {
-  const { items: initialItems, categories } = Route.useLoaderData()
+  const { items: initialItems } = Route.useLoaderData()
   const router = useRouter()
   const canManage = useCan('items.manage')
   const [query, setQuery] = useState('')
@@ -78,14 +76,18 @@ function NewItemEntry() {
             <div className="divide-y rounded-md border">
               {items.map((item) => (
                 <Link
-                  key={item.articleNumber}
+                  key={item.id}
                   to="/items/$articleNumber"
-                  params={{ articleNumber: item.articleNumber }}
+                  params={{
+                    articleNumber: item.articleNumbers[0]?.articleNumber ?? '',
+                  }}
                   className="flex items-center justify-between gap-4 p-3 text-sm hover:bg-muted"
                 >
                   <span>
                     <span className="block font-mono text-xs text-muted-foreground">
-                      {item.articleNumber}
+                      {item.articleNumbers
+                        .map((number) => number.articleNumber)
+                        .join(', ')}
                     </span>
                     <span className="font-medium">{item.name}</span>
                   </span>
@@ -109,7 +111,6 @@ function NewItemEntry() {
               </Button>
             ) : (
               <ItemEditor
-                categories={categories}
                 onCreated={(_, articleNumber) => {
                   void router.navigate({
                     to: '/items/$articleNumber',

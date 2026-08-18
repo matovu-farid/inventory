@@ -5,8 +5,9 @@ import type { ItemFilterValues } from '#/components/items/item-filters'
 
 export type ItemListRow = {
   id: string
-  articleNumber: string
+  articleNumbers: Array<{ id: string; articleNumber: string }>
   name: string
+  design: string
   deletedAt: Date | null
   variants: Array<{ id: string; colorId: string; size: string }>
   colors: Array<{
@@ -78,10 +79,11 @@ export function ItemsPageContent({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {results.map((item) => (
             <ItemCard
-              key={item.articleNumber}
+              key={item.id}
               data={{
-                articleNumber: item.articleNumber,
+                articleNumbers: item.articleNumbers,
                 name: item.name,
+                design: item.design,
                 archived: !!item.deletedAt,
                 variants: item.variants,
                 colors: item.colors,

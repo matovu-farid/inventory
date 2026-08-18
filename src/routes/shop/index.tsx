@@ -54,6 +54,10 @@ import { getShopStock, recordSale } from '#/server/functions/shop/sales'
 import { listTransfers } from '#/server/functions/store/transfers'
 import { getSession } from '#/server/middleware/auth'
 import { ShopExpensesCard } from '#/components/shops/shop-expenses-card'
+import {
+  formatItemArticleNumbers,
+  primaryItemArticleNumber,
+} from '#/lib/items/article-number'
 
 // Plan 2b: getShopStock returns rows with optional variant. The shop
 // list and the New Sale picker both consume RawShopStockItem directly;
@@ -325,7 +329,7 @@ function ShopPage() {
                     >
                       <div className="min-w-0 text-sm">
                         <span className="font-medium">
-                          {r.item.articleNumber}
+                          {formatItemArticleNumbers(r.item.articleNumbers)}
                         </span>{' '}
                         <span className="text-muted-foreground">
                           {r.item.name}
@@ -363,10 +367,11 @@ function ShopPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   {aggregated.map((a) => (
                     <ItemCard
-                      key={a.item.articleNumber}
+                      key={a.item.id}
                       data={{
-                        articleNumber: a.item.articleNumber,
+                        articleNumbers: a.item.articleNumbers,
                         name: a.item.name,
+                        design: a.item.design,
                         // Per-variant counts via variant_id joins (#4);
                         // ItemCard derives the size grid from these.
                         variants: a.variants,
@@ -394,7 +399,9 @@ function ShopPage() {
           target="shop"
           stockId={specifying.id}
           itemId={specifying.item.id}
-          articleNumber={specifying.item.articleNumber}
+          articleNumber={primaryItemArticleNumber(
+            specifying.item.articleNumbers,
+          )}
           itemName={specifying.item.name}
           available={specifying.quantityOnHand}
           itemColors={specifying.item.colors}
@@ -560,7 +567,7 @@ function NewSaleForm({
             {stock.map((s) => {
               const isSelected = selectedIds.has(s.id)
               const label = itemLabel(s)
-              const article = s.item.articleNumber
+              const article = formatItemArticleNumbers(s.item.articleNumbers)
               return (
                 <CommandItem
                   key={s.id}

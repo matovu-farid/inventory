@@ -5,6 +5,7 @@ import { and, eq, isNull, inArray } from 'drizzle-orm'
 import { db } from '#/db'
 import {
   items,
+  itemArticleNumbers,
   itemColors,
   shops,
   shopStock,
@@ -27,9 +28,10 @@ vi.mock('#/server/middleware/auth', () => ({
 vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
-  requireSessionAndRole: () => Promise.resolve({
-    user: { id: TEST_USER_ID, role: 'admin' },
-  }),
+  requireSessionAndRole: () =>
+    Promise.resolve({
+      user: { id: TEST_USER_ID, role: 'admin' },
+    }),
 }))
 
 const stubStartContext = {
@@ -81,11 +83,13 @@ describe('addShopOpeningBalance — variant-flexible rows', () => {
     const [item] = await db
       .insert(items)
       .values({
-        articleNumber: `OP-UNR-${Date.now()}`,
         name: 'Polo Aggregate',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: item.id, articleNumber: `OP-UNR-${Date.now()}` })
     const [shop] = await db
       .insert(shops)
       .values({ name: `Test Shop UNR ${Date.now()}` })
@@ -127,11 +131,13 @@ describe('addShopOpeningBalance — variant-flexible rows', () => {
     const [item] = await db
       .insert(items)
       .values({
-        articleNumber: `OP-RES-${Date.now()}`,
         name: 'Polo Resolved',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: item.id, articleNumber: `OP-RES-${Date.now()}` })
     const [color] = await db
       .insert(itemColors)
       .values({ itemId: item.id, colorName: 'Burgundy', colorHex: '#800020' })

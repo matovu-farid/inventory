@@ -2,8 +2,8 @@ import { createServerFn } from '@tanstack/react-start'
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import BigNumber from 'bignumber.js'
-import { db  } from '#/db'
-import type {Tx} from '#/db';
+import { db } from '#/db'
+import type { Tx } from '#/db'
 import {
   shopReturns,
   shopReturnLines,

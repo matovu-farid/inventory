@@ -5,9 +5,9 @@ import type { ComboboxOption } from '#/components/ui/combobox'
 
 export interface ItemSummary {
   id: string
-  articleNumber: string
+  articleNumbers: Array<{ id: string; articleNumber: string }>
   name: string
-  category: string
+  design: string
   description?: string | null
   costPrice?: string | null
   costCurrency?: 'RMB' | 'USD' | 'UGX' | string | null
@@ -67,7 +67,7 @@ export function ItemPicker({
 
   const options: ComboboxOption[] = results.map((p) => ({
     value: p.id,
-    label: `${p.deletedAt ? '[Archived] ' : ''}${p.articleNumber} — ${p.name}`,
+    label: `${p.deletedAt ? '[Archived] ' : ''}${p.articleNumbers.map((number) => number.articleNumber).join(', ')} — ${p.name}`,
   }))
 
   return (

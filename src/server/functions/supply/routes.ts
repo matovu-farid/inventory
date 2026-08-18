@@ -28,7 +28,12 @@ export const listSupplyRoutes = createServerFn().handler(async () => {
   const routes = await db.query.supplyRoutes.findMany({
     orderBy: (r, { desc }) => [desc(r.createdAt)],
     with: {
-      items: { with: { supplier: true, itemColor: { with: { item: true } } } },
+      items: {
+        with: {
+          supplier: true,
+          itemColor: { with: { item: { with: { articleNumbers: true } } } },
+        },
+      },
       expenses: true,
     },
   })
@@ -63,8 +68,8 @@ export const getSupplyRoute = createServerFn()
         items: {
           with: {
             supplier: true,
-            item: true,
-            itemColor: { with: { item: true } },
+            item: { with: { articleNumbers: true } },
+            itemColor: { with: { item: { with: { articleNumbers: true } } } },
           },
           orderBy: (i, { asc }) => [asc(i.createdAt)],
         },

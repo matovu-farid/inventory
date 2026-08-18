@@ -7,6 +7,7 @@ import {
   supplyRoutes,
   supplyRouteLines,
   user,
+  itemArticleNumbers,
 } from '#/db/schema'
 import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
 import { eq } from 'drizzle-orm'
@@ -33,12 +34,18 @@ beforeAll(async () => {
 
   const [pa] = await db
     .insert(items)
-    .values({ articleNumber: ART_A, name: 'A', category: 'Test' })
+    .values({ name: 'A', design: 'Test' })
     .returning()
+  await db
+    .insert(itemArticleNumbers)
+    .values({ itemId: pa.id, articleNumber: ART_A })
   const [pb] = await db
     .insert(items)
-    .values({ articleNumber: ART_B, name: 'B', category: 'Test' })
+    .values({ name: 'B', design: 'Test' })
     .returning()
+  await db
+    .insert(itemArticleNumbers)
+    .values({ itemId: pb.id, articleNumber: ART_B })
   ids.productA = pa.id
   ids.productB = pb.id
 

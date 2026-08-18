@@ -77,9 +77,9 @@ describe('createItem — materializes variants when colors + sizes given', () =>
     await callServerFn(() =>
       createItem({
         data: {
-          articleNumber,
           name: 'Materialize tester',
-          category: 'Test',
+          design: 'Test',
+          articleNumbers: [articleNumber],
           supplierId,
           costPrice: '10.00',
           costCurrency: 'RMB',
@@ -94,7 +94,7 @@ describe('createItem — materializes variants when colors + sizes given', () =>
     )
 
     const created = await db.query.items.findFirst({
-      where: eq(items.articleNumber, articleNumber),
+      where: eq(items.name, 'Materialize tester'),
     })
     expect(created).toBeDefined()
     if (!created) return
@@ -120,9 +120,9 @@ describe('createItem — materializes variants when colors + sizes given', () =>
     await callServerFn(() =>
       createItem({
         data: {
-          articleNumber,
           name: 'Materialize tester B',
-          category: 'Test',
+          design: 'Test',
+          articleNumbers: [articleNumber],
           supplierId,
           costPrice: '10.00',
           costCurrency: 'RMB',
@@ -134,7 +134,7 @@ describe('createItem — materializes variants when colors + sizes given', () =>
     )
 
     const created = await db.query.items.findFirst({
-      where: eq(items.articleNumber, articleNumber),
+      where: eq(items.name, 'Materialize tester B'),
     })
     expect(created).toBeDefined()
     if (!created) return

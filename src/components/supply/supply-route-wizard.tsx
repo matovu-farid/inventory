@@ -24,19 +24,18 @@ import { Trash2, ArrowLeft, ArrowRight } from 'lucide-react'
 import { SUPPLY_ROUTE_STEPS, SupplyRouteStepper } from './supply-route-steps'
 import type { SupplyRouteStepId } from './supply-route-steps'
 import { getDistinctRouteSuppliers } from '#/lib/supply-route-suppliers'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 type RouteData = Awaited<ReturnType<typeof getSupplyRoute>>
 type SupplierOption = Awaited<ReturnType<typeof listSuppliersForSelect>>[number]
 
 export function SupplyRouteWizard({
   initialRoute,
-  initialCategories,
   initialSuppliers,
   initialStep = 'basics',
   onStepChange,
 }: {
   initialRoute: RouteData
-  initialCategories: ReadonlyArray<string>
   initialSuppliers: ReadonlyArray<SupplierOption>
   initialStep?: SupplyRouteStepId
   onStepChange?: (step: SupplyRouteStepId) => void
@@ -44,7 +43,6 @@ export function SupplyRouteWizard({
   const router = useRouter()
   const [route, setRoute] = useState(initialRoute)
   const [step, setStep] = useState<SupplyRouteStepId>(initialStep)
-  const [categories] = useState(initialCategories)
   const suppliers = initialSuppliers
   const [basics, setBasics] = useState(() => ({
     name: initialRoute.name,
@@ -85,7 +83,9 @@ export function SupplyRouteWizard({
         return {
           date: route.departureDate,
           supplierName: line.supplierNameSnapshot ?? line.supplier.name,
-          articleNumber: line.articleNumberSnapshot ?? item?.articleNumber,
+          articleNumber:
+            line.articleNumberSnapshot ??
+            (item ? formatItemArticleNumbers(item.articleNumbers) : undefined),
           itemName: line.itemNameSnapshot ?? item?.name,
           colorName: line.colorNameSnapshot ?? line.itemColor?.colorName,
           size: line.size,
@@ -109,11 +109,11 @@ export function SupplyRouteWizard({
       (rows) => rows[0]?.entryId === editingEntryId,
     )
     const first = group?.[0]
-    if (!group || !first?.item?.articleNumber) return undefined
+    if (!group || !first?.item?.articleNumbers[0]) return undefined
     return {
       entryId: first.entryId,
       itemId: first.item.id,
-      articleNumber: first.item.articleNumber,
+      articleNumber: first.item.articleNumbers[0].articleNumber,
       supplierId: first.supplierId,
       foreignCurrency: first.foreignCurrency,
       exchangeRateForeignToUsd: first.exchangeRateForeignToUsd,
@@ -412,7 +412,6 @@ export function SupplyRouteWizard({
                   supplyRouteId={route.id}
                   rateUgxPerUsd={route.rateUgxPerUsd}
                   rateRmbPerUsd={route.rateRmbPerUsd}
-                  categories={categories}
                   suppliers={suppliers}
                   initialEntry={editingEntry}
                   onSaved={() => {

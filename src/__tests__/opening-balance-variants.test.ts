@@ -4,6 +4,7 @@ import { runWithStartContext } from '@tanstack/start-storage-context'
 import { db } from '#/db'
 import {
   items,
+  itemArticleNumbers,
   itemColors,
   stores,
   storeStock,
@@ -30,9 +31,10 @@ vi.mock('#/server/middleware/auth', () => ({
 vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
-  requireSessionAndRole: () => Promise.resolve({
-    user: { id: TEST_USER_ID, role: 'admin' },
-  }),
+  requireSessionAndRole: () =>
+    Promise.resolve({
+      user: { id: TEST_USER_ID, role: 'admin' },
+    }),
 }))
 
 // createServerFn's middleware chain pulls startOptions from AsyncLocalStorage
@@ -90,11 +92,13 @@ describe('addStoreOpeningBalance — variants', () => {
     const [p] = await db
       .insert(items)
       .values({
-        articleNumber: `OB-${Date.now()}`,
         name: 'Test',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: p.id, articleNumber: `OB-${Date.now()}` })
     const [c] = await db
       .insert(itemColors)
       .values({ itemId: p.id, colorName: 'Red', colorHex: '#cc2828' })

@@ -21,6 +21,7 @@ import type { ThresholdValue } from '#/components/notifications/threshold-form'
 import { OverrideTable } from '#/components/notifications/override-table'
 import { listItemsForOverrides } from '#/server/functions/items/colors'
 import { listShopsForReports } from '#/server/functions/shop/list-shops'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 export const Route = createFileRoute('/settings/notifications')({
   beforeLoad: ({ context }) =>
@@ -37,7 +38,7 @@ export const Route = createFileRoute('/settings/notifications')({
 
     const itemOptions = itemsRaw.map((it) => ({
       itemId: it.id,
-      label: `${it.articleNumber} ${it.name}`,
+      label: `${formatItemArticleNumbers(it.articleNumbers)} ${it.name}`,
     }))
 
     return { thresholds, productOverrides, itemOptions, shops }

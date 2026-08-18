@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { db } from '#/db'
-import { itemImages, items } from '#/db/schema'
+import { itemArticleNumbers, itemImages, items } from '#/db/schema'
 import {
   attachItemImages,
   removeItemImageRecord,
@@ -15,12 +15,12 @@ beforeEach(async () => {
   const [item] = await db
     .insert(items)
     .values({
-      articleNumber,
       name: 'Item image test',
-      category: 'Test',
+      design: 'Test',
     })
     .returning()
   itemId = item.id
+  await db.insert(itemArticleNumbers).values({ itemId, articleNumber })
 })
 
 afterEach(async () => {

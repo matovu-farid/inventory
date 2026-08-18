@@ -12,6 +12,7 @@ import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { recordAuditLog } from '#/server/middleware/audit-store'
 import { renderAuditDescription } from '#/server/audit/descriptions'
 import { getActorName } from '#/server/audit/actor'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 const specifyLineInput = z.object({
   colorId: z.uuid(),
@@ -78,6 +79,7 @@ export const specifyShopStock = createServerFn()
 
       const item = await tx.query.items.findFirst({
         where: eq(itemsTable.id, source.itemId),
+        with: { articleNumbers: true },
       })
       if (!item) throw new Error('Item not found')
 
@@ -147,13 +149,15 @@ export const specifyShopStock = createServerFn()
         entityId: source.id,
         description: renderAuditDescription('stock.specify', {
           actorName,
-          articleNumber: item.articleNumber,
+          articleNumber: formatItemArticleNumbers(item.articleNumbers),
           itemName: item.name,
           specifiedTotal: totalSpecified,
           remainingUnresolved: remaining,
           variantCount: data.lines.length,
         }),
-        articleNumbers: [item.articleNumber],
+        articleNumbers: item.articleNumbers.map(
+          (number) => number.articleNumber,
+        ),
         businessDate: null,
         metadata: {
           itemId: source.itemId,

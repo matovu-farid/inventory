@@ -4,6 +4,7 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '#/db'
 import {
   itemColors,
+  itemArticleNumbers,
   itemImages,
   items,
   pictureUploadTokens,
@@ -30,8 +31,11 @@ async function seed() {
   })
   const [item] = await db
     .insert(items)
-    .values({ articleNumber: runId, name: `T ${runId}`, category: 'Test' })
+    .values({ name: `T ${runId}`, design: 'Test' })
     .returning()
+  await db
+    .insert(itemArticleNumbers)
+    .values({ itemId: item.id, articleNumber: runId })
   itemId = item.id
   const [color] = await db
     .insert(itemColors)

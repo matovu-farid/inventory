@@ -6,7 +6,13 @@ import {
   listItemsQuery,
   searchItemsQuery,
 } from '#/server/functions/items/items.server'
-import { items, suppliers, supplyRouteLines, supplyRoutes } from '#/db/schema'
+import {
+  itemArticleNumbers,
+  items,
+  suppliers,
+  supplyRouteLines,
+  supplyRoutes,
+} from '#/db/schema'
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const createdItemIds: string[] = []
@@ -22,8 +28,9 @@ let archivedItemId = ''
 async function createItem(articleNumber: string, name: string) {
   const [row] = await db
     .insert(items)
-    .values({ articleNumber, name, category: `Filter test ${suffix}` })
+    .values({ name, design: `Filter test ${suffix}` })
     .returning({ id: items.id })
+  await db.insert(itemArticleNumbers).values({ itemId: row.id, articleNumber })
   createdItemIds.push(row.id)
   return row.id
 }
@@ -162,7 +169,11 @@ describe('item return-date filtering', () => {
       returnDateTo: '2026-01-15',
     })
 
-    const ours = rows.filter((row) => row.articleNumber.includes(suffix))
+    const ours = rows.filter((row) =>
+      row.articleNumbers.some((number) =>
+        number.articleNumber.includes(suffix),
+      ),
+    )
     expect(ours.map((row) => row.id)).toEqual([
       boundaryItemId,
       multiRouteItemId,
@@ -189,7 +200,11 @@ describe('item return-date filtering', () => {
 
   it('keeps items without a date filter and excludes archived items by default', async () => {
     const rows = await listItemsQuery()
-    const ours = rows.filter((row) => row.articleNumber.includes(suffix))
+    const ours = rows.filter((row) =>
+      row.articleNumbers.some((number) =>
+        number.articleNumber.includes(suffix),
+      ),
+    )
     const ids = ours.map((row) => row.id)
 
     expect(ids).toContain(nullDateItemId)

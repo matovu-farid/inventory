@@ -6,6 +6,7 @@ import { severityForAlert, severityRank } from '#/lib/notifications/severity'
 import { env } from '#/env'
 import type { LowStockDigestData } from '#/lib/emails'
 import type { Role } from '#/lib/roles'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 type Db = typeof defaultDb
 const RECIPIENT_ROLES: Role[] = ['admin', 'supervisor']
@@ -25,7 +26,7 @@ export async function sendDailyLowStockDigestInternal(
   // digest can render `articleNumber name` per alert.
   const alerts = await db.query.lowStockAlerts.findMany({
     where: eq(lowStockAlerts.status, 'open'),
-    with: { item: true },
+    with: { item: { with: { articleNumbers: true } } },
   })
 
   if (alerts.length === 0) {
@@ -63,7 +64,7 @@ export async function sendDailyLowStockDigestInternal(
       return {
         scope: a.scope,
         locationName: locationName.get(a.locationId) ?? '(unknown)',
-        itemLabel: `${a.item.articleNumber} ${a.item.name}`,
+        itemLabel: `${formatItemArticleNumbers(a.item.articleNumbers)} ${a.item.name}`,
         quantityAtOpen: qoh,
         baseline,
         rule,

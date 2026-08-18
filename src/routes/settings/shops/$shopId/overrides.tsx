@@ -11,6 +11,7 @@ import { listOverrides } from '#/server/functions/notifications/thresholds'
 import { listItemsForOverrides } from '#/server/functions/items/colors'
 import { getShop } from '#/server/functions/shop/list-shops'
 import { OverrideTable } from '#/components/notifications/override-table'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 export const Route = createFileRoute('/settings/shops/$shopId/overrides')({
   beforeLoad: ({ context }) =>
@@ -23,7 +24,7 @@ export const Route = createFileRoute('/settings/shops/$shopId/overrides')({
     ])
     const itemOptions = itemsRaw.map((it) => ({
       itemId: it.id,
-      label: `${it.articleNumber} ${it.name}`,
+      label: `${formatItemArticleNumbers(it.articleNumbers)} ${it.name}`,
     }))
     return { shop, overrides, itemOptions }
   },

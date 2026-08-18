@@ -8,6 +8,7 @@ import {
   supplyRoutes,
 } from '#/db/schema'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 /**
  * Plan 2c: requisitions are item-keyed. The UI renders an item label
@@ -19,7 +20,7 @@ export const listOpenRequisitions = createServerFn().handler(async () => {
     where: eq(restockRequisitions.status, 'open'),
     with: {
       store: true,
-      item: true,
+      item: { with: { articleNumbers: true } },
     },
   })
   return rows.map((r) => ({
@@ -27,7 +28,7 @@ export const listOpenRequisitions = createServerFn().handler(async () => {
     storeId: r.storeId,
     storeName: r.store.name,
     itemId: r.itemId,
-    itemLabel: `${r.item.articleNumber} ${r.item.name}`,
+    itemLabel: `${formatItemArticleNumbers(r.item.articleNumbers)} ${r.item.name}`,
     suggestedQuantity: r.suggestedQuantity,
     baseline: r.baselineQuantity,
     quantityAtOpen: r.quantityAtOpen,

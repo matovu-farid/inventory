@@ -124,7 +124,8 @@ export function openingBalanceUsesVariantGrid(
 /** Size written when posting color-only opening balance cells. */
 export function openingBalanceImplicitSize(item: ItemWithVariantsLike): string {
   if (hasCompleteSingleSizeMatrix(item)) {
-    return deriveSizes(item.variants ?? [])[0]!
+    const [size] = deriveSizes(item.variants ?? [])
+    return size
   }
   return DEFAULT_UNSIZED_LABEL
 }

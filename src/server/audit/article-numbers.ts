@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import {
   items,
+  itemArticleNumbers,
   itemColors,
   supplyRouteLines,
   storeStock,
@@ -36,10 +37,11 @@ type Resolver = (tx: Tx, input: ResolverInput) => Promise<string[]>
 const RESOLVERS: Partial<Record<string, Resolver>> = {
   'store.receiveGoods': async (tx, { entityId }) => {
     const rows = await tx
-      .select({ articleNumber: items.articleNumber })
+      .select({ articleNumber: itemArticleNumbers.articleNumber })
       .from(supplyRouteLines)
       .innerJoin(itemColors, eq(itemColors.id, supplyRouteLines.colorId))
       .innerJoin(items, eq(items.id, itemColors.itemId))
+      .innerJoin(itemArticleNumbers, eq(itemArticleNumbers.itemId, items.id))
       .where(eq(supplyRouteLines.supplyRouteId, entityId))
     return rows.map((r) => r.articleNumber)
   },
@@ -61,12 +63,13 @@ async function resolveByTransferId(
   { entityId }: ResolverInput,
 ): Promise<string[]> {
   const rows = await tx
-    .select({ articleNumber: items.articleNumber })
+    .select({ articleNumber: itemArticleNumbers.articleNumber })
     .from(storeTransferLines)
     .innerJoin(storeStock, eq(storeStock.id, storeTransferLines.storeStockId))
     .innerJoin(variants, eq(variants.id, storeStock.variantId))
     .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
+    .innerJoin(itemArticleNumbers, eq(itemArticleNumbers.itemId, items.id))
     .where(eq(storeTransferLines.storeTransferId, entityId))
   return rows.map((r) => r.articleNumber)
 }
@@ -76,12 +79,13 @@ async function resolveBySaleId(
   { entityId }: ResolverInput,
 ): Promise<string[]> {
   const rows = await tx
-    .select({ articleNumber: items.articleNumber })
+    .select({ articleNumber: itemArticleNumbers.articleNumber })
     .from(shopSaleLines)
     .innerJoin(shopStock, eq(shopStock.id, shopSaleLines.shopStockId))
     .innerJoin(variants, eq(variants.id, shopStock.variantId))
     .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
+    .innerJoin(itemArticleNumbers, eq(itemArticleNumbers.itemId, items.id))
     .where(eq(shopSaleLines.shopSaleId, entityId))
   return rows.map((r) => r.articleNumber)
 }
@@ -91,12 +95,13 @@ async function resolveByShopReturnId(
   { entityId }: ResolverInput,
 ): Promise<string[]> {
   const rows = await tx
-    .select({ articleNumber: items.articleNumber })
+    .select({ articleNumber: itemArticleNumbers.articleNumber })
     .from(shopReturnLines)
     .innerJoin(shopStock, eq(shopStock.id, shopReturnLines.shopStockId))
     .innerJoin(variants, eq(variants.id, shopStock.variantId))
     .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
+    .innerJoin(itemArticleNumbers, eq(itemArticleNumbers.itemId, items.id))
     .where(eq(shopReturnLines.shopReturnId, entityId))
   return rows.map((r) => r.articleNumber)
 }
@@ -108,12 +113,13 @@ async function resolveByStoreReturnId(
   { entityId }: ResolverInput,
 ): Promise<string[]> {
   const rows = await tx
-    .select({ articleNumber: items.articleNumber })
+    .select({ articleNumber: itemArticleNumbers.articleNumber })
     .from(storeReturnLines)
     .innerJoin(shopStock, eq(shopStock.id, storeReturnLines.shopStockId))
     .innerJoin(variants, eq(variants.id, shopStock.variantId))
     .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
+    .innerJoin(itemArticleNumbers, eq(itemArticleNumbers.itemId, items.id))
     .where(eq(storeReturnLines.storeReturnId, entityId))
   return rows.map((r) => r.articleNumber)
 }
@@ -129,15 +135,17 @@ async function resolveBySpecifyStock(
   const meta = metadata as { itemId?: string } | null | undefined
   if (meta?.itemId) {
     const rows = await tx
-      .select({ articleNumber: items.articleNumber })
+      .select({ articleNumber: itemArticleNumbers.articleNumber })
       .from(items)
+      .innerJoin(itemArticleNumbers, eq(itemArticleNumbers.itemId, items.id))
       .where(eq(items.id, meta.itemId))
     return rows.map((r) => r.articleNumber)
   }
   const rows = await tx
-    .select({ articleNumber: items.articleNumber })
+    .select({ articleNumber: itemArticleNumbers.articleNumber })
     .from(storeStock)
     .innerJoin(items, eq(items.id, storeStock.itemId))
+    .innerJoin(itemArticleNumbers, eq(itemArticleNumbers.itemId, items.id))
     .where(eq(storeStock.id, entityId))
   return rows.map((r) => r.articleNumber)
 }
@@ -150,21 +158,23 @@ async function resolveByStockTakeId(
   { entityId }: ResolverInput,
 ): Promise<string[]> {
   const storeRows = await tx
-    .select({ articleNumber: items.articleNumber })
+    .select({ articleNumber: itemArticleNumbers.articleNumber })
     .from(stockTakeLines)
     .innerJoin(storeStock, eq(storeStock.id, stockTakeLines.storeStockId))
     .innerJoin(variants, eq(variants.id, storeStock.variantId))
     .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
+    .innerJoin(itemArticleNumbers, eq(itemArticleNumbers.itemId, items.id))
     .where(eq(stockTakeLines.stockTakeId, entityId))
 
   const shopRows = await tx
-    .select({ articleNumber: items.articleNumber })
+    .select({ articleNumber: itemArticleNumbers.articleNumber })
     .from(stockTakeLines)
     .innerJoin(shopStock, eq(shopStock.id, stockTakeLines.shopStockId))
     .innerJoin(variants, eq(variants.id, shopStock.variantId))
     .innerJoin(itemColors, eq(itemColors.id, variants.colorId))
     .innerJoin(items, eq(items.id, itemColors.itemId))
+    .innerJoin(itemArticleNumbers, eq(itemArticleNumbers.itemId, items.id))
     .where(eq(stockTakeLines.stockTakeId, entityId))
 
   return [...storeRows, ...shopRows].map((r) => r.articleNumber)

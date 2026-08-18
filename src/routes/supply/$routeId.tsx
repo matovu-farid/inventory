@@ -44,7 +44,6 @@ import {
   updateSupplyRouteLineQuantity,
 } from '#/server/functions/supply/items'
 import { SplitItemForm } from '#/components/supply/split-item-form'
-import { listItemCategories } from '#/server/functions/items/items'
 import { deleteSupplyRouteExpense } from '#/server/functions/supply/expenses'
 import { AddItemForm as ExtractedAddItemForm } from '#/components/supply/add-item-form'
 import { AddExpenseForm } from '#/components/supply/add-expense-form'
@@ -55,16 +54,16 @@ import {
   roundUgxBankers50,
   formatUgxTotal,
 } from '#/lib/format'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 export const Route = createFileRoute('/supply/$routeId')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
   loader: async ({ params }) => {
-    const [route, categories, suppliers] = await Promise.all([
+    const [route, suppliers] = await Promise.all([
       getSupplyRoute({ data: { id: params.routeId } }),
-      listItemCategories(),
       listSuppliersForSelect(),
     ])
-    return { route, categories, suppliers }
+    return { route, suppliers }
   },
   component: RouteDetailPage,
 })
@@ -89,7 +88,7 @@ function expenseAmountUgx(exp: {
 }
 
 function RouteDetailPage() {
-  const { route, categories, suppliers } = Route.useLoaderData()
+  const { route, suppliers } = Route.useLoaderData()
   const router = useRouter()
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
@@ -105,15 +104,25 @@ function RouteDetailPage() {
   const groupedItems = React.useMemo(() => {
     const groups = new Map<
       string,
-      { name: string; articleNumber: string; items: RouteItem[] }
+      {
+        id: string
+        name: string
+        articleNumbers: Array<{ articleNumber: string }>
+        items: RouteItem[]
+      }
     >()
     for (const line of route.items) {
       const catalog = line.itemColor?.item ?? line.item
       if (!catalog) continue
-      const key = catalog.articleNumber
+      const key = catalog.id
       let group = groups.get(key)
       if (!group) {
-        group = { name: catalog.name, articleNumber: key, items: [] }
+        group = {
+          id: key,
+          name: catalog.name,
+          articleNumbers: catalog.articleNumbers,
+          items: [],
+        }
         groups.set(key, group)
       }
       group.items.push(line)
@@ -123,11 +132,11 @@ function RouteDetailPage() {
     )
   }, [route.items])
 
-  function toggleProduct(articleNumber: string) {
+  function toggleProduct(itemId: string) {
     setExpandedProducts((prev) => {
       const next = new Set(prev)
-      if (next.has(articleNumber)) next.delete(articleNumber)
-      else next.add(articleNumber)
+      if (next.has(itemId)) next.delete(itemId)
+      else next.add(itemId)
       return next
     })
   }
@@ -281,7 +290,6 @@ function RouteDetailPage() {
                 supplyRouteId={route.id}
                 rateUgxPerUsd={route.rateUgxPerUsd}
                 rateRmbPerUsd={route.rateRmbPerUsd}
-                categories={categories}
                 suppliers={suppliers}
                 onSaved={() => {
                   void router.invalidate()
@@ -329,7 +337,7 @@ function RouteDetailPage() {
               </TableHeader>
               <TableBody>
                 {groupedItems.map((group) => {
-                  const expanded = expandedProducts.has(group.articleNumber)
+                  const expanded = expandedProducts.has(group.id)
                   const totalQty = group.items.reduce(
                     (s, i) => s + i.quantity,
                     0,
@@ -350,10 +358,10 @@ function RouteDetailPage() {
                     new Set(group.items.map((i) => i.foreignCurrency)),
                   )
                   return (
-                    <React.Fragment key={group.articleNumber}>
+                    <React.Fragment key={group.id}>
                       <TableRow
                         className="cursor-pointer bg-muted/30 font-medium hover:bg-muted/60"
-                        onClick={() => toggleProduct(group.articleNumber)}
+                        onClick={() => toggleProduct(group.id)}
                         aria-expanded={expanded}
                       >
                         <TableCell className="text-center">
@@ -365,7 +373,7 @@ function RouteDetailPage() {
                         </TableCell>
                         <TableCell>{group.name}</TableCell>
                         <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
-                          {group.articleNumber}
+                          {formatItemArticleNumbers(group.articleNumbers)}
                           <InfoPopover term="col.articleNumber" />
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">

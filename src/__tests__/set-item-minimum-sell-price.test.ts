@@ -14,7 +14,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { runWithStartContext } from '@tanstack/start-storage-context'
 
 import { db } from '#/db'
-import { items } from '#/db/schema'
+import { items, itemArticleNumbers } from '#/db/schema'
 import { setItemMinimumSellPrice } from '#/server/functions/items/prices'
 
 const TEST_USER_ID = '00000000-0000-0000-0000-0000000000c8'
@@ -25,9 +25,10 @@ vi.mock('#/server/middleware/auth', () => ({
 vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
-  requireSessionAndRole: () => Promise.resolve({
-    user: { id: TEST_USER_ID, role: 'admin' },
-  }),
+  requireSessionAndRole: () =>
+    Promise.resolve({
+      user: { id: TEST_USER_ID, role: 'admin' },
+    }),
 }))
 
 const stubStartContext = {
@@ -58,11 +59,13 @@ describe('setItemMinimumSellPrice', () => {
     const inserted = await db
       .insert(items)
       .values({
-        articleNumber: `simsp-${SUFFIX}-a`,
         name: 'Min-price tester',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: inserted[0].id, articleNumber: `simsp-${SUFFIX}-a` })
     const itemId = inserted[0]?.id
     if (!itemId) throw new Error('seed failed')
     createdItemIds.push(itemId)

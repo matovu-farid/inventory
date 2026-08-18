@@ -23,6 +23,7 @@ import { validateBelowMinimumSale } from './sale-validate'
 import { renderAuditDescription } from '#/server/audit/descriptions'
 import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
 import { getActorName } from '#/server/audit/actor'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 export const getShopStock = createServerFn()
   .inputValidator(z.object({ shopId: z.uuid() }))
@@ -35,8 +36,12 @@ export const getShopStock = createServerFn()
         // item-level join gives the item-wide minimum sell price and lets
         // unresolved rows render a label. `colors` is read by
         // SpecifyStockDialog on unresolved rows (Plan 2a Task 12).
-        item: { with: { colors: true } },
-        variant: { with: { color: { with: { item: true } } } },
+        item: { with: { colors: true, articleNumbers: true } },
+        variant: {
+          with: {
+            color: { with: { item: { with: { articleNumbers: true } } } },
+          },
+        },
       },
     })
   })
@@ -92,7 +97,7 @@ export const listShopSales = createServerFn()
       with: {
         items: {
           with: {
-            item: true,
+            item: { with: { articleNumbers: true } },
             variant: { with: { color: true } },
           },
         },
@@ -184,12 +189,8 @@ export const recordSale = createServerFn()
       for (const input of data.items) {
         const item = await tx.query.items.findFirst({
           where: eq(items.id, input.itemId),
-          columns: {
-            id: true,
-            articleNumber: true,
-            name: true,
-            minimumSellPriceUgx: true,
-          },
+          columns: { id: true, name: true, minimumSellPriceUgx: true },
+          with: { articleNumbers: true },
         })
         if (!item) throw new Error(`Item not found: ${input.itemId}`)
 
@@ -199,9 +200,10 @@ export const recordSale = createServerFn()
           variantId: input.variantId,
           quantity: input.quantity,
         })
+        const articleNumber = formatItemArticleNumbers(item.articleNumbers)
         if (plan.shortfall > 0) {
           throw new Error(
-            `Insufficient stock for ${item.articleNumber} ${item.name}: ` +
+            `Insufficient stock for ${articleNumber} ${item.name}: ` +
               `short by ${plan.shortfall}`,
           )
         }
@@ -209,8 +211,8 @@ export const recordSale = createServerFn()
         // Item-level label (color/size optional). Used in below-minimum
         // validator error messages and the audit description fallback.
         const itemLabel = input.variantId
-          ? formatItemLabel(item.articleNumber, item.name, '')
-          : formatItemLabelUnresolved(item.articleNumber, item.name)
+          ? formatItemLabel(articleNumber, item.name, '')
+          : formatItemLabelUnresolved(articleNumber, item.name)
 
         const minimumSellPriceUgx = plan.allocations
           .reduce((max, a) => {

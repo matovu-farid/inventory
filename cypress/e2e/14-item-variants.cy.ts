@@ -32,15 +32,24 @@ describe('Item variants — list and detail page', () => {
     // Wipe any leftover scratch items + variants from a previous failed run.
     cy.task(
       'dbQuery',
-      `DELETE FROM variants WHERE item_id IN (SELECT id FROM items WHERE article_number = '${articleNumber}')`,
+      `DELETE FROM variants WHERE item_id IN (
+         SELECT ian.item_id FROM item_article_numbers ian
+         WHERE ian.article_number = '${articleNumber}'
+       )`,
     )
     cy.task(
       'dbQuery',
-      `DELETE FROM item_colors WHERE item_id IN (SELECT id FROM items WHERE article_number = '${articleNumber}')`,
+      `DELETE FROM item_colors WHERE item_id IN (
+         SELECT ian.item_id FROM item_article_numbers ian
+         WHERE ian.article_number = '${articleNumber}'
+       )`,
     )
     cy.task(
       'dbQuery',
-      `DELETE FROM items WHERE article_number = '${articleNumber}'`,
+      `DELETE FROM items WHERE id IN (
+         SELECT ian.item_id FROM item_article_numbers ian
+         WHERE ian.article_number = '${articleNumber}'
+       )`,
     )
 
     cy.request({
@@ -61,18 +70,29 @@ describe('Item variants — list and detail page', () => {
     // Seed an item with two colors and three sizes worth of variants.
     cy.task(
       'dbQuery',
-      `INSERT INTO items (article_number, name, category)
-       VALUES ('${articleNumber}', 'E2E variants tester', 'Test')`,
+      `WITH new_item AS (
+         INSERT INTO items (name, design)
+         VALUES ('E2E variants tester', 'Test')
+         RETURNING id
+       )
+       INSERT INTO item_article_numbers (item_id, article_number)
+       SELECT id, '${articleNumber}' FROM new_item`,
     )
     cy.task(
       'dbQuery',
       `INSERT INTO item_colors (item_id, color_name, color_hex)
-       SELECT id, 'Indigo', '#2a3a8b' FROM items WHERE article_number = '${articleNumber}'`,
+       SELECT i.id, 'Indigo', '#2a3a8b'
+       FROM items i
+       JOIN item_article_numbers ian ON ian.item_id = i.id
+       WHERE ian.article_number = '${articleNumber}'`,
     )
     cy.task(
       'dbQuery',
       `INSERT INTO item_colors (item_id, color_name, color_hex)
-       SELECT id, 'Crimson', '#a01b1b' FROM items WHERE article_number = '${articleNumber}'`,
+       SELECT i.id, 'Crimson', '#a01b1b'
+       FROM items i
+       JOIN item_article_numbers ian ON ian.item_id = i.id
+       WHERE ian.article_number = '${articleNumber}'`,
     )
     // 2 colors × 3 sizes = 6 variants. The unique constraint guards
     // against re-runs leaving partial state behind.
@@ -83,7 +103,8 @@ describe('Item variants — list and detail page', () => {
        FROM item_colors ic
        JOIN items i ON i.id = ic.item_id
        CROSS JOIN (VALUES ('S'), ('M'), ('L')) AS s(sz)
-       WHERE i.article_number = '${articleNumber}'
+       JOIN item_article_numbers ian ON ian.item_id = i.id
+       WHERE ian.article_number = '${articleNumber}'
        ON CONFLICT ON CONSTRAINT uq_variant_item_color_size DO NOTHING`,
     )
   })
@@ -95,15 +116,24 @@ describe('Item variants — list and detail page', () => {
   after(() => {
     cy.task(
       'dbQuery',
-      `DELETE FROM variants WHERE item_id IN (SELECT id FROM items WHERE article_number = '${articleNumber}')`,
+      `DELETE FROM variants WHERE item_id IN (
+         SELECT ian.item_id FROM item_article_numbers ian
+         WHERE ian.article_number = '${articleNumber}'
+       )`,
     )
     cy.task(
       'dbQuery',
-      `DELETE FROM item_colors WHERE item_id IN (SELECT id FROM items WHERE article_number = '${articleNumber}')`,
+      `DELETE FROM item_colors WHERE item_id IN (
+         SELECT ian.item_id FROM item_article_numbers ian
+         WHERE ian.article_number = '${articleNumber}'
+       )`,
     )
     cy.task(
       'dbQuery',
-      `DELETE FROM items WHERE article_number = '${articleNumber}'`,
+      `DELETE FROM items WHERE id IN (
+         SELECT ian.item_id FROM item_article_numbers ian
+         WHERE ian.article_number = '${articleNumber}'
+       )`,
     )
     cy.task('cleanupAllTestData', null)
   })

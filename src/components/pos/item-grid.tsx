@@ -2,6 +2,7 @@ import * as React from 'react'
 import { ShoppingBag } from 'lucide-react'
 import { itemImageUrl } from '#/lib/items'
 import type { AggregatedItem } from '#/lib/items'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 type Props = {
   items: AggregatedItem[]
@@ -14,7 +15,7 @@ export function ItemGrid({ items, query, onPick }: Props) {
     const q = query.trim().toLowerCase()
     if (!q) return items
     return items.filter((p) => {
-      const a = p.item.articleNumber.toLowerCase()
+      const a = formatItemArticleNumbers(p.item.articleNumbers).toLowerCase()
       const n = p.item.name.toLowerCase()
       return a.includes(q) || n.includes(q)
     })
@@ -39,7 +40,7 @@ export function ItemGrid({ items, query, onPick }: Props) {
         const imgKey = firstColor?.imageS3Key ?? null
         const imgUrl = imgKey ? itemImageUrl(imgKey) : null
         return (
-          <li key={p.item.articleNumber}>
+          <li key={p.item.id}>
             <button
               type="button"
               data-testid="item-card"
@@ -69,7 +70,7 @@ export function ItemGrid({ items, query, onPick }: Props) {
               <div className="space-y-1 px-3 py-2">
                 <p className="truncate text-sm font-semibold">{p.item.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {p.item.articleNumber}
+                  {formatItemArticleNumbers(p.item.articleNumbers)}
                 </p>
                 <div className="flex gap-1">
                   {p.colors.slice(0, 6).map((c) => (

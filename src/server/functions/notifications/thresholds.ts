@@ -89,7 +89,7 @@ export const listOverrides = createServerFn()
     return db.query.notificationThresholdOverrides.findMany({
       where: whereClause,
       with: {
-        item: true,
+        item: { with: { articleNumbers: true } },
         shop: true,
       },
     })

@@ -30,9 +30,9 @@ describe('item archive lifecycle', () => {
       .returning()
     supplierId = supplier.id
     const item = await createItemQuery({
-      articleNumber: `ARCH-${suffix}`,
       name: `Archive item ${suffix}`,
-      category: `Archive category ${suffix}`,
+      design: `Archive design ${suffix}`,
+      articleNumbers: [`ARCH-${suffix}`],
       supplierId,
       costPrice: '10',
       costCurrency: 'RMB',

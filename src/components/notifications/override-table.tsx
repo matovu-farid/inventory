@@ -21,6 +21,7 @@ import {
   upsertOverride,
   deleteOverride,
 } from '#/server/functions/notifications/thresholds'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 /**
  * Plan 2c: overrides are item-keyed. The row carries item identity for
@@ -30,7 +31,11 @@ export interface OverrideRow {
   id: string
   scope: 'store' | 'shop'
   itemId: string
-  item: { id: string; articleNumber: string; name: string }
+  item: {
+    id: string
+    articleNumbers: Array<{ articleNumber: string }>
+    name: string
+  }
   shopId: string | null
   shop: { id: string; name: string } | null
   mode: 'percent' | 'units'
@@ -92,7 +97,7 @@ export function OverrideTable({
             <TableRow key={r.id}>
               <TableCell className="capitalize">{r.scope}</TableCell>
               <TableCell>
-                {r.item.articleNumber} {r.item.name}
+                {formatItemArticleNumbers(r.item.articleNumbers)} {r.item.name}
               </TableCell>
               {showShopColumn && (
                 <TableCell>{r.shop?.name ?? '(all shops)'}</TableCell>

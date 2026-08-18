@@ -10,6 +10,7 @@ import {
   shops,
   user as userTable,
   items,
+  itemArticleNumbers,
   itemColors,
   shopStock,
   shopSales,
@@ -49,12 +50,14 @@ async function seed() {
     await db
       .insert(items)
       .values({
-        articleNumber: runId,
         name: `Tee ${runId}`,
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
   )[0]
+  await db
+    .insert(itemArticleNumbers)
+    .values({ itemId: p.id, articleNumber: runId })
   const pc = (
     await db
       .insert(itemColors)
@@ -92,14 +95,14 @@ async function teardown() {
   await db.delete(shiftClosures).where(eq(shiftClosures.shopId, shopId))
   await db.delete(shopStock).where(eq(shopStock.id, stockId))
   const seededProduct = await db.query.items.findFirst({
-    where: eq(items.articleNumber, runId),
+    where: eq(items.name, `Tee ${runId}`),
   })
   if (seededProduct) {
     // variants reference itemColors on RESTRICT — clear them first.
     await db.delete(variants).where(eq(variants.itemId, seededProduct.id))
     await db.delete(itemColors).where(eq(itemColors.itemId, seededProduct.id))
   }
-  await db.delete(items).where(eq(items.articleNumber, runId))
+  await db.delete(items).where(eq(items.name, `Tee ${runId}`))
   await db.delete(shops).where(eq(shops.id, shopId))
   await db.delete(userTable).where(eq(userTable.id, userId))
 }

@@ -50,10 +50,19 @@ export const helpDict = {
     description: 'What you call this item when talking with customers.',
     example: "Men's Leather Loafers",
   },
+  'item.design': {
+    description: 'The design or style that describes this item.',
+    example: 'Round neck',
+  },
   'item.articleNumber': {
     description:
       "The supplier's catalog/SKU code for this item. Optional, but useful for re-ordering the exact same item later.",
     example: 'SH-2045-BLK',
+  },
+  'item.articleNumbers': {
+    description:
+      'One or more supplier article numbers that identify this same item. Each number must be unique across the catalog.',
+    example: 'SH-2045-BLK, SH-2045-WHT',
   },
   'item.supplierId': {
     description: 'Which supplier you bought this item from on the trip.',
@@ -549,12 +558,6 @@ export const helpDict = {
     description:
       "The threshold that triggers a low-stock alert for this variant. Shown as '≤ X%' or '≤ X units'.",
     example: '≤ 10%',
-  },
-
-  // ─── Item create / edit form ─────────────────────────────────────────
-  'itemForm.category': {
-    description:
-      'Free-text grouping for catalog reporting (e.g. Shoes, Bags, Tops). Pick from existing categories or type a new one — the list grows as items use new values.',
   },
 } as const satisfies Record<string, HelpEntry>
 

@@ -106,12 +106,19 @@ async function processShopStock(
 ) {
   // Plan 2c: aggregate shop_stock by (shop_id, item_id). Unresolved +
   // variant lots all roll up to the item total.
+  const primaryArticleNumber = sql<string>`(
+    SELECT ian.article_number
+    FROM item_article_numbers AS ian
+    WHERE ian.item_id = ${items.id}
+    ORDER BY ian.article_number
+    LIMIT 1
+  )`
   const rows = await db
     .select({
       shopId: shopStock.shopId,
       itemId: shopStock.itemId,
       totalQty: sql<number>`SUM(${shopStock.quantityOnHand})::int`,
-      articleNumber: items.articleNumber,
+      articleNumber: primaryArticleNumber,
       itemName: items.name,
       shopName: shops.name,
     })
@@ -121,7 +128,7 @@ async function processShopStock(
     .groupBy(
       shopStock.shopId,
       shopStock.itemId,
-      items.articleNumber,
+      primaryArticleNumber,
       items.name,
       shops.name,
     )
@@ -173,12 +180,19 @@ async function processStoreStock(
   maps: ReturnType<typeof buildOverrideMaps>,
   summary: CheckSummary,
 ) {
+  const primaryArticleNumber = sql<string>`(
+    SELECT ian.article_number
+    FROM item_article_numbers AS ian
+    WHERE ian.item_id = ${items.id}
+    ORDER BY ian.article_number
+    LIMIT 1
+  )`
   const rows = await db
     .select({
       storeId: storeStock.storeId,
       itemId: storeStock.itemId,
       totalQty: sql<number>`SUM(${storeStock.quantityOnHand})::int`,
-      articleNumber: items.articleNumber,
+      articleNumber: primaryArticleNumber,
       itemName: items.name,
     })
     .from(storeStock)
@@ -186,7 +200,7 @@ async function processStoreStock(
     .groupBy(
       storeStock.storeId,
       storeStock.itemId,
-      items.articleNumber,
+      primaryArticleNumber,
       items.name,
     )
 

@@ -14,6 +14,7 @@ import { postJournalEntry } from '#/lib/accounting/ledger'
 import { recordAuditLog } from '#/server/middleware/audit-store'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { formatItemLabel } from '#/lib/items'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 import { renderAuditDescription } from '#/server/audit/descriptions'
 import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
 import { getActorName } from '#/server/audit/actor'
@@ -41,11 +42,11 @@ export const listReceivableRoutes = createServerFn().handler(async () => {
       items: {
         with: {
           supplier: true,
-          // `item` carries the article number on aggregate lines that
+          // `item` carries the article numbers on aggregate lines that
           // have no itemColor yet. `itemColor.item` is the path for
           // fully-resolved lines.
-          item: true,
-          itemColor: { with: { item: true } },
+          item: { with: { articleNumbers: true } },
+          itemColor: { with: { item: { with: { articleNumbers: true } } } },
         },
       },
     },
@@ -87,8 +88,8 @@ export const getUnreceivedItems = createServerFn()
         // Include the direct `item` relation so aggregate lines
         // (variant_id NULL) still render an article number on the
         // receiving page UI introduced in Task 9.
-        item: true,
-        itemColor: { with: { item: true } },
+        item: { with: { articleNumbers: true } },
+        itemColor: { with: { item: { with: { articleNumbers: true } } } },
       },
     })
 
@@ -192,8 +193,8 @@ export const receiveGoods = createServerFn()
         const sri = await tx.query.supplyRouteLines.findFirst({
           where: eq(supplyRouteLines.id, item.supplyRouteLineId),
           with: {
-            item: true,
-            itemColor: { with: { item: true } },
+            item: { with: { articleNumbers: true } },
+            itemColor: { with: { item: { with: { articleNumbers: true } } } },
           },
         })
         if (!sri)
@@ -254,11 +255,14 @@ export const receiveGoods = createServerFn()
 
         // Resolve a display article number that works whether the line
         // arrived via the direct item FK or via itemColor only.
-        const articleNumber =
-          sri.item?.articleNumber ?? sri.itemColor?.item.articleNumber ?? '?'
+        const articleNumber = sri.item
+          ? formatItemArticleNumbers(sri.item.articleNumbers)
+          : sri.itemColor
+            ? formatItemArticleNumbers(sri.itemColor.item.articleNumbers)
+            : '?'
         const itemLabel = resolved
           ? formatItemLabel(
-              resolved.itemColor.item.articleNumber,
+              formatItemArticleNumbers(resolved.itemColor.item.articleNumbers),
               resolved.itemColor.colorName,
               resolved.size,
             )
@@ -509,7 +513,7 @@ export const getStoreStock = createServerFn().handler(async () => {
   const rows = await db.query.storeStock.findMany({
     where: eq(storeStock.storeId, store.id),
     with: {
-      item: { with: { colors: true } },
+      item: { with: { colors: true, articleNumbers: true } },
       variant: { with: { color: true } },
       supplyRouteLine: { with: { itemColor: true } },
     },
@@ -537,6 +541,8 @@ export const getStoreStock = createServerFn().handler(async () => {
   }
 
   return Array.from(byItem.values()).sort((a, b) =>
-    a.item.articleNumber.localeCompare(b.item.articleNumber),
+    formatItemArticleNumbers(a.item.articleNumbers).localeCompare(
+      formatItemArticleNumbers(b.item.articleNumbers),
+    ),
   )
 })

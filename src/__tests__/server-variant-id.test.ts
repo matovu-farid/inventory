@@ -44,6 +44,7 @@ import {
   auditLogs,
   itemColors,
   items,
+  itemArticleNumbers,
   shopStock,
   shops,
   storeReceivings,
@@ -77,9 +78,10 @@ vi.mock('#/server/middleware/auth', () => ({
 vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
-  requireSessionAndRole: () => Promise.resolve({
-    user: { id: TEST_USER_ID, role: 'admin' },
-  }),
+  requireSessionAndRole: () =>
+    Promise.resolve({
+      user: { id: TEST_USER_ID, role: 'admin' },
+    }),
 }))
 
 const stubStartContext = {
@@ -171,11 +173,13 @@ beforeAll(async () => {
   const [p] = await db
     .insert(items)
     .values({
-      articleNumber: `SV-${Date.now()}`,
       name: 'Server Variant Item',
-      category: 'Test',
+      design: 'Test',
     })
     .returning()
+  await db
+    .insert(itemArticleNumbers)
+    .values({ itemId: p.id, articleNumber: `SV-${Date.now()}` })
   FIXTURE.itemId = p.id
 
   const [c] = await db

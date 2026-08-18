@@ -4,6 +4,7 @@ import { eq, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db'
 import {
   items,
+  itemArticleNumbers,
   itemColors,
   variants,
   shops,
@@ -70,11 +71,13 @@ async function seedVariantFixture(label: string): Promise<VariantFixture> {
   const [item] = await db
     .insert(items)
     .values({
-      articleNumber: `${ART}-${label}`,
       name: `stock-variant-${label}`,
-      category: 'Test',
+      design: 'Test',
     })
     .returning()
+  await db
+    .insert(itemArticleNumbers)
+    .values({ itemId: item.id, articleNumber: `${ART}-${label}` })
   createdItemIds.push(item.id)
 
   const [color] = await db

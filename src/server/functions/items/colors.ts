@@ -162,7 +162,8 @@ export const listItemColorsForOverrides = createServerFn().handler(async () => {
 export const listItemsForOverrides = createServerFn().handler(async () => {
   await requireSessionAndRole(['admin', 'supervisor'])
   return db.query.items.findMany({
-    columns: { id: true, articleNumber: true, name: true },
-    orderBy: (i, { asc }) => [asc(i.articleNumber)],
+    columns: { id: true, name: true, design: true },
+    with: { articleNumbers: { columns: { articleNumber: true } } },
+    orderBy: (i, { asc }) => [asc(i.name)],
   })
 })

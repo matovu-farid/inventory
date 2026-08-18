@@ -1,18 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { db } from '#/db'
-import { items, itemColors } from '#/db/schema'
+import { items, itemArticleNumbers, itemColors } from '#/db/schema'
 import { eq } from 'drizzle-orm'
 
 describe('items schema round-trip', () => {
   it('inserts an item, its color, and reads back via relation', async () => {
+    const articleNumber = `TEST-${Date.now()}`
     const [p] = await db
       .insert(items)
       .values({
-        articleNumber: `TEST-${Date.now()}`,
         name: 'Test Crew',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db.insert(itemArticleNumbers).values({ itemId: p.id, articleNumber })
 
     await db.insert(itemColors).values({
       itemId: p.id,

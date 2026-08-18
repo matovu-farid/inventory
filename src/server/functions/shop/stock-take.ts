@@ -18,6 +18,7 @@ import { formatItemLabel } from '#/lib/items'
 import { renderAuditDescription } from '#/server/audit/descriptions'
 import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
 import { getActorName } from '#/server/audit/actor'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 export const listStockTakes = createServerFn()
   .inputValidator(
@@ -72,8 +73,12 @@ export const startStockTake = createServerFn()
         const items = await tx.query.storeStock.findMany({
           where: eq(storeStock.storeId, data.locationId),
           with: {
-            item: true,
-            variant: { with: { color: { with: { item: true } } } },
+            item: { with: { articleNumbers: true } },
+            variant: {
+              with: {
+                color: { with: { item: { with: { articleNumbers: true } } } },
+              },
+            },
           },
         })
         for (const item of items) {
@@ -81,11 +86,13 @@ export const startStockTake = createServerFn()
           // it just shows up as the bare item label without color/size.
           const itemLabel = item.variant
             ? formatItemLabel(
-                item.variant.color.item.articleNumber,
+                formatItemArticleNumbers(
+                  item.variant.color.item.articleNumbers,
+                ),
                 item.variant.color.colorName,
                 item.variant.size,
               )
-            : `${item.item.articleNumber} — ${item.item.name}`
+            : `${formatItemArticleNumbers(item.item.articleNumbers)} — ${item.item.name}`
           await tx.insert(stockTakeLines).values({
             stockTakeId: st.id,
             storeStockId: item.id,
@@ -102,8 +109,12 @@ export const startStockTake = createServerFn()
         const items = await tx.query.shopStock.findMany({
           where: eq(shopStock.shopId, data.locationId),
           with: {
-            item: true,
-            variant: { with: { color: { with: { item: true } } } },
+            item: { with: { articleNumbers: true } },
+            variant: {
+              with: {
+                color: { with: { item: { with: { articleNumbers: true } } } },
+              },
+            },
           },
         })
         for (const item of items) {
@@ -111,11 +122,13 @@ export const startStockTake = createServerFn()
           // rows still count — they just appear under the bare item label.
           const itemLabel = item.variant
             ? formatItemLabel(
-                item.variant.color.item.articleNumber,
+                formatItemArticleNumbers(
+                  item.variant.color.item.articleNumbers,
+                ),
                 item.variant.color.colorName,
                 item.variant.size,
               )
-            : `${item.item.articleNumber} — ${item.item.name}`
+            : `${formatItemArticleNumbers(item.item.articleNumbers)} — ${item.item.name}`
           await tx.insert(stockTakeLines).values({
             stockTakeId: st.id,
             shopStockId: item.id,

@@ -21,6 +21,7 @@ import {
 } from '#/server/functions/shop/sales'
 import { getShopSalesPrereqs } from '#/server/functions/prereqs/shop'
 import { printSaleReceipt } from '#/lib/pos/print-receipt'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 export const Route = createFileRoute('/shop/sales')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'sales.view'),
@@ -47,7 +48,7 @@ function SalesPage() {
         quantity: number
         unitPriceUgx: string
         isBelowMinimum: boolean
-        item: { articleNumber: string; name: string }
+        item: { articleNumbers: Array<{ articleNumber: string }>; name: string }
         variant: {
           size: string
           color: { colorName: string; colorHex: string }
@@ -153,7 +154,8 @@ function SalesPage() {
                           className="flex items-center gap-2 text-sm"
                         >
                           <span className="font-mono">
-                            {i.quantity}x {i.item.articleNumber}
+                            {i.quantity}x{' '}
+                            {formatItemArticleNumbers(i.item.articleNumbers)}
                           </span>
                           <span className="text-muted-foreground">
                             {i.item.name}

@@ -40,6 +40,7 @@ import {
 } from '#/server/functions/store/receiving'
 import { ensureStore } from '#/server/functions/admin/locations'
 import { getReceivingPrereqs } from '#/server/functions/prereqs/receiving'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 export const Route = createFileRoute('/store/receiving')({
   beforeLoad: ({ context }) =>
@@ -73,9 +74,12 @@ function ReceivingPage() {
         id: string
         colorName: string
         colorHex: string
-        item: { name: string; articleNumber: string }
+        item: { name: string; articleNumbers: Array<{ articleNumber: string }> }
       } | null
-      item: { name: string; articleNumber: string } | null
+      item: {
+        name: string
+        articleNumbers: Array<{ articleNumber: string }>
+      } | null
     }>
   >([])
   const [splittingItemId, setSplittingItemId] = useState<string | null>(null)
@@ -263,9 +267,15 @@ function ReceivingPage() {
                       <TableCell className="font-medium">
                         <div className="flex flex-col gap-0.5">
                           <span>
-                            {(item.itemColor?.item.articleNumber ??
-                              item.item?.articleNumber) ||
-                              '—'}{' '}
+                            {(item.itemColor?.item
+                              ? formatItemArticleNumbers(
+                                  item.itemColor.item.articleNumbers,
+                                )
+                              : item.item
+                                ? formatItemArticleNumbers(
+                                    item.item.articleNumbers,
+                                  )
+                                : '') || '—'}{' '}
                             <span className="text-muted-foreground">
                               {item.itemColor?.item.name ??
                                 item.item?.name ??
@@ -358,9 +368,15 @@ function ReceivingPage() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-medium">
-                          {(item.itemColor?.item.articleNumber ??
-                            item.item?.articleNumber) ||
-                            '—'}{' '}
+                          {(item.itemColor?.item
+                            ? formatItemArticleNumbers(
+                                item.itemColor.item.articleNumbers,
+                              )
+                            : item.item
+                              ? formatItemArticleNumbers(
+                                  item.item.articleNumbers,
+                                )
+                              : '') || '—'}{' '}
                           <span className="text-muted-foreground">
                             {item.itemColor?.item.name ?? item.item?.name ?? ''}
                           </span>

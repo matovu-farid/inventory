@@ -4,7 +4,6 @@ import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react'
 import { requireUiPermission, useCan } from '#/lib/permissions'
 import {
   getItemByArticle,
-  listItemCategories,
   archiveItem,
   deleteItem,
   restoreItem,
@@ -21,7 +20,7 @@ import { createVariant, deleteVariant } from '#/server/functions/items/variants'
 import { ColorEditor } from '#/components/items/color-editor'
 import { ItemImageActions } from '#/components/items/item-image-actions'
 import { ItemImageGallery } from '#/components/items/item-image-gallery'
-import { CategoryEditPopover } from '#/components/items/category-edit-popover'
+import { DesignEditPopover } from '#/components/items/design-edit-popover'
 import { AuditActivityPanel } from '#/components/audit/audit-activity-panel'
 import { deriveSizes } from '#/lib/variants'
 import { rankColorSuggestions } from '#/lib/colors/rank-suggestions'
@@ -50,19 +49,17 @@ export const Route = createFileRoute('/items/$articleNumber')({
       data: { articleNumber: params.articleNumber, includeArchived: true },
     })
     if (!product) throw new Error(`Product not found: ${params.articleNumber}`)
-    const [prices, variantStockCounts, categories] = await Promise.all([
+    const [prices, variantStockCounts] = await Promise.all([
       listItemStockPrices({ data: { itemId: product.id } }),
       countVariantStockLocations({ data: { itemId: product.id } }),
-      listItemCategories(),
     ])
-    return { product, prices, variantStockCounts, categories }
+    return { product, prices, variantStockCounts }
   },
   component: ProductDetailPage,
 })
 
 function ProductDetailPage() {
-  const { product, prices, variantStockCounts, categories } =
-    Route.useLoaderData()
+  const { product, prices, variantStockCounts } = Route.useLoaderData()
   const router = useRouter()
   const canManage = useCan('items.manage')
   const canSeeActivity = useCan('audit.viewArticleActivity')
@@ -237,16 +234,15 @@ function ProductDetailPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="font-mono text-sm text-muted-foreground">
-            {product.articleNumber}
+            {product.articleNumbers
+              .map((number) => number.articleNumber)
+              .join(', ')}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold">{product.name}</h1>
-            <CategoryEditPopover
+            <DesignEditPopover
               itemId={product.id}
-              articleNumber={product.articleNumber}
-              name={product.name}
-              current={product.category}
-              categories={categories}
+              current={product.design}
               canEdit={canManage}
               onSaved={() => void router.invalidate()}
             />
@@ -509,7 +505,9 @@ function ProductDetailPage() {
       </Dialog>
 
       {canSeeActivity && (
-        <AuditActivityPanel articleNumber={product.articleNumber} />
+        <AuditActivityPanel
+          articleNumber={product.articleNumbers[0]?.articleNumber ?? ''}
+        />
       )}
     </div>
   )

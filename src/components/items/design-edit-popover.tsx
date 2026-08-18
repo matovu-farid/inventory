@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pencil } from 'lucide-react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
-import { CreatableCombobox } from '#/components/ui/creatable-combobox'
+import { Input } from '#/components/ui/input'
 import {
   Popover,
   PopoverContent,
@@ -13,26 +13,14 @@ import { InfoPopover } from '#/components/ui/info-popover'
 
 interface Props {
   itemId: string
-  articleNumber: string
-  name: string
   current: string
-  categories: ReadonlyArray<string>
   canEdit: boolean
   onSaved: () => void
 }
 
-/**
- * Renders the item's category as a Badge. When `canEdit`, a pencil
- * button next to it opens a popover with a CreatableCombobox + Save /
- * Cancel. Save posts updateItem and calls onSaved() so the route can
- * invalidate.
- */
-export function CategoryEditPopover({
+export function DesignEditPopover({
   itemId,
-  articleNumber,
-  name,
   current,
-  categories,
   canEdit,
   onSaved,
 }: Props) {
@@ -50,18 +38,13 @@ export function CategoryEditPopover({
     setPending(true)
     setError(null)
     try {
-      await updateItem({
-        data: {
-          id: itemId,
-          articleNumber,
-          name,
-          category: next,
-        },
-      })
+      await updateItem({ data: { id: itemId, design: next } })
       setOpen(false)
       onSaved()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update category.')
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Failed to update design.',
+      )
     } finally {
       setPending(false)
     }
@@ -73,9 +56,9 @@ export function CategoryEditPopover({
       {canEdit && (
         <Popover
           open={open}
-          onOpenChange={(o) => {
-            setOpen(o)
-            if (o) {
+          onOpenChange={(nextOpen) => {
+            setOpen(nextOpen)
+            if (nextOpen) {
               setDraft(current)
               setError(null)
             }
@@ -87,24 +70,20 @@ export function CategoryEditPopover({
               variant="ghost"
               size="sm"
               className="h-7 w-7 p-0"
-              aria-label="Edit category"
+              aria-label="Edit design"
             >
               <Pencil className="size-3.5" />
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-72 space-y-2">
             <p className="flex items-center gap-1.5 text-sm font-medium">
-              Category
-              <InfoPopover
-                term="itemForm.category"
-                ariaLabel="What is Category?"
-              />
+              Design
+              <InfoPopover term="item.design" ariaLabel="What is Design?" />
             </p>
-            <CreatableCombobox
-              options={categories}
+            <Input
               value={draft}
-              onChange={setDraft}
-              placeholder="Pick or type a category"
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder="Round neck"
             />
             {error && (
               <p className="text-xs text-destructive" role="alert">

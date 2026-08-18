@@ -11,9 +11,14 @@ import { ItemsPageContent } from '#/components/items/items-page-content'
 import type { ItemListRow } from '#/components/items/items-page-content'
 
 vi.mock('#/components/items/item-card', () => ({
-  ItemCard: ({ data }: { data: { articleNumber: string; name: string } }) => (
+  ItemCard: ({
+    data,
+  }: {
+    data: { articleNumbers: Array<{ articleNumber: string }>; name: string }
+  }) => (
     <div>
-      {data.articleNumber} {data.name}
+      {data.articleNumbers.map((number) => number.articleNumber).join(', ')}{' '}
+      {data.name}
     </div>
   ),
 }))
@@ -22,8 +27,9 @@ afterEach(cleanup)
 
 const row: ItemListRow = {
   id: 'item-1',
-  articleNumber: 'TEE-001',
+  articleNumbers: [{ id: 'article-1', articleNumber: 'TEE-001' }],
   name: 'Crew-neck T-shirt',
+  design: 'Round neck',
   deletedAt: null,
   variants: [],
   colors: [],

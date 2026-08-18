@@ -22,6 +22,10 @@ import { ensureStore } from '#/server/functions/admin/locations'
 import { getSession } from '#/server/middleware/auth'
 import { PagePrerequisites } from '#/components/prerequisites/page-prerequisites'
 import { getStorePrereqs } from '#/server/functions/prereqs/store'
+import {
+  formatItemArticleNumbers,
+  primaryItemArticleNumber,
+} from '#/lib/items/article-number'
 
 export const Route = createFileRoute('/store/')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'warehouse.stock'),
@@ -128,8 +132,8 @@ function StoreStockPage() {
                   </TableHead>
                   <TableHead>
                     <span className="inline-flex items-center gap-1.5">
-                      Category
-                      <InfoPopover term="itemForm.category" />
+                      Design
+                      <InfoPopover term="item.design" />
                     </span>
                   </TableHead>
                   <TableHead className="text-right">
@@ -204,10 +208,10 @@ function ItemStockRow({
           )}
         </TableCell>
         <TableCell className="font-medium">
-          {group.item.articleNumber}{' '}
+          {formatItemArticleNumbers(group.item.articleNumbers)}{' '}
           <span className="text-muted-foreground">{group.item.name}</span>
         </TableCell>
-        <TableCell>{group.item.category}</TableCell>
+        <TableCell>{group.item.design}</TableCell>
         <TableCell className="text-right font-mono">
           {group.totalQty}
           {lowStock && (
@@ -273,7 +277,7 @@ function ItemStockRow({
           target="store"
           stockId={specifyingRow.id}
           itemId={group.item.id}
-          articleNumber={group.item.articleNumber}
+          articleNumber={primaryItemArticleNumber(group.item.articleNumbers)}
           itemName={group.item.name}
           available={specifyingRow.quantityOnHand}
           itemColors={group.item.colors}

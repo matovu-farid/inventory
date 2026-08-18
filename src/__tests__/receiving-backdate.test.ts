@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db'
 import {
   items,
+  itemArticleNumbers,
   itemColors,
   stores,
   storeReceivings,
@@ -118,11 +119,13 @@ beforeAll(async () => {
   const [p] = await db
     .insert(items)
     .values({
-      articleNumber: `BACKDATE-A-${SUFFIX}`,
       name: 'Backdate Test Article',
-      category: 'Test',
+      design: 'Test',
     })
     .returning()
+  await db
+    .insert(itemArticleNumbers)
+    .values({ itemId: p.id, articleNumber: `BACKDATE-A-${SUFFIX}` })
   itemId = p.id
 
   const [c] = await db

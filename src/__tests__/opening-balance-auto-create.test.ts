@@ -6,6 +6,7 @@ import { db } from '#/db'
 import {
   auditLogs,
   itemColors,
+  itemArticleNumbers,
   items,
   shopStock,
   shops,
@@ -87,11 +88,13 @@ describe('addShopOpeningBalance — auto-create variant from colorId+size', () =
     const [item] = await db
       .insert(items)
       .values({
-        articleNumber: `OB-AC-${suffix}`,
         name: 'T shirt',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: item.id, articleNumber: `OB-AC-${suffix}` })
     const [royal] = await db
       .insert(itemColors)
       .values({ itemId: item.id, colorName: 'Royal', colorHex: '#4169e1' })
@@ -140,9 +143,10 @@ describe('addShopOpeningBalance — auto-create variant from colorId+size', () =
 
     await db.delete(shopStock).where(eq(shopStock.shopId, shop.id))
     await db.delete(shops).where(eq(shops.id, shop.id))
+    if (!royalM) throw new Error('royal M variant not created')
     await db
       .delete(variants)
-      .where(inArray(variants.id, [blackM.id, royalM!.id]))
+      .where(inArray(variants.id, [blackM.id, royalM.id]))
     await db
       .delete(itemColors)
       .where(inArray(itemColors.id, [royal.id, black.id]))
@@ -154,19 +158,23 @@ describe('addShopOpeningBalance — auto-create variant from colorId+size', () =
     const [itemA] = await db
       .insert(items)
       .values({
-        articleNumber: `OB-A-${suffix}`,
         name: 'Item A',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: itemA.id, articleNumber: `OB-A-${suffix}` })
     const [itemB] = await db
       .insert(items)
       .values({
-        articleNumber: `OB-B-${suffix}`,
         name: 'Item B',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: itemB.id, articleNumber: `OB-B-${suffix}` })
     const [colorB] = await db
       .insert(itemColors)
       .values({ itemId: itemB.id, colorName: 'Navy', colorHex: '#000080' })
@@ -203,19 +211,23 @@ describe('addShopOpeningBalance — auto-create variant from colorId+size', () =
     const [itemA] = await db
       .insert(items)
       .values({
-        articleNumber: `OB-VA-${suffix}`,
         name: 'Item A',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: itemA.id, articleNumber: `OB-VA-${suffix}` })
     const [itemB] = await db
       .insert(items)
       .values({
-        articleNumber: `OB-VB-${suffix}`,
         name: 'Item B',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: itemB.id, articleNumber: `OB-VB-${suffix}` })
     const [colorB] = await db
       .insert(itemColors)
       .values({ itemId: itemB.id, colorName: 'Navy', colorHex: '#000080' })
@@ -257,11 +269,13 @@ describe('addShopOpeningBalance — auto-create variant from colorId+size', () =
     const [item] = await db
       .insert(items)
       .values({
-        articleNumber: `OB-AUD-${suffix}`,
         name: 'T shirt',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: item.id, articleNumber: `OB-AUD-${suffix}` })
     const [royal] = await db
       .insert(itemColors)
       .values({ itemId: item.id, colorName: 'Royal', colorHex: '#4169e1' })
@@ -294,8 +308,12 @@ describe('addShopOpeningBalance — auto-create variant from colorId+size', () =
       orderBy: (l, { desc }) => [desc(l.createdAt)],
     })
     expect(log).toBeDefined()
-    const lines = (log!.metadata as { lines: Array<{ colorName: string | null; size: string | null }> })
-      .lines
+    if (!log) throw new Error('opening balance audit log not created')
+    const lines = (
+      log.metadata as {
+        lines: Array<{ colorName: string | null; size: string | null }>
+      }
+    ).lines
     expect(lines).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ colorName: 'Royal', size: 'M' }),
@@ -320,16 +338,21 @@ describe('addStoreOpeningBalance — auto-create variant from colorId+size', () 
     const [item] = await db
       .insert(items)
       .values({
-        articleNumber: `OB-ST-${suffix}`,
         name: 'T shirt',
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: item.id, articleNumber: `OB-ST-${suffix}` })
     const [royal] = await db
       .insert(itemColors)
       .values({ itemId: item.id, colorName: 'Royal', colorHex: '#4169e1' })
       .returning()
-    await db.insert(stores).values({ name: `Store ${suffix}` }).onConflictDoNothing()
+    await db
+      .insert(stores)
+      .values({ name: `Store ${suffix}` })
+      .onConflictDoNothing()
     const store = await db.query.stores.findFirst()
     if (!store) throw new Error('store not seeded')
 
@@ -351,18 +374,19 @@ describe('addStoreOpeningBalance — auto-create variant from colorId+size', () 
       where: and(eq(variants.colorId, royal.id), eq(variants.size, 'M')),
     })
     expect(royalM).toBeDefined()
+    if (!royalM) throw new Error('royal M variant not created')
 
     const stockRows = await db.query.storeStock.findMany({
       where: and(
         eq(storeStock.storeId, store.id),
-        eq(storeStock.variantId, royalM!.id),
+        eq(storeStock.variantId, royalM.id),
       ),
     })
     expect(stockRows).toHaveLength(1)
     expect(stockRows[0].quantityOnHand).toBe(15)
 
-    await db.delete(storeStock).where(eq(storeStock.variantId, royalM!.id))
-    await db.delete(variants).where(eq(variants.id, royalM!.id))
+    await db.delete(storeStock).where(eq(storeStock.variantId, royalM.id))
+    await db.delete(variants).where(eq(variants.id, royalM.id))
     await db.delete(itemColors).where(eq(itemColors.id, royal.id))
     await db.delete(items).where(eq(items.id, item.id))
   })

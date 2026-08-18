@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll } from 'vitest'
 import { eq, inArray, and, sql } from 'drizzle-orm'
 
 import { db } from '#/db'
-import { items, itemColors, variants } from '#/db/schema'
+import { items, itemArticleNumbers, itemColors, variants } from '#/db/schema'
 import { materializeVariantsFromColorsSizes } from '#/server/functions/items/variants-materialize'
 
 // Drizzle's node-postgres adapter wraps DB errors as `Error("Failed query: …")`
@@ -50,11 +50,13 @@ describe('variants — materialize from (colors × sizes) cross product', () => 
     const [prod] = await db
       .insert(items)
       .values({
-        articleNumber: ART_A,
         name: `var-test-a-${SUFFIX}`,
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: prod.id, articleNumber: ART_A })
     createdProductIds.push(prod.id)
 
     const colors = await db
@@ -84,11 +86,13 @@ describe('variants — materialize from (colors × sizes) cross product', () => 
     const [prod] = await db
       .insert(items)
       .values({
-        articleNumber: ART_B,
         name: `var-test-b-${SUFFIX}`,
-        category: 'Test',
+        design: 'Test',
       })
       .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: prod.id, articleNumber: ART_B })
     createdProductIds.push(prod.id)
 
     const [color] = await db

@@ -37,8 +37,13 @@ describe('Top-level item entry', () => {
   it('opens an existing item from the chooser search', () => {
     const suffix = Date.now()
     cy.dbQuery(
-      `INSERT INTO items (article_number, name, category, cost_price, cost_currency)
-       VALUES ('TOP-${suffix}', 'Top level item ${suffix}', 'General', '10', 'USD')`,
+      `WITH new_item AS (
+         INSERT INTO items (name, design, cost_price, cost_currency)
+         VALUES ('Top level item ${suffix}', 'General', '10', 'USD')
+         RETURNING id
+       )
+       INSERT INTO item_article_numbers (item_id, article_number)
+       SELECT id, 'TOP-${suffix}' FROM new_item`,
     )
 
     cy.visit('/items/new')
@@ -55,9 +60,13 @@ describe('Top-level item entry', () => {
     ).then((supplierRows: Array<{ id: string }>) => {
       const catalogSupplierId = supplierRows[0].id
       cy.dbQuery(
-        `INSERT INTO items (article_number, name, category, supplier_id, cost_price, cost_currency)
-         VALUES ('SUP-${suffix}', 'Supplier default item ${suffix}', 'General', '${catalogSupplierId}', '10', 'USD') RETURNING id`,
-      ).then(() => {
+        `INSERT INTO items (name, design, supplier_id, cost_price, cost_currency)
+         VALUES ('Supplier default item ${suffix}', 'General', '${catalogSupplierId}', '10', 'USD') RETURNING id`,
+      ).then((itemRows: Array<{ id: string }>) => {
+        cy.dbQuery(
+          `INSERT INTO item_article_numbers (item_id, article_number)
+           VALUES ('${itemRows[0].id}', 'SUP-${suffix}')`,
+        )
         cy.dbQuery(
           `INSERT INTO supply_routes (name, status) VALUES ('Supplier default route ${suffix}', 'open') RETURNING id`,
         ).then((routeRows: Array<{ id: string }>) => {
@@ -89,9 +98,13 @@ describe('Top-level item entry', () => {
     ).then((supplierRows: Array<{ id: string }>) => {
       const itemSupplierId = supplierRows[0].id
       cy.dbQuery(
-        `INSERT INTO items (article_number, name, description, category, supplier_id, cost_price, cost_currency, minimum_sell_price_ugx)
-         VALUES ('INLINE-${suffix}', 'Inline item ${suffix}', 'Inline item description ${suffix}', 'Inline category ${suffix}', '${itemSupplierId}', 'USD', '25000') RETURNING id`,
-      ).then(() => {
+        `INSERT INTO items (name, description, design, supplier_id, cost_price, cost_currency, minimum_sell_price_ugx)
+         VALUES ('Inline item ${suffix}', 'Inline item description ${suffix}', 'Inline design ${suffix}', '${itemSupplierId}', 'USD', '25000') RETURNING id`,
+      ).then((itemRows: Array<{ id: string }>) => {
+        cy.dbQuery(
+          `INSERT INTO item_article_numbers (item_id, article_number)
+           VALUES ('${itemRows[0].id}', 'INLINE-${suffix}')`,
+        )
         cy.dbQuery(
           `INSERT INTO supply_routes (name, status) VALUES ('Inline editor route ${suffix}', 'open') RETURNING id`,
         ).then((routeRows: Array<{ id: string }>) => {

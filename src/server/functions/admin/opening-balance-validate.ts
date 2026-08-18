@@ -19,7 +19,8 @@ export function validateOpeningBalanceCell(
   cell: OpeningBalanceCell,
   unitCostUgx: string,
 ): void {
-  const hasUuid = typeof cell.variantId === 'string' && cell.variantId.length > 0
+  const hasUuid =
+    typeof cell.variantId === 'string' && cell.variantId.length > 0
   const isUnresolved =
     cell.variantId === null &&
     cell.colorId === undefined &&

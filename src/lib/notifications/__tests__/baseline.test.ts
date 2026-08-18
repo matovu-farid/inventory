@@ -18,6 +18,7 @@ import {
   supplyRouteLines,
   suppliers,
   user as userTable,
+  itemArticleNumbers,
 } from '#/db/schema'
 import { eq, inArray } from 'drizzle-orm'
 
@@ -43,11 +44,14 @@ async function seed() {
   const [catalogItem] = await db
     .insert(items)
     .values({
-      articleNumber: ART,
       name: 'Baseline Test Item',
-      category: 'Test',
+      design: 'Test',
     })
     .returning()
+  await db.insert(itemArticleNumbers).values({
+    itemId: catalogItem.id,
+    articleNumber: ART,
+  })
   const [pc] = await db
     .insert(itemColors)
     .values({

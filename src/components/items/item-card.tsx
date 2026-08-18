@@ -5,8 +5,9 @@ import type { VariantLike } from '#/lib/variants'
 import { cn } from '#/lib/utils'
 
 interface ItemCardData {
-  articleNumber: string
+  articleNumbers: ReadonlyArray<{ articleNumber: string }>
   name: string
+  design: string
   archived?: boolean
   variants: VariantLike[]
   colors: Array<{
@@ -31,7 +32,7 @@ export function ItemCard({
   return (
     <Link
       to="/items/$articleNumber"
-      params={{ articleNumber: data.articleNumber }}
+      params={{ articleNumber: data.articleNumbers[0]?.articleNumber ?? '' }}
       className={cn(
         'flex gap-3 rounded-lg border p-3 hover:bg-muted/40 transition',
         className,
@@ -51,7 +52,9 @@ export function ItemCard({
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-baseline gap-2">
           <span className="font-mono text-xs text-muted-foreground">
-            {data.articleNumber}
+            {data.articleNumbers
+              .map((number) => number.articleNumber)
+              .join(', ')}
           </span>
           <span className="font-medium truncate">{data.name}</span>
           {data.archived && (
@@ -60,6 +63,7 @@ export function ItemCard({
             </span>
           )}
         </div>
+        <p className="text-xs text-muted-foreground">{data.design}</p>
         <div className="flex items-center gap-1.5">
           {data.colors.map((c) => (
             <span

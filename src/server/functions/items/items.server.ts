@@ -9,7 +9,6 @@
 //
 // Consumers:
 //   - src/server/functions/items/items.ts (createServerFn wrappers)
-//   - src/__tests__/list-item-categories.test.ts (vitest, server-side)
 //   - other vitest tests that need to exercise data semantics directly
 
 import {
@@ -19,15 +18,19 @@ import {
   exists,
   gte,
   ilike,
+  inArray,
   isNull,
   lte,
+  not,
   or,
   sql,
 } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
+import type { DbOrTx } from '#/db'
+import { normalizeArticleNumber } from '#/lib/items/article-number'
 import {
-  itemCategories,
+  itemArticleNumbers,
   items,
   itemColors,
   lowStockAlerts,
@@ -46,7 +49,6 @@ import {
   itemImages,
 } from '#/db/schema'
 import { materializeVariantsFromColorsSizes } from './variants-materialize'
-import { findOrCreateItemCategoryQuery } from './categories.server'
 
 const colorInput = z.object({
   colorName: z.string().min(1).max(40),
@@ -101,15 +103,10 @@ function returnDateCondition(filter: ReturnDateFilter) {
 }
 
 export const upsertInput = z.object({
-  articleNumber: z.string().min(1).max(64),
-  name: z.string().min(1).max(120),
+  name: z.string().trim().min(1).max(120),
+  design: z.string().trim().min(1).max(64),
+  articleNumbers: z.array(z.string().trim().min(1).max(64)).min(1),
   description: z.string().max(1000).optional(),
-  /**
-   * Free-text catalog grouping. Required on create; the combobox in
-   * item-editor.tsx populates this from `listItemCategories()` or accepts
-   * a brand new value typed by the user.
-   */
-  category: z.string().trim().min(1).max(64),
   supplierId: z.uuid().optional(),
   costPrice: z
     .string()
@@ -139,13 +136,13 @@ export const updateInput = upsertInput
   .extend({ id: z.uuid() })
   // On update, sizes/colors are managed independently through the
   // variant + color endpoints; ignore them here so callers don't have
-  // to send the full payload. Category may be patched.
+  // to send the full payload. Article numbers are managed independently.
   .partial({
-    articleNumber: true,
     name: true,
     sizes: true,
     colors: true,
-    category: true,
+    design: true,
+    articleNumbers: true,
     supplierId: true,
     costPrice: true,
     costCurrency: true,
@@ -158,7 +155,9 @@ export const updateInput = upsertInput
 // pair back to a `variantId` client-side.
 const ITEM_DETAIL_WITH = {
   supplier: { columns: { id: true, name: true } },
-  categoryRecord: { columns: { id: true, name: true, deletedAt: true } },
+  articleNumbers: {
+    columns: { id: true, articleNumber: true },
+  },
   colors: {
     columns: {
       id: true,
@@ -191,7 +190,7 @@ export async function listItemsQuery(
       returnDateCondition(dateFilter),
     ),
     with: ITEM_DETAIL_WITH,
-    orderBy: (p) => [asc(p.articleNumber)],
+    orderBy: (p) => [asc(p.name), asc(p.id)],
   })
 }
 
@@ -199,13 +198,22 @@ export async function getItemByArticleQuery(input: {
   articleNumber: string
   includeArchived?: boolean
 }) {
+  const articleNumber = normalizeArticleNumber(input.articleNumber)
   return db.query.items.findFirst({
-    where: input.includeArchived
-      ? eq(items.articleNumber, input.articleNumber)
-      : and(
-          eq(items.articleNumber, input.articleNumber),
-          isNull(items.deletedAt),
-        ),
+    where: and(
+      input.includeArchived ? undefined : isNull(items.deletedAt),
+      exists(
+        db
+          .select({ id: itemArticleNumbers.id })
+          .from(itemArticleNumbers)
+          .where(
+            and(
+              eq(itemArticleNumbers.itemId, items.id),
+              eq(itemArticleNumbers.articleNumber, articleNumber),
+            ),
+          ),
+      ),
+    ),
     with: ITEM_DETAIL_WITH,
   })
 }
@@ -226,19 +234,32 @@ export async function searchItemsQuery(
       where: and(activeFilter, routeReturnDateFilter),
       with: ITEM_DETAIL_WITH,
       limit: 20,
-      orderBy: (p) => [asc(p.articleNumber)],
+      orderBy: (p) => [asc(p.name), asc(p.id)],
     })
   }
-  const like = `%${input.query}%`
+  const like = `%${input.query.trim()}%`
   return db.query.items.findMany({
     where: and(
       activeFilter,
       routeReturnDateFilter,
-      or(ilike(items.articleNumber, like), ilike(items.name, like)),
+      or(
+        ilike(items.name, like),
+        exists(
+          db
+            .select({ id: itemArticleNumbers.id })
+            .from(itemArticleNumbers)
+            .where(
+              and(
+                eq(itemArticleNumbers.itemId, items.id),
+                ilike(itemArticleNumbers.articleNumber, like),
+              ),
+            ),
+        ),
+      ),
     ),
     with: ITEM_DETAIL_WITH,
     limit: 20,
-    orderBy: (p) => [asc(p.articleNumber)],
+    orderBy: (p) => [asc(p.name), asc(p.id)],
   })
 }
 
@@ -340,19 +361,6 @@ export async function deleteItemQuery(input: { id: string }) {
   return deletedRows[0]
 }
 
-/**
- * Returns the distinct set of category values currently in use on items,
- * sorted ascending. Powers the create-item / detail-edit combobox.
- */
-export async function listItemCategoriesQuery() {
-  const rows = await db
-    .select({ category: itemCategories.name })
-    .from(itemCategories)
-    .where(isNull(itemCategories.deletedAt))
-    .orderBy(asc(itemCategories.name))
-  return rows.map((r) => r.category)
-}
-
 export async function createItemQuery(data: z.infer<typeof upsertInput>) {
   if (
     !data.supplierId ||
@@ -366,70 +374,88 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
       'Supplier, supplier cost, cost currency, and a positive minimum sell price are required',
     )
   }
-  const category = await findOrCreateItemCategoryQuery({ name: data.category })
-  const [row] = await db
-    .insert(items)
-    .values({
-      articleNumber: data.articleNumber,
-      name: data.name,
-      description: data.description,
-      category: data.category,
-      categoryId: category.id,
-      supplierId: data.supplierId,
-      costPrice: data.costPrice,
-      costCurrency: data.costCurrency,
-      minimumSellPriceUgx: data.minimumSellPriceUgx,
-      lowStockThreshold: data.lowStockThreshold ?? null,
-    })
-    .returning()
+  const articleNumbers = normalizeArticleNumbers(data.articleNumbers)
+  try {
+    return await db.transaction(async (tx) => {
+      await assertArticleNumbersAvailable(tx, articleNumbers)
+      const [row] = await tx
+        .insert(items)
+        .values({
+          name: data.name,
+          description: data.description,
+          design: data.design,
+          supplierId: data.supplierId,
+          costPrice: data.costPrice,
+          costCurrency: data.costCurrency,
+          minimumSellPriceUgx: data.minimumSellPriceUgx,
+          lowStockThreshold: data.lowStockThreshold ?? null,
+        })
+        .returning()
 
-  if (data.colors.length > 0) {
-    const insertedColors = await db
-      .insert(itemColors)
-      .values(
-        data.colors.map((c) => ({
+      await tx.insert(itemArticleNumbers).values(
+        articleNumbers.map((articleNumber) => ({
           itemId: row.id,
-          colorName: c.colorName,
-          colorHex: c.colorHex,
+          articleNumber,
         })),
       )
-      .returning()
-    if (data.sizes.length > 0) {
-      await materializeVariantsFromColorsSizes({
-        itemId: row.id,
-        colorIds: insertedColors.map((c) => c.id),
-        sizes: data.sizes,
+
+      if (data.colors.length > 0) {
+        const insertedColors = await tx
+          .insert(itemColors)
+          .values(
+            data.colors.map((c) => ({
+              itemId: row.id,
+              colorName: c.colorName,
+              colorHex: c.colorHex,
+            })),
+          )
+          .returning()
+        if (data.sizes.length > 0) {
+          await materializeVariantsFromColorsSizes(
+            {
+              itemId: row.id,
+              colorIds: insertedColors.map((c) => c.id),
+              sizes: data.sizes,
+            },
+            tx,
+          )
+        }
+      }
+      const created = await tx.query.items.findFirst({
+        where: eq(items.id, row.id),
+        with: ITEM_DETAIL_WITH,
       })
+      if (!created) throw new Error('Failed to load created item')
+      return created
+    })
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new Error('Article number already belongs to another item')
     }
+    throw error
   }
-  return row
 }
 
 export async function updateItemQuery(data: z.infer<typeof updateInput>) {
   const {
     id,
-    category,
+    design,
+    articleNumbers: _articleNumbers,
     sizes: _sizes,
     colors: _colors,
     minimumSellPriceUgx,
     lowStockThreshold,
     ...fields
   } = data
+  void _articleNumbers
   void _sizes
   void _colors
-  const categoryId =
-    category === undefined
-      ? undefined
-      : (await findOrCreateItemCategoryQuery({ name: category })).id
   const patch = {
-    ...(fields.articleNumber === undefined
-      ? {}
-      : { articleNumber: fields.articleNumber }),
     ...(fields.name === undefined ? {} : { name: fields.name }),
     ...(fields.description === undefined
       ? {}
       : { description: fields.description }),
-    ...(category === undefined ? {} : { category, categoryId }),
+    ...(design === undefined ? {} : { design }),
     ...(fields.supplierId === undefined
       ? {}
       : { supplierId: fields.supplierId }),
@@ -451,6 +477,144 @@ export async function updateItemQuery(data: z.infer<typeof updateInput>) {
     .returning()
   if (rows.length === 0) throw new Error('Item not found')
   return rows[0]
+}
+
+function normalizeArticleNumbers(values: readonly string[]): string[] {
+  const normalized = values.map(normalizeArticleNumber)
+  if (new Set(normalized).size !== normalized.length) {
+    throw new Error('Article numbers must be unique')
+  }
+  return normalized
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  let current: unknown = error
+  for (let depth = 0; depth < 3; depth += 1) {
+    if (
+      current &&
+      typeof current === 'object' &&
+      'code' in current &&
+      (current as { code?: unknown }).code === '23505'
+    ) {
+      return true
+    }
+    current =
+      current && typeof current === 'object' && 'cause' in current
+        ? (current as { cause?: unknown }).cause
+        : undefined
+  }
+  return false
+}
+
+async function lockActiveItem(executor: DbOrTx, itemId: string) {
+  const rows = await executor
+    .select({ id: items.id })
+    .from(items)
+    .where(and(eq(items.id, itemId), isNull(items.deletedAt)))
+    .for('update')
+  if (rows.length === 0) throw new Error('Item not found')
+  return rows[0]
+}
+
+async function assertArticleNumbersAvailable(
+  executor: DbOrTx,
+  articleNumbers: readonly string[],
+  itemId?: string,
+) {
+  const conflicts = await executor
+    .select({ itemId: itemArticleNumbers.itemId })
+    .from(itemArticleNumbers)
+    .where(
+      and(
+        inArray(itemArticleNumbers.articleNumber, articleNumbers),
+        itemId ? not(eq(itemArticleNumbers.itemId, itemId)) : undefined,
+      ),
+    )
+  if (conflicts.length > 0) {
+    throw new Error('Article number already belongs to another item')
+  }
+}
+
+export async function addItemArticleNumberQuery(input: {
+  itemId: string
+  articleNumber: string
+}) {
+  const articleNumber = normalizeArticleNumber(input.articleNumber)
+  try {
+    return await db.transaction(async (tx) => {
+      await lockActiveItem(tx, input.itemId)
+      await assertArticleNumbersAvailable(tx, [articleNumber], input.itemId)
+      const [row] = await tx
+        .insert(itemArticleNumbers)
+        .values({ itemId: input.itemId, articleNumber })
+        .returning()
+      return row
+    })
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new Error('Article number already belongs to another item')
+    }
+    throw error
+  }
+}
+
+export async function removeItemArticleNumberQuery(input: {
+  itemId: string
+  articleNumberId: string
+}) {
+  return db.transaction(async (tx) => {
+    await lockActiveItem(tx, input.itemId)
+    const rows = await tx
+      .select({ id: itemArticleNumbers.id })
+      .from(itemArticleNumbers)
+      .where(eq(itemArticleNumbers.itemId, input.itemId))
+    if (rows.length <= 1) {
+      throw new Error('An item must have at least one article number')
+    }
+    const deleted = await tx
+      .delete(itemArticleNumbers)
+      .where(
+        and(
+          eq(itemArticleNumbers.id, input.articleNumberId),
+          eq(itemArticleNumbers.itemId, input.itemId),
+        ),
+      )
+      .returning({ id: itemArticleNumbers.id })
+    if (deleted.length === 0) throw new Error('Article number not found')
+    return deleted[0]
+  })
+}
+
+export async function replaceItemArticleNumbersQuery(input: {
+  itemId: string
+  articleNumbers: string[]
+}) {
+  const articleNumbers = normalizeArticleNumbers(input.articleNumbers)
+  try {
+    return await db.transaction(async (tx) => {
+      await lockActiveItem(tx, input.itemId)
+      await assertArticleNumbersAvailable(tx, articleNumbers, input.itemId)
+      await tx
+        .delete(itemArticleNumbers)
+        .where(eq(itemArticleNumbers.itemId, input.itemId))
+      await tx.insert(itemArticleNumbers).values(
+        articleNumbers.map((articleNumber) => ({
+          itemId: input.itemId,
+          articleNumber,
+        })),
+      )
+      return tx
+        .select()
+        .from(itemArticleNumbers)
+        .where(eq(itemArticleNumbers.itemId, input.itemId))
+        .orderBy(asc(itemArticleNumbers.articleNumber))
+    })
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new Error('Article number already belongs to another item')
+    }
+    throw error
+  }
 }
 
 /**

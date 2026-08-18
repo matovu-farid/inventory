@@ -3,6 +3,7 @@ import { restoreItem, searchItems } from '#/server/functions/items/items'
 import { Combobox } from '#/components/ui/combobox'
 import type { ComboboxOption } from '#/components/ui/combobox'
 import type { ItemSummary } from '#/components/items/item-picker'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 interface Props {
   value?: string
@@ -38,7 +39,7 @@ export function SupplyRouteItemPicker({
 
   const options: ComboboxOption[] = results.map((item) => ({
     value: item.id,
-    label: `${item.deletedAt ? '[Archived] ' : ''}${item.articleNumber} — ${item.name}`,
+    label: `${item.deletedAt ? '[Archived] ' : ''}${formatItemArticleNumbers(item.articleNumbers)} — ${item.name}`,
   }))
 
   return (

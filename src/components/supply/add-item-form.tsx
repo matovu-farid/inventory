@@ -1,8 +1,7 @@
 import * as React from 'react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { deriveSizes } from '#/lib/variants'
 import { Button } from '#/components/ui/button'
-import { Input } from '#/components/ui/input'
 import { MoneyInput } from '#/components/ui/money-input'
 import { FieldLabel } from '#/components/ui/field-label'
 import {
@@ -27,12 +26,21 @@ import {
 import { SupplyRouteItemPicker } from '#/components/supply/supply-route-item-picker'
 import type { ItemSummary } from '#/components/items/item-picker'
 import { ItemEditor } from '#/components/items/item-editor'
+import type { ItemEditorDraft } from '#/components/items/item-editor'
 import { ColorEditor } from '#/components/items/color-editor'
-import { VariantGrid } from '#/components/items/variant-grid'
-import { ColorQuantityList } from '#/components/supply/split-item-form'
+import { DetailLevelFields } from '#/components/supply/detail-level-fields'
+import {
+  buildDetailCells,
+  normalizeDetailMode as normalizeDetailModeForAttributes,
+} from '#/lib/supply/detail-level'
+import type { DetailMode } from '#/lib/supply/detail-level'
 import { getItemByArticle, updateItem } from '#/server/functions/items/items'
 import { deleteItemColor } from '#/server/functions/items/colors'
 import { resolveDefaultPurchaseSupplierId } from '#/lib/supply-item-supplier-default'
+import {
+  formatItemArticleNumbers,
+  primaryItemArticleNumber,
+} from '#/lib/items/article-number'
 
 export interface AddItemSupplierOption {
   id: string
@@ -52,6 +60,17 @@ export interface SupplyRouteEntryDraft {
     size?: string
     quantity: number
   }>
+}
+
+function normalizeDetailMode(
+  mode: DetailMode,
+  product: ItemSummary | undefined,
+): DetailMode {
+  return normalizeDetailModeForAttributes(
+    mode,
+    product?.colors ?? [],
+    product ? deriveSizes(product.variants ?? []) : [],
+  )
 }
 
 type SupplyRouteEntryPayload = {
@@ -81,7 +100,6 @@ export function AddItemForm({
   supplyRouteId,
   rateUgxPerUsd,
   rateRmbPerUsd,
-  categories,
   suppliers,
   onSaved,
   onDone,
@@ -90,7 +108,6 @@ export function AddItemForm({
   supplyRouteId: string
   rateUgxPerUsd?: string | null
   rateRmbPerUsd?: string | null
-  categories: ReadonlyArray<string>
   suppliers?: ReadonlyArray<AddItemSupplierOption>
   onSaved: () => void | Promise<void>
   onDone: () => void | Promise<void>
@@ -102,12 +119,68 @@ export function AddItemForm({
     'create' | 'edit' | null
   >(initialEntry ? null : 'create')
   const [colorEditorOpen, setColorEditorOpen] = useState(false)
-  const [detailMode, setDetailMode] = useState<
-    'aggregate' | 'colors' | 'variants'
-  >('variants')
+  const [detailMode, setDetailMode] = useState<DetailMode>('aggregate')
   const [aggregateQty, setAggregateQty] = useState('')
   const [colorQtys, setColorQtys] = useState<Record<string, number>>({})
   const [quantities, setQuantities] = useState<Record<string, number>>({})
+  const [newItemDraft, setNewItemDraft] = useState<ItemEditorDraft>({
+    supplierId: '',
+    costCurrency: 'RMB',
+    colors: [],
+    sizes: [],
+  })
+  const handleNewItemDraftChange = useCallback((draft: ItemEditorDraft) => {
+    setNewItemDraft(draft)
+    setCurrency(draft.costCurrency)
+    const draftColorIds = new Set(
+      draft.colors.map((color) => color.id ?? `draft:${color.colorName}`),
+    )
+    const draftSizes = new Set(draft.sizes)
+    setColorQtys((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([colorId]) =>
+          draftColorIds.has(colorId),
+        ),
+      ),
+    )
+    setQuantities((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([key]) => {
+          const separator = key.indexOf('|')
+          return (
+            separator > 0 &&
+            draftColorIds.has(key.slice(0, separator)) &&
+            draftSizes.has(key.slice(separator + 1))
+          )
+        }),
+      ),
+    )
+    setDetailMode((current) =>
+      normalizeDetailModeForAttributes(
+        current,
+        draft.colors.map((color) => ({
+          id: color.id ?? `draft:${color.colorName}`,
+          colorName: color.colorName,
+          colorHex: color.colorHex,
+        })),
+        draft.sizes,
+      ),
+    )
+  }, [])
+
+  function resetNewItemDraft() {
+    setNewItemDraft({
+      supplierId: '',
+      costCurrency: 'RMB',
+      colors: [],
+      sizes: [],
+    })
+    setDetailMode('aggregate')
+    setAggregateQty('')
+    setColorQtys({})
+    setQuantities({})
+    setFormErrors({})
+  }
   const [purchaseSupplierId, setPurchaseSupplierId] = useState('')
   const [supplierOptions, setSupplierOptions] = useState<
     ReadonlyArray<AddItemSupplierOption>
@@ -170,7 +243,10 @@ export function AddItemForm({
       data: { articleNumber: initialEntry.articleNumber },
     })
       .then((selected) => {
-        if (selected) setProduct(selected)
+        if (selected) {
+          setProduct(selected)
+          setDetailMode((current) => normalizeDetailMode(current, selected))
+        }
       })
       .catch((err: unknown) => {
         setFormErrors({
@@ -188,6 +264,7 @@ export function AddItemForm({
     const p = await getItemByArticle({ data: { articleNumber } })
     if (p) {
       setProduct(p)
+      setDetailMode((current) => normalizeDetailMode(current, p))
       if (p.supplier) {
         const itemSupplier = p.supplier
         setSupplierOptions((current) => {
@@ -231,7 +308,7 @@ export function AddItemForm({
         delete next[itemColorId]
         return next
       })
-      await refreshProduct(product.articleNumber)
+      await refreshProduct(primaryItemArticleNumber(product.articleNumbers))
       setFormErrors((prev) => {
         if (!prev.removeColor) return prev
         const { removeColor: _, ...rest } = prev
@@ -249,25 +326,13 @@ export function AddItemForm({
   }
 
   function openPreviewForProduct(selectedProduct: ItemSummary | undefined) {
-    const cells: Array<{
-      itemColorId?: string
-      size?: string
-      quantity: number
-    }> =
-      detailMode === 'aggregate'
-        ? aggregateQty && Number(aggregateQty) > 0
-          ? [{ quantity: Number(aggregateQty) }]
-          : []
-        : detailMode === 'colors'
-          ? Object.entries(colorQtys)
-              .filter(([, quantity]) => quantity > 0)
-              .map(([itemColorId, quantity]) => ({ itemColorId, quantity }))
-          : Object.entries(quantities)
-              .filter(([, quantity]) => quantity > 0)
-              .map(([key, quantity]) => {
-                const [itemColorId, size] = key.split('|')
-                return { itemColorId, size, quantity }
-              })
+    const activeDetailMode = normalizeDetailMode(detailMode, selectedProduct)
+    const cells = buildDetailCells(
+      activeDetailMode,
+      aggregateQty,
+      colorQtys,
+      quantities,
+    )
 
     const errors: Record<string, string> = {}
     if (!selectedProduct) errors.product = 'Pick a product'
@@ -285,6 +350,7 @@ export function AddItemForm({
     }
     setFormErrors(errors)
     if (Object.keys(errors).length > 0 || !selectedProduct) return
+    setDetailMode(activeDetailMode)
 
     const entryData: SupplyRouteEntryPayload = {
       supplyRouteId,
@@ -309,7 +375,7 @@ export function AddItemForm({
       currency,
       exchangeRateForeignToUsd: fxToUsd || undefined,
       exchangeRateUsdToUgx: usdToUgx || undefined,
-      detailMode,
+      detailMode: activeDetailMode,
     })
   }
 
@@ -321,7 +387,7 @@ export function AddItemForm({
 
   function resetForm() {
     setProduct(undefined)
-    setDetailMode('variants')
+    setDetailMode('aggregate')
     setAggregateQty('')
     setColorQtys({})
     setQuantities({})
@@ -413,6 +479,91 @@ export function AddItemForm({
       </div>
     ) : null
 
+  const newItemDetailColors = newItemDraft.colors.map((color) => ({
+    id: color.id ?? `draft:${color.colorName}`,
+    colorName: color.colorName,
+    colorHex: color.colorHex,
+  }))
+  const newItemDetailMode = normalizeDetailModeForAttributes(
+    detailMode,
+    newItemDetailColors,
+    newItemDraft.sizes,
+  )
+
+  function validateNewItemRouteDraft() {
+    const cells = buildDetailCells(
+      newItemDetailMode,
+      aggregateQty,
+      colorQtys,
+      quantities,
+    )
+    const errors: Record<string, string> = {}
+    if (cells.length === 0) errors.quantities = 'Enter at least one quantity'
+    if (supplierOptions.length > 0 && !newItemDraft.supplierId) {
+      errors.supplier = 'Select a purchase supplier'
+    }
+    if (currency !== 'UGX') {
+      if (currency !== 'USD' && (!fxToUsd || Number(fxToUsd) <= 0)) {
+        errors.fxToUsd = 'Enter a valid rate'
+      }
+      if (!usdToUgx || Number(usdToUgx) <= 0) {
+        errors.usdToUgx = 'Enter a valid rate'
+      }
+    }
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  async function saveNewItemRouteEntry(_itemId: string, articleNumber: string) {
+    // Keep the new-item editor as the only visible form if the route write
+    // fails. `refreshProduct` also sets the outer selected product state,
+    // which would expose a second route form during retry.
+    const selectedProduct = await getItemByArticle({
+      data: { articleNumber },
+    })
+    if (!selectedProduct) throw new Error('Could not load the new item')
+
+    const draftCells = buildDetailCells(
+      newItemDetailMode,
+      aggregateQty,
+      colorQtys,
+      quantities,
+    )
+    const colorIdByDraftId = new Map(
+      newItemDetailColors.map((draftColor) => [
+        draftColor.id,
+        selectedProduct.colors.find(
+          (color) => color.colorName === draftColor.colorName,
+        )?.id,
+      ]),
+    )
+    const cells = draftCells.map((cell) => {
+      if (!cell.itemColorId) return cell
+      const itemColorId = colorIdByDraftId.get(cell.itemColorId)
+      if (!itemColorId) {
+        throw new Error(`Could not map color ${cell.itemColorId}`)
+      }
+      return { ...cell, itemColorId }
+    })
+
+    await addSupplyRouteVariants({
+      data: {
+        supplyRouteId,
+        itemId: selectedProduct.id,
+        supplierId: newItemDraft.supplierId || undefined,
+        exchangeRateForeignToUsd:
+          currency !== 'UGX' && currency !== 'USD'
+            ? fxToUsd || undefined
+            : undefined,
+        exchangeRateUsdToUgx:
+          currency !== 'UGX' ? usdToUgx || undefined : undefined,
+        cells,
+      },
+    })
+    setItemEditorMode(null)
+    await onDone()
+  }
+
   return (
     <form
       onSubmit={(e) => {
@@ -430,6 +581,7 @@ export function AddItemForm({
               onChange={(_, selected) => {
                 setProduct(selected)
                 setItemEditorMode(null)
+                setDetailMode('aggregate')
                 setPurchaseSupplierId(
                   resolveDefaultPurchaseSupplierId({
                     itemSupplierId: selected?.supplier?.id,
@@ -437,7 +589,10 @@ export function AddItemForm({
                     existingEntrySupplierId: initialEntry?.supplierId,
                   }),
                 )
+                setAggregateQty('')
+                setColorQtys({})
                 setQuantities({})
+                setFormErrors({})
                 if (
                   selected?.costCurrency === 'RMB' ||
                   selected?.costCurrency === 'USD' ||
@@ -453,7 +608,10 @@ export function AddItemForm({
               type="button"
               variant="outline"
               className="w-full shrink-0 sm:w-auto"
-              onClick={() => setItemEditorMode('create')}
+              onClick={() => {
+                resetNewItemDraft()
+                setItemEditorMode('create')
+              }}
             >
               <Plus className="size-4" /> Create new item
             </Button>
@@ -479,35 +637,50 @@ export function AddItemForm({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setItemEditorMode(null)}
+              onClick={() => {
+                resetNewItemDraft()
+                setItemEditorMode(null)
+              }}
             >
               Cancel
             </Button>
           </div>
           {itemEditorMode === 'create' ? (
             <ItemEditor
-              categories={categories}
               suppliers={supplierOptions}
               allowCreateSupplier
               createSubmitLabel="Done"
-              beforeSubmitContent={exchangeRateFields}
-              onCreated={(_id, articleNumber) => {
-                setItemEditorMode(null)
-                void refreshProduct(articleNumber)
-                  .then((selected) => openPreviewForProduct(selected))
-                  .catch((err: unknown) => {
-                    setFormErrors({
-                      form:
-                        err instanceof Error
-                          ? err.message
-                          : 'Could not load the new item',
-                    })
-                  })
-              }}
+              onDraftChange={handleNewItemDraftChange}
+              beforeSubmit={validateNewItemRouteDraft}
+              beforeSubmitContent={
+                <>
+                  {exchangeRateFields}
+                  <DetailLevelFields
+                    colors={newItemDetailColors}
+                    sizes={newItemDraft.sizes}
+                    detailMode={newItemDetailMode}
+                    onDetailModeChange={(mode) => {
+                      setDetailMode(mode)
+                      setFormErrors((prev) => {
+                        if (!prev.quantities) return prev
+                        const { quantities: _, ...rest } = prev
+                        return rest
+                      })
+                    }}
+                    aggregateQty={aggregateQty}
+                    onAggregateQtyChange={setAggregateQty}
+                    colorQtys={colorQtys}
+                    onColorQtysChange={setColorQtys}
+                    quantities={quantities}
+                    onQuantitiesChange={setQuantities}
+                    error={formErrors.quantities}
+                  />
+                </>
+              }
+              onCreated={saveNewItemRouteEntry}
             />
           ) : product ? (
             <ItemEditor
-              categories={categories}
               suppliers={supplierOptions}
               allowCreateSupplier
               beforeSubmitContent={exchangeRateFields}
@@ -525,7 +698,8 @@ export function AddItemForm({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">
-              {product.articleNumber} — {product.name}
+              {formatItemArticleNumbers(product.articleNumbers)} —{' '}
+              {product.name}
             </span>
             <Button
               type="button"
@@ -552,7 +726,14 @@ export function AddItemForm({
               </FieldLabel>
               <Select
                 value={purchaseSupplierId}
-                onValueChange={setPurchaseSupplierId}
+                onValueChange={(value) => {
+                  setPurchaseSupplierId(value)
+                  setFormErrors((prev) => {
+                    if (!prev.supplier) return prev
+                    const { supplier: _, ...rest } = prev
+                    return rest
+                  })
+                }}
               >
                 <SelectTrigger
                   aria-invalid={!!formErrors.supplier || undefined}
@@ -582,86 +763,27 @@ export function AddItemForm({
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <FieldLabel help="item.detailMode">Detail level</FieldLabel>
-            <div className="inline-flex rounded-md border p-0.5 text-xs">
-              {(
-                [
-                  { value: 'aggregate', label: 'Total only' },
-                  { value: 'colors', label: 'Per color' },
-                  { value: 'variants', label: 'Per color × size' },
-                ] as const
-              ).map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setDetailMode(option.value)}
-                  className={
-                    'rounded px-3 py-1.5 transition-colors ' +
-                    (detailMode === option.value
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted')
-                  }
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {detailMode === 'aggregate'
-                ? "Just record how many units you're buying. An admin can split into colors/sizes later before receiving."
-                : detailMode === 'colors'
-                  ? 'Record quantity per color. Sizes can be filled in later.'
-                  : 'Full breakdown by color and size.'}
-            </p>
-          </div>
-
-          {detailMode === 'aggregate' && (
-            <div className="space-y-2">
-              <FieldLabel help="item.aggregateQty">Total quantity *</FieldLabel>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                value={aggregateQty}
-                onChange={(event) => setAggregateQty(event.target.value)}
-                placeholder="0"
-                aria-invalid={!!formErrors.quantities || undefined}
-              />
-              {formErrors.quantities && (
-                <p className="text-xs text-destructive">
-                  {formErrors.quantities}
-                </p>
-              )}
-            </div>
-          )}
-
-          {detailMode === 'colors' && (
-            <ColorQuantityList
-              colors={product.colors}
-              values={colorQtys}
-              onChange={setColorQtys}
-              onRemoveColor={(id) => void handleRemoveColor(id)}
-              error={formErrors.quantities}
-            />
-          )}
-
-          {detailMode === 'variants' && (
-            <>
-              <VariantGrid
-                sizes={deriveSizes(product.variants ?? [])}
-                colors={product.colors}
-                quantities={quantities}
-                onChange={setQuantities}
-                onRemoveColor={(id) => void handleRemoveColor(id)}
-              />
-              {formErrors.quantities && (
-                <p className="text-xs text-destructive">
-                  {formErrors.quantities}
-                </p>
-              )}
-            </>
-          )}
+          <DetailLevelFields
+            colors={product.colors}
+            sizes={deriveSizes(product.variants ?? [])}
+            detailMode={normalizeDetailMode(detailMode, product)}
+            onDetailModeChange={(mode) => {
+              setDetailMode(mode)
+              setFormErrors((prev) => {
+                if (!prev.quantities) return prev
+                const { quantities: _, ...rest } = prev
+                return rest
+              })
+            }}
+            aggregateQty={aggregateQty}
+            onAggregateQtyChange={setAggregateQty}
+            colorQtys={colorQtys}
+            onColorQtysChange={setColorQtys}
+            quantities={quantities}
+            onQuantitiesChange={setQuantities}
+            error={formErrors.quantities}
+            onRemoveColor={(id) => void handleRemoveColor(id)}
+          />
           {formErrors.removeColor && (
             <p className="text-xs text-destructive">{formErrors.removeColor}</p>
           )}
@@ -699,8 +821,10 @@ export function AddItemForm({
             <div className="space-y-4 text-sm">
               <div className="rounded-md border p-3">
                 <p className="font-medium">
-                  {pendingPreview.product.articleNumber} —{' '}
-                  {pendingPreview.product.name}
+                  {formatItemArticleNumbers(
+                    pendingPreview.product.articleNumbers,
+                  )}{' '}
+                  — {pendingPreview.product.name}
                 </p>
                 <p className="mt-1 text-muted-foreground">
                   Supplier: {pendingPreview.supplierName}
@@ -808,7 +932,9 @@ export function AddItemForm({
               itemId={product.id}
               onCreated={() => {
                 setColorEditorOpen(false)
-                void refreshProduct(product.articleNumber)
+                void refreshProduct(
+                  primaryItemArticleNumber(product.articleNumbers),
+                )
               }}
             />
           )}

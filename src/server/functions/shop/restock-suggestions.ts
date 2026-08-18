@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
 import {
@@ -34,7 +34,13 @@ export const listShopRestockSuggestions = createServerFn()
         baseline: lowStockAlerts.baselineQuantity,
         storeStockId: storeStock.id,
         storeQuantity: storeStock.quantityOnHand,
-        articleNumber: items.articleNumber,
+        articleNumber: sql<string>`(
+          SELECT ian.article_number
+          FROM item_article_numbers AS ian
+          WHERE ian.item_id = ${items.id}
+          ORDER BY ian.article_number
+          LIMIT 1
+        )`,
         colorName: itemColors.colorName,
       })
       .from(lowStockAlerts)

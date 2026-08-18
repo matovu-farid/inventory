@@ -4,11 +4,10 @@ import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Textarea } from '#/components/ui/textarea'
 import { Badge } from '#/components/ui/badge'
-import { CreatableCombobox } from '#/components/ui/creatable-combobox'
 import { ChevronDown, X } from 'lucide-react'
 import {
   createItem,
-  listItems,
+  replaceItemArticleNumbers,
   updateItem,
 } from '#/server/functions/items/items'
 import { listSuppliersForSelect } from '#/server/functions/supply/routes'
@@ -19,25 +18,39 @@ import { InfoPopover } from '#/components/ui/info-popover'
 import { FieldLabel } from '#/components/ui/field-label'
 import { MoneyInput } from '#/components/ui/money-input'
 import { Combobox } from '#/components/ui/combobox'
-import { suggestArticleNumber } from '#/lib/items/article-number'
+import { normalizeArticleNumber } from '#/lib/items/article-number'
 import { CreateSupplierDialog } from '#/components/supply/create-supplier-dialog'
 import type { CreatedSupplierOption } from '#/components/supply/create-supplier-dialog'
 
 const SIZE_QUICK_PICKS = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
+export interface ColorDraft {
+  id?: string
+  colorName: string
+  colorHex: string
+}
+
+export interface ItemEditorDraft {
+  supplierId: string
+  costCurrency: 'RMB' | 'USD' | 'UGX'
+  colors: ColorDraft[]
+  sizes: string[]
+}
+
 interface Props {
-  categories: ReadonlyArray<string>
   suppliers?: ReadonlyArray<{ id: string; name: string }>
   allowCreateSupplier?: boolean
   createSubmitLabel?: string
   beforeSubmitContent?: ReactNode
-  onCreated?: (itemId: string, articleNumber: string) => void
+  beforeSubmit?: () => boolean | void | Promise<boolean | void>
+  onDraftChange?: (draft: ItemEditorDraft) => void
+  onCreated?: (itemId: string, articleNumber: string) => void | Promise<void>
   item?: {
     id: string
-    articleNumber: string
+    articleNumbers: Array<{ id: string; articleNumber: string }>
     name: string
     description?: string | null
-    category: string
+    design: string
     supplier?: { id: string; name: string } | null
     costPrice?: string | null
     costCurrency?: string | null
@@ -49,9 +62,12 @@ interface Props {
   onUpdated?: (articleNumber: string) => void
 }
 
-interface ColorDraft {
-  colorName: string
-  colorHex: string
+function ItemEditorPill({ children }: { children: ReactNode }) {
+  return (
+    <Badge variant="secondary" className="gap-1 px-3 py-1 text-sm">
+      {children}
+    </Badge>
+  )
 }
 
 const MINIMUM_SELL_PRICE_ERROR = 'Minimum sell price must be positive'
@@ -100,19 +116,23 @@ function getSafeErrorMessage(error: unknown): string {
  * the variants table when saving.
  */
 export function ItemEditor({
-  categories,
   suppliers: suppliedSuppliers,
   allowCreateSupplier = false,
   createSubmitLabel = 'Create item',
   beforeSubmitContent,
+  beforeSubmit,
+  onDraftChange,
   onCreated,
   item,
   onUpdated,
 }: Props) {
-  const [articleNumber, setArticleNumber] = useState(item?.articleNumber ?? '')
+  const [articleNumbers, setArticleNumbers] = useState<string[]>(
+    item?.articleNumbers.map((number) => number.articleNumber) ?? [],
+  )
+  const [articleNumberDraft, setArticleNumberDraft] = useState('')
   const [name, setName] = useState(item?.name ?? '')
   const [description, setDescription] = useState(item?.description ?? '')
-  const [category, setCategory] = useState(item?.category ?? '')
+  const [design, setDesign] = useState(item?.design ?? '')
   const [supplierId, setSupplierId] = useState(item?.supplier?.id ?? '')
   const [suppliers, setSuppliers] = useState<
     ReadonlyArray<{ id: string; name: string }>
@@ -139,15 +159,15 @@ export function ItemEditor({
   const [colorNameDraft, setColorNameDraft] = useState('')
   const [colorHexDraft, setColorHexDraft] = useState('#000000')
   const lastSuggestedName = useRef<string>('')
-  const articleNumberEdited = useRef(false)
   const [submitting, setSubmitting] = useState(false)
+  const [createdItemId, setCreatedItemId] = useState<string | null>(null)
+  const [createdArticleNumber, setCreatedArticleNumber] = useState<
+    string | null
+  >(null)
   const [error, setError] = useState<string | null>(null)
   const [minimumSellPriceError, setMinimumSellPriceError] = useState<
     string | null
   >(null)
-  const [existingArticleNumbers, setExistingArticleNumbers] = useState<
-    ReadonlySet<string>
-  >(new Set())
   const [commercialProfileOpen, setCommercialProfileOpen] = useState(true)
   const [variantsOpen, setVariantsOpen] = useState(true)
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false)
@@ -164,11 +184,18 @@ export function ItemEditor({
   }, [suppliedSuppliers])
 
   useEffect(() => {
+    onDraftChange?.({ supplierId, costCurrency, colors, sizes })
+  }, [colors, costCurrency, onDraftChange, sizes, supplierId])
+
+  useEffect(() => {
     if (!item) return
-    setArticleNumber(item.articleNumber)
+    const nextArticleNumbers = item.articleNumbers.map(
+      (number) => number.articleNumber,
+    )
+    setArticleNumbers(nextArticleNumbers)
     setName(item.name)
     setDescription(item.description ?? '')
-    setCategory(item.category)
+    setDesign(item.design)
     setSupplierId(item.supplier?.id ?? '')
     setCostPrice(item.costPrice ?? '')
     setCostCurrency(
@@ -184,22 +211,7 @@ export function ItemEditor({
         : [],
     )
     setColors(item.colors ?? [])
-    articleNumberEdited.current = true
   }, [item])
-
-  useEffect(() => {
-    void listItems()
-      .then((records) => {
-        setExistingArticleNumbers(
-          new Set(
-            records
-              .filter((record) => record.id !== item?.id)
-              .map((record) => record.articleNumber),
-          ),
-        )
-      })
-      .catch((err: unknown) => setError(getSafeErrorMessage(err)))
-  }, [item?.id])
 
   function handleHexChange(hex: string) {
     setColorHexDraft(hex)
@@ -226,15 +238,6 @@ export function ItemEditor({
 
   function handleItemNameChange(value: string) {
     setName(value)
-    if (!articleNumberEdited.current) {
-      setArticleNumber(
-        suggestArticleNumber({
-          category,
-          name: value,
-          existingArticleNumbers,
-        }),
-      )
-    }
   }
 
   function handleSupplierCreated(supplier: CreatedSupplierOption) {
@@ -248,17 +251,23 @@ export function ItemEditor({
     setSupplierDialogOpen(false)
   }
 
-  function handleCategoryChange(value: string) {
-    setCategory(value)
-    if (!articleNumberEdited.current) {
-      setArticleNumber(
-        suggestArticleNumber({
-          category: value,
-          name,
-          existingArticleNumbers,
-        }),
+  function addArticleNumber(raw: string) {
+    let normalized: string
+    try {
+      normalized = normalizeArticleNumber(raw)
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Article number is required',
       )
+      return
     }
+    if (articleNumbers.includes(normalized)) {
+      setError('Article numbers must be unique')
+      return
+    }
+    setArticleNumbers((current) => [...current, normalized])
+    setArticleNumberDraft('')
+    setError(null)
   }
 
   function addSizes(raw: string) {
@@ -286,6 +295,14 @@ export function ItemEditor({
   }
 
   async function save() {
+    try {
+      const canSubmit = await beforeSubmit?.()
+      if (canSubmit === false) return
+    } catch (e) {
+      setError(getSafeErrorMessage(e))
+      return
+    }
+
     setSubmitting(true)
     setError(null)
     setMinimumSellPriceError(null)
@@ -299,13 +316,12 @@ export function ItemEditor({
 
     try {
       if (item) {
-        const updated = await updateItem({
+        await updateItem({
           data: {
             id: item.id,
-            articleNumber,
             name,
             description,
-            category: category.trim(),
+            design: design.trim(),
             supplierId,
             costPrice,
             costCurrency,
@@ -313,24 +329,35 @@ export function ItemEditor({
             lowStockThreshold,
           },
         })
-        onUpdated?.(updated.articleNumber)
+        await replaceItemArticleNumbers({
+          data: { itemId: item.id, articleNumbers },
+        })
+        onUpdated?.(articleNumbers[0] ?? '')
       } else {
-        const created = await createItem({
-          data: {
-            articleNumber,
-            name,
-            description: description || undefined,
-            category: category.trim(),
-            supplierId,
-            costPrice,
-            costCurrency,
-            sizes,
-            colors,
-            minimumSellPriceUgx,
-            lowStockThreshold,
-          },
-        })
-        onCreated?.(created.id, created.articleNumber)
+        let itemId = createdItemId
+        let itemArticleNumber = createdArticleNumber
+        if (!itemId || !itemArticleNumber) {
+          const created = await createItem({
+            data: {
+              name,
+              design: design.trim(),
+              articleNumbers,
+              description: description || undefined,
+              supplierId,
+              costPrice,
+              costCurrency,
+              sizes,
+              colors,
+              minimumSellPriceUgx,
+              lowStockThreshold,
+            },
+          })
+          itemId = created.id
+          itemArticleNumber = articleNumbers[0] ?? ''
+          setCreatedItemId(itemId)
+          setCreatedArticleNumber(itemArticleNumber)
+        }
+        await onCreated?.(itemId, itemArticleNumber)
       }
     } catch (e) {
       const validationMessage = getValidationMessage(e, 'minimumSellPriceUgx')
@@ -347,7 +374,7 @@ export function ItemEditor({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="space-y-2">
+        <div className="space-y-1">
           <FieldLabel>Current supplier</FieldLabel>
           <Combobox
             options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
@@ -364,45 +391,79 @@ export function ItemEditor({
             placeholder="Select supplier"
             searchPlaceholder="Search suppliers…"
             emptyMessage="Create a supplier before creating an item."
+            triggerClassName="h-11 text-base"
           />
         </div>
-        <div className="space-y-1">
-          <FieldLabel help="itemForm.category">Category</FieldLabel>
-          <CreatableCombobox
-            options={categories}
-            value={category}
-            onChange={handleCategoryChange}
-            placeholder="Pick or type a category"
-            searchPlaceholder="Search categories…"
-            emptyMessage="Type to create a new category."
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-1">
           <FieldLabel help="item.name">Item name</FieldLabel>
           <Input
             className="h-11 text-base"
             value={name}
             onChange={(e) => handleItemNameChange(e.target.value)}
-            placeholder="Crew-neck T-shirt"
+            placeholder="T-shirt"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <FieldLabel help="item.design">Design</FieldLabel>
+          <Input
+            className="h-11 text-base"
+            value={design}
+            onChange={(e) => setDesign(e.target.value)}
+            placeholder="Round neck"
           />
         </div>
         <div className="space-y-1">
-          <FieldLabel help="item.articleNumber">Article number</FieldLabel>
-          <Input
-            className="h-11 text-base"
-            value={articleNumber}
-            onChange={(e) => {
-              articleNumberEdited.current = true
-              setArticleNumber(e.target.value)
-            }}
-            placeholder="Generated after category and name"
-          />
-          <p className="text-xs text-muted-foreground">
-            Suggested automatically; edit it if your catalog uses a different
-            code.
-          </p>
+          <FieldLabel help="item.articleNumbers">Article numbers</FieldLabel>
+          <div className="flex gap-2">
+            <Input
+              className="h-11 text-base"
+              value={articleNumberDraft}
+              onChange={(e) => setArticleNumberDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addArticleNumber(articleNumberDraft)
+                }
+              }}
+              placeholder="Enter an article number"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 text-base"
+              onClick={() => addArticleNumber(articleNumberDraft)}
+            >
+              Add
+            </Button>
+          </div>
+          {articleNumbers.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {articleNumbers.map((number) => (
+                <ItemEditorPill key={number}>
+                  {number}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (articleNumbers.length === 1) {
+                        setError(
+                          'An item must have at least one article number',
+                        )
+                        return
+                      }
+                      setArticleNumbers((current) =>
+                        current.filter((value) => value !== number),
+                      )
+                    }}
+                    aria-label={`remove ${number}`}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </ItemEditorPill>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <div className="space-y-1">
@@ -451,39 +512,41 @@ export function ItemEditor({
             </select>
           </div>
         </div>
-        <div className="space-y-2">
-          <FieldLabel help="item.minSellPrice">
-            Minimum sell price (UGX)
-          </FieldLabel>
-          <MoneyInput
-            value={minimumSellPriceUgx}
-            onChange={(v) => {
-              setMinimumSellPriceUgx(v)
-              setMinimumSellPriceError(null)
-            }}
-            currency="UGX"
-            decimals={0}
-            roundTo={50}
-            error={minimumSellPriceError ?? undefined}
-          />
-        </div>
-        <div className="space-y-2">
-          <FieldLabel help="item.lowStockThreshold">
-            Low-stock threshold
-          </FieldLabel>
-          <Input
-            type="number"
-            min={0}
-            step={1}
-            placeholder="No alert"
-            value={lowStockThreshold ?? ''}
-            onChange={(e) => {
-              const v = e.target.value
-              setLowStockThreshold(
-                v === '' ? null : Math.max(0, Math.floor(Number(v))),
-              )
-            }}
-          />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <FieldLabel help="item.minSellPrice">
+              Minimum sell price (UGX)
+            </FieldLabel>
+            <MoneyInput
+              value={minimumSellPriceUgx}
+              onChange={(v) => {
+                setMinimumSellPriceUgx(v)
+                setMinimumSellPriceError(null)
+              }}
+              currency="UGX"
+              decimals={0}
+              roundTo={50}
+              error={minimumSellPriceError ?? undefined}
+            />
+          </div>
+          <div className="space-y-2">
+            <FieldLabel help="item.lowStockThreshold">
+              Low-stock threshold
+            </FieldLabel>
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              placeholder="No alert"
+              value={lowStockThreshold ?? ''}
+              onChange={(e) => {
+                const v = e.target.value
+                setLowStockThreshold(
+                  v === '' ? null : Math.max(0, Math.floor(Number(v))),
+                )
+              }}
+            />
+          </div>
         </div>
       </details>
       <details
@@ -499,63 +562,12 @@ export function ItemEditor({
           Variants and colors
         </summary>
         <div className="space-y-2">
-          <FieldLabel help="item.sizes">Sizes (optional)</FieldLabel>
-          <p className="text-sm text-muted-foreground">
-            Optional. Add sizes if you want to track stock by size. You can also
-            add them later from the item detail page or while receiving.
-          </p>
-          <Input
-            className="h-11 text-base"
-            value={sizeDraft}
-            onChange={(e) => setSizeDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                addSizes(sizeDraft)
-              }
-            }}
-            onBlur={() => {
-              if (sizeDraft.trim()) addSizes(sizeDraft)
-            }}
-            placeholder="Type sizes separated by commas, then Enter"
-          />
-          {sizes.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {sizes.map((s) => (
-                <Badge key={s} variant="secondary" className="gap-1">
-                  {s}
-                  <button
-                    type="button"
-                    onClick={() => setSizes(sizes.filter((x) => x !== s))}
-                    aria-label={`remove ${s}`}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          <div className="flex flex-wrap gap-1">
-            {SIZE_QUICK_PICKS.filter((s) => !sizes.includes(s)).map((s) => (
-              <Button
-                key={s}
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => addSizes(s)}
-              >
-                {s}
-              </Button>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-2">
           <FieldLabel help="item.initialColors">
             Initial colors (optional)
           </FieldLabel>
           <p className="text-sm text-muted-foreground">
-            Optional. Add colors if you want to track stock by color. You can
-            also add them later from this page or while receiving.{' '}
+            Add at least one color before adding sizes so stock can be tracked
+            by color and size. You can add more colors later.{' '}
             <InfoPopover term="item.variantsOptional" />
           </p>
           <div className="flex flex-wrap gap-1">
@@ -574,9 +586,13 @@ export function ItemEditor({
                 {c.colorName}
                 <button
                   type="button"
-                  onClick={() =>
-                    setColors(colors.filter((x) => x.colorName !== c.colorName))
-                  }
+                  onClick={() => {
+                    const nextColors = colors.filter(
+                      (x) => x.colorName !== c.colorName,
+                    )
+                    setColors(nextColors)
+                    if (nextColors.length === 0) setSizes([])
+                  }}
                   aria-label={`remove ${c.colorName}`}
                 >
                   <X className="size-3" />
@@ -613,6 +629,59 @@ export function ItemEditor({
             </Button>
           </div>
         </div>
+        {colors.length > 0 && (
+          <div className="space-y-2">
+            <FieldLabel help="item.sizes">Sizes (optional)</FieldLabel>
+            <p className="text-sm text-muted-foreground">
+              Optional. Add sizes if you want to track stock by size. You can
+              also add them later from the item detail page or while receiving.
+            </p>
+            <Input
+              className="h-11 text-base"
+              value={sizeDraft}
+              onChange={(e) => setSizeDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addSizes(sizeDraft)
+                }
+              }}
+              onBlur={() => {
+                if (sizeDraft.trim()) addSizes(sizeDraft)
+              }}
+              placeholder="Type sizes separated by commas, then Enter"
+            />
+            {sizes.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {sizes.map((s) => (
+                  <ItemEditorPill key={s}>
+                    {s}
+                    <button
+                      type="button"
+                      onClick={() => setSizes(sizes.filter((x) => x !== s))}
+                      aria-label={`remove ${s}`}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </ItemEditorPill>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-1">
+              {SIZE_QUICK_PICKS.filter((s) => !sizes.includes(s)).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => addSizes(s)}
+                >
+                  {s}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
       </details>
       {error && (
         <p className="text-sm text-destructive" role="alert">
@@ -625,9 +694,9 @@ export function ItemEditor({
           type="button"
           onClick={() => void save()}
           disabled={
-            !articleNumber ||
+            articleNumbers.length === 0 ||
             !name ||
-            !category.trim() ||
+            !design.trim() ||
             !supplierId ||
             !costPrice ||
             !minimumSellPriceUgx ||

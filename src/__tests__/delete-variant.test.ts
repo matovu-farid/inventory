@@ -3,7 +3,14 @@ import { and, eq, inArray } from 'drizzle-orm'
 import { runWithStartContext } from '@tanstack/start-storage-context'
 
 import { db } from '#/db'
-import { items, itemColors, variants, storeStock, stores } from '#/db/schema'
+import {
+  items,
+  itemArticleNumbers,
+  itemColors,
+  variants,
+  storeStock,
+  stores,
+} from '#/db/schema'
 import { createVariant, deleteVariant } from '#/server/functions/items/variants'
 import { assertDefined } from './test-helpers'
 
@@ -27,9 +34,10 @@ vi.mock('#/server/middleware/auth', () => ({
 vi.mock('#/server/middleware/rbac', () => ({
   requireRole: () => {},
   hasRole: () => true,
-  requireSessionAndRole: () => Promise.resolve({
-    user: { id: TEST_USER_ID, role: 'admin' },
-  }),
+  requireSessionAndRole: () =>
+    Promise.resolve({
+      user: { id: TEST_USER_ID, role: 'admin' },
+    }),
 }))
 
 const stubStartContext = {
@@ -82,11 +90,14 @@ beforeAll(async () => {
   const [item] = await db
     .insert(items)
     .values({
-      articleNumber: `dv-${SUFFIX}`,
       name: 'delete-variant tester',
-      category: 'Test',
+      design: 'Test',
     })
     .returning()
+  await db.insert(itemArticleNumbers).values({
+    itemId: item.id,
+    articleNumber: `dv-${SUFFIX}`,
+  })
   FIXTURE.itemId = item.id
 
   const [color] = await db

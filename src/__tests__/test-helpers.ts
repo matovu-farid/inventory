@@ -24,6 +24,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { db } from '#/db'
 import {
   itemColors,
+  itemArticleNumbers,
   items,
   shops,
   shopStock,
@@ -79,13 +80,16 @@ export async function seedItem(input: {
   const [row] = await db
     .insert(items)
     .values({
-      articleNumber: input.articleNumber,
       name: input.name,
-      category: input.category ?? 'Test',
+      design: input.category ?? 'Test',
       minimumSellPriceUgx: input.minimumSellPriceUgx ?? '0',
     })
     .returning()
   assertDefined(row, 'seedItem: insert returned no row')
+  await db.insert(itemArticleNumbers).values({
+    itemId: row.id,
+    articleNumber: input.articleNumber,
+  })
   return row.id
 }
 

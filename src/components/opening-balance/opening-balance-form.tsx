@@ -38,6 +38,10 @@ import { ColorEditor } from '#/components/items/color-editor'
 import { VariantGrid } from '#/components/items/variant-grid'
 import { ColorQuantityList } from '#/components/supply/split-item-form'
 import { getItemByArticle } from '#/server/functions/items/items'
+import {
+  formatItemArticleNumbers,
+  primaryItemArticleNumber,
+} from '#/lib/items/article-number'
 
 function cellsFromBlock(b: ValidBlock) {
   if (!openingBalanceUsesVariantGrid(b.item)) {
@@ -118,18 +122,12 @@ interface OpeningBalanceFormProps {
   shops?: OpeningBalanceShop[]
   /** Optional initial shop selection (used when arriving from Shop page with ?shopId=…). */
   initialShopId?: string
-  /**
-   * Existing item categories used to autocomplete the category field when
-   * the user creates a brand-new item from inside this form.
-   */
-  categories?: ReadonlyArray<string>
 }
 
 export function OpeningBalanceForm({
   scope,
   shops = [],
   initialShopId,
-  categories = [],
 }: OpeningBalanceFormProps) {
   const router = useRouter()
   const [blocks, setBlocks] = useState<DraftBlock[]>([newBlock()])
@@ -275,7 +273,8 @@ export function OpeningBalanceForm({
                     Item {idx + 1}
                     {b.item ? (
                       <span className="ml-2 font-normal text-muted-foreground">
-                        — {b.item.articleNumber} · {b.item.name}
+                        — {formatItemArticleNumbers(b.item.articleNumbers)} ·{' '}
+                        {b.item.name}
                       </span>
                     ) : null}
                   </h3>
@@ -308,7 +307,8 @@ export function OpeningBalanceForm({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">
-                        {b.item.articleNumber} — {b.item.name}
+                        {formatItemArticleNumbers(b.item.articleNumbers)} —{' '}
+                        {b.item.name}
                       </span>
                       <Button
                         type="button"
@@ -395,7 +395,6 @@ export function OpeningBalanceForm({
                       <DialogTitle>New item</DialogTitle>
                     </DialogHeader>
                     <ItemEditor
-                      categories={categories}
                       onCreated={(_id, articleNumber) => {
                         updateBlock(b.id, { itemEditorOpen: false })
                         void refreshBlockItem(b.id, articleNumber)
@@ -420,7 +419,10 @@ export function OpeningBalanceForm({
                         onCreated={() => {
                           updateBlock(b.id, { colorEditorOpen: false })
                           if (b.item) {
-                            void refreshBlockItem(b.id, b.item.articleNumber)
+                            void refreshBlockItem(
+                              b.id,
+                              primaryItemArticleNumber(b.item.articleNumbers),
+                            )
                           }
                         }}
                       />

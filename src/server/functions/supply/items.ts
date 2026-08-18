@@ -11,6 +11,7 @@ import {
   storeReceivings,
 } from '#/db/schema'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 import {
   materializeSplitRows,
   materializeVariantRows,
@@ -25,7 +26,10 @@ export const addSupplyRouteVariants = createServerFn()
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin'])
     const [item, route] = await Promise.all([
-      db.query.items.findFirst({ where: eq(items.id, data.itemId) }),
+      db.query.items.findFirst({
+        where: eq(items.id, data.itemId),
+        with: { articleNumbers: true },
+      }),
       db.query.supplyRoutes.findFirst({
         where: eq(supplyRoutes.id, data.supplyRouteId),
       }),
@@ -88,7 +92,7 @@ export const addSupplyRouteVariants = createServerFn()
       exchangeRateForeignToUsd,
       exchangeRateUsdToUgx,
       supplierNameSnapshot: supplier.name,
-      articleNumberSnapshot: item.articleNumber,
+      articleNumberSnapshot: formatItemArticleNumbers(item.articleNumbers),
       itemNameSnapshot: item.name,
       colorNameById: Object.fromEntries(
         colors.map((color) => [color.id, color.colorName]),
@@ -133,6 +137,7 @@ export const replaceSupplyRouteEntry = createServerFn()
 
       const item = await tx.query.items.findFirst({
         where: and(eq(items.id, data.itemId), isNull(items.deletedAt)),
+        with: { articleNumbers: true },
       })
       if (!item) throw new Error('Item not found')
       const snapshot =
@@ -221,8 +226,9 @@ export const replaceSupplyRouteEntry = createServerFn()
             : supplier.name,
         articleNumberSnapshot:
           existing[0].itemId === data.itemId
-            ? (existing[0].articleNumberSnapshot ?? item.articleNumber)
-            : item.articleNumber,
+            ? (existing[0].articleNumberSnapshot ??
+              formatItemArticleNumbers(item.articleNumbers))
+            : formatItemArticleNumbers(item.articleNumbers),
         itemNameSnapshot:
           existing[0].itemId === data.itemId
             ? (existing[0].itemNameSnapshot ?? item.name)

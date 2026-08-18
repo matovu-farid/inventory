@@ -35,9 +35,9 @@ async function createSupplier(name: string) {
 
 async function createItem(supplierId: string, articleNumber: string) {
   const item = await createItemQuery({
-    articleNumber,
     name: `Delete item ${articleNumber}`,
-    category: `Delete category ${suffix}`,
+    design: `Delete design ${suffix}`,
+    articleNumbers: [articleNumber],
     supplierId,
     costPrice: '10',
     costCurrency: 'RMB',

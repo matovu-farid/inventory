@@ -21,6 +21,7 @@ import { pickShopStockFifo } from '#/server/functions/shop/fifo'
 import { buildStoreReturnReceiveEntries } from './return-entries'
 import { renderAuditDescription } from '#/server/audit/descriptions'
 import { resolveArticleNumbersForAudit } from '#/server/audit/article-numbers'
+import { formatItemArticleNumbers } from '#/lib/items/article-number'
 import { getActorName } from '#/server/audit/actor'
 
 const returnItemInput = z.object({
@@ -69,7 +70,8 @@ export const dispatchStoreReturn = createServerFn()
       for (const input of data.items) {
         const item = await tx.query.items.findFirst({
           where: eq(items.id, input.itemId),
-          columns: { id: true, articleNumber: true, name: true },
+          columns: { id: true, name: true },
+          with: { articleNumbers: true },
         })
         if (!item) throw new Error(`Item not found: ${input.itemId}`)
 
@@ -81,8 +83,15 @@ export const dispatchStoreReturn = createServerFn()
         })
         if (plan.shortfall > 0) {
           const label = input.variantId
-            ? formatItemLabel(item.articleNumber, item.name, '')
-            : formatItemLabelUnresolved(item.articleNumber, item.name)
+            ? formatItemLabel(
+                formatItemArticleNumbers(item.articleNumbers),
+                item.name,
+                '',
+              )
+            : formatItemLabelUnresolved(
+                formatItemArticleNumbers(item.articleNumbers),
+                item.name,
+              )
           throw new Error(
             `Insufficient stock for ${label}: short by ${plan.shortfall}`,
           )
@@ -220,7 +229,7 @@ export const receiveStoreReturn = createServerFn()
         with: {
           items: {
             with: {
-              item: true,
+              item: { with: { articleNumbers: true } },
               variant: { with: { color: true } },
               allocations: true,
             },
@@ -261,11 +270,14 @@ export const receiveStoreReturn = createServerFn()
         }
         const label = line.variant
           ? formatItemLabel(
-              line.item.articleNumber,
+              formatItemArticleNumbers(line.item.articleNumbers),
               line.variant.color.colorName,
               line.variant.size,
             )
-          : formatItemLabelUnresolved(line.item.articleNumber, line.item.name)
+          : formatItemLabelUnresolved(
+              formatItemArticleNumbers(line.item.articleNumbers),
+              line.item.name,
+            )
         if (receipt.quantityReceived > line.quantityDispatched) {
           throw new Error(
             `Received ${receipt.quantityReceived} > dispatched ${line.quantityDispatched} for ${label}`,

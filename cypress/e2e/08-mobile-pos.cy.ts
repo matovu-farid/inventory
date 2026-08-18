@@ -23,12 +23,6 @@ describe.skip('Mobile POS happy path', () => {
   before(() => {
     // cleanupAllTestData deletes shop_stock before item_colors can be deleted
     cy.task('cleanupAllTestData', null)
-    // Now item_colors and items are safe to remove (no FK dependencies)
-    cy.task(
-      'dbQuery',
-      `DELETE FROM item_colors WHERE item_id IN (SELECT id FROM items WHERE article_number = 'TR-POS')`,
-    )
-    cy.task('dbQuery', `DELETE FROM items WHERE article_number = 'TR-POS'`)
 
     // Bootstrap: first user becomes admin
     cy.signup('POS Admin', adminEmail, password)
@@ -48,12 +42,23 @@ describe.skip('Mobile POS happy path', () => {
     )
     cy.task(
       'dbQuery',
-      `INSERT INTO items (article_number, name, category) VALUES ('TR-POS', 'POS Crew Tee', 'Test') ON CONFLICT DO NOTHING`,
+      `WITH new_item AS (
+         INSERT INTO items (name, design)
+         VALUES ('POS Crew Tee', 'Test')
+         ON CONFLICT DO NOTHING
+         RETURNING id
+       )
+       INSERT INTO item_article_numbers (item_id, article_number)
+       SELECT id, 'TR-POS' FROM new_item
+       ON CONFLICT DO NOTHING`,
     )
     cy.task(
       'dbQuery',
       `INSERT INTO item_colors (item_id, color_name, color_hex)
-       SELECT id, 'Red', '#dc2626' FROM items WHERE article_number = 'TR-POS'
+       SELECT i.id, 'Red', '#dc2626'
+       FROM items i
+       JOIN item_article_numbers ian ON ian.item_id = i.id
+       WHERE ian.article_number = 'TR-POS'
        ON CONFLICT DO NOTHING`,
     )
     // Stock tables key on variant_id after issue #4 — seed the variant
@@ -63,14 +68,17 @@ describe.skip('Mobile POS happy path', () => {
       `INSERT INTO variants (item_id, color_id, size)
        SELECT p.id, pc.id, 'M'
        FROM items p JOIN item_colors pc ON pc.item_id = p.id
-       WHERE p.article_number = 'TR-POS' AND pc.color_name = 'Red'
+       JOIN item_article_numbers ian ON ian.item_id = p.id
+       WHERE ian.article_number = 'TR-POS' AND pc.color_name = 'Red'
        ON CONFLICT DO NOTHING`,
     )
     // shop_stock now carries item_id (Plan 2a Task 1); minimum_sell_price_ugx
     // moved to items.minimum_sell_price_ugx and must be set there instead.
     cy.task(
       'dbQuery',
-      `UPDATE items SET minimum_sell_price_ugx = 50000 WHERE article_number = 'TR-POS'`,
+      `UPDATE items i SET minimum_sell_price_ugx = 50000
+       FROM item_article_numbers ian
+       WHERE ian.item_id = i.id AND ian.article_number = 'TR-POS'`,
     )
     cy.task(
       'dbQuery',
@@ -85,7 +93,8 @@ describe.skip('Mobile POS happy path', () => {
          10,
          30000
        FROM items p
-       WHERE p.article_number = 'TR-POS'
+       JOIN item_article_numbers ian ON ian.item_id = p.id
+       WHERE ian.article_number = 'TR-POS'
        ON CONFLICT DO NOTHING`,
     )
 
@@ -137,13 +146,8 @@ describe.skip('Mobile POS happy path', () => {
   })
 
   after(() => {
-    // cleanupAllTestData removes shop_stock (and users/shops), then we can delete product data
+    // cleanupAllTestData removes the item and its article numbers via CASCADE.
     cy.task('cleanupAllTestData', null)
-    cy.task(
-      'dbQuery',
-      `DELETE FROM item_colors WHERE item_id IN (SELECT id FROM items WHERE article_number = 'TR-POS')`,
-    )
-    cy.task('dbQuery', `DELETE FROM items WHERE article_number = 'TR-POS'`)
   })
 
   it('creates a sale via the mobile POS flow', () => {

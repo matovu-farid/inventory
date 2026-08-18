@@ -100,11 +100,16 @@ async function seedParentRow(client: pg.Client): Promise<string> {
   // Walk the FK chain: item → item_color → variant → store_stock.
   // All target rows must be committed before the concurrent insert begins.
   const item = await client.query<{ id: string }>(
-    `INSERT INTO items (article_number, name, category)
-     VALUES ('CFK-' || extract(epoch from now())::text, 'Cleanup FK Test', 'Test')
+    `INSERT INTO items (name, design)
+     VALUES ('Cleanup FK Test', 'Test')
      RETURNING id`,
   )
   const itemId = item.rows[0].id
+  await client.query(
+    `INSERT INTO item_article_numbers (item_id, article_number)
+     VALUES ($1, 'CFK-' || extract(epoch from now())::text)`,
+    [itemId],
+  )
 
   const color = await client.query<{ id: string }>(
     `INSERT INTO item_colors (item_id, color_name, color_hex)
@@ -147,7 +152,7 @@ async function fullCleanup(client: pg.Client): Promise<void> {
        shift_closures, notification_thresholds, low_stock_alerts,
        restock_requisitions, notifications, audit_logs, idempotency_keys,
        document_numbers, session, account, verification, "user",
-       variants, item_colors, items
+       variants, item_colors, item_article_numbers, items
      RESTART IDENTITY CASCADE`,
   )
 }

@@ -44,8 +44,8 @@ function RequisitionsPage() {
         <CardHeader>
           <CardTitle>Open requisitions</CardTitle>
           <CardDescription>
-            Items the store needs more of. Select and add them to an open
-            supply route, or dismiss with a reason.
+            Items the store needs more of. Select and add them to an open supply
+            route, or dismiss with a reason.
           </CardDescription>
         </CardHeader>
         <CardContent>
