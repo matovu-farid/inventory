@@ -8,7 +8,10 @@ import { Input } from '#/components/ui/input'
 import { PasswordInput } from '#/components/ui/password-input'
 import { Label } from '#/components/ui/label'
 import { authClient } from '#/lib/auth-client'
-import { markRememberedLogin } from '#/lib/auth/remembered-login'
+import {
+  hasSuccessfulAuth,
+  markRememberedLogin,
+} from '#/lib/auth/remembered-login'
 import { usersExist } from '#/server/functions/auth/users-exist'
 
 const searchSchema = z.object({
@@ -46,8 +49,8 @@ function LoginPage() {
     try {
       if (showSignup) {
         const result = await authClient.signUp.email({ name, email, password })
-        if (result.error) {
-          setError(result.error.message ?? 'Sign-up failed')
+        if (!hasSuccessfulAuth(result)) {
+          setError(result.error?.message ?? 'Sign-up failed')
           setPending(false)
           return
         }
@@ -60,11 +63,11 @@ function LoginPage() {
       }
 
       const result = await authClient.signIn.email({ email, password })
-      if (result.error) {
-        const code = (result.error as { code?: string }).code
+      if (!hasSuccessfulAuth(result)) {
+        const code = (result.error as { code?: string } | null)?.code
         if (
           code === 'EMAIL_NOT_VERIFIED' ||
-          /verif/i.test(result.error.message ?? '')
+          /verif/i.test(result.error?.message ?? '')
         ) {
           await navigate({
             to: '/verify-email-sent',
@@ -72,7 +75,7 @@ function LoginPage() {
           })
           return
         }
-        setError(result.error.message ?? 'Invalid email or password')
+        setError(result.error?.message ?? 'Invalid email or password')
         setPending(false)
         return
       }

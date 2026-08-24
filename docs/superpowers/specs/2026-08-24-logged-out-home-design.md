@@ -9,7 +9,7 @@ Give logged-out visitors a clear, warm introduction to Inventory while making re
 Use the “Practical & human” visual direction:
 
 - Warm off-white background with charcoal text.
-- Restrained terracotta accents and small emerald status highlights.
+- Inventory blue as the primary accent, with small emerald status highlights and warm secondary accents.
 - Rounded cards and subtle borders rather than heavy shadows.
 - Editorial but operational copy, avoiding generic startup language.
 - Responsive layout: split hero on desktop, stacked hero on mobile.

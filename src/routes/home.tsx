@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   ArrowLeftRight,
   ArrowRight,
+  ArrowDown,
   ChartNoAxesCombined,
   Check,
   PackageCheck,
@@ -16,11 +17,18 @@ import {
 import { Logo } from '#/components/logo'
 import { RequestAccessDialog } from '#/components/request-access-dialog'
 import { Button } from '#/components/ui/button'
-import { hasRememberedLogin } from '#/lib/auth/remembered-login'
+import {
+  getHomeRedirect,
+  hasRememberedLogin,
+} from '#/lib/auth/remembered-login'
 
 export const Route = createFileRoute('/home')({
   beforeLoad: ({ context }) => {
-    if (context.session) throw redirect({ to: '/' })
+    const redirectTo = getHomeRedirect({
+      hasSession: Boolean(context.session),
+      hasRememberedLogin: false,
+    })
+    if (redirectTo) throw redirect({ to: redirectTo })
   },
   component: PublicHome,
 })
@@ -57,8 +65,12 @@ function PublicHome() {
   const [isCheckingAccess, setIsCheckingAccess] = useState(true)
 
   useEffect(() => {
-    if (hasRememberedLogin()) {
-      void navigate({ to: '/login', replace: true })
+    const redirectTo = getHomeRedirect({
+      hasSession: false,
+      hasRememberedLogin: hasRememberedLogin(),
+    })
+    if (redirectTo) {
+      void navigate({ to: redirectTo, replace: true })
       return
     }
 
@@ -119,6 +131,13 @@ function PublicHome() {
             />
           </nav>
         </div>
+        <a
+          href="#how-it-works"
+          className="flex items-center justify-center gap-1 border-t border-[#e7e1d9]/70 px-6 py-3 text-xs font-medium text-[#57534e] outline-none transition-colors hover:text-[#0066E6] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0066E6]/50 sm:hidden"
+        >
+          How it works
+          <ArrowDown className="size-3.5" />
+        </a>
       </header>
 
       <main>

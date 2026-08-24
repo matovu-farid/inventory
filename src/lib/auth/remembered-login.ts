@@ -2,6 +2,24 @@ export const REMEMBERED_LOGIN_COOKIE = 'inventory_has_logged_in'
 
 const REMEMBERED_LOGIN_MAX_AGE = 60 * 60 * 24 * 365
 
+type HomeRedirect = '/' | '/login'
+
+export function getHomeRedirect({
+  hasSession,
+  hasRememberedLogin: rememberedLogin,
+}: {
+  hasSession: boolean
+  hasRememberedLogin: boolean
+}): HomeRedirect | null {
+  if (hasSession) return '/'
+  if (rememberedLogin) return '/login'
+  return null
+}
+
+export function hasSuccessfulAuth(result: { error?: unknown }) {
+  return !result.error
+}
+
 export function markRememberedLogin() {
   if (typeof document === 'undefined') return
 
