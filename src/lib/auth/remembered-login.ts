@@ -16,6 +16,18 @@ export function getHomeRedirect({
   return null
 }
 
+export function getRootRedirect({
+  hasSession,
+  hasRememberedLogin: rememberedLogin,
+}: {
+  hasSession: boolean
+  hasRememberedLogin: boolean
+}): HomeRedirect | '/home' | null {
+  if (hasSession) return null
+  if (rememberedLogin) return '/login'
+  return '/home'
+}
+
 export function hasSuccessfulAuth(result: { error?: unknown }) {
   return !result.error
 }

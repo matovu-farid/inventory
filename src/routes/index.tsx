@@ -18,9 +18,19 @@ import {
 import { getSystemPrereqs } from '#/server/functions/prereqs/system'
 import { can } from '#/lib/permissions'
 import type { Permission } from '#/lib/permissions'
+import {
+  getRootRedirect,
+  hasRememberedLogin,
+} from '#/lib/auth/remembered-login'
 
 export const Route = createFileRoute('/')({
   beforeLoad: ({ context }) => {
+    const redirectTo = getRootRedirect({
+      hasSession: Boolean(context.session),
+      hasRememberedLogin: hasRememberedLogin(),
+    })
+    if (redirectTo) throw redirect({ to: redirectTo })
+
     // Sales reps land directly on the shop floor — there's no dashboard
     // content meaningful to them.
     const role = (context.session?.user as { role?: string } | undefined)?.role
