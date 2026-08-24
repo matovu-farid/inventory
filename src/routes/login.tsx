@@ -8,6 +8,7 @@ import { Input } from '#/components/ui/input'
 import { PasswordInput } from '#/components/ui/password-input'
 import { Label } from '#/components/ui/label'
 import { authClient } from '#/lib/auth-client'
+import { markRememberedLogin } from '#/lib/auth/remembered-login'
 import { usersExist } from '#/server/functions/auth/users-exist'
 
 const searchSchema = z.object({
@@ -50,6 +51,7 @@ function LoginPage() {
           setPending(false)
           return
         }
+        markRememberedLogin()
         await navigate({
           to: '/verify-email-sent',
           search: { email },
@@ -74,6 +76,7 @@ function LoginPage() {
         setPending(false)
         return
       }
+      markRememberedLogin()
       await navigate({ to: '/' })
     } catch {
       setError(showSignup ? 'Sign-up failed.' : 'Login failed.')

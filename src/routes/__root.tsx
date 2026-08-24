@@ -79,6 +79,7 @@ function RootLayout() {
   const matches = useMatches()
 
   const publicPaths = new Set([
+    '/home',
     '/login',
     '/accept-invite',
     '/forgot-password',
