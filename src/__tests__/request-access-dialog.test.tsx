@@ -118,6 +118,42 @@ describe('RequestAccessDialog', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
+  it('ignores a pending delivery result after the dialog unmounts', async () => {
+    let rejectRequest: (error: Error) => void = () => undefined
+    const pendingRequest = new Promise<void>((_, reject) => {
+      rejectRequest = reject
+    })
+    requestAccess.mockReturnValue(pendingRequest)
+
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    const consoleWarn = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined)
+
+    try {
+      const { unmount } = render(<RequestAccessDialog />)
+      fireEvent.click(screen.getByRole('button', { name: /^request access$/i }))
+      fillRequestAccessForm()
+      fireEvent.submit(screen.getByRole('form'))
+      await waitFor(() => expect(requestAccess).toHaveBeenCalledOnce())
+
+      unmount()
+
+      await act(async () => {
+        rejectRequest(new Error('SMTP credentials leaked'))
+        await pendingRequest.catch(() => undefined)
+      })
+
+      expect(consoleError).not.toHaveBeenCalled()
+      expect(consoleWarn).not.toHaveBeenCalled()
+    } finally {
+      consoleError.mockRestore()
+      consoleWarn.mockRestore()
+    }
+  })
+
   it('rejects whitespace-only name and message before delivery', async () => {
     openRequestAccessDialog()
     fireEvent.change(screen.getByLabelText('Name'), {
@@ -145,7 +181,7 @@ describe('RequestAccessDialog', () => {
       target: { value: `  ${requestData.name}  ` },
     })
     fireEvent.change(screen.getByLabelText('Email'), {
-      target: { value: requestData.email },
+      target: { value: `  ${requestData.email}  ` },
     })
     fireEvent.change(screen.getByLabelText('Message'), {
       target: { value: `  ${requestData.message}  ` },
@@ -165,6 +201,12 @@ describe('RequestAccessDialog', () => {
     expect(screen.getByLabelText('Name')).toBeTruthy()
     expect(screen.getByLabelText('Email')).toBeTruthy()
     expect(screen.getByLabelText('Message')).toBeTruthy()
+    expect(screen.getByLabelText('Name').getAttribute('autocomplete')).toBe(
+      'name',
+    )
+    expect(screen.getByLabelText('Email').getAttribute('autocomplete')).toBe(
+      'email',
+    )
     expect(
       screen.getByText(/administrator must provide an invite/i),
     ).toBeTruthy()

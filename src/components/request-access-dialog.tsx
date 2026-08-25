@@ -66,7 +66,7 @@ export function RequestAccessDialog({
 
     const formData = new FormData(event.currentTarget)
     const name = String(formData.get('name') ?? '').trim()
-    const email = String(formData.get('email') ?? '')
+    const email = String(formData.get('email') ?? '').trim()
     const message = String(formData.get('message') ?? '').trim()
 
     if (!name || !message) {
@@ -134,6 +134,7 @@ export function RequestAccessDialog({
               id="request-access-name"
               name="name"
               placeholder="Your name"
+              autoComplete="name"
               required
               className="h-11 rounded-xl border-[#e7e1d9] bg-white"
             />
@@ -148,6 +149,7 @@ export function RequestAccessDialog({
               name="email"
               type="email"
               placeholder="you@company.com"
+              autoComplete="email"
               required
               className="h-11 rounded-xl border-[#e7e1d9] bg-white"
             />
