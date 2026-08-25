@@ -1,6 +1,7 @@
-import type { ReactElement } from 'react'
+import type { FormEvent, ReactElement } from 'react'
 import { useState } from 'react'
 
+import { requestAccess } from '#/server/functions/request-access'
 import { Button } from '#/components/ui/button'
 import {
   Dialog,
@@ -30,9 +31,52 @@ export function RequestAccessDialog({
   ),
 }: RequestAccessDialogProps) {
   const [open, setOpen] = useState(false)
+  const [formKey, setFormKey] = useState(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen)
+
+    if (nextOpen) {
+      setFormKey((currentKey) => currentKey + 1)
+      setIsSubmitting(false)
+      setIsSubmitted(false)
+      setError(null)
+    }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (isSubmitting || isSubmitted) {
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
+    const formData = new FormData(event.currentTarget)
+
+    try {
+      await requestAccess({
+        data: {
+          name: String(formData.get('name') ?? ''),
+          email: String(formData.get('email') ?? ''),
+          message: String(formData.get('message') ?? ''),
+        },
+      })
+      setIsSubmitted(true)
+    } catch {
+      setError('We were unable to deliver your request. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-md rounded-3xl border-[#e7e1d9] bg-[#fffdf9] p-7">
         <DialogHeader className="pr-8 text-left">
@@ -46,9 +90,12 @@ export function RequestAccessDialog({
         </DialogHeader>
 
         <form
+          key={formKey}
           aria-label="Request access"
           className="space-y-4"
-          onSubmit={(event) => event.preventDefault()}
+          onSubmit={(event) => {
+            void handleSubmit(event)
+          }}
         >
           <div className="space-y-2">
             <Label htmlFor="request-access-name" className="text-[#44403c]">
@@ -58,6 +105,7 @@ export function RequestAccessDialog({
               id="request-access-name"
               name="name"
               placeholder="Your name"
+              required
               className="h-11 rounded-xl border-[#e7e1d9] bg-white"
             />
           </div>
@@ -71,6 +119,7 @@ export function RequestAccessDialog({
               name="email"
               type="email"
               placeholder="you@company.com"
+              required
               className="h-11 rounded-xl border-[#e7e1d9] bg-white"
             />
           </div>
@@ -83,9 +132,21 @@ export function RequestAccessDialog({
               id="request-access-message"
               name="message"
               placeholder="What are you hoping to keep in better view?"
+              required
               className="min-h-24 w-full resize-y rounded-xl border border-[#e7e1d9] bg-white px-3 py-2 text-sm outline-none placeholder:text-[#a8a29e] focus-visible:border-[#0066E6] focus-visible:ring-3 focus-visible:ring-[#0066E6]/15"
             />
           </div>
+
+          {isSubmitted && (
+            <p role="status" className="text-sm text-[#166534]">
+              Request sent. We&apos;ll be in touch soon.
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="text-sm text-[#b91c1c]">
+              {error}
+            </p>
+          )}
 
           <DialogFooter className="pt-2 sm:flex-row sm:justify-between">
             <DialogClose asChild>
@@ -94,11 +155,11 @@ export function RequestAccessDialog({
               </Button>
             </DialogClose>
             <Button
-              type="button"
-              disabled
+              type="submit"
+              disabled={isSubmitting || isSubmitted}
               className="rounded-xl bg-[#0066E6] text-white hover:bg-[#0066E6]"
             >
-              Request access (coming soon)
+              Request access
             </Button>
           </DialogFooter>
         </form>
