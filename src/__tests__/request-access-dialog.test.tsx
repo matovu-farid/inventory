@@ -80,22 +80,16 @@ describe('RequestAccessDialog', () => {
   })
 
   it('shows a generic delivery error and keeps the dialog open', async () => {
-    let rejectRequest: (error: Error) => void = () => undefined
-    requestAccess.mockImplementation(
-      () =>
-        new Promise<void>((_, reject) => {
-          rejectRequest = reject
-        }),
-    )
+    requestAccess.mockRejectedValueOnce(new Error('SMTP credentials leaked'))
 
     openRequestAccessDialog()
     fillRequestAccessForm()
     fireEvent.submit(screen.getByRole('form'))
-    rejectRequest(new Error('SMTP credentials leaked'))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /unable to deliver/i,
-    )
+    await waitFor(() => expect(requestAccess).toHaveBeenCalledOnce())
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(/unable to deliver/i)
+    expect(alert).not.toHaveTextContent('SMTP credentials leaked')
     expect(screen.getByRole('dialog')).toBeTruthy()
   })
 
