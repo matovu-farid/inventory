@@ -112,8 +112,7 @@ export async function sendRequestAccessEmail({
   try {
     const result = await resend.emails.send({
       from: FROM,
-      to: (env as typeof env & { REQUEST_ACCESS_EMAIL: string })
-        .REQUEST_ACCESS_EMAIL,
+      to: env.REQUEST_ACCESS_EMAIL,
       subject: `New access request — ${name}`,
       react: RequestAccessTemplate({ name, email, message, appUrl: APP_URL }),
     })
