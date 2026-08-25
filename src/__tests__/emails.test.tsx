@@ -4,6 +4,7 @@ import {
   VerifyEmailTemplate,
   ResetPasswordTemplate,
   InviteUserTemplate,
+  RequestAccessTemplate,
 } from '#/lib/emails'
 
 const APP_URL = 'https://inventory.fidexa.org'
@@ -48,5 +49,25 @@ describe('InviteUserTemplate', () => {
     expect(html).toContain(url)
     expect(html).toContain('Set password &amp; sign in')
     expect(html).toContain('expires in 7 days')
+  })
+})
+
+describe('RequestAccessTemplate', () => {
+  it('includes the requester details and internal app URL', async () => {
+    const message = 'We need inventory visibility for our shop.'
+    const html = await render(
+      <RequestAccessTemplate
+        name="Sara"
+        email="sara@example.com"
+        message={message}
+        appUrl={APP_URL}
+      />,
+    )
+
+    expect(html).toContain('New access request')
+    expect(html).toContain('Sara')
+    expect(html).toContain('sara@example.com')
+    expect(html).toContain(message)
+    expect(html).toContain(APP_URL)
   })
 })
