@@ -48,6 +48,7 @@ jobs:
       BETTER_AUTH_URL: http://localhost:3000
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       APP_URL: ${{ secrets.APP_URL }}
+      REQUEST_ACCESS_EMAIL: matovu90@gmail.com
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -69,6 +70,7 @@ jobs:
             echo "BETTER_AUTH_URL=$BETTER_AUTH_URL"
             echo "RESEND_API_KEY=$RESEND_API_KEY"
             echo "APP_URL=$APP_URL"
+            echo "REQUEST_ACCESS_EMAIL=$REQUEST_ACCESS_EMAIL"
             echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
             echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"
             echo "AWS_REGION=$AWS_REGION"
@@ -104,6 +106,7 @@ jobs:
       BETTER_AUTH_URL: http://localhost:3000
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       APP_URL: ${{ secrets.APP_URL }}
+      REQUEST_ACCESS_EMAIL: matovu90@gmail.com
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -134,6 +137,7 @@ jobs:
             echo "BETTER_AUTH_URL=$BETTER_AUTH_URL"
             echo "RESEND_API_KEY=$RESEND_API_KEY"
             echo "APP_URL=$APP_URL"
+            echo "REQUEST_ACCESS_EMAIL=$REQUEST_ACCESS_EMAIL"
             echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
             echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"
             echo "AWS_REGION=$AWS_REGION"
@@ -170,6 +174,7 @@ jobs:
       BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       APP_URL: ${{ secrets.APP_URL }}
+      REQUEST_ACCESS_EMAIL: matovu90@gmail.com
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -195,6 +200,7 @@ jobs:
       BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       APP_URL: ${{ secrets.APP_URL }}
+      REQUEST_ACCESS_EMAIL: matovu90@gmail.com
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
