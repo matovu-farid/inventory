@@ -1,5 +1,5 @@
 import type { FormEvent, ReactElement } from 'react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { requestAccess } from '#/server/functions/request-access'
 import { Button } from '#/components/ui/button'
@@ -35,8 +35,16 @@ export function RequestAccessDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const submissionId = useRef(0)
+
+  useEffect(() => {
+    return () => {
+      submissionId.current += 1
+    }
+  }, [])
 
   function handleOpenChange(nextOpen: boolean) {
+    submissionId.current += 1
     setOpen(nextOpen)
 
     if (nextOpen) {
@@ -54,24 +62,45 @@ export function RequestAccessDialog({
       return
     }
 
-    setIsSubmitting(true)
     setError(null)
 
     const formData = new FormData(event.currentTarget)
+    const name = String(formData.get('name') ?? '').trim()
+    const email = String(formData.get('email') ?? '')
+    const message = String(formData.get('message') ?? '').trim()
+
+    if (!name || !message) {
+      setError('Please enter a name and message.')
+      return
+    }
+
+    setIsSubmitting(true)
+    const currentSubmissionId = submissionId.current
 
     try {
       await requestAccess({
         data: {
-          name: String(formData.get('name') ?? ''),
-          email: String(formData.get('email') ?? ''),
-          message: String(formData.get('message') ?? ''),
+          name,
+          email,
+          message,
         },
       })
+
+      if (submissionId.current !== currentSubmissionId) {
+        return
+      }
+
       setIsSubmitted(true)
     } catch {
+      if (submissionId.current !== currentSubmissionId) {
+        return
+      }
+
       setError('We were unable to deliver your request. Please try again.')
     } finally {
-      setIsSubmitting(false)
+      if (submissionId.current === currentSubmissionId) {
+        setIsSubmitting(false)
+      }
     }
   }
 

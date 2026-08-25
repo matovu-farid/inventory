@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -89,6 +90,72 @@ describe('RequestAccessDialog', () => {
     expect(alert.textContent).toMatch(/unable to deliver/i)
     expect(alert.textContent).not.toContain('SMTP credentials leaked')
     expect(screen.getByRole('dialog')).toBeTruthy()
+  })
+
+  it('ignores a delivery result after closing and reopening the dialog', async () => {
+    let resolveRequest: () => void = () => undefined
+    requestAccess.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveRequest = resolve
+      }),
+    )
+
+    openRequestAccessDialog()
+    fillRequestAccessForm()
+    fireEvent.submit(screen.getByRole('form'))
+    await waitFor(() => expect(requestAccess).toHaveBeenCalledOnce())
+
+    fireEvent.click(screen.getByRole('button', { name: /close/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: /^request access$/i }))
+
+    await act(async () => {
+      resolveRequest()
+      await Promise.resolve()
+    })
+
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('rejects whitespace-only name and message before delivery', async () => {
+    openRequestAccessDialog()
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: '   ' },
+    })
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: requestData.email },
+    })
+    fireEvent.change(screen.getByLabelText('Message'), {
+      target: { value: ' \n\t' },
+    })
+
+    fireEvent.submit(screen.getByRole('form'))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(/name and message/i)
+    expect(requestAccess).not.toHaveBeenCalled()
+  })
+
+  it('trims name and message before delivery', async () => {
+    requestAccess.mockResolvedValueOnce(undefined)
+
+    openRequestAccessDialog()
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: `  ${requestData.name}  ` },
+    })
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: requestData.email },
+    })
+    fireEvent.change(screen.getByLabelText('Message'), {
+      target: { value: `  ${requestData.message}  ` },
+    })
+
+    fireEvent.submit(screen.getByRole('form'))
+
+    await waitFor(() =>
+      expect(requestAccess).toHaveBeenCalledWith({ data: requestData }),
+    )
   })
 
   it('opens an explanatory dialog without submitting data', async () => {
