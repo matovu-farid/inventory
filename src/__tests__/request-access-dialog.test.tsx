@@ -70,9 +70,8 @@ describe('RequestAccessDialog', () => {
       expect(submitButton).toHaveProperty('disabled', true)
 
       resolveRequest()
-      expect(await screen.findByRole('status')).toHaveTextContent(
-        /request sent/i,
-      )
+      const status = await screen.findByRole('status')
+      expect(status.textContent).toMatch(/request sent/i)
     } finally {
       resolveRequest()
     }
@@ -87,8 +86,8 @@ describe('RequestAccessDialog', () => {
 
     await waitFor(() => expect(requestAccess).toHaveBeenCalledOnce())
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent(/unable to deliver/i)
-    expect(alert).not.toHaveTextContent('SMTP credentials leaked')
+    expect(alert.textContent).toMatch(/unable to deliver/i)
+    expect(alert.textContent).not.toContain('SMTP credentials leaked')
     expect(screen.getByRole('dialog')).toBeTruthy()
   })
 

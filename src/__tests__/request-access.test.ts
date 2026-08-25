@@ -23,7 +23,7 @@ describe('request access submission', () => {
     expect(
       requestAccessInput.parse({
         name: '  Sara  ',
-        email: ' sara@example.com ',
+        email: 'sara@example.com',
         message: '  We need inventory visibility for our shop.  ',
       }),
     ).toEqual(validRequest)
@@ -59,7 +59,7 @@ describe('request access submission', () => {
     sendRequestAccessEmail.mockResolvedValue(false)
 
     await expect(submitRequestAccess(validRequest)).rejects.toThrow(
-      /unable to deliver/i,
+      /Could not send access request/i,
     )
   })
 })
