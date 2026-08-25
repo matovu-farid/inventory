@@ -7,14 +7,13 @@ import {
   waitFor,
 } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { RequestAccessDialog } from '#/components/request-access-dialog'
 
 const { requestAccess } = vi.hoisted(() => ({
   requestAccess: vi.fn(),
 }))
 
 vi.mock('#/server/functions/request-access', () => ({ requestAccess }))
-
-import { RequestAccessDialog } from '#/components/request-access-dialog'
 
 afterEach(cleanup)
 beforeEach(() => {

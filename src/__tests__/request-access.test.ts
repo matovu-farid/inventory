@@ -1,15 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  requestAccessInput,
+  submitRequestAccess,
+} from '#/server/functions/request-access'
 
 const { sendRequestAccessEmail } = vi.hoisted(() => ({
   sendRequestAccessEmail: vi.fn(),
 }))
 
 vi.mock('#/lib/email', () => ({ sendRequestAccessEmail }))
-
-import {
-  requestAccessInput,
-  submitRequestAccess,
-} from '#/server/functions/request-access'
 
 const validRequest = {
   name: 'Sara',
