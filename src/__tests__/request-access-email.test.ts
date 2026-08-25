@@ -69,4 +69,18 @@ describe('sendRequestAccessEmail', () => {
     const result = await sendRequestAccessEmail(request)
     expect(result).toBe(false)
   })
+
+  it('escapes hostile requester messages in the rendered email', async () => {
+    const hostileMessage = '<img src=x onerror=alert(1)>'
+    send.mockResolvedValue({ data: { id: 'email-id' }, error: null })
+
+    await expect(
+      sendRequestAccessEmail({ ...request, message: hostileMessage }),
+    ).resolves.toBe(true)
+
+    const options = send.mock.calls[0][0]
+    const html = await render(options.react)
+    expect(html).not.toContain(hostileMessage)
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+  })
 })
