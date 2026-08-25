@@ -13,6 +13,7 @@ import {
   Tailwind,
   Text,
 } from '@react-email/components'
+import type { ReactNode } from 'react'
 
 export type EmailLayoutProps = {
   preview: string
@@ -20,6 +21,7 @@ export type EmailLayoutProps = {
   heading: string
   greeting?: string
   intro: string
+  children?: ReactNode
   ctaLabel: string
   ctaUrl: string
   note?: string
@@ -33,6 +35,7 @@ export function EmailLayout({
   heading,
   greeting,
   intro,
+  children,
   ctaLabel,
   ctaUrl,
   note,
@@ -79,6 +82,8 @@ export function EmailLayout({
               <Text className="text-slate-600 text-[15px] leading-6 mb-6 mt-0">
                 {intro}
               </Text>
+
+              {children}
 
               <Section className="text-center mb-6">
                 <Button

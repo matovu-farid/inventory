@@ -5,6 +5,7 @@ import {
   ResetPasswordTemplate,
   InviteUserTemplate,
   LowStockDigestTemplate,
+  RequestAccessTemplate,
 } from '#/lib/emails'
 import type { LowStockDigestData } from '#/lib/emails'
 
@@ -92,5 +93,39 @@ export async function sendLowStockDigest({ to, data }: DigestArgs) {
     })
   } catch (error) {
     console.error('[Email] sendLowStockDigest failed:', error)
+  }
+}
+
+type RequestAccessArgs = {
+  name: string
+  email: string
+  message: string
+}
+
+export async function sendRequestAccessEmail({
+  name,
+  email,
+  message,
+}: RequestAccessArgs) {
+  if (skipForTest('request-access', email)) return true
+
+  try {
+    const result = await resend.emails.send({
+      from: FROM,
+      to: (env as typeof env & { REQUEST_ACCESS_EMAIL: string })
+        .REQUEST_ACCESS_EMAIL,
+      subject: `New access request — ${name}`,
+      react: RequestAccessTemplate({ name, email, message, appUrl: APP_URL }),
+    })
+
+    if (result.error) {
+      console.error('[Email] sendRequestAccessEmail failed:', result.error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('[Email] sendRequestAccessEmail failed:', error)
+    return false
   }
 }
