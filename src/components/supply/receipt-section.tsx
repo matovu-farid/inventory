@@ -16,6 +16,7 @@ import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { Spinner } from '#/components/ui/spinner'
 import { ReceiptGrid } from './receipt-grid/receipt-grid'
 import { ReceiptRateInput } from './receipt-rate-input'
 import {
@@ -176,7 +177,7 @@ export function ReceiptSection({
   const historyRef = useRef<ReceiptHistory>({ past: [], future: [] })
   const lastReceiptSignatureRef = useRef(receiptSignature)
   const [, setHistoryVersion] = useState(0)
-  const [busy, setBusy] = useState(false)
+  const [busyAction, setBusyAction] = useState<'save' | 'remove' | null>(null)
   const [error, setError] = useState('')
   const {
     supplierId,
@@ -189,7 +190,8 @@ export function ReceiptSection({
     rows,
   } = draft
   const received = receipt?.lines.some((line) => line.received) ?? false
-  const locked = disabled || received
+  const busy = busyAction !== null
+  const locked = disabled || received || busy
   const artNumberError = useMemo(
     () => findReceiptArtNumberConflict(rows, catalogIndex, supplierId),
     [catalogIndex, rows, supplierId],
@@ -281,7 +283,7 @@ export function ReceiptSection({
       quantity: row.quantity as number,
       unitPriceForeign: row.unitPriceForeign.trim(),
     }))
-    setBusy(true)
+    setBusyAction('save')
     setError('')
     try {
       const data = {
@@ -310,14 +312,14 @@ export function ReceiptSection({
         cause instanceof Error ? cause.message : 'Could not save receipt',
       )
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
   async function remove() {
     if (!receipt || locked) return
     if (!window.confirm('Remove this receipt and all its lines?')) return
-    setBusy(true)
+    setBusyAction('remove')
     setError('')
     try {
       await deleteSupplyRouteReceipt({
@@ -329,186 +331,222 @@ export function ReceiptSection({
         cause instanceof Error ? cause.message : 'Could not remove receipt',
       )
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="border-b bg-muted/20">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <CardTitle className="text-base">
-              {receipt
-                ? `Receipt ${receipt.reference || receipt.id.slice(0, 8)}`
-                : 'New receipt'}
-            </CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {received
-                ? 'Received and locked'
-                : 'One supplier for this receipt'}
-            </p>
+    <div
+      className="relative"
+      aria-busy={busy}
+      data-receipt-saving={busy ? 'true' : undefined}
+    >
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b bg-muted/20">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <CardTitle className="text-base">
+                {receipt
+                  ? `Receipt ${receipt.reference || receipt.id.slice(0, 8)}`
+                  : 'New receipt'}
+              </CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {received
+                  ? 'Received and locked'
+                  : 'One supplier for this receipt'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {receipt && !received && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => void remove()}
+                  disabled={busy}
+                >
+                  {busyAction === 'remove' ? (
+                    <Spinner
+                      data-icon="inline-start"
+                      aria-hidden="true"
+                      role="presentation"
+                    />
+                  ) : (
+                    <Trash2 className="mr-1 size-4" />
+                  )}
+                  {busyAction === 'remove' ? 'Removing…' : 'Remove'}
+                </Button>
+              )}
+              {!disabled && !received && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void save()}
+                  disabled={busy}
+                >
+                  {busyAction === 'save' && (
+                    <Spinner
+                      data-icon="inline-start"
+                      aria-hidden="true"
+                      role="presentation"
+                    />
+                  )}
+                  {busyAction === 'save' ? 'Saving…' : 'Save receipt'}
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {receipt && !received && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-destructive"
-                onClick={() => void remove()}
-                disabled={busy}
-              >
-                <Trash2 className="mr-1 size-4" /> Remove
-              </Button>
-            )}
-            {!locked && (
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => void save()}
-                disabled={busy}
-              >
-                {busy ? 'Saving…' : receipt ? 'Save receipt' : 'Save receipt'}
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4 p-4">
-        <div className="grid gap-3 md:grid-cols-4">
-          <label className="space-y-1 text-sm">
-            <Label>Supplier *</Label>
-            <select
-              name="receipt-supplier"
-              aria-label="Supplier *"
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              value={supplierId}
-              disabled={locked}
-              onChange={(event) =>
-                updateDraftField('supplierId', event.target.value)
-              }
-            >
-              <option value="">Select supplier</option>
-              {suppliers.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <Label>Receipt date</Label>
-            <Input
-              name="receipt-date"
-              type="date"
-              value={receiptDate}
-              disabled={locked}
-              onChange={(event) =>
-                updateDraftField('receiptDate', event.target.value)
-              }
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <Label>Reference</Label>
-            <Input
-              name="receipt-reference"
-              value={reference}
-              disabled={locked}
-              placeholder="Optional"
-              onChange={(event) =>
-                updateDraftField('reference', event.target.value)
-              }
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <Label>Currency</Label>
-            <select
-              name="receipt-currency"
-              aria-label="Currency"
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              value={foreignCurrency}
-              disabled={locked}
-              onChange={(event) =>
-                updateDraftField('foreignCurrency', event.target.value)
-              }
-            >
-              <option value="RMB">RMB</option>
-              <option value="USD">USD</option>
-              <option value="UGX">UGX</option>
-            </select>
-          </label>
-        </div>
-        {foreignCurrency !== 'UGX' && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {foreignCurrency === 'RMB' && (
-              <label className="space-y-1 text-sm">
-                <Label>RMB per USD</Label>
-                <ReceiptRateInput
-                  name="receipt-foreign-rate"
-                  value={foreignRate}
-                  disabled={locked}
-                  onChange={(value) => updateDraftField('foreignRate', value)}
-                />
-              </label>
-            )}
+        </CardHeader>
+        <CardContent className="space-y-4 p-4">
+          <div className="grid gap-3 md:grid-cols-4">
             <label className="space-y-1 text-sm">
-              <Label>UGX per USD</Label>
-              <ReceiptRateInput
-                decimals={0}
-                name="receipt-ugx-rate"
-                value={ugxRate}
+              <Label>Supplier *</Label>
+              <select
+                name="receipt-supplier"
+                aria-label="Supplier *"
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                value={supplierId}
                 disabled={locked}
-                onChange={(value) => updateDraftField('ugxRate', value)}
+                onChange={(event) =>
+                  updateDraftField('supplierId', event.target.value)
+                }
+              >
+                <option value="">Select supplier</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <Label>Receipt date</Label>
+              <Input
+                name="receipt-date"
+                type="date"
+                value={receiptDate}
+                disabled={locked}
+                onChange={(event) =>
+                  updateDraftField('receiptDate', event.target.value)
+                }
               />
             </label>
+            <label className="space-y-1 text-sm">
+              <Label>Reference</Label>
+              <Input
+                name="receipt-reference"
+                value={reference}
+                disabled={locked}
+                placeholder="Optional"
+                onChange={(event) =>
+                  updateDraftField('reference', event.target.value)
+                }
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <Label>Currency</Label>
+              <select
+                name="receipt-currency"
+                aria-label="Currency"
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                value={foreignCurrency}
+                disabled={locked}
+                onChange={(event) =>
+                  updateDraftField('foreignCurrency', event.target.value)
+                }
+              >
+                <option value="RMB">RMB</option>
+                <option value="USD">USD</option>
+                <option value="UGX">UGX</option>
+              </select>
+            </label>
           </div>
-        )}
-        <ClientOnly fallback={<ReceiptGridFallback />}>
-          <ReceiptGrid
-            rows={rows}
-            disabled={locked}
-            onRowsChange={(nextRows) => {
-              commitDraft({ ...draftRef.current, rows: nextRows })
-              setError('')
-            }}
-            historyControls={{
-              canUndo: historyRef.current.past.length > 0,
-              canRedo: historyRef.current.future.length > 0,
-              onUndo: undoHistory,
-              onRedo: redoHistory,
-            }}
-          />
-        </ClientOnly>
-        <label className="block space-y-1 text-sm">
-          <Label>Receipt notes</Label>
-          <Input
-            name="receipt-notes"
-            value={notes}
-            disabled={locked}
-            placeholder="Optional notes"
-            onChange={(event) => updateDraftField('notes', event.target.value)}
-          />
-        </label>
-        {selectedSupplier && !locked && (
-          <p className="text-xs text-muted-foreground">
-            Purchasing from {selectedSupplier.name}. Drag a selected cell’s fill
-            handle down to copy it.
-          </p>
-        )}
-        {!locked && (
-          <p className="text-xs text-amber-700 dark:text-amber-300">
-            New designs and art numbers are added to the catalog when you save
-            this receipt.
-          </p>
-        )}
-        {(error || artNumberError) && (
-          <p role="alert" className="text-sm text-destructive">
-            {error || artNumberError}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+          {foreignCurrency !== 'UGX' && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {foreignCurrency === 'RMB' && (
+                <label className="space-y-1 text-sm">
+                  <Label>RMB per USD</Label>
+                  <ReceiptRateInput
+                    name="receipt-foreign-rate"
+                    value={foreignRate}
+                    disabled={locked}
+                    onChange={(value) => updateDraftField('foreignRate', value)}
+                  />
+                </label>
+              )}
+              <label className="space-y-1 text-sm">
+                <Label>UGX per USD</Label>
+                <ReceiptRateInput
+                  decimals={0}
+                  name="receipt-ugx-rate"
+                  value={ugxRate}
+                  disabled={locked}
+                  onChange={(value) => updateDraftField('ugxRate', value)}
+                />
+              </label>
+            </div>
+          )}
+          <ClientOnly fallback={<ReceiptGridFallback />}>
+            <ReceiptGrid
+              rows={rows}
+              disabled={locked}
+              onRowsChange={(nextRows) => {
+                commitDraft({ ...draftRef.current, rows: nextRows })
+                setError('')
+              }}
+              historyControls={{
+                canUndo: historyRef.current.past.length > 0,
+                canRedo: historyRef.current.future.length > 0,
+                onUndo: undoHistory,
+                onRedo: redoHistory,
+              }}
+            />
+          </ClientOnly>
+          <label className="block space-y-1 text-sm">
+            <Label>Receipt notes</Label>
+            <Input
+              name="receipt-notes"
+              value={notes}
+              disabled={locked}
+              placeholder="Optional notes"
+              onChange={(event) =>
+                updateDraftField('notes', event.target.value)
+              }
+            />
+          </label>
+          {selectedSupplier && !locked && (
+            <p className="text-xs text-muted-foreground">
+              Purchasing from {selectedSupplier.name}. Drag a selected cell’s
+              fill handle down to copy it.
+            </p>
+          )}
+          {!locked && (
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              New designs and art numbers are added to the catalog when you save
+              this receipt.
+            </p>
+          )}
+          {(error || artNumberError) && (
+            <p role="alert" className="text-sm text-destructive">
+              {error || artNumberError}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      {busy && (
+        <div
+          className="absolute inset-0 flex items-center justify-center bg-muted/70 backdrop-blur-[1px]"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="flex items-center gap-2 rounded-md border bg-background px-4 py-3 text-sm font-medium text-foreground shadow-sm">
+            <Spinner aria-hidden="true" role="presentation" />
+            {busyAction === 'remove' ? 'Removing receipt…' : 'Saving receipt…'}
+          </span>
+        </div>
+      )}
+    </div>
   )
 }
 

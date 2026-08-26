@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ReceiptGridRow } from '#/components/supply/receipt-grid/types'
 import { ReceiptSection } from '../receipt-section'
@@ -22,6 +28,7 @@ vi.mock('../receipt-grid/receipt-grid', () => ({
     rows,
     onRowsChange,
     historyControls,
+    disabled,
   }: {
     rows: ReceiptGridRow[]
     onRowsChange: (rows: ReceiptGridRow[]) => void
@@ -31,6 +38,7 @@ vi.mock('../receipt-grid/receipt-grid', () => ({
       onUndo: () => void
       onRedo: () => void
     }
+    disabled?: boolean
   }) => (
     <>
       {historyControls && (
@@ -53,6 +61,7 @@ vi.mock('../receipt-grid/receipt-grid', () => ({
       )}
       <button
         type="button"
+        disabled={disabled}
         onClick={() =>
           onRowsChange([
             {
@@ -68,6 +77,7 @@ vi.mock('../receipt-grid/receipt-grid', () => ({
       </button>
       <button
         type="button"
+        disabled={disabled}
         onClick={() =>
           onRowsChange([
             {
@@ -181,5 +191,62 @@ describe('ReceiptSection save validation', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
     expect((supplier as unknown as HTMLSelectElement).value).toBe('supplier-1')
+  })
+
+  it('disables the receipt and shows a saving state while saving', async () => {
+    let resolveSave!: () => void
+    const pendingSave = new Promise<void>((resolve) => {
+      resolveSave = resolve
+    })
+    createReceipt.mockImplementationOnce(() => pendingSave)
+
+    render(
+      <ReceiptSection
+        supplyRouteId="route-1"
+        routeRates={{}}
+        suppliers={[
+          {
+            id: 'supplier-1',
+            name: 'Supplier',
+            type: 'local',
+            country: null,
+            deletedAt: null,
+          },
+        ]}
+        catalogIndex={[]}
+        onChanged={() => undefined}
+      />,
+    )
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Supplier *' }), {
+      target: { value: 'supplier-1' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Fill complete line' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save receipt' }))
+
+    expect((await screen.findByRole('status')).textContent).toContain(
+      'Saving receipt…',
+    )
+    expect(
+      screen
+        .getByRole('combobox', { name: 'Supplier *' })
+        .hasAttribute('disabled'),
+    ).toBe(true)
+    expect(
+      screen
+        .getByRole('textbox', { name: 'Receipt notes' })
+        .hasAttribute('disabled'),
+    ).toBe(true)
+    expect(
+      screen
+        .getByRole('button', { name: 'Fill complete line' })
+        .hasAttribute('disabled'),
+    ).toBe(true)
+    expect(
+      screen.getByRole('button', { name: /Saving/ }).hasAttribute('disabled'),
+    ).toBe(true)
+
+    resolveSave()
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull())
   })
 })
