@@ -17,9 +17,14 @@ import {
   normalizeReceiptSizes,
 } from '#/lib/supply-receipts'
 import { normalizeArticleNumber } from '#/lib/items/article-number'
-import { isReceiptColorHexList } from '#/lib/colors/receipt-colors'
+import {
+  colorNameToHex,
+  isReceiptColorHexList,
+  normalizeColorHex,
+} from '#/lib/colors/receipt-colors'
 import { calculateSupplyLineAmounts } from './items-internals'
 import { getSupplierCode } from './supplier-codes.server'
+import { materializeVariantsFromColorsSizes } from '../items/variants-materialize'
 
 export const receiptLineInput = z.object({
   itemName: z.string().trim().min(1).max(120).optional(),
@@ -65,6 +70,78 @@ function isUniqueViolation(error: unknown): boolean {
     current = record.cause
   }
   return false
+}
+
+function splitReceiptValues(value: string | null | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+}
+
+async function materializeReceiptItemAttributes(
+  tx: ReceiptTransaction,
+  itemId: string,
+  line: ReceiptDraft['lines'][number],
+) {
+  const selectedColor = line.colorId
+    ? await tx.query.itemColors.findFirst({
+        where: and(
+          eq(itemColors.id, line.colorId),
+          eq(itemColors.itemId, itemId),
+        ),
+        columns: { id: true, colorName: true, colorHex: true },
+      })
+    : undefined
+  if (line.colorId && !selectedColor) {
+    throw new Error('Colour does not belong to the selected design')
+  }
+
+  const colorNames = splitReceiptValues(line.colorText)
+  if (
+    selectedColor &&
+    !colorNames.some(
+      (name) =>
+        name.toLocaleLowerCase() ===
+        selectedColor.colorName.toLocaleLowerCase(),
+    )
+  ) {
+    colorNames.unshift(selectedColor.colorName)
+  }
+  const colorHexes = splitReceiptValues(line.colorHex)
+  const existingColors = await tx.query.itemColors.findMany({
+    where: eq(itemColors.itemId, itemId),
+    columns: { id: true, colorName: true, colorHex: true },
+  })
+  const colorIds: string[] = []
+
+  for (const [index, colorName] of colorNames.entries()) {
+    const existing = existingColors.find(
+      (color) =>
+        color.colorName.toLocaleLowerCase() === colorName.toLocaleLowerCase(),
+    )
+    if (existing) {
+      colorIds.push(existing.id)
+      continue
+    }
+
+    const colorHex =
+      normalizeColorHex(colorHexes[index] ?? '') ||
+      colorNameToHex(colorName) ||
+      '#808080'
+    const [created] = await tx
+      .insert(itemColors)
+      .values({ itemId, colorName, colorHex })
+      .returning({ id: itemColors.id })
+    colorIds.push(created.id)
+  }
+
+  const sizes = normalizeReceiptSizes(line.size ?? '')
+  if (colorIds.length > 0 && sizes.length > 0) {
+    await materializeVariantsFromColorsSizes({ itemId, colorIds, sizes }, tx)
+  }
+
+  return colorIds.length === 1 ? colorIds[0] : (line.colorId ?? null)
 }
 
 async function resolveReceiptLineItem(
@@ -207,9 +284,16 @@ async function resolveReceiptLineItem(
     }
   }
 
+  const materializedColorId = await materializeReceiptItemAttributes(
+    tx,
+    item.id,
+    line,
+  )
+
   return {
     itemId: item.id,
     articleNumber,
+    colorId: materializedColorId,
   }
 }
 

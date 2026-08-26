@@ -117,6 +117,43 @@ describe('receipt item materialization', () => {
     if (created) createdItemIds.push(created.id)
   })
 
+  it('materializes receipt colours, sizes, and their variants on the item', async () => {
+    const design = `Receipt round neck ${suffix}`
+    const result = await createSupplyRouteReceiptServer({
+      ...draft(design, `ATTR-${suffix}`),
+      lines: [
+        {
+          itemName: 'Shirt',
+          design,
+          articleNumber: `ATTR-${suffix}`,
+          colorText: 'Cream, Charcoal',
+          colorHex: '#f5e9d0, #36454f',
+          size: 'S, M, L',
+          quantity: 75,
+          unitPriceForeign: '28',
+        },
+      ],
+    })
+    const createdItemId = result.lines[0].itemId
+    expect(createdItemId).toBeTruthy()
+    const created = createdItemId
+      ? await db.query.items.findFirst({
+          where: eq(items.id, createdItemId),
+          with: { colors: true, variants: true },
+        })
+      : undefined
+    if (created) createdItemIds.push(created.id)
+
+    expect(created?.name).toBe('Shirt')
+    expect(created?.colors.map((color) => color.colorName)).toEqual(
+      expect.arrayContaining(['Cream', 'Charcoal']),
+    )
+    expect(created?.variants).toHaveLength(6)
+    expect(created?.variants.map((variant) => variant.size)).toEqual(
+      expect.arrayContaining(['S', 'M', 'L']),
+    )
+  })
+
   it('reuses an item for the same design and adds a second art number', async () => {
     const design = `Receipt jacket ${suffix}`
     const result = await createSupplyRouteReceiptServer(
@@ -139,6 +176,48 @@ describe('receipt item materialization', () => {
       ]),
     )
     if (item) createdItemIds.push(item.id)
+  })
+
+  it('adds receipt colours and sizes when restocking an existing item', async () => {
+    const design = `Restock attributes ${suffix}`
+    const articleNumber = `ATTR-RESTOCK-${suffix}`
+    const first = await createSupplyRouteReceiptServer(
+      draft(design, articleNumber),
+    )
+    const second = await createSupplyRouteReceiptServer({
+      ...draft(
+        design,
+        articleNumber,
+        supplierId,
+        first.lines[0].itemId ?? undefined,
+      ),
+      lines: [
+        {
+          itemName: 'Shirt',
+          design,
+          articleNumber,
+          colorText: 'Navy',
+          colorHex: '#0b1f44',
+          size: 'M, L',
+          quantity: 10,
+          unitPriceForeign: '3.00',
+        },
+      ],
+    })
+    const itemId = second.lines[0].itemId
+    expect(itemId).toBeTruthy()
+    const item = itemId
+      ? await db.query.items.findFirst({
+          where: eq(items.id, itemId),
+          with: { colors: true, variants: true },
+        })
+      : undefined
+    if (item) createdItemIds.push(item.id)
+
+    expect(item?.colors.map((color) => color.colorName)).toContain('Navy')
+    expect(item?.variants.map((variant) => variant.size)).toEqual(
+      expect.arrayContaining(['M', 'L']),
+    )
   })
 
   it('allows restocking an art number for the same design and supplier', async () => {
