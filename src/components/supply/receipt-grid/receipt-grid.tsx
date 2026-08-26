@@ -1,61 +1,68 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { DataEditor, GridCellKind } from '@glideapps/glide-data-grid'
-import { Plus, Redo2, Undo2 } from 'lucide-react'
-import type {
-  EditableGridCell,
-  GridCell,
-  GridColumn,
-  Item,
-  ProvideEditorComponent,
-  TextCell,
-} from '@glideapps/glide-data-grid'
-import '@glideapps/glide-data-grid/dist/index.css'
+import { Check, Plus, Redo2, Trash2, Undo2 } from 'lucide-react'
+import { searchItems } from '#/server/functions/items/items'
+import { Button } from '#/components/ui/button'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from '#/components/ui/command'
+import { Input } from '#/components/ui/input'
+import { HexColorField } from '#/components/items/hex-color-field'
+import { Popover, PopoverAnchor, PopoverContent } from '#/components/ui/popover'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '#/components/ui/table'
+import { matchPaletteHex } from '#/lib/colors/match-palette'
+import {
+  getActiveColorIndex,
+  getActiveColorQuery,
+  normalizeColorHex,
+  paletteReceiptColorOptions,
+  splitColorSegments,
+} from '#/lib/colors/receipt-colors'
 import {
   addReceiptRow,
   applyPasteMatrix,
   calculateGridTotals,
   calculateRowAmount,
   copyReceiptRow,
-  copyReceiptRowField,
   createEmptyReceiptRow,
   ensureReceiptRows,
+  fillDownReceiptCells,
   isReceiptRowEmpty,
   removeReceiptRow,
   updateReceiptCell,
 } from './receipt-grid-state'
-import { ColorCellEditor } from './color-cell-editor'
-import { DesignCellEditor } from './design-cell-editor'
-import { SizeCellEditor } from './size-cell-editor'
-import { getReceiptGridTheme } from './receipt-grid-theme'
-import type { ReceiptGridColumnId, ReceiptGridRow } from './types'
+import type {
+  ReceiptGridCatalogItem,
+  ReceiptGridColumnId,
+  ReceiptGridRow,
+} from './types'
 
-const EDITABLE_COLUMNS: ReceiptGridColumnId[] = [
-  'design',
-  'articleNumber',
-  'colorText',
-  'sizeText',
-  'quantity',
-  'unitPriceForeign',
+const columns: ReadonlyArray<{
+  id: ReceiptGridColumnId | 'remove' | 'amount'
+  title: string
+  width: string
+}> = [
+  { id: 'remove', title: '', width: '42px' },
+  { id: 'design', title: 'Design', width: '210px' },
+  { id: 'articleNumber', title: 'Art No.', width: '140px' },
+  { id: 'colorText', title: 'Colour', width: '170px' },
+  { id: 'sizeText', title: 'Size', width: '145px' },
+  { id: 'quantity', title: 'Qty (pcs)', width: '105px' },
+  { id: 'unitPriceForeign', title: 'Unit Price', width: '125px' },
+  { id: 'amount', title: 'Amount', width: '135px' },
 ]
 
-const columns: readonly GridColumn[] = [
-  { id: 'remove', title: '', width: 38 },
-  { id: 'design', title: 'Design', width: 210 },
-  { id: 'articleNumber', title: 'Art No.', width: 140 },
-  { id: 'colorText', title: 'Colour', width: 160 },
-  { id: 'sizeText', title: 'Size', width: 140 },
-  { id: 'quantity', title: 'Qty (pcs)', width: 100 },
-  { id: 'unitPriceForeign', title: 'Unit Price', width: 120 },
-  { id: 'amount', title: 'Amount', width: 130 },
-]
-
-const REMOVE_COLUMN = 0
-const DATA_COLUMN_OFFSET = 1
-
-type ReceiptGridHistory = {
-  past: ReceiptGridRow[][]
-  future: ReceiptGridRow[][]
-}
+type EditableColumn = ReceiptGridColumnId
 
 export type ReceiptGridHistoryControls = {
   canUndo: boolean
@@ -64,14 +71,15 @@ export type ReceiptGridHistoryControls = {
   onRedo: () => void
 }
 
-function cloneReceiptRows(rows: ReceiptGridRow[]): ReceiptGridRow[] {
+type LocalHistory = { past: ReceiptGridRow[][]; future: ReceiptGridRow[][] }
+type CellLocation = { row: number; column: EditableColumn }
+type FillDrag = { source: CellLocation; targetRow: number }
+
+function cloneRows(rows: ReceiptGridRow[]): ReceiptGridRow[] {
   return rows.map((row) => copyReceiptRow(row, row.id))
 }
 
-function receiptRowsEqual(
-  left: ReceiptGridRow[],
-  right: ReceiptGridRow[],
-): boolean {
+function rowsEqual(left: ReceiptGridRow[], right: ReceiptGridRow[]): boolean {
   return JSON.stringify(left) === JSON.stringify(right)
 }
 
@@ -82,15 +90,11 @@ export function isReceiptGridOutsideClick(event: MouseEvent | TouchEvent) {
   )
 }
 
-function asTextCell(value: string, readOnly = false): TextCell {
-  return {
-    kind: GridCellKind.Text,
-    allowOverlay: !readOnly,
-    readonly: readOnly,
-    data: value,
-    displayData: value,
-    copyData: value,
-  }
+function range(start: number, end: number): number[] {
+  return Array.from(
+    { length: Math.max(0, end - start + 1) },
+    (_, index) => start + index,
+  )
 }
 
 export function ReceiptGrid({
@@ -98,156 +102,124 @@ export function ReceiptGrid({
   disabled = false,
   onRowsChange,
   historyControls,
-  undoResetKey,
 }: {
   rows: ReceiptGridRow[]
   disabled?: boolean
   onRowsChange: (rows: ReceiptGridRow[]) => void
   historyControls?: ReceiptGridHistoryControls
-  undoResetKey?: string
 }) {
-  const [activeCell, setActiveCell] = useState<Item | null>(null)
-  const pendingCatalogSelections = useRef<
-    Record<string, ReceiptGridRow['catalogItem']>
-  >({})
-  const pendingColorSelections = useRef<
-    Record<string, { ids: string[]; text: string; hexText: string }>
-  >({})
-  const gridRootRef = useRef<HTMLDivElement>(null)
+  const [activeCell, setActiveCell] = useState<CellLocation | null>(null)
+  const [fillDrag, setFillDrag] = useState<FillDrag | null>(null)
   const currentRowsRef = useRef(rows)
-  const historyRef = useRef<ReceiptGridHistory>({ past: [], future: [] })
-  const lastUndoResetKeyRef = useRef(undoResetKey)
+  const localHistoryRef = useRef<LocalHistory>({ past: [], future: [] })
+  const rowRefs = useRef<Record<number, HTMLTableRowElement | null>>({})
+  const fillTargetRef = useRef(0)
   const [, setHistoryVersion] = useState(0)
   const totals = useMemo(() => calculateGridTotals(rows), [rows])
-  const theme = useMemo(() => getReceiptGridTheme(), [])
-
   currentRowsRef.current = rows
-
-  useEffect(() => {
-    if (lastUndoResetKeyRef.current === undoResetKey) return
-    lastUndoResetKeyRef.current = undoResetKey
-    historyRef.current = { past: [], future: [] }
-    setHistoryVersion((version) => version + 1)
-  }, [undoResetKey])
 
   const commitRows = useCallback(
     (nextRows: ReceiptGridRow[]) => {
       const currentRows = currentRowsRef.current
-      if (receiptRowsEqual(currentRows, nextRows)) return
-      if (historyControls) {
-        currentRowsRef.current = nextRows
-        onRowsChange(nextRows)
-        return
-      }
-      historyRef.current = {
-        past: [...historyRef.current.past, cloneReceiptRows(currentRows)],
-        future: [],
+      if (rowsEqual(currentRows, nextRows)) return
+      if (!historyControls) {
+        localHistoryRef.current = {
+          past: [...localHistoryRef.current.past, cloneRows(currentRows)],
+          future: [],
+        }
+        setHistoryVersion((version) => version + 1)
       }
       currentRowsRef.current = nextRows
-      setHistoryVersion((version) => version + 1)
       onRowsChange(nextRows)
     },
     [historyControls, onRowsChange],
   )
 
-  const undoHistory = useCallback(() => {
+  const undo = useCallback(() => {
+    if (disabled) return
     if (historyControls) {
-      if (!disabled) historyControls.onUndo()
+      historyControls.onUndo()
       return
     }
-    const history = historyRef.current
-    const previous = history.past.at(-1)
-    if (disabled || !previous) return
-    const currentRows = currentRowsRef.current
-    historyRef.current = {
-      past: history.past.slice(0, -1),
-      future: [...history.future, cloneReceiptRows(currentRows)],
+    const previous = localHistoryRef.current.past.at(-1)
+    if (!previous) return
+    localHistoryRef.current = {
+      past: localHistoryRef.current.past.slice(0, -1),
+      future: [
+        ...localHistoryRef.current.future,
+        cloneRows(currentRowsRef.current),
+      ],
     }
     currentRowsRef.current = previous
     setHistoryVersion((version) => version + 1)
     onRowsChange(previous)
   }, [disabled, historyControls, onRowsChange])
 
-  const redoHistory = useCallback(() => {
+  const redo = useCallback(() => {
+    if (disabled) return
     if (historyControls) {
-      if (!disabled) historyControls.onRedo()
+      historyControls.onRedo()
       return
     }
-    const history = historyRef.current
-    const nextRows = history.future.at(-1)
-    if (disabled || !nextRows) return
-    const currentRows = currentRowsRef.current
-    historyRef.current = {
-      past: [...history.past, cloneReceiptRows(currentRows)],
-      future: history.future.slice(0, -1),
+    const nextRows = localHistoryRef.current.future.at(-1)
+    if (!nextRows) return
+    localHistoryRef.current = {
+      past: [
+        ...localHistoryRef.current.past,
+        cloneRows(currentRowsRef.current),
+      ],
+      future: localHistoryRef.current.future.slice(0, -1),
     }
     currentRowsRef.current = nextRows
     setHistoryVersion((version) => version + 1)
     onRowsChange(nextRows)
   }, [disabled, historyControls, onRowsChange])
 
-  useEffect(() => {
-    function handleHistoryShortcut(event: KeyboardEvent) {
-      const target = event.target
-      if (
-        disabled ||
-        !gridRootRef.current ||
-        !(target instanceof Node && gridRootRef.current.contains(target)) ||
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        (target instanceof HTMLElement && target.isContentEditable)
-      )
-        return
-
+  const handleShortcut = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
       const key = event.key.toLocaleLowerCase()
       const isUndo =
         key === 'z' && (event.metaKey || event.ctrlKey) && !event.shiftKey
       const isRedo =
-        key === 'z' && (event.metaKey || event.ctrlKey) && event.shiftKey
-      const isWindowsRedo = key === 'y' && event.ctrlKey && !event.metaKey
-      if (!isUndo && !isRedo && !isWindowsRedo) return
-
+        (key === 'z' && (event.metaKey || event.ctrlKey) && event.shiftKey) ||
+        (key === 'y' && event.ctrlKey && !event.metaKey)
+      if (!isUndo && !isRedo) return
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement &&
+        target.dataset.receiptDirty === 'true'
+      )
+        return
       event.preventDefault()
-      if (isUndo) undoHistory()
-      else redoHistory()
-    }
-
-    window.addEventListener('keydown', handleHistoryShortcut, true)
-    return () =>
-      window.removeEventListener('keydown', handleHistoryShortcut, true)
-  }, [disabled, redoHistory, undoHistory])
-
-  const getCellContent = useCallback(
-    ([column, rowIndex]: Item): GridCell => {
-      const row = rows.at(rowIndex)
-      if (!row) return asTextCell('', true)
-      if (column === REMOVE_COLUMN) {
-        return asTextCell(isReceiptRowEmpty(row) ? '' : '−', true)
-      }
-      switch (column - DATA_COLUMN_OFFSET) {
-        case 0:
-          return asTextCell(row.design)
-        case 1:
-          return asTextCell(row.articleNumber)
-        case 2:
-          return asTextCell(row.colorText || 'Choose colour')
-        case 3:
-          return asTextCell(row.sizeText || 'Choose size')
-        case 4:
-          return asTextCell(row.quantity === null ? '' : String(row.quantity))
-        case 5:
-          return asTextCell(row.unitPriceForeign)
-        case 6:
-          return asTextCell(calculateRowAmount(row), true)
-        default:
-          return asTextCell('', true)
-      }
+      if (isUndo) undo()
+      else redo()
     },
-    [rows],
+    [redo, undo],
   )
 
-  const updateAt = useCallback(
-    (rowIndex: number, column: ReceiptGridColumnId, value: string) => {
+  const appendBlankAfter = useCallback(
+    (rowIndex: number) => {
+      const currentRows = currentRowsRef.current
+      if (
+        rowIndex !== currentRows.length - 1 ||
+        !isReceiptRowEmpty(currentRows[rowIndex])
+      )
+        return
+      commitRows([...currentRows, createEmptyReceiptRow(crypto.randomUUID())])
+    },
+    [commitRows],
+  )
+
+  const activateCell = useCallback(
+    (row: number, column: EditableColumn) => {
+      appendBlankAfter(row)
+      setActiveCell({ row, column })
+    },
+    [appendBlankAfter],
+  )
+
+  const updateCell = useCallback(
+    (rowIndex: number, column: EditableColumn, value: string) => {
       commitRows(
         updateReceiptCell(
           ensureReceiptRows(currentRowsRef.current, rowIndex + 1),
@@ -260,275 +232,269 @@ export function ReceiptGrid({
     [commitRows],
   )
 
-  function handleCellEdited(cell: Item, newValue: EditableGridCell) {
-    if (
-      disabled ||
-      cell[0] <= REMOVE_COLUMN ||
-      cell[0] > EDITABLE_COLUMNS.length
-    )
-      return
-    const value = 'data' in newValue ? String(newValue.data ?? '') : ''
-    const column = EDITABLE_COLUMNS[cell[0] - DATA_COLUMN_OFFSET]
-    const editableRows = ensureReceiptRows(rows, cell[1] + 1)
-    if (column === 'design') {
-      const pendingCatalog = pendingCatalogSelections.current[String(cell[1])]
-      delete pendingCatalogSelections.current[String(cell[1])]
-      const row = editableRows.at(cell[1])
-      const catalogLabel = row?.catalogItem
-        ? [row.catalogItem.design, row.catalogItem.name]
-        : []
-      const nextRows = updateReceiptCell(editableRows, cell[1], column, value)
-      commitRows(
-        pendingCatalog
-          ? nextRows.map((entry, index) =>
-              index === cell[1]
-                ? {
-                    ...entry,
-                    itemId: pendingCatalog.id,
-                    catalogItem: pendingCatalog,
-                    articleNumber:
-                      pendingCatalog.articleNumbers.length === 1
-                        ? pendingCatalog.articleNumbers[0].articleNumber
-                        : '',
-                  }
-                : entry,
-            )
-          : catalogLabel.includes(value.trim())
-            ? nextRows
-            : nextRows.map((entry, index) =>
-                index === cell[1]
-                  ? { ...entry, itemId: null, catalogItem: null, colorIds: [] }
-                  : entry,
-              ),
+  const updateDesign = useCallback(
+    (rowIndex: number, value: string, catalogItem?: ReceiptGridCatalogItem) => {
+      const editableRows = ensureReceiptRows(
+        currentRowsRef.current,
+        rowIndex + 1,
       )
-      return
-    }
-    if (column === 'colorText') {
-      const pendingKey = String(cell[1])
-      const pending = Object.prototype.hasOwnProperty.call(
-        pendingColorSelections.current,
-        pendingKey,
-      )
-        ? pendingColorSelections.current[pendingKey]
-        : undefined
-      delete pendingColorSelections.current[pendingKey]
-      const nextRows = updateReceiptCell(editableRows, cell[1], column, value)
-      commitRows(
-        pending
-          ? nextRows.map((entry, index) =>
-              index === cell[1]
-                ? {
-                    ...entry,
-                    colorIds: pending.ids,
-                    colorText: pending.text,
-                    colorHexText: pending.hexText,
-                  }
-                : entry,
-            )
-          : nextRows,
-      )
-      return
-    }
-    updateAt(cell[1], column, value)
-  }
+      const nextRows = updateReceiptCell(
+        editableRows,
+        rowIndex,
+        'design',
+        value,
+      ).map((row, index) => {
+        if (index !== rowIndex) return row
+        if (catalogItem) {
+          return {
+            ...row,
+            itemId: catalogItem.id,
+            catalogItem,
+            articleNumber:
+              catalogItem.articleNumbers.length === 1
+                ? catalogItem.articleNumbers[0].articleNumber
+                : row.articleNumber,
+          }
+        }
+        return { ...row, itemId: null, catalogItem: null, colorIds: [] }
+      })
+      commitRows(nextRows)
+    },
+    [commitRows],
+  )
 
-  function handleFillPattern(event: {
-    patternSource: { x: number; y: number; width: number; height: number }
-    fillDestination: { x: number; y: number; width: number; height: number }
-    preventDefault: () => void
-  }) {
+  const updateColor = useCallback(
+    (
+      rowIndex: number,
+      value: { text: string; hexText: string; ids: string[] },
+    ) => {
+      const editableRows = ensureReceiptRows(
+        currentRowsRef.current,
+        rowIndex + 1,
+      )
+      commitRows(
+        editableRows.map((row, index) =>
+          index === rowIndex
+            ? {
+                ...row,
+                colorText: value.text,
+                colorHexText: value.hexText,
+                colorIds: value.ids,
+              }
+            : row,
+        ),
+      )
+    },
+    [commitRows],
+  )
+
+  const getRowAtY = useCallback((clientY: number) => {
+    const currentRows = currentRowsRef.current
+    for (let index = 0; index < currentRows.length; index += 1) {
+      const element = rowRefs.current[index]
+      if (!element) continue
+      if (clientY < element.getBoundingClientRect().bottom) return index
+    }
+    const lastRow = rowRefs.current[currentRows.length - 1]
+    if (!lastRow) return currentRows.length - 1
+    const rect = lastRow.getBoundingClientRect()
+    return (
+      currentRows.length +
+      Math.floor(Math.max(0, clientY - rect.bottom) / Math.max(1, rect.height))
+    )
+  }, [])
+
+  useEffect(() => {
+    if (!fillDrag) return
+    const handleMove = (event: PointerEvent) => {
+      const targetRow = getRowAtY(event.clientY)
+      fillTargetRef.current = targetRow
+      setFillDrag((current) => (current ? { ...current, targetRow } : current))
+    }
+    const handleUp = () => {
+      const targetRow = fillTargetRef.current
+      const source = fillDrag.source
+      if (targetRow > source.row) {
+        const filled = fillDownReceiptCells(
+          currentRowsRef.current,
+          source,
+          range(source.row + 1, targetRow),
+        )
+        commitRows(
+          ensureReceiptRows(
+            filled,
+            targetRow >= currentRowsRef.current.length - 1
+              ? targetRow + 2
+              : filled.length,
+          ),
+        )
+        setActiveCell(source)
+      }
+      setFillDrag(null)
+    }
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp, { once: true })
+    return () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+    }
+  }, [commitRows, fillDrag, getRowAtY])
+
+  function beginFill(event: React.PointerEvent, source: CellLocation) {
     if (disabled) return
     event.preventDefault()
-    const source = event.patternSource
-    const destination = event.fillDestination
-    const sourceRows = rows.map((row) => copyReceiptRow(row, row.id))
-    const reachesBottom = destination.y + destination.height >= rows.length
-    let next = ensureReceiptRows(
-      rows,
-      destination.y + destination.height + (reachesBottom ? 1 : 0),
-    )
-    for (
-      let rowIndex = destination.y;
-      rowIndex < destination.y + destination.height;
-      rowIndex += 1
-    ) {
-      for (
-        let columnIndex = destination.x;
-        columnIndex < destination.x + destination.width;
-        columnIndex += 1
-      ) {
-        const sourceRow =
-          source.y + ((rowIndex - destination.y) % source.height)
-        const sourceColumn =
-          source.x + ((columnIndex - destination.x) % source.width)
-        if (
-          sourceColumn <= REMOVE_COLUMN ||
-          sourceColumn > EDITABLE_COLUMNS.length
-        )
-          continue
-        const column = EDITABLE_COLUMNS[sourceColumn - DATA_COLUMN_OFFSET]
-        if (sourceRow < 0 || sourceRow >= sourceRows.length) continue
-        const sourceValue = sourceRows[sourceRow]
-        const copied = copyReceiptRowField(sourceValue, column)
-        next = next.map((row, index) =>
-          index === rowIndex ? { ...row, ...copied } : row,
-        )
-      }
-    }
-    commitRows(next)
+    event.stopPropagation()
+    fillTargetRef.current = source.row
+    setFillDrag({ source, targetRow: source.row })
   }
 
-  function handleRowDelete(rowIndex: number) {
-    if (disabled || !rows[rowIndex]) return
-    commitRows(removeReceiptRow(rows, rowIndex))
+  function handlePaste(
+    event: React.ClipboardEvent<HTMLInputElement>,
+    row: number,
+    column: EditableColumn,
+  ) {
+    const text = event.clipboardData.getData('text/plain')
+    if (!text.includes('\t') && !text.includes('\n')) return
+    event.preventDefault()
+    const matrix = text
+      .trimEnd()
+      .split(/\r?\n/)
+      .map((line) => line.split('\t'))
+    commitRows(
+      applyPasteMatrix(
+        ensureReceiptRows(currentRowsRef.current, row + matrix.length),
+        { row, column },
+        matrix,
+      ),
+    )
+  }
+
+  function handleDelete(rowIndex: number) {
+    if (disabled || isReceiptRowEmpty(currentRowsRef.current[rowIndex])) return
+    commitRows(removeReceiptRow(currentRowsRef.current, rowIndex))
+    setActiveCell(null)
   }
 
   function handleAddRow() {
-    if (disabled) return
-    commitRows(addReceiptRow(rows))
+    if (!disabled) commitRows(addReceiptRow(currentRowsRef.current))
   }
 
-  function handleBlankRowInteraction(rowIndex: number) {
-    if (disabled || rowIndex < 0 || rowIndex !== rows.length - 1) return
-    const row = rows[rowIndex]
-    if (!isReceiptRowEmpty(row)) return
-    commitRows([...rows, createEmptyReceiptRow(crypto.randomUUID())])
-  }
-
-  function editorForCell(cell: GridCell) {
-    const column = activeCell?.[0]
-    const rowIndex = activeCell?.[1] ?? -1
-    if (
-      disabled ||
-      column === undefined ||
-      column <= REMOVE_COLUMN ||
-      rowIndex < 0
-    )
-      return undefined
-    const dataColumn = column - DATA_COLUMN_OFFSET
-    const textCell = cell as TextCell
-    if (dataColumn === 0) {
-      const Editor: ProvideEditorComponent<GridCell> = (props) => (
-        <DesignCellEditor
-          value={props.value as TextCell}
-          onChange={(value) => props.onChange(value)}
-          onFinishedEditing={(value, movement) => {
-            if (!value)
-              delete pendingCatalogSelections.current[String(rowIndex)]
-            props.onFinishedEditing(value, movement)
-          }}
-          onCatalogItemSelected={(item) => {
-            if (rowIndex < 0) return
-            pendingCatalogSelections.current[String(rowIndex)] = item
-          }}
-        />
-      )
-      return Editor
-    }
-    if (dataColumn === 2) {
-      const Editor: ProvideEditorComponent<GridCell> = (props) => (
-        <ColorCellEditor
-          initialValue={rows[rowIndex]?.colorText ?? textCell.data}
-          initialHexValue={rows[rowIndex]?.colorHexText ?? ''}
-          catalogItem={rows[rowIndex]?.catalogItem ?? null}
-          onChange={(value) => props.onChange(value)}
-          onFinishedEditing={(value, movement) =>
-            props.onFinishedEditing(value, movement)
-          }
-          onColorSelection={(ids, text, hexText) => {
-            pendingColorSelections.current[String(rowIndex)] = {
-              ids,
-              text,
-              hexText,
-            }
-          }}
-        />
-      )
-      return Editor
-    }
-    if (dataColumn === 3) {
-      const Editor: ProvideEditorComponent<GridCell> = (props) => (
-        <SizeCellEditor
-          initialValue={rows[rowIndex]?.sizeText ?? textCell.data}
-          catalogItem={rows[rowIndex]?.catalogItem ?? null}
-          onChange={(value) => props.onChange(value)}
-          onFinishedEditing={(value, movement) =>
-            props.onFinishedEditing(value, movement)
-          }
-        />
-      )
-      return Editor
-    }
-    return undefined
-  }
+  const canUndo =
+    historyControls?.canUndo ?? localHistoryRef.current.past.length > 0
+  const canRedo =
+    historyControls?.canRedo ?? localHistoryRef.current.future.length > 0
 
   return (
     <div
-      ref={gridRootRef}
-      className="min-w-[1000px] overflow-hidden rounded-md border bg-background"
+      data-testid="receipt-grid"
+      className="min-w-[1000px] overflow-hidden rounded-md border bg-background text-foreground"
+      onKeyDownCapture={handleShortcut}
     >
-      <DataEditor
-        columns={columns}
-        rows={rows.length}
-        getCellContent={getCellContent}
-        getCellsForSelection
-        rowMarkers={{ kind: 'number', startIndex: 1 }}
-        freezeColumns={2}
-        rangeSelect="rect"
-        fillHandle={!disabled}
-        allowedFillDirections="vertical"
-        editOnType
-        cellActivationBehavior="second-click"
-        onCellClicked={([column, rowIndex]) => {
-          if (
-            column === REMOVE_COLUMN &&
-            rows[rowIndex] &&
-            !isReceiptRowEmpty(rows[rowIndex])
-          ) {
-            handleRowDelete(rowIndex)
-            return
-          }
-          if (column > REMOVE_COLUMN) handleBlankRowInteraction(rowIndex)
-        }}
-        onCellActivated={(cell) => {
-          setActiveCell(cell)
-          handleBlankRowInteraction(cell[1])
-        }}
-        onCellEdited={handleCellEdited}
-        onFillPattern={handleFillPattern}
-        onPaste={(target, values) => {
-          if (
-            disabled ||
-            target[0] <= REMOVE_COLUMN ||
-            target[0] > EDITABLE_COLUMNS.length ||
-            target[1] < 0
-          ) {
-            return false
-          }
-          const requiredRows = target[1] + values.length
-          const pasteRows = [...rows]
-          while (pasteRows.length < requiredRows) {
-            pasteRows.push(createEmptyReceiptRow(crypto.randomUUID()))
-          }
-          commitRows(
-            applyPasteMatrix(
-              pasteRows,
-              {
-                row: target[1],
-                column: EDITABLE_COLUMNS[target[0] - DATA_COLUMN_OFFSET],
-              },
-              values,
-            ),
-          )
-          return false
-        }}
-        provideEditor={editorForCell}
-        width="100%"
-        height={Math.max(150, Math.min(380, 44 + rows.length * 34))}
-        className="receipt-grid"
-        theme={theme}
-        isOutsideClick={isReceiptGridOutsideClick}
-      />
+      <div className="overflow-x-auto">
+        <Table className="table-fixed">
+          <colgroup>
+            {columns.map((column) => (
+              <col key={column.id} style={{ width: column.width }} />
+            ))}
+          </colgroup>
+          <TableHeader>
+            <TableRow className="bg-muted/60 hover:bg-muted/60">
+              {columns.map((column) => (
+                <TableHead
+                  key={column.id}
+                  className="h-11 border-r px-3 text-foreground last:border-r-0"
+                >
+                  {column.title}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, rowIndex) => (
+              <TableRow
+                key={row.id}
+                ref={(element) => {
+                  rowRefs.current[rowIndex] = element
+                }}
+                data-receipt-row={rowIndex}
+                className="group hover:bg-muted/20"
+              >
+                <TableCell className="border-r p-0 text-center">
+                  {!isReceiptRowEmpty(row) && !disabled && (
+                    <button
+                      type="button"
+                      aria-label={`Delete receipt line ${rowIndex + 1}`}
+                      title="Delete receipt line"
+                      className="inline-flex size-7 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
+                      onClick={() => handleDelete(rowIndex)}
+                    >
+                      <Trash2 className="size-4" aria-hidden="true" />
+                    </button>
+                  )}
+                  <span className="sr-only">Row {rowIndex + 1}</span>
+                </TableCell>
+                {(
+                  [
+                    'design',
+                    'articleNumber',
+                    'colorText',
+                    'sizeText',
+                    'quantity',
+                    'unitPriceForeign',
+                  ] as EditableColumn[]
+                ).map((column) => (
+                  <EditableTableCell
+                    key={column}
+                    row={row}
+                    rowIndex={rowIndex}
+                    column={column}
+                    active={
+                      activeCell?.row === rowIndex &&
+                      activeCell.column === column
+                    }
+                    disabled={disabled}
+                    onActivate={activateCell}
+                    onCommit={
+                      column === 'design'
+                        ? (value) => updateDesign(rowIndex, value as string)
+                        : column === 'colorText'
+                          ? (value) =>
+                              updateColor(
+                                rowIndex,
+                                value as {
+                                  text: string
+                                  hexText: string
+                                  ids: string[]
+                                },
+                              )
+                          : (value) =>
+                              updateCell(rowIndex, column, value as string)
+                    }
+                    onCatalogItemSelected={
+                      column === 'design'
+                        ? (item) =>
+                            updateDesign(
+                              rowIndex,
+                              item.design || item.name,
+                              item,
+                            )
+                        : undefined
+                    }
+                    onPaste={handlePaste}
+                    onFillStart={beginFill}
+                    fillDrag={fillDrag}
+                  />
+                ))}
+                <TableCell className="border-r p-0 last:border-r-0">
+                  <div className="flex min-h-11 items-center justify-end px-3 font-medium text-foreground">
+                    {calculateRowAmount(row)}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
       {!disabled && (
         <button
           type="button"
@@ -543,32 +509,22 @@ export function ReceiptGrid({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded px-2 py-1 font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Undo"
             title="Undo (⌘/Ctrl+Z)"
-            onClick={undoHistory}
-            disabled={
-              disabled ||
-              (historyControls
-                ? !historyControls.canUndo
-                : historyRef.current.past.length === 0)
-            }
+            className="inline-flex items-center gap-1 rounded px-2 py-1 font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={disabled || !canUndo}
+            onClick={undo}
           >
             <Undo2 className="size-4" aria-hidden="true" />
             Undo
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded px-2 py-1 font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Redo"
             title="Redo (⌘/Ctrl+Shift+Z or Ctrl+Y)"
-            onClick={redoHistory}
-            disabled={
-              disabled ||
-              (historyControls
-                ? !historyControls.canRedo
-                : historyRef.current.future.length === 0)
-            }
+            className="inline-flex items-center gap-1 rounded px-2 py-1 font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={disabled || !canRedo}
+            onClick={redo}
           >
             <Redo2 className="size-4" aria-hidden="true" />
             Redo
@@ -591,5 +547,534 @@ export function ReceiptGrid({
         </div>
       </div>
     </div>
+  )
+}
+
+function EditableTableCell({
+  row,
+  rowIndex,
+  column,
+  active,
+  disabled,
+  onActivate,
+  onCommit,
+  onCatalogItemSelected,
+  onPaste,
+  onFillStart,
+  fillDrag,
+}: {
+  row: ReceiptGridRow
+  rowIndex: number
+  column: EditableColumn
+  active: boolean
+  disabled: boolean
+  onActivate: (row: number, column: EditableColumn) => void
+  onCommit: (
+    value: string | { text: string; hexText: string; ids: string[] },
+  ) => void
+  onCatalogItemSelected?: (item: ReceiptGridCatalogItem) => void
+  onPaste: (
+    event: React.ClipboardEvent<HTMLInputElement>,
+    row: number,
+    column: EditableColumn,
+  ) => void
+  onFillStart: (event: React.PointerEvent, source: CellLocation) => void
+  fillDrag: FillDrag | null
+}) {
+  const value =
+    column === 'quantity'
+      ? row.quantity === null
+        ? ''
+        : String(row.quantity)
+      : row[column]
+  const isFillPreview =
+    fillDrag &&
+    fillDrag.source.column === column &&
+    rowIndex > fillDrag.source.row &&
+    rowIndex <= fillDrag.targetRow
+  const className = `relative border-r p-0 last:border-r-0 ${active ? 'bg-blue-50/80 dark:bg-blue-950/30' : ''} ${isFillPreview ? 'bg-blue-100/70 dark:bg-blue-900/30' : ''}`
+  return (
+    <TableCell className={className}>
+      {column === 'design' ? (
+        <DesignEditor
+          value={value}
+          disabled={disabled}
+          active={active}
+          onActivate={() => onActivate(rowIndex, column)}
+          onCommit={(next) => onCommit(next)}
+          onCatalogItemSelected={onCatalogItemSelected}
+          onPaste={(event) => onPaste(event, rowIndex, column)}
+        />
+      ) : column === 'colorText' ? (
+        <ColorEditor
+          row={row}
+          disabled={disabled}
+          active={active}
+          onActivate={() => onActivate(rowIndex, column)}
+          onCommit={(next) => onCommit(next)}
+          onPaste={(event) => onPaste(event, rowIndex, column)}
+        />
+      ) : (
+        <PlainCellInput
+          value={value}
+          column={column}
+          disabled={disabled}
+          active={active}
+          onActivate={() => onActivate(rowIndex, column)}
+          onCommit={(next) => onCommit(next)}
+          onPaste={(event) => onPaste(event, rowIndex, column)}
+        />
+      )}
+      {active && !disabled && (
+        <button
+          type="button"
+          aria-label={`Copy ${column} down`}
+          title="Drag down to copy"
+          className="absolute -bottom-1 -right-1 z-20 size-2.5 cursor-crosshair rounded-sm border border-background bg-primary shadow-sm"
+          onPointerDown={(event) =>
+            onFillStart(event, { row: rowIndex, column })
+          }
+        />
+      )}
+    </TableCell>
+  )
+}
+
+function PlainCellInput({
+  value,
+  column,
+  disabled,
+  active,
+  onActivate,
+  onCommit,
+  onPaste,
+}: {
+  value: string
+  column: EditableColumn
+  disabled: boolean
+  active: boolean
+  onActivate: () => void
+  onCommit: (value: string) => void
+  onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+}) {
+  const [draft, setDraft] = useState(value)
+  useEffect(() => setDraft(value), [value])
+  function finish() {
+    if (draft !== value) onCommit(draft)
+  }
+  return (
+    <Input
+      data-receipt-cell-input="true"
+      data-receipt-dirty={draft !== value ? 'true' : 'false'}
+      aria-label={
+        column === 'articleNumber'
+          ? 'Art No.'
+          : column === 'sizeText'
+            ? 'Size'
+            : column === 'quantity'
+              ? 'Qty (pcs)'
+              : 'Unit Price'
+      }
+      type={column === 'quantity' ? 'number' : 'text'}
+      min={column === 'quantity' ? 0 : undefined}
+      step={column === 'quantity' ? 1 : undefined}
+      value={draft}
+      disabled={disabled}
+      placeholder={column === 'sizeText' ? 'S, M, L' : undefined}
+      className={`h-11 w-full rounded-none border-0 bg-transparent px-3 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
+      onFocus={onActivate}
+      onChange={(event) => setDraft(event.target.value)}
+      onPaste={onPaste}
+      onBlur={finish}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') event.currentTarget.blur()
+        if (event.key === 'Escape') {
+          setDraft(value)
+          event.currentTarget.blur()
+        }
+      }}
+    />
+  )
+}
+
+function DesignEditor({
+  value,
+  disabled,
+  active,
+  onActivate,
+  onCommit,
+  onCatalogItemSelected,
+  onPaste,
+}: {
+  value: string
+  disabled: boolean
+  active: boolean
+  onActivate: () => void
+  onCommit: (value: string) => void
+  onCatalogItemSelected?: (item: ReceiptGridCatalogItem) => void
+  onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+}) {
+  const [draft, setDraft] = useState(value)
+  const [open, setOpen] = useState(false)
+  const [results, setResults] = useState<ReceiptGridCatalogItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const sequence = useRef(0)
+  useEffect(() => setDraft(value), [value])
+  useEffect(() => {
+    if (!open || !draft.trim()) {
+      setResults([])
+      return
+    }
+    const request = ++sequence.current
+    const timer = window.setTimeout(() => {
+      setLoading(true)
+      void searchItems({ data: { query: draft.trim() } })
+        .then((items) => {
+          if (request === sequence.current) setResults(items)
+        })
+        .catch(() => {
+          if (request === sequence.current) setResults([])
+        })
+        .finally(() => {
+          if (request === sequence.current) setLoading(false)
+        })
+    }, 160)
+    return () => window.clearTimeout(timer)
+  }, [draft, open])
+  function finish(nextValue = draft) {
+    const next = nextValue.trim()
+    setDraft(next)
+    onCommit(next)
+    setOpen(false)
+  }
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverAnchor asChild>
+        <div>
+          <Input
+            data-receipt-cell-input="true"
+            data-receipt-dirty={draft !== value ? 'true' : 'false'}
+            aria-label="Design"
+            value={draft}
+            disabled={disabled}
+            placeholder="Design"
+            className={`h-11 w-full rounded-none border-0 bg-transparent px-3 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
+            onFocus={() => {
+              onActivate()
+              setOpen(true)
+            }}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              setOpen(true)
+            }}
+            onPaste={onPaste}
+            onBlur={() => {
+              window.setTimeout(() => {
+                if (
+                  document.activeElement?.getAttribute('data-design-option') !==
+                  'true'
+                )
+                  finish()
+              }, 0)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                if (results[0]) {
+                  onCatalogItemSelected?.(results[0])
+                  finish(results[0].design || results[0].name)
+                } else finish()
+              }
+              if (event.key === 'Escape') {
+                setDraft(value)
+                setOpen(false)
+              }
+            }}
+          />
+        </div>
+      </PopoverAnchor>
+      <PopoverContent
+        align="start"
+        className="w-80 p-1"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
+        <Command>
+          <CommandList>
+            {loading && (
+              <p className="px-3 py-2 text-xs text-muted-foreground">
+                Searching…
+              </p>
+            )}
+            {!loading && draft.trim() && results.length === 0 && (
+              <CommandItem
+                value={`free-text-${draft}`}
+                onSelect={() => finish()}
+              >
+                Use “{draft.trim()}” as a new design
+              </CommandItem>
+            )}
+            <CommandEmpty>
+              {draft.trim()
+                ? 'No matching catalog items.'
+                : 'Type a design or art number.'}
+            </CommandEmpty>
+            <CommandGroup>
+              {results.map((item) => (
+                <CommandItem
+                  key={item.id}
+                  value={`${item.design} ${item.name} ${item.articleNumbers.map((number) => number.articleNumber).join(' ')}`}
+                  data-design-option="true"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onSelect={() => {
+                    onCatalogItemSelected?.(item)
+                    finish(item.design || item.name)
+                  }}
+                >
+                  <Check className="mr-2 size-4 opacity-0" aria-hidden="true" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">
+                      {item.design || item.name}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {item.articleNumbers
+                        .map((number) => number.articleNumber)
+                        .join(', ')}
+                    </span>
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function ColorEditor({
+  row,
+  disabled,
+  active,
+  onActivate,
+  onCommit,
+  onPaste,
+}: {
+  row: ReceiptGridRow
+  disabled: boolean
+  active: boolean
+  onActivate: () => void
+  onCommit: (value: { text: string; hexText: string; ids: string[] }) => void
+  onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+}) {
+  const [value, setValue] = useState(row.colorText)
+  const [hexValues, setHexValues] = useState(() =>
+    row.colorHexText
+      ? row.colorHexText.split(',').map((hex) => hex.trim())
+      : [],
+  )
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    setValue(row.colorText)
+    setHexValues(
+      row.colorHexText
+        ? row.colorHexText.split(',').map((hex) => hex.trim())
+        : [],
+    )
+  }, [row.colorText, row.colorHexText])
+  const options = useMemo(() => {
+    const seen = new Set<string>()
+    return [
+      ...(row.catalogItem?.colors ?? []).map((color) => ({
+        id: color.id,
+        name: color.colorName,
+        hex: color.colorHex,
+      })),
+      ...paletteReceiptColorOptions(),
+    ].filter((option) => {
+      const key = option.name.toLocaleLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [row.catalogItem])
+  const query = getActiveColorQuery(value).toLocaleLowerCase()
+  const suggestions = options
+    .filter(
+      (option) => query && option.name.toLocaleLowerCase().includes(query),
+    )
+    .slice(0, 8)
+  const selectedNames = new Set(
+    splitColorSegments(value)
+      .map((name) => name.toLocaleLowerCase())
+      .filter(Boolean),
+  )
+  function commit(nextValue = value, nextHexValues = hexValues) {
+    const names = splitColorSegments(nextValue)
+    const ids = (row.catalogItem?.colors ?? [])
+      .filter((color) =>
+        names.some(
+          (name) =>
+            name.toLocaleLowerCase() === color.colorName.toLocaleLowerCase(),
+        ),
+      )
+      .map((color) => color.id)
+    onCommit({
+      text: nextValue.trim(),
+      hexText: names.map((_, index) => nextHexValues[index] ?? '').join(', '),
+      ids,
+    })
+  }
+  function selectOption(option: { name: string; hex: string }) {
+    const index = getActiveColorIndex(value)
+    const segments = splitColorSegments(value)
+    segments[index] = option.name
+    const nextValue = segments.join(', ')
+    const nextHexValues = [...hexValues]
+    nextHexValues[index] = option.hex
+    setValue(nextValue)
+    setHexValues(nextHexValues)
+    commit(nextValue, nextHexValues)
+  }
+  function handleHexChange(hex: string) {
+    const normalized = normalizeColorHex(hex)
+    if (!normalized) return
+    const index = getActiveColorIndex(value)
+    const segments = splitColorSegments(value)
+    segments[index] = matchPaletteHex(normalized).name
+    const nextHexValues = [...hexValues]
+    nextHexValues[index] = normalized
+    const nextValue = segments.join(', ')
+    setValue(nextValue)
+    setHexValues(nextHexValues)
+    commit(nextValue, nextHexValues)
+  }
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverAnchor asChild>
+        <div>
+          <Input
+            data-receipt-cell-input="true"
+            data-receipt-dirty={value !== row.colorText ? 'true' : 'false'}
+            aria-label="Colour"
+            value={value}
+            disabled={disabled}
+            placeholder="Colour"
+            className={`h-11 w-full rounded-none border-0 bg-transparent px-3 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
+            onFocus={() => {
+              onActivate()
+              setOpen(true)
+            }}
+            onChange={(event) => {
+              setValue(event.target.value)
+              setOpen(true)
+            }}
+            onPaste={onPaste}
+            onBlur={() =>
+              window.setTimeout(() => {
+                const activeElement = document.activeElement
+                if (
+                  activeElement?.getAttribute('data-colour-option') !==
+                    'true' &&
+                  !activeElement?.closest('[data-slot="popover-content"]')
+                ) {
+                  commit()
+                  setOpen(false)
+                }
+              }, 0)
+            }
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                if (suggestions[0]) selectOption(suggestions[0])
+                else {
+                  commit()
+                  setOpen(false)
+                }
+              }
+              if (event.key === 'Escape') {
+                setValue(row.colorText)
+                setOpen(false)
+              }
+            }}
+          />
+        </div>
+      </PopoverAnchor>
+      <PopoverContent
+        align="start"
+        className="w-80 p-3"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium">Choose colours</p>
+          <HexColorField
+            value={hexValues[getActiveColorIndex(value)] ?? ''}
+            onChange={handleHexChange}
+            ariaLabel="Pick a custom colour"
+          />
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Type multiple colours separated by commas, or use the picker.
+        </p>
+        <div className="mt-3 grid max-h-28 grid-cols-2 gap-1.5 overflow-y-auto">
+          {options.slice(0, 12).map((option) => (
+            <Button
+              key={`${option.name}-${option.hex}`}
+              type="button"
+              size="sm"
+              variant={
+                selectedNames.has(option.name.toLocaleLowerCase())
+                  ? 'default'
+                  : 'outline'
+              }
+              className="justify-start gap-2"
+              data-colour-option="true"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => selectOption(option)}
+            >
+              <span
+                className="size-3 rounded-full border"
+                style={{ backgroundColor: option.hex }}
+              />
+              <span className="truncate">{option.name}</span>
+            </Button>
+          ))}
+        </div>
+        {suggestions.length > 0 && (
+          <div
+            role="listbox"
+            aria-label="Colour suggestions"
+            className="mt-2 rounded-md border bg-background p-1"
+          >
+            {suggestions.map((option) => (
+              <button
+                key={`${option.name}-${option.hex}`}
+                type="button"
+                role="option"
+                data-colour-option="true"
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectOption(option)}
+              >
+                <span
+                  className="size-3 rounded-full border"
+                  style={{ backgroundColor: option.hex }}
+                />
+                {option.name}
+              </button>
+            ))}
+          </div>
+        )}
+        <Button
+          type="button"
+          className="mt-3 w-full"
+          onClick={() => {
+            commit()
+            setOpen(false)
+          }}
+        >
+          Done
+        </Button>
+      </PopoverContent>
+    </Popover>
   )
 }

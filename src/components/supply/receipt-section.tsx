@@ -478,7 +478,6 @@ export function ReceiptSection({
               onUndo: undoHistory,
               onRedo: redoHistory,
             }}
-            undoResetKey={receipt?.lines.map((line) => line.id).join(',')}
           />
         </ClientOnly>
         <label className="block space-y-1 text-sm">

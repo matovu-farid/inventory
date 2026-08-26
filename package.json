@@ -32,7 +32,6 @@
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",
     "@faker-js/faker": "^10.3.0",
-    "@glideapps/glide-data-grid": "^6.0.3",
     "@neondatabase/serverless": "^1.1.0",
     "@react-email/components": "^1.0.12",
     "@sentry/cloudflare": "^10.70.0",
