@@ -198,13 +198,14 @@ describe('supply receipt helpers', () => {
         itemId: 'item-owner',
         design: 'Jacket',
         supplierId: 'supplier-other',
+        supplierName: 'James',
         articleNumbers: ['JACKET 101'],
       },
     ]
 
     expect(
       findReceiptArtNumberConflict([row], catalog, 'supplier-selected'),
-    ).toContain('another supplier')
+    ).toContain('belongs to supplier "James"')
   })
 
   it('flags legacy case-variant art numbers with multiple owners', () => {

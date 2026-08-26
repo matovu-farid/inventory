@@ -95,7 +95,12 @@ async function resolveReceiptLineItem(
 
   const owners = await tx.query.itemArticleNumbers.findMany({
     where: sql`lower(${itemArticleNumbers.articleNumber}) = ${normalizedArticle}`,
-    with: { item: { columns: { design: true, supplierId: true } } },
+    with: {
+      item: {
+        columns: { design: true, supplierId: true },
+        with: { supplier: { columns: { name: true } } },
+      },
+    },
   })
   const ownerItemIds = new Set(owners.map((entry) => entry.itemId))
   if (ownerItemIds.size > 1) {
@@ -110,7 +115,9 @@ async function resolveReceiptLineItem(
     owner && (!owner.item.supplierId || owner.item.supplierId === supplier.id)
 
   if (owner && ownerDesignMatches && !ownerSupplierMatches) {
-    throw new Error(`Art number "${articleNumber}" belongs to another supplier`)
+    throw new Error(
+      `Art number "${articleNumber}" belongs to supplier "${owner.item.supplier?.name ?? 'another supplier'}"`,
+    )
   }
 
   // If duplicate catalog rows share a design, the art number is the more
@@ -166,7 +173,12 @@ async function resolveReceiptLineItem(
       if (!isUniqueViolation(error)) throw error
       const conflictingOwners = await tx.query.itemArticleNumbers.findMany({
         where: sql`lower(${itemArticleNumbers.articleNumber}) = ${normalizedArticle}`,
-        with: { item: { columns: { design: true, supplierId: true } } },
+        with: {
+          item: {
+            columns: { design: true, supplierId: true },
+            with: { supplier: { columns: { name: true } } },
+          },
+        },
       })
       const conflictingOwnerItemIds = new Set(
         conflictingOwners.map((entry) => entry.itemId),

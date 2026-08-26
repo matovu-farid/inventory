@@ -10,6 +10,7 @@ export interface ReceiptCatalogIndexEntry {
   itemId: string
   design: string
   supplierId?: string | null
+  supplierName?: string | null
   articleNumbers: string[]
 }
 
@@ -52,7 +53,7 @@ export function findReceiptArtNumberConflict(
       owner.supplierId &&
       owner.supplierId !== supplierId
     ) {
-      return `Receipt line ${index + 1}: art number "${row.articleNumber.trim()}" belongs to another supplier`
+      return `Receipt line ${index + 1}: art number "${row.articleNumber.trim()}" belongs to supplier "${owner.supplierName ?? 'another supplier'}"`
     }
     const previousDesign = receiptArticles.get(articleKey)
     if (previousDesign && previousDesign !== resolvedKey) {

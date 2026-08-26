@@ -18,23 +18,25 @@ vi.mock('#/server/middleware/rbac', () => ({
 }))
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+const supplierName = `Receipt auto item supplier ${suffix}`
 const createdItemIds: string[] = []
 let routeId = ''
 let supplierId = ''
 let otherSupplierId = ''
+const otherSupplierName = `Receipt other supplier ${suffix}`
 
 beforeAll(async () => {
   const [supplier] = await db
     .insert(suppliers)
     .values({
-      name: `Receipt auto item supplier ${suffix}`,
+      name: supplierName,
       type: 'international',
     })
     .returning()
   supplierId = supplier.id
   const [otherSupplier] = await db
     .insert(suppliers)
-    .values({ name: `Receipt other supplier ${suffix}`, type: 'international' })
+    .values({ name: otherSupplierName, type: 'international' })
     .returning()
   otherSupplierId = otherSupplier.id
   const [route] = await db
@@ -152,7 +154,7 @@ describe('receipt item materialization', () => {
       createSupplyRouteReceiptServer(
         draft(design, articleNumber, otherSupplierId),
       ),
-    ).rejects.toThrow('another supplier')
+    ).rejects.toThrow(`belongs to supplier "${supplierName}"`)
   })
 
   it('rejects an art number already owned by another item', async () => {
