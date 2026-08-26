@@ -22,6 +22,7 @@ import {
 } from '#/components/ui/table'
 import { matchPaletteHex } from '#/lib/colors/match-palette'
 import {
+  colorNameToHex,
   getActiveColorIndex,
   getActiveColorQuery,
   normalizeColorHex,
@@ -679,12 +680,12 @@ function PlainCellInput({
         column === 'itemName'
           ? 'Item name'
           : column === 'articleNumber'
-          ? 'Art No.'
-          : column === 'sizeText'
-            ? 'Size'
-            : column === 'quantity'
-              ? 'Qty (pcs)'
-              : 'Unit Price'
+            ? 'Art No.'
+            : column === 'sizeText'
+              ? 'Size'
+              : column === 'quantity'
+                ? 'Qty (pcs)'
+                : 'Unit Price'
       }
       type={column === 'quantity' ? 'number' : 'text'}
       min={column === 'quantity' ? 0 : undefined}
@@ -933,9 +934,18 @@ function ColorEditor({
         ),
       )
       .map((color) => color.id)
+    const resolvedHexes = names.map(
+      (name, index) =>
+        normalizeColorHex(nextHexValues[index] ?? '') ||
+        options.find(
+          (option) =>
+            option.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+        )?.hex ||
+        colorNameToHex(name),
+    )
     onCommit({
       text: nextValue.trim(),
-      hexText: names.map((_, index) => nextHexValues[index] ?? '').join(', '),
+      hexText: resolvedHexes.every(Boolean) ? resolvedHexes.join(', ') : '',
       ids,
     })
   }

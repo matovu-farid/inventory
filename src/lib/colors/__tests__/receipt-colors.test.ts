@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   colorHexToName,
+  colorNameToHex,
   getActiveColorQuery,
+  isReceiptColorHexList,
   normalizeColorHex,
   replaceActiveColor,
 } from '../receipt-colors'
@@ -23,5 +25,14 @@ describe('receipt colour helpers', () => {
 
   it('normalizes picker values before persistence', () => {
     expect(normalizeColorHex('ff0000')).toBe('#ff0000')
+  })
+
+  it('maps palette names back to their hex values', () => {
+    expect(colorNameToHex('  Charcoal ')).toBe('#36454f')
+  })
+
+  it('validates comma-separated receipt hex values', () => {
+    expect(isReceiptColorHexList('#f5e9d0, #36454f')).toBe(true)
+    expect(isReceiptColorHexList('#f5e9d0,')).toBe(false)
   })
 })

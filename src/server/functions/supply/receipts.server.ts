@@ -17,6 +17,7 @@ import {
   normalizeReceiptSizes,
 } from '#/lib/supply-receipts'
 import { normalizeArticleNumber } from '#/lib/items/article-number'
+import { isReceiptColorHexList } from '#/lib/colors/receipt-colors'
 import { calculateSupplyLineAmounts } from './items-internals'
 import { getSupplierCode } from './supplier-codes.server'
 
@@ -29,7 +30,7 @@ export const receiptLineInput = z.object({
   colorText: z.string().trim().max(200).optional(),
   colorHex: z
     .string()
-    .regex(/^#[0-9a-fA-F]{6}$/)
+    .refine(isReceiptColorHexList, 'Colour hex values must be #RRGGBB')
     .optional(),
   size: z.string().trim().max(200).optional(),
   quantity: z.number().int().positive(),

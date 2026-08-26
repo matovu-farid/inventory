@@ -5,6 +5,7 @@ import {
   deleteSupplyRouteReceiptServer,
   replaceSupplyRouteReceiptServer,
 } from './receipts.server'
+import { isReceiptColorHexList } from '#/lib/colors/receipt-colors'
 
 const receiptLineInput = z.object({
   itemName: z.string().trim().min(1).max(120).optional(),
@@ -15,7 +16,7 @@ const receiptLineInput = z.object({
   colorText: z.string().trim().max(200).optional(),
   colorHex: z
     .string()
-    .regex(/^#[0-9a-fA-F]{6}$/)
+    .refine(isReceiptColorHexList, 'Colour hex values must be #RRGGBB')
     .optional(),
   size: z.string().trim().max(200).optional(),
   quantity: z.number().int().positive(),

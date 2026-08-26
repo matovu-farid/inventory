@@ -31,6 +31,20 @@ export function colorHexToName(hex: string): string {
   return normalized ? matchPaletteHex(normalized).name : ''
 }
 
+export function colorNameToHex(name: string): string {
+  const normalized = name.trim().toLocaleLowerCase()
+  return (
+    CLOTHING_PALETTE.find(
+      (color) => color.name.toLocaleLowerCase() === normalized,
+    )?.hex ?? ''
+  )
+}
+
+export function isReceiptColorHexList(value: string): boolean {
+  const hexes = value.split(',').map((hex) => hex.trim())
+  return hexes.length > 0 && hexes.every((hex) => /^#[0-9a-fA-F]{6}$/.test(hex))
+}
+
 export function normalizeColorHex(hex: string): string {
   const normalized = hex.startsWith('#') ? hex : `#${hex}`
   return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized : ''
