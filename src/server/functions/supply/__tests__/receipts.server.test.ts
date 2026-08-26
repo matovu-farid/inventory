@@ -67,6 +67,7 @@ function draft(
   design: string,
   articleNumber: string,
   receiptSupplierId = supplierId,
+  itemId?: string,
 ) {
   return {
     supplyRouteId: routeId,
@@ -75,6 +76,7 @@ function draft(
     lines: [
       {
         design,
+        itemId,
         articleNumber,
         quantity: 10,
         unitPriceForeign: '3.00',
@@ -163,6 +165,25 @@ describe('receipt item materialization', () => {
         draft(`Different design ${suffix}`, `RA-${suffix}`),
       ),
     ).rejects.toThrow('Art number')
+  })
+
+  it('does not reuse another supplier item for a new art number', async () => {
+    const design = `Separate supplier design ${suffix}`
+    const first = await createSupplyRouteReceiptServer(
+      draft(design, `FIRST-${suffix}`),
+    )
+    if (first.lines[0].itemId) createdItemIds.push(first.lines[0].itemId)
+    const second = await createSupplyRouteReceiptServer(
+      draft(
+        design,
+        `SECOND-${suffix}`,
+        otherSupplierId,
+        first.lines[0].itemId ?? undefined,
+      ),
+    )
+    if (second.lines[0].itemId) createdItemIds.push(second.lines[0].itemId)
+
+    expect(second.lines[0].itemId).not.toBe(first.lines[0].itemId)
   })
 
   it('allows repeated item and art numbers across ordinary receipt rows', async () => {

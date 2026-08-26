@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
 import {
@@ -89,7 +89,11 @@ async function resolveReceiptLineItem(
 
   // A stale itemId must not make a changed/free-text design attach to the
   // wrong catalog item. Resolve by the visible design instead.
-  if (item && normalizeReceiptLookupText(item.design) !== normalizedDesign) {
+  if (
+    item &&
+    (normalizeReceiptLookupText(item.design) !== normalizedDesign ||
+      (item.supplierId && item.supplierId !== supplier.id))
+  ) {
     item = undefined
   }
 
@@ -134,6 +138,7 @@ async function resolveReceiptLineItem(
     where: and(
       isNull(items.deletedAt),
       sql`lower(${items.design}) = ${normalizedDesign}`,
+      or(eq(items.supplierId, supplier.id), isNull(items.supplierId)),
     ),
     with: { articleNumbers: true },
     orderBy: [
