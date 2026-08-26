@@ -191,8 +191,8 @@ export function ReceiptSection({
   const received = receipt?.lines.some((line) => line.received) ?? false
   const locked = disabled || received
   const artNumberError = useMemo(
-    () => findReceiptArtNumberConflict(rows, catalogIndex),
-    [catalogIndex, rows],
+    () => findReceiptArtNumberConflict(rows, catalogIndex, supplierId),
+    [catalogIndex, rows, supplierId],
   )
   const selectedSupplier = useMemo(
     () => suppliers.find((supplier) => supplier.id === supplierId),

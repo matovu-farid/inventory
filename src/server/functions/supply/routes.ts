@@ -61,13 +61,14 @@ export const listReceiptCatalogIndex = createServerFn().handler(async () => {
   await requireSessionAndRole(['admin'])
   const catalog = await db.query.items.findMany({
     where: isNull(items.deletedAt),
-    columns: { id: true, design: true },
+    columns: { id: true, design: true, supplierId: true },
     with: { articleNumbers: { columns: { articleNumber: true } } },
     orderBy: [ascOrder(items.createdAt), ascOrder(items.id)],
   })
   return catalog.map((item) => ({
     itemId: item.id,
     design: item.design,
+    supplierId: item.supplierId,
     articleNumbers: item.articleNumbers.map((article) => article.articleNumber),
   }))
 })

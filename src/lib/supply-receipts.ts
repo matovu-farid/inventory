@@ -9,44 +9,50 @@ export function normalizeReceiptLookupText(value: string): string {
 export interface ReceiptCatalogIndexEntry {
   itemId: string
   design: string
+  supplierId?: string | null
   articleNumbers: string[]
 }
 
 export function findReceiptArtNumberConflict(
   rows: readonly ReceiptGridRow[],
   catalogIndex: readonly ReceiptCatalogIndexEntry[],
+  supplierId?: string,
 ): string | null {
   const byId = new Map(catalogIndex.map((item) => [item.itemId, item]))
-  const byDesign = new Map<string, ReceiptCatalogIndexEntry>()
-  for (const item of catalogIndex) {
-    const designKey = normalizeReceiptLookupText(item.design)
-    if (!byDesign.has(designKey)) byDesign.set(designKey, item)
-  }
   const byArticle = new Map<string, ReceiptCatalogIndexEntry[]>()
   for (const item of catalogIndex) {
     for (const articleNumber of item.articleNumbers) {
       const key = normalizeReceiptLookupText(articleNumber)
       const owners = byArticle.get(key) ?? []
-      if (!owners.some((owner) => owner.itemId === item.itemId)) owners.push(item)
+      if (!owners.some((owner) => owner.itemId === item.itemId))
+        owners.push(item)
       byArticle.set(key, owners)
     }
   }
   const receiptArticles = new Map<string, string>()
 
   for (const [index, row] of rows.entries()) {
-    if (isReceiptRowEmptyForValidation(row) || !row.articleNumber.trim()) continue
+    if (isReceiptRowEmptyForValidation(row) || !row.articleNumber.trim())
+      continue
     const articleKey = normalizeReceiptLookupText(row.articleNumber)
-    const catalogItem =
-      (row.itemId ? byId.get(row.itemId) : undefined) ??
-      byDesign.get(normalizeReceiptLookupText(row.design))
-    const resolvedKey = catalogItem?.itemId ?? normalizeReceiptLookupText(row.design)
+    const rowDesignKey = normalizeReceiptLookupText(row.design)
+    const catalogItem = row.itemId ? byId.get(row.itemId) : undefined
+    const resolvedKey = catalogItem?.itemId ?? rowDesignKey
     const owners = byArticle.get(articleKey) ?? []
     if (owners.length > 1) {
       return `Receipt line ${index + 1}: art number "${row.articleNumber.trim()}" has conflicting catalog ownership`
     }
     const owner = owners.at(0)
-    if (owner && owner.itemId !== resolvedKey) {
+    if (owner && normalizeReceiptLookupText(owner.design) !== rowDesignKey) {
       return `Receipt line ${index + 1}: art number "${row.articleNumber.trim()}" belongs to design "${owner.design}"`
+    }
+    if (
+      owner &&
+      supplierId &&
+      owner.supplierId &&
+      owner.supplierId !== supplierId
+    ) {
+      return `Receipt line ${index + 1}: art number "${row.articleNumber.trim()}" belongs to another supplier`
     }
     const previousDesign = receiptArticles.get(articleKey)
     if (previousDesign && previousDesign !== resolvedKey) {
