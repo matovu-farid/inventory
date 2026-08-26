@@ -185,7 +185,7 @@ describe('supply receipt helpers', () => {
     ).toBeNull()
   })
 
-  it('rejects a same-design art number owned by another supplier', () => {
+  it('allows a same-design art number owned by another supplier', () => {
     const row = {
       ...createEmptyReceiptRow('row-1'),
       design: 'Jacket',
@@ -205,7 +205,7 @@ describe('supply receipt helpers', () => {
 
     expect(
       findReceiptArtNumberConflict([row], catalog, 'supplier-selected'),
-    ).toContain('belongs to supplier "James"')
+    ).toBeNull()
   })
 
   it('flags legacy case-variant art numbers with multiple owners', () => {

@@ -353,8 +353,11 @@ export function ItemEditor({
             },
           })
           itemId = created.id
+          const createdArticleNumbers = Array.isArray(created.articleNumbers)
+            ? created.articleNumbers
+            : []
           itemArticleNumber =
-            created.articleNumbers[0]?.qualifiedArticleNumber ||
+            createdArticleNumbers[0]?.qualifiedArticleNumber ||
             articleNumbers[0] ||
             ''
           setCreatedItemId(itemId)
