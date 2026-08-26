@@ -65,7 +65,7 @@ function NewItemEntry() {
             <Input
               aria-label="Search catalog items"
               className="pl-9"
-              placeholder="Search by article number or name…"
+              placeholder="Search by art number, design, or item name…"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -79,7 +79,10 @@ function NewItemEntry() {
                   key={item.id}
                   to="/items/$articleNumber"
                   params={{
-                    articleNumber: item.articleNumbers[0]?.articleNumber ?? '',
+                    articleNumber:
+                      item.articleNumbers[0]?.qualifiedArticleNumber ||
+                      item.articleNumbers[0]?.articleNumber ||
+                      '',
                   }}
                   className="flex items-center justify-between gap-4 p-3 text-sm hover:bg-muted"
                 >

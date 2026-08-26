@@ -78,7 +78,7 @@ export function SupplyRouteItemPicker({
           onChange(id, selected)
         }}
         placeholder="Select item…"
-        searchPlaceholder="Type article number…"
+        searchPlaceholder="Type art number, design, or item name…"
         emptyMessage="No matching item."
       />
       {allowArchived && (

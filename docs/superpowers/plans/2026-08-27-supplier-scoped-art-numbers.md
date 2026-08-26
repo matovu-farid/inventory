@@ -72,7 +72,7 @@ Expected: FAIL because the supplier-code table and qualified column do not exist
 
 - [ ] **Step 3: Update schema and migration**
 
-Add `qualifiedArticleNumber` to `itemArticleNumbers`, remove the global unique index on raw `articleNumber`, and add a unique index on `qualifiedArticleNumber`. Generate a migration that creates `supplier_codes`, backfills every current supplier with a unique eight-letter code, adds the qualified column, fills it by joining article numbers to their item supplier code, then applies `NOT NULL` and the new unique index. Keep raw values unchanged.
+Add `qualifiedArticleNumber` to `itemArticleNumbers`, remove the global unique index on raw `articleNumber`, and add a unique index on `qualifiedArticleNumber`. Generate a migration that creates `supplier_codes`, backfills every current supplier with a unique eight-letter code, adds the qualified column, and fills it by joining article numbers to their item supplier code. Keep raw values unchanged; leave the qualified field nullable only for legacy catalog rows that have no supplier because those rows cannot be safely qualified.
 
 Update every direct article-number fixture that currently inserts only `itemId` and `articleNumber` so it supplies the qualified value through a shared test helper. The affected fixtures include `src/__tests__/test-helpers.ts`, `src/lib/notifications/__tests__/baseline.test.ts`, `src/__tests__/receive-unresolved.test.ts`, `src/__tests__/receiving-backdate.test.ts`, `src/__tests__/server-variant-id.test.ts`, `src/__tests__/opening-balance-shop-unresolved.test.ts`, `src/__tests__/set-item-minimum-sell-price.test.ts`, `src/__tests__/notifications-variant-id.test.ts`, `src/__tests__/shift-reports.test.ts`, `src/__tests__/item-return-date-filter.test.ts`, `src/__tests__/stock-variant-id.test.ts`, `src/__tests__/specify-stock.test.ts`, `src/__tests__/materialize-variants.test.ts`, `src/__tests__/photo-handoff.test.ts`, `src/__tests__/delete-variant.test.ts`, `src/__tests__/audit-article-resolver.test.ts`, `src/__tests__/opening-balance-auto-create.test.ts`, `src/__tests__/low-stock-flow.test.ts`, `src/__tests__/variants.test.ts`, `src/__tests__/plan-2c-low-stock-item-level.test.ts`, `src/__tests__/item-color-images.test.ts`, `src/__tests__/item-images.test.ts`, and `src/__tests__/products-server.test.ts`.
 
@@ -218,7 +218,7 @@ git commit -m "feat: scope and rank supplier item search"
 
 - [ ] **Step 1: Write failing grid and section tests**
 
-Add a row-state test proving item name survives copy/fill-down/paste. Add a component test proving the columns are `Item name`, `Design`, `Art No.`, `Colour`, `Size`, `Qty (pcs)`, `Unit Price`, and `Amount`. Test that a catalog selection fills item name, design, and art number. Test free-text validation requires item name and design. Test the search request includes the selected supplier id and an empty supplier issues no request.
+Add a row-state test proving item name survives copy/fill-down/paste. Add a component test proving the columns are `Item name`, `Design`, `Art No.`, `Colour`, `Size`, `Qty (pcs)`, `Unit Price`, and `Amount`. Test that a catalog selection fills item name, design, and art number. Test free-text validation requires design and allows item-name fallback. Test the search request includes the selected supplier id and an empty supplier issues no request.
 
 - [ ] **Step 2: Run the tests and verify the expected failure**
 
@@ -234,7 +234,7 @@ Add `itemName` to `ReceiptGridRow`, `ReceiptGridColumnId`, copy/paste/fill-down 
 
 - [ ] **Step 4: Wire draft and snapshots**
 
-Load item name from `line.item.name` or `itemNameSnapshot`, send it in `receiptLineInput`, require it for free-text lines, and write `itemNameSnapshot` from the row. Remove the unscoped `initialCatalogIndex` prop and pass the selected supplier to scoped search/validation. Keep existing colour/size controls and Excel-like row actions unchanged.
+Load item name from `line.item.name` or `itemNameSnapshot`, send it in `receiptLineInput`, fall back to design for older/free-text lines, and write `itemNameSnapshot` from the row. Remove the unscoped `initialCatalogIndex` prop and pass the selected supplier to scoped search/validation. Keep existing colour/size controls and Excel-like row actions unchanged.
 
 - [ ] **Step 5: Run the tests and verify they pass**
 
@@ -314,11 +314,11 @@ The plan was reviewed against the requested behavior and the current codebase be
 
 - Raw art numbers can be duplicated across suppliers, so raw-number item routes would be ambiguous. Task 2 moves internal item links to the qualified value while retaining raw display labels.
 - Changing an item’s supplier would leave its old prefix unless handled transactionally. Task 4 requalifies all of the item’s article numbers and tests collisions.
-- Direct article-number inserts exist in many integration fixtures. Task 2 lists those fixtures and requires a shared qualified-value helper rather than weakening the database constraint.
+- Direct article-number inserts exist in many integration fixtures. Supplier-owned production writes always qualify values; legacy fixtures/orphan rows may keep a null qualified value.
 - Supplier creation also occurs through import and seed paths, not only the supplier form. Task 3 updates and tests each production path and preserves existing codes.
 - A global route-loader catalog would defeat supplier scoping. Task 5 removes the unscoped fetch and Task 6 verifies no request is made before supplier selection.
 - Existing receipt lines may lack a separate item-name snapshot. Task 6 defines fallback loading from the catalog item and preserves the visible snapshot for review.
 - The user’s “item name” clarification means name is the broad category and design is the specific style. The schema, validation, search result, column order, and receipt creation steps all use that distinction.
-- A migration cannot qualify an article number whose item has no supplier. Task 2 must check this condition before enforcing `NOT NULL` and report the count rather than silently creating an incorrect identity.
+- A migration cannot qualify an article number whose item has no supplier. The migration preserves those legacy rows with a null qualified value rather than inventing an incorrect supplier identity.
 
 No unresolved placeholders, contradictory ranking rules, unowned files, or untested explicit requirements remain in the plan.

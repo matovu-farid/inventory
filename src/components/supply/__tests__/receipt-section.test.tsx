@@ -116,7 +116,6 @@ describe('ReceiptSection save validation', () => {
             deletedAt: null,
           },
         ]}
-        catalogIndex={[]}
         onChanged={() => undefined}
       />,
     )
@@ -129,37 +128,6 @@ describe('ReceiptSection save validation', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Save receipt' }))
 
-    expect(createReceipt).not.toHaveBeenCalled()
-  })
-
-  it('shows a catalog art-number conflict before saving', () => {
-    render(
-      <ReceiptSection
-        supplyRouteId="route-1"
-        routeRates={{}}
-        suppliers={[
-          {
-            id: 'supplier-1',
-            name: 'Supplier',
-            type: 'local',
-            country: null,
-            deletedAt: null,
-          },
-        ]}
-        catalogIndex={[
-          { itemId: 'item-2', design: 'Trouser', articleNumbers: ['JKT-1'] },
-        ]}
-        onChanged={() => undefined}
-      />,
-    )
-
-    fireEvent.change(screen.getByRole('combobox', { name: 'Supplier *' }), {
-      target: { value: 'supplier-1' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Fill complete line' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save receipt' }))
-
-    expect(screen.getByRole('alert').textContent).toContain('belongs to design')
     expect(createReceipt).not.toHaveBeenCalled()
   })
 
@@ -177,7 +145,6 @@ describe('ReceiptSection save validation', () => {
             deletedAt: null,
           },
         ]}
-        catalogIndex={[]}
         onChanged={() => undefined}
       />,
     )
@@ -213,7 +180,6 @@ describe('ReceiptSection save validation', () => {
             deletedAt: null,
           },
         ]}
-        catalogIndex={[]}
         onChanged={() => undefined}
       />,
     )

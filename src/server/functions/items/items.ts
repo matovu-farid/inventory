@@ -60,7 +60,11 @@ export const getItemByArticle = createServerFn()
 export const searchItems = createServerFn()
   .inputValidator(
     z
-      .object({ query: z.string(), includeArchived: z.boolean().optional() })
+      .object({
+        query: z.string(),
+        includeArchived: z.boolean().optional(),
+        supplierId: z.uuid().optional(),
+      })
       .and(returnDateFilter),
   )
   .handler(async ({ data }) => {

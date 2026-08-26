@@ -1,0 +1,1 @@
+ALTER TABLE "item_article_numbers" ALTER COLUMN "qualified_article_number" DROP NOT NULL;

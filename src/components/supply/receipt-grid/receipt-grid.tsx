@@ -53,6 +53,7 @@ const columns: ReadonlyArray<{
   width: string
 }> = [
   { id: 'remove', title: '', width: '42px' },
+  { id: 'itemName', title: 'Item name', width: '160px' },
   { id: 'design', title: 'Design', width: '210px' },
   { id: 'articleNumber', title: 'Art No.', width: '140px' },
   { id: 'colorText', title: 'Colour', width: '170px' },
@@ -99,11 +100,13 @@ function range(start: number, end: number): number[] {
 
 export function ReceiptGrid({
   rows,
+  supplierId,
   disabled = false,
   onRowsChange,
   historyControls,
 }: {
   rows: ReceiptGridRow[]
+  supplierId?: string
   disabled?: boolean
   onRowsChange: (rows: ReceiptGridRow[]) => void
   historyControls?: ReceiptGridHistoryControls
@@ -248,6 +251,7 @@ export function ReceiptGrid({
         if (catalogItem) {
           return {
             ...row,
+            itemName: catalogItem.name,
             itemId: catalogItem.id,
             catalogItem,
             articleNumber:
@@ -435,6 +439,7 @@ export function ReceiptGrid({
                 </TableCell>
                 {(
                   [
+                    'itemName',
                     'design',
                     'articleNumber',
                     'colorText',
@@ -483,6 +488,7 @@ export function ReceiptGrid({
                     onPaste={handlePaste}
                     onFillStart={beginFill}
                     fillDrag={fillDrag}
+                    supplierId={supplierId}
                   />
                 ))}
                 <TableCell className="border-r p-0 last:border-r-0">
@@ -562,6 +568,7 @@ function EditableTableCell({
   onPaste,
   onFillStart,
   fillDrag,
+  supplierId,
 }: {
   row: ReceiptGridRow
   rowIndex: number
@@ -580,6 +587,7 @@ function EditableTableCell({
   ) => void
   onFillStart: (event: React.PointerEvent, source: CellLocation) => void
   fillDrag: FillDrag | null
+  supplierId?: string
 }) {
   const value =
     column === 'quantity'
@@ -604,6 +612,7 @@ function EditableTableCell({
           onCommit={(next) => onCommit(next)}
           onCatalogItemSelected={onCatalogItemSelected}
           onPaste={(event) => onPaste(event, rowIndex, column)}
+          supplierId={supplierId}
         />
       ) : column === 'colorText' ? (
         <ColorEditor
@@ -667,7 +676,9 @@ function PlainCellInput({
       data-receipt-cell-input="true"
       data-receipt-dirty={draft !== value ? 'true' : 'false'}
       aria-label={
-        column === 'articleNumber'
+        column === 'itemName'
+          ? 'Item name'
+          : column === 'articleNumber'
           ? 'Art No.'
           : column === 'sizeText'
             ? 'Size'
@@ -699,6 +710,7 @@ function PlainCellInput({
 
 function DesignEditor({
   value,
+  supplierId,
   disabled,
   active,
   onActivate,
@@ -707,6 +719,7 @@ function DesignEditor({
   onPaste,
 }: {
   value: string
+  supplierId?: string
   disabled: boolean
   active: boolean
   onActivate: () => void
@@ -721,14 +734,16 @@ function DesignEditor({
   const sequence = useRef(0)
   useEffect(() => setDraft(value), [value])
   useEffect(() => {
-    if (!open || !draft.trim()) {
+    const request = ++sequence.current
+    if (!open || !draft.trim() || !supplierId) {
       setResults([])
       return
     }
-    const request = ++sequence.current
     const timer = window.setTimeout(() => {
       setLoading(true)
-      void searchItems({ data: { query: draft.trim() } })
+      void searchItems({
+        data: { query: draft.trim(), supplierId: supplierId || undefined },
+      })
         .then((items) => {
           if (request === sequence.current) setResults(items)
         })
@@ -740,7 +755,7 @@ function DesignEditor({
         })
     }, 160)
     return () => window.clearTimeout(timer)
-  }, [draft, open])
+  }, [draft, open, supplierId])
   function finish(nextValue = draft) {
     const next = nextValue.trim()
     setDraft(next)

@@ -106,7 +106,7 @@ export function ItemPicker({
           onChange(id, selected)
         }}
         placeholder="Select item…"
-        searchPlaceholder="Type article number…"
+        searchPlaceholder="Type art number, design, or item name…"
         emptyMessage={
           <div className="p-2 text-sm">
             No matching item.{' '}

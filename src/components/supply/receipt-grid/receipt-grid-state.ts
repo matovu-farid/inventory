@@ -10,6 +10,7 @@ import type {
 export function createEmptyReceiptRow(id: string): ReceiptGridRow {
   return {
     id,
+    itemName: '',
     design: '',
     itemId: null,
     catalogItem: null,
@@ -26,6 +27,7 @@ export function createEmptyReceiptRow(id: string): ReceiptGridRow {
 export function isReceiptRowEmpty(row: ReceiptGridRow): boolean {
   return (
     !row.design.trim() &&
+    !row.itemName.trim() &&
     !row.articleNumber.trim() &&
     !row.colorText.trim() &&
     !row.colorHexText.trim() &&
@@ -123,10 +125,13 @@ export function copyReceiptRowField(
   switch (column) {
     case 'design':
       return {
+        itemName: row.itemName,
         design: row.design,
         itemId: row.itemId,
         catalogItem: copyReceiptRow(row, row.id).catalogItem,
       }
+    case 'itemName':
+      return { itemName: row.itemName }
     case 'colorText':
       return {
         colorText: row.colorText,

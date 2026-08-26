@@ -5,6 +5,7 @@ import { db } from '#/db'
 import { suppliers } from '#/db/schema'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { listSuppliersQuery } from './supplier-queries'
+import { ensureSupplierCode } from './supplier-codes.server'
 
 export const listSuppliers = createServerFn()
   .inputValidator(
@@ -33,9 +34,11 @@ export const createSupplier = createServerFn()
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin'])
 
-    const [supplier] = await db.insert(suppliers).values(data).returning()
-
-    return supplier
+    return db.transaction(async (tx) => {
+      const [supplier] = await tx.insert(suppliers).values(data).returning()
+      await ensureSupplierCode(tx, supplier.id)
+      return supplier
+    })
   })
 
 const updateSupplierInput = z.object({

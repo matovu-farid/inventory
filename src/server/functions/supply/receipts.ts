@@ -7,15 +7,22 @@ import {
 } from './receipts.server'
 
 const receiptLineInput = z.object({
+  itemName: z.string().trim().min(1).max(120).optional(),
   design: z.string().trim().min(1).max(64),
   itemId: z.uuid().nullable().optional(),
   articleNumber: z.string().trim().min(1).max(64),
   colorId: z.uuid().nullable().optional(),
   colorText: z.string().trim().max(200).optional(),
-  colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  colorHex: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
   size: z.string().trim().max(200).optional(),
   quantity: z.number().int().positive(),
-  unitPriceForeign: z.string().trim().regex(/^\d+(\.\d{1,2})?$/),
+  unitPriceForeign: z
+    .string()
+    .trim()
+    .regex(/^\d+(\.\d{1,2})?$/),
 })
 
 const receiptDraft = z.object({

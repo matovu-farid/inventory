@@ -49,6 +49,7 @@ import {
   itemImages,
 } from '#/db/schema'
 import { materializeVariantsFromColorsSizes } from './variants-materialize'
+import { getSupplierCode } from '../supply/supplier-codes.server'
 
 const colorInput = z.object({
   colorName: z.string().min(1).max(40),
@@ -156,7 +157,7 @@ export const updateInput = upsertInput
 const ITEM_DETAIL_WITH = {
   supplier: { columns: { id: true, name: true } },
   articleNumbers: {
-    columns: { id: true, articleNumber: true },
+    columns: { id: true, articleNumber: true, qualifiedArticleNumber: true },
   },
   colors: {
     columns: {
@@ -199,6 +200,9 @@ export async function getItemByArticleQuery(input: {
   includeArchived?: boolean
 }) {
   const articleNumber = normalizeArticleNumber(input.articleNumber)
+  const qualified = input.articleNumber.includes(':')
+    ? input.articleNumber.trim().toUpperCase()
+    : null
   return db.query.items.findFirst({
     where: and(
       input.includeArchived ? undefined : isNull(items.deletedAt),
@@ -209,7 +213,9 @@ export async function getItemByArticleQuery(input: {
           .where(
             and(
               eq(itemArticleNumbers.itemId, items.id),
-              eq(itemArticleNumbers.articleNumber, articleNumber),
+              qualified
+                ? eq(itemArticleNumbers.qualifiedArticleNumber, qualified)
+                : eq(itemArticleNumbers.articleNumber, articleNumber),
             ),
           ),
       ),
@@ -222,16 +228,20 @@ export async function searchItemsQuery(
   input: {
     query: string
     includeArchived?: boolean
+    supplierId?: string
   } & ReturnDateFilter,
 ) {
   const dateFilter = parseReturnDateFilter(input)
   const activeFilter = input.includeArchived
     ? undefined
     : isNull(items.deletedAt)
+  const supplierFilter = input.supplierId
+    ? eq(items.supplierId, input.supplierId)
+    : undefined
   const routeReturnDateFilter = returnDateCondition(dateFilter)
   if (!input.query.trim()) {
     return db.query.items.findMany({
-      where: and(activeFilter, routeReturnDateFilter),
+      where: and(activeFilter, supplierFilter, routeReturnDateFilter),
       with: ITEM_DETAIL_WITH,
       limit: 20,
       orderBy: (p) => [asc(p.name), asc(p.id)],
@@ -241,6 +251,7 @@ export async function searchItemsQuery(
   return db.query.items.findMany({
     where: and(
       activeFilter,
+      supplierFilter,
       routeReturnDateFilter,
       or(
         ilike(items.name, like),
@@ -260,7 +271,30 @@ export async function searchItemsQuery(
     ),
     with: ITEM_DETAIL_WITH,
     limit: 20,
-    orderBy: (p) => [asc(p.name), asc(p.id)],
+    orderBy: [
+      sql`case
+        when exists (
+          select 1 from ${itemArticleNumbers} numbers
+          where numbers.item_id = ${items.id}
+            and lower(numbers.article_number) = lower(${input.query.trim()})
+        ) then 0
+        when exists (
+          select 1 from ${itemArticleNumbers} numbers
+          where numbers.item_id = ${items.id}
+            and lower(numbers.article_number) like lower(${`${input.query.trim()}%`})
+        ) then 1
+        when exists (
+          select 1 from ${itemArticleNumbers} numbers
+          where numbers.item_id = ${items.id}
+            and lower(numbers.article_number) like lower(${like})
+        ) then 2
+        when lower(${items.design}) = lower(${input.query.trim()}) then 3
+        when lower(${items.design}) like lower(${`${input.query.trim()}%`}) then 4
+        else 5
+      end`,
+      asc(items.name),
+      asc(items.id),
+    ],
   })
 }
 
@@ -378,14 +412,21 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
   const articleNumbers = normalizeArticleNumbers(data.articleNumbers)
   try {
     return await db.transaction(async (tx) => {
-      await assertArticleNumbersAvailable(tx, articleNumbers)
+      const supplierId = data.supplierId as string
+      const supplierCode = await getSupplierCode(tx, supplierId)
+      await assertArticleNumbersAvailable(
+        tx,
+        articleNumbers.map(
+          (articleNumber) => `${supplierCode}:${articleNumber}`,
+        ),
+      )
       const [row] = await tx
         .insert(items)
         .values({
           name: data.name,
           description: data.description,
           design: data.design,
-          supplierId: data.supplierId,
+          supplierId,
           costPrice: data.costPrice,
           costCurrency: data.costCurrency,
           minimumSellPriceUgx: data.minimumSellPriceUgx,
@@ -397,6 +438,7 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
         articleNumbers.map((articleNumber) => ({
           itemId: row.id,
           articleNumber,
+          qualifiedArticleNumber: `${supplierCode}:${articleNumber}`,
         })),
       )
 
@@ -471,13 +513,38 @@ export async function updateItemQuery(data: z.infer<typeof updateInput>) {
     ...(minimumSellPriceUgx === undefined ? {} : { minimumSellPriceUgx }),
     ...(lowStockThreshold === undefined ? {} : { lowStockThreshold }),
   }
-  const rows = await db
-    .update(items)
-    .set(patch)
-    .where(and(eq(items.id, id), isNull(items.deletedAt)))
-    .returning()
-  if (rows.length === 0) throw new Error('Item not found')
-  return rows[0]
+  return db.transaction(async (tx) => {
+    const current = await tx.query.items.findFirst({
+      where: and(eq(items.id, id), isNull(items.deletedAt)),
+      with: { articleNumbers: true },
+    })
+    if (!current) throw new Error('Item not found')
+
+    if (fields.supplierId && fields.supplierId !== current.supplierId) {
+      const supplierCode = await getSupplierCode(tx, fields.supplierId)
+      await assertArticleNumbersAvailable(
+        tx,
+        current.articleNumbers.map(
+          (article) => `${supplierCode}:${article.articleNumber}`,
+        ),
+        id,
+      )
+      await tx
+        .update(itemArticleNumbers)
+        .set({
+          qualifiedArticleNumber: sql`${supplierCode} || ':' || ${itemArticleNumbers.articleNumber}`,
+        })
+        .where(eq(itemArticleNumbers.itemId, id))
+    }
+
+    const rows = await tx
+      .update(items)
+      .set(patch)
+      .where(and(eq(items.id, id), isNull(items.deletedAt)))
+      .returning()
+    if (rows.length === 0) throw new Error('Item not found')
+    return rows[0]
+  })
 }
 
 function normalizeArticleNumbers(values: readonly string[]): string[] {
@@ -527,7 +594,7 @@ async function assertArticleNumbersAvailable(
     .from(itemArticleNumbers)
     .where(
       and(
-        inArray(itemArticleNumbers.articleNumber, articleNumbers),
+        inArray(itemArticleNumbers.qualifiedArticleNumber, articleNumbers),
         itemId ? not(eq(itemArticleNumbers.itemId, itemId)) : undefined,
       ),
     )
@@ -543,11 +610,21 @@ export async function addItemArticleNumberQuery(input: {
   const articleNumber = normalizeArticleNumber(input.articleNumber)
   try {
     return await db.transaction(async (tx) => {
-      await lockActiveItem(tx, input.itemId)
-      await assertArticleNumbersAvailable(tx, [articleNumber], input.itemId)
+      const item = await tx.query.items.findFirst({
+        where: and(eq(items.id, input.itemId), isNull(items.deletedAt)),
+      })
+      if (!item) throw new Error('Item not found')
+      if (!item.supplierId) throw new Error('Item supplier is required')
+      const supplierCode = await getSupplierCode(tx, item.supplierId)
+      const qualified = `${supplierCode}:${articleNumber}`
+      await assertArticleNumbersAvailable(tx, [qualified], input.itemId)
       const [row] = await tx
         .insert(itemArticleNumbers)
-        .values({ itemId: input.itemId, articleNumber })
+        .values({
+          itemId: input.itemId,
+          articleNumber,
+          qualifiedArticleNumber: qualified,
+        })
         .returning()
       return row
     })
@@ -593,8 +670,16 @@ export async function replaceItemArticleNumbersQuery(input: {
   const articleNumbers = normalizeArticleNumbers(input.articleNumbers)
   try {
     return await db.transaction(async (tx) => {
-      await lockActiveItem(tx, input.itemId)
-      await assertArticleNumbersAvailable(tx, articleNumbers, input.itemId)
+      const item = await tx.query.items.findFirst({
+        where: and(eq(items.id, input.itemId), isNull(items.deletedAt)),
+      })
+      if (!item) throw new Error('Item not found')
+      if (!item.supplierId) throw new Error('Item supplier is required')
+      const supplierCode = await getSupplierCode(tx, item.supplierId)
+      const qualified = articleNumbers.map(
+        (articleNumber) => `${supplierCode}:${articleNumber}`,
+      )
+      await assertArticleNumbersAvailable(tx, qualified, input.itemId)
       await tx
         .delete(itemArticleNumbers)
         .where(eq(itemArticleNumbers.itemId, input.itemId))
@@ -602,6 +687,7 @@ export async function replaceItemArticleNumbersQuery(input: {
         articleNumbers.map((articleNumber) => ({
           itemId: input.itemId,
           articleNumber,
+          qualifiedArticleNumber: `${supplierCode}:${articleNumber}`,
         })),
       )
       return tx

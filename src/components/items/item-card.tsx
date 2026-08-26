@@ -5,7 +5,10 @@ import type { VariantLike } from '#/lib/variants'
 import { cn } from '#/lib/utils'
 
 interface ItemCardData {
-  articleNumbers: ReadonlyArray<{ articleNumber: string }>
+  articleNumbers: ReadonlyArray<{
+    articleNumber: string
+    qualifiedArticleNumber?: string | null
+  }>
   name: string
   design: string
   archived?: boolean
@@ -32,7 +35,12 @@ export function ItemCard({
   return (
     <Link
       to="/items/$articleNumber"
-      params={{ articleNumber: data.articleNumbers[0]?.articleNumber ?? '' }}
+      params={{
+        articleNumber:
+          data.articleNumbers[0]?.qualifiedArticleNumber ||
+          data.articleNumbers[0]?.articleNumber ||
+          '',
+      }}
       className={cn(
         'flex gap-3 rounded-lg border p-3 hover:bg-muted/40 transition',
         className,

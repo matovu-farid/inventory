@@ -17,6 +17,9 @@ export const itemArticleNumbers = pgTable(
       .notNull()
       .references(() => items.id, { onDelete: 'cascade' }),
     articleNumber: text('article_number').notNull(),
+    // Orphaned legacy catalog rows may not have a supplier. New and
+    // supplier-owned rows always receive a qualified value in server code.
+    qualifiedArticleNumber: text('qualified_article_number'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -26,7 +29,9 @@ export const itemArticleNumbers = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex('uq_item_article_numbers_value').on(table.articleNumber),
+    uniqueIndex('uq_item_article_numbers_qualified').on(
+      table.qualifiedArticleNumber,
+    ),
     index('idx_item_article_numbers_item').on(table.itemId),
   ],
 )

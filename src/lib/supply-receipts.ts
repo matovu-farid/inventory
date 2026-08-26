@@ -22,6 +22,8 @@ export function findReceiptArtNumberConflict(
   const byId = new Map(catalogIndex.map((item) => [item.itemId, item]))
   const byArticle = new Map<string, ReceiptCatalogIndexEntry[]>()
   for (const item of catalogIndex) {
+    if (supplierId && item.supplierId && item.supplierId !== supplierId)
+      continue
     for (const articleNumber of item.articleNumbers) {
       const key = normalizeReceiptLookupText(articleNumber)
       const owners = byArticle.get(key) ?? []
@@ -67,6 +69,7 @@ export function findReceiptArtNumberConflict(
 
 function isReceiptRowEmptyForValidation(row: ReceiptGridRow): boolean {
   return (
+    !row.itemName.trim() &&
     !row.design.trim() &&
     !row.articleNumber.trim() &&
     !row.colorText.trim() &&

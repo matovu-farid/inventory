@@ -10,8 +10,6 @@ import type {
   getSupplyRoute,
   listSuppliersForSelect,
 } from '#/server/functions/supply/routes'
-import { findReceiptArtNumberConflict } from '#/lib/supply-receipts'
-import type { ReceiptCatalogIndexEntry } from '#/lib/supply-receipts'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
@@ -58,6 +56,11 @@ function rowsFromReceipt(receipt: ReceiptData): ReceiptGridRow[] {
   return [
     ...receipt.lines.map((line) => ({
       ...createEmptyReceiptRow(line.id),
+      itemName:
+        line.itemNameSnapshot ??
+        line.item?.name ??
+        line.itemColor?.item.name ??
+        '',
       design:
         line.designSnapshot ??
         line.item?.design ??
@@ -138,7 +141,6 @@ export function ReceiptSection({
   supplyRouteId,
   routeRates,
   suppliers,
-  catalogIndex,
   receipt,
   disabled = false,
   onChanged,
@@ -146,7 +148,6 @@ export function ReceiptSection({
   supplyRouteId: string
   routeRates: { ugxPerUsd?: string | null; rmbPerUsd?: string | null }
   suppliers: ReadonlyArray<SupplierOption>
-  catalogIndex: ReadonlyArray<ReceiptCatalogIndexEntry>
   receipt?: ReceiptData
   disabled?: boolean
   onChanged: () => Promise<void> | void
@@ -192,10 +193,6 @@ export function ReceiptSection({
   const received = receipt?.lines.some((line) => line.received) ?? false
   const busy = busyAction !== null
   const locked = disabled || received || busy
-  const artNumberError = useMemo(
-    () => findReceiptArtNumberConflict(rows, catalogIndex, supplierId),
-    [catalogIndex, rows, supplierId],
-  )
   const selectedSupplier = useMemo(
     () => suppliers.find((supplier) => supplier.id === supplierId),
     [supplierId, suppliers],
@@ -268,11 +265,8 @@ export function ReceiptSection({
       setError(rowValidationError)
       return
     }
-    if (artNumberError) {
-      setError(artNumberError)
-      return
-    }
     const lines = stripEmptyReceiptRows(rows).map((row) => ({
+      itemName: row.itemName.trim(),
       design: row.design.trim(),
       itemId: row.itemId,
       articleNumber: row.articleNumber.trim(),
@@ -490,6 +484,7 @@ export function ReceiptSection({
           <ClientOnly fallback={<ReceiptGridFallback />}>
             <ReceiptGrid
               rows={rows}
+              supplierId={supplierId}
               disabled={locked}
               onRowsChange={(nextRows) => {
                 commitDraft({ ...draftRef.current, rows: nextRows })
@@ -527,9 +522,9 @@ export function ReceiptSection({
               this receipt.
             </p>
           )}
-          {(error || artNumberError) && (
+          {error && (
             <p role="alert" className="text-sm text-destructive">
-              {error || artNumberError}
+              {error}
             </p>
           )}
         </CardContent>
@@ -552,10 +547,11 @@ export function ReceiptSection({
 
 function ReceiptGridFallback() {
   return (
-    <div className="min-w-[1000px] overflow-hidden rounded-md border bg-background">
-      <div className="grid grid-cols-8 border-b bg-muted/50 text-xs font-semibold text-muted-foreground">
+    <div className="min-w-[1160px] overflow-hidden rounded-md border bg-background">
+      <div className="grid grid-cols-9 border-b bg-muted/50 text-xs font-semibold text-muted-foreground">
         {[
           '',
+          'Item name',
           'Design',
           'Art No.',
           'Colour',

@@ -12,7 +12,7 @@ Make supplier art numbers easy to enter and search while giving every stored art
 - `item_article_numbers.article_number` remains the normalized supplier-facing value.
 - `item_article_numbers.qualified_article_number` stores `<supplier-code>:<normalized-art-number>` and is globally unique.
 - The supplier relationship for an article number is the supplier relationship of its item; the qualified value is generated whenever an article number is created or changed.
-- The receipt grid adds an editable `Item name` column before `Design`. Item name is the broad category (`Shirt`); design is the specific style (`Round neck`). Both are required for a new free-text receipt row. Selecting an existing catalog item fills both.
+- The receipt grid adds an editable `Item name` column before `Design`. Item name is the broad category (`Shirt`); design is the specific style (`Round neck`). Selecting an existing catalog item fills both; older/free-text rows fall back to the design when item name is omitted.
 
 ## Search behavior
 

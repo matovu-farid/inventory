@@ -1,4 +1,5 @@
 export const RECEIPT_GRID_COLUMNS = [
+  'itemName',
   'design',
   'articleNumber',
   'colorText',
@@ -21,6 +22,7 @@ export interface ReceiptGridCatalogItem {
 
 export interface ReceiptGridRow {
   id: string
+  itemName: string
   design: string
   itemId: string | null
   catalogItem: ReceiptGridCatalogItem | null

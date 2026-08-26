@@ -37,8 +37,8 @@ export function ItemFilters({
           <FieldLabel htmlFor="item-search">Search items</FieldLabel>
           <Input
             id="item-search"
-            aria-label="Search by article or name"
-            placeholder="Search by article or name…"
+            aria-label="Search by art number, design, or item name"
+            placeholder="Search by art number, design, or item name…"
             value={filters.query}
             onChange={(event) => update('query', event.target.value)}
           />

@@ -2,7 +2,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { eq, inArray } from 'drizzle-orm'
 
 import { db } from '#/db'
-import { itemArticleNumbers, items, supplyRoutes, suppliers } from '#/db/schema'
+import {
+  itemArticleNumbers,
+  items,
+  supplierCodes,
+  supplyRoutes,
+  suppliers,
+} from '#/db/schema'
 import { createSupplyRouteReceiptServer } from '../receipts.server'
 
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001'
@@ -57,6 +63,11 @@ afterAll(async () => {
       .delete(itemArticleNumbers)
       .where(inArray(itemArticleNumbers.itemId, createdItemIds))
     await db.delete(items).where(inArray(items.id, createdItemIds))
+  }
+  if (supplierId || otherSupplierId) {
+    await db
+      .delete(supplierCodes)
+      .where(inArray(supplierCodes.supplierId, [supplierId, otherSupplierId]))
   }
   if (supplierId) await db.delete(suppliers).where(eq(suppliers.id, supplierId))
   if (otherSupplierId)
@@ -144,7 +155,7 @@ describe('receipt item materialization', () => {
     if (first.lines[0].itemId) createdItemIds.push(first.lines[0].itemId)
   })
 
-  it('rejects an art number for the same design from another supplier', async () => {
+  it('allows the same supplier art number for another supplier', async () => {
     const design = `Supplier-specific design ${suffix}`
     const articleNumber = `SUPPLIER-${suffix}`
     const first = await createSupplyRouteReceiptServer(
@@ -152,11 +163,11 @@ describe('receipt item materialization', () => {
     )
     if (first.lines[0].itemId) createdItemIds.push(first.lines[0].itemId)
 
-    await expect(
-      createSupplyRouteReceiptServer(
-        draft(design, articleNumber, otherSupplierId),
-      ),
-    ).rejects.toThrow(`belongs to supplier "${supplierName}"`)
+    const second = await createSupplyRouteReceiptServer(
+      draft(design, articleNumber, otherSupplierId),
+    )
+    expect(second.lines[0].itemId).not.toBe(first.lines[0].itemId)
+    if (second.lines[0].itemId) createdItemIds.push(second.lines[0].itemId)
   })
 
   it('rejects an art number already owned by another item', async () => {

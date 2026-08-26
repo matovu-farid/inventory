@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db'
 import {
@@ -18,8 +18,10 @@ import {
 } from '#/lib/supply-receipts'
 import { normalizeArticleNumber } from '#/lib/items/article-number'
 import { calculateSupplyLineAmounts } from './items-internals'
+import { getSupplierCode } from './supplier-codes.server'
 
 export const receiptLineInput = z.object({
+  itemName: z.string().trim().min(1).max(120).optional(),
   design: z.string().trim().min(1).max(64),
   itemId: z.uuid().nullable().optional(),
   articleNumber: z.string().trim().min(1).max(64),
@@ -71,13 +73,15 @@ async function resolveReceiptLineItem(
   foreignCurrency: ReceiptDraft['foreignCurrency'],
 ) {
   const design = line.design.trim()
+  const itemName = line.itemName?.trim() || design
   const normalizedDesign = normalizeReceiptLookupText(design)
   const articleNumber = normalizeArticleNumber(line.articleNumber)
-  const normalizedArticle = articleNumber.toLocaleLowerCase()
+  const supplierCode = await getSupplierCode(tx, supplier.id)
+  const qualified = `${supplierCode}:${articleNumber}`
 
   // Keep concurrent receipts from creating two active items for one design.
   await tx.execute(sql`
-    select pg_advisory_xact_lock(hashtextextended(${normalizedDesign}, 0))
+    select pg_advisory_xact_lock(hashtextextended(${`${supplier.id}:${normalizedDesign}`}, 0))
   `)
 
   let item = line.itemId
@@ -92,16 +96,16 @@ async function resolveReceiptLineItem(
   if (
     item &&
     (normalizeReceiptLookupText(item.design) !== normalizedDesign ||
-      (item.supplierId && item.supplierId !== supplier.id))
+      item.supplierId !== supplier.id)
   ) {
     item = undefined
   }
 
   const owners = await tx.query.itemArticleNumbers.findMany({
-    where: sql`lower(${itemArticleNumbers.articleNumber}) = ${normalizedArticle}`,
+    where: eq(itemArticleNumbers.qualifiedArticleNumber, qualified),
     with: {
       item: {
-        columns: { design: true, supplierId: true },
+        columns: { name: true, design: true, supplierId: true },
         with: { supplier: { columns: { name: true } } },
       },
     },
@@ -115,12 +119,11 @@ async function resolveReceiptLineItem(
   const owner = owners.at(0)
   const ownerDesignMatches =
     owner && normalizeReceiptLookupText(owner.item.design) === normalizedDesign
-  const ownerSupplierMatches =
-    owner && (!owner.item.supplierId || owner.item.supplierId === supplier.id)
+  const ownerSupplierMatches = owner && owner.item.supplierId === supplier.id
 
-  if (owner && ownerDesignMatches && !ownerSupplierMatches) {
+  if (owner && (!ownerDesignMatches || !ownerSupplierMatches)) {
     throw new Error(
-      `Art number "${articleNumber}" belongs to supplier "${owner.item.supplier?.name ?? 'another supplier'}"`,
+      `Art number "${articleNumber}" belongs to design "${owner.item.design}" for supplier "${owner.item.supplier?.name ?? 'another supplier'}"`,
     )
   }
 
@@ -138,7 +141,7 @@ async function resolveReceiptLineItem(
     where: and(
       isNull(items.deletedAt),
       sql`lower(${items.design}) = ${normalizedDesign}`,
-      or(eq(items.supplierId, supplier.id), isNull(items.supplierId)),
+      eq(items.supplierId, supplier.id),
     ),
     with: { articleNumbers: true },
     orderBy: [
@@ -152,7 +155,7 @@ async function resolveReceiptLineItem(
     const [created] = await tx
       .insert(items)
       .values({
-        name: design,
+        name: itemName,
         design,
         supplierId: supplier.id,
         costPrice: line.unitPriceForeign,
@@ -165,7 +168,7 @@ async function resolveReceiptLineItem(
 
   if (owner && owner.itemId !== item.id) {
     throw new Error(
-      `Art number "${articleNumber}" already belongs to "${owner.item.design}"`,
+      `Art number "${articleNumber}" already belongs to "${owner.item.design}" for supplier "${owner.item.supplier?.name ?? supplier.name}"`,
     )
   }
   if (!owner) {
@@ -173,14 +176,15 @@ async function resolveReceiptLineItem(
       await tx.insert(itemArticleNumbers).values({
         itemId: item.id,
         articleNumber,
+        qualifiedArticleNumber: qualified,
       })
     } catch (error) {
       if (!isUniqueViolation(error)) throw error
       const conflictingOwners = await tx.query.itemArticleNumbers.findMany({
-        where: sql`lower(${itemArticleNumbers.articleNumber}) = ${normalizedArticle}`,
+        where: eq(itemArticleNumbers.qualifiedArticleNumber, qualified),
         with: {
           item: {
-            columns: { design: true, supplierId: true },
+            columns: { name: true, design: true, supplierId: true },
             with: { supplier: { columns: { name: true } } },
           },
         },
@@ -351,7 +355,8 @@ async function materializeReceiptLines(
       sizeTextSnapshot: line.size?.trim() || null,
       supplierNameSnapshot: supplier.name,
       articleNumberSnapshot: articleNumber,
-      itemNameSnapshot: item?.name ?? line.design.trim(),
+      itemNameSnapshot:
+        line.itemName?.trim() || item?.name || line.design.trim(),
       colorNameSnapshot: color?.colorName ?? colorText,
       designSnapshot: line.design.trim(),
       colorTextSnapshot: colorText,

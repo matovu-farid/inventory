@@ -17,13 +17,9 @@ import {
 } from '#/components/ui/responsive-dialog'
 import { DialogTrigger } from '#/components/ui/dialog'
 import { ResponsiveTable } from '#/components/ui/responsive-table'
-import {
-  Plus,
-  Trash2,
-} from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import {
   getSupplyRoute,
-  listReceiptCatalogIndex,
   listSuppliersForSelect,
   updateSupplyRoute,
 } from '#/server/functions/supply/routes'
@@ -32,20 +28,16 @@ import { ReceiptSection } from '#/components/supply/receipt-section'
 import { AddExpenseForm } from '#/components/supply/add-expense-form'
 import { convertExpenseToUgx } from '#/lib/currency/expense-conversion'
 import { getDistinctRouteSuppliers } from '#/lib/supply-route-suppliers'
-import {
-  roundUgxFloor50,
-  formatUgxTotal,
-} from '#/lib/format'
+import { roundUgxFloor50, formatUgxTotal } from '#/lib/format'
 
 export const Route = createFileRoute('/supply/$routeId')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
   loader: async ({ params }) => {
-    const [route, suppliers, catalogIndex] = await Promise.all([
+    const [route, suppliers] = await Promise.all([
       getSupplyRoute({ data: { id: params.routeId } }),
       listSuppliersForSelect(),
-      listReceiptCatalogIndex(),
     ])
-    return { route, suppliers, catalogIndex }
+    return { route, suppliers }
   },
   component: RouteDetailPage,
 })
@@ -70,7 +62,7 @@ function expenseAmountUgx(exp: {
 }
 
 function RouteDetailPage() {
-  const { route, suppliers, catalogIndex } = Route.useLoaderData()
+  const { route, suppliers } = Route.useLoaderData()
   const router = useRouter()
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
   const [expenseError, setExpenseError] = useState('')
@@ -231,7 +223,6 @@ function RouteDetailPage() {
                   rmbPerUsd: route.rateRmbPerUsd,
                 }}
                 suppliers={suppliers}
-                catalogIndex={catalogIndex}
                 receipt={receipt}
                 disabled={route.status !== 'open'}
                 onChanged={() => router.invalidate()}
@@ -246,10 +237,11 @@ function RouteDetailPage() {
                   rmbPerUsd: route.rateRmbPerUsd,
                 }}
                 suppliers={suppliers}
-                catalogIndex={catalogIndex}
                 disabled={route.status !== 'open'}
                 onChanged={async () => {
-                  setDraftReceiptKeys((keys) => keys.filter((entry) => entry !== key))
+                  setDraftReceiptKeys((keys) =>
+                    keys.filter((entry) => entry !== key),
+                  )
                   await router.invalidate()
                 }}
               />

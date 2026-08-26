@@ -1,9 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
-import { asc as ascOrder, eq, inArray, isNull } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import BigNumber from 'bignumber.js'
 import { z } from 'zod'
 import { db } from '#/db'
-import { items, supplyRoutes, storeReceivings } from '#/db/schema'
+import { supplyRoutes, storeReceivings } from '#/db/schema'
 import { deriveSupplyRouteDisplayStatus } from '#/lib/supply-route-status'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { listSuppliersForSelectQuery } from './supplier-queries'
@@ -54,26 +54,6 @@ export const listSupplyRoutes = createServerFn().handler(async () => {
                 .map((line) => line.id),
             ),
           }),
-  }))
-})
-
-export const listReceiptCatalogIndex = createServerFn().handler(async () => {
-  await requireSessionAndRole(['admin'])
-  const catalog = await db.query.items.findMany({
-    where: isNull(items.deletedAt),
-    columns: { id: true, design: true, supplierId: true },
-    with: {
-      supplier: { columns: { name: true } },
-      articleNumbers: { columns: { articleNumber: true } },
-    },
-    orderBy: [ascOrder(items.createdAt), ascOrder(items.id)],
-  })
-  return catalog.map((item) => ({
-    itemId: item.id,
-    design: item.design,
-    supplierId: item.supplierId,
-    supplierName: item.supplier?.name ?? null,
-    articleNumbers: item.articleNumbers.map((article) => article.articleNumber),
   }))
 })
 

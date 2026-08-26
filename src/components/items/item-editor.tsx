@@ -353,7 +353,10 @@ export function ItemEditor({
             },
           })
           itemId = created.id
-          itemArticleNumber = articleNumbers[0] ?? ''
+          itemArticleNumber =
+            created.articleNumbers[0]?.qualifiedArticleNumber ||
+            articleNumbers[0] ||
+            ''
           setCreatedItemId(itemId)
           setCreatedArticleNumber(itemArticleNumber)
         }

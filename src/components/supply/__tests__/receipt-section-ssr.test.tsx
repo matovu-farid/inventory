@@ -10,7 +10,6 @@ describe('ReceiptSection SSR', () => {
           supplyRouteId="route-1"
           routeRates={{}}
           suppliers={[]}
-          catalogIndex={[]}
           onChanged={() => undefined}
         />,
       ),

@@ -498,7 +498,7 @@ export const helpDict = {
 
   // ─── POS (point-of-sale) UI ──────────────────────────────────────────
   'pos.search': {
-    description: 'Type article number or product name to filter the grid.',
+    description: 'Type an art number, design, or item name to filter the grid.',
   },
   'pos.cart': {
     description: 'Items added but not yet checked out. Tap to expand.',

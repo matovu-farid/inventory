@@ -23,7 +23,6 @@ import { SUPPLY_ROUTE_STEPS, SupplyRouteStepper } from './supply-route-steps'
 import type { SupplyRouteStepId } from './supply-route-steps'
 import { getDistinctRouteSuppliers } from '#/lib/supply-route-suppliers'
 import { formatItemArticleNumbers } from '#/lib/items/article-number'
-import type { ReceiptCatalogIndexEntry } from '#/lib/supply-receipts'
 
 type RouteData = Awaited<ReturnType<typeof getSupplyRoute>>
 type SupplierOption = Awaited<ReturnType<typeof listSuppliersForSelect>>[number]
@@ -31,13 +30,11 @@ type SupplierOption = Awaited<ReturnType<typeof listSuppliersForSelect>>[number]
 export function SupplyRouteWizard({
   initialRoute,
   initialSuppliers,
-  initialCatalogIndex,
   initialStep = 'basics',
   onStepChange,
 }: {
   initialRoute: RouteData
   initialSuppliers: ReadonlyArray<SupplierOption>
-  initialCatalogIndex: ReadonlyArray<ReceiptCatalogIndexEntry>
   initialStep?: SupplyRouteStepId
   onStepChange?: (step: SupplyRouteStepId) => void
 }) {
@@ -69,49 +66,53 @@ export function SupplyRouteWizard({
     setStep(initialStep)
   }, [initialStep])
 
-  const reviewLines = useMemo(
-    () => {
-      const receiptLines = route.receipts.flatMap((receipt) =>
-        receipt.lines.map((line) => ({ line, receipt })),
-      )
-      const receiptLineIds = new Set(receiptLines.map(({ line }) => line.id))
-      const legacyLines = route.items
-        .filter((line) => !receiptLineIds.has(line.id))
-        .map((line) => ({ line, receipt: undefined }))
+  const reviewLines = useMemo(() => {
+    const receiptLines = route.receipts.flatMap((receipt) =>
+      receipt.lines.map((line) => ({ line, receipt })),
+    )
+    const receiptLineIds = new Set(receiptLines.map(({ line }) => line.id))
+    const legacyLines = route.items
+      .filter((line) => !receiptLineIds.has(line.id))
+      .map((line) => ({ line, receipt: undefined }))
 
-      return [...receiptLines, ...legacyLines].map(({ line, receipt }) => {
-        const item = line.item ?? line.itemColor?.item
-        return {
-          date: receipt?.receiptDate ?? route.departureDate,
-          supplierName:
-            line.supplierNameSnapshot ?? receipt?.supplier.name ?? line.supplier.name,
-          articleNumber:
-            line.articleNumberSnapshot ??
-            (item ? formatItemArticleNumbers(item.articleNumbers) : undefined),
-          itemName:
-            line.designSnapshot ??
-            item?.design ??
-            line.itemNameSnapshot ??
-            item?.name,
-          colorName:
-            line.colorTextSnapshot ??
-            line.colorNameSnapshot ??
-            line.itemColor?.colorName,
-          size: line.sizeTextSnapshot ?? line.size,
-          quantity: line.quantity,
-          unitPriceForeign: line.unitPriceForeign,
-          foreignCurrency: line.foreignCurrency,
-          exchangeRateForeignToUsd: line.exchangeRateForeignToUsd,
-          exchangeRateUsdToUgx: line.exchangeRateUsdToUgx,
-          totalAmountForeign: line.totalAmountForeign,
-          totalAmountUsd: line.totalAmountUsd,
-          totalCostUgx: line.totalCostUgx,
-          minimumSellPriceUgx: line.minimumSellPriceUgx,
-        }
-      })
-    },
-    [route.departureDate, route.items, route.receipts],
-  )
+    return [...receiptLines, ...legacyLines].map(({ line, receipt }) => {
+      const item = line.item ?? line.itemColor?.item
+      return {
+        date: receipt?.receiptDate ?? route.departureDate,
+        supplierName:
+          line.supplierNameSnapshot ??
+          receipt?.supplier.name ??
+          line.supplier.name,
+        articleNumber:
+          line.articleNumberSnapshot ??
+          (item ? formatItemArticleNumbers(item.articleNumbers) : undefined),
+        itemName:
+          line.itemNameSnapshot ??
+          item?.name ??
+          line.designSnapshot ??
+          item?.design,
+        design:
+          line.designSnapshot ??
+          item?.design ??
+          line.itemNameSnapshot ??
+          item?.name,
+        colorName:
+          line.colorTextSnapshot ??
+          line.colorNameSnapshot ??
+          line.itemColor?.colorName,
+        size: line.sizeTextSnapshot ?? line.size,
+        quantity: line.quantity,
+        unitPriceForeign: line.unitPriceForeign,
+        foreignCurrency: line.foreignCurrency,
+        exchangeRateForeignToUsd: line.exchangeRateForeignToUsd,
+        exchangeRateUsdToUgx: line.exchangeRateUsdToUgx,
+        totalAmountForeign: line.totalAmountForeign,
+        totalAmountUsd: line.totalAmountUsd,
+        totalCostUgx: line.totalCostUgx,
+        minimumSellPriceUgx: line.minimumSellPriceUgx,
+      }
+    })
+  }, [route.departureDate, route.items, route.receipts])
 
   async function refreshRoute() {
     const next = await getSupplyRoute({ data: { id: route.id } })
@@ -378,7 +379,8 @@ export function SupplyRouteWizard({
             <div>
               <h2 className="text-lg font-semibold">Receipts</h2>
               <p className="text-sm text-muted-foreground">
-                Add one supplier receipt at a time. Receipts stay stacked on this route.
+                Add one supplier receipt at a time. Receipts stay stacked on
+                this route.
               </p>
             </div>
             {!isLocked && (
@@ -405,7 +407,6 @@ export function SupplyRouteWizard({
                 rmbPerUsd: route.rateRmbPerUsd,
               }}
               suppliers={suppliers}
-              catalogIndex={initialCatalogIndex}
               receipt={receipt}
               disabled={isLocked}
               onChanged={refreshRoute}
@@ -419,11 +420,12 @@ export function SupplyRouteWizard({
                 ugxPerUsd: route.rateUgxPerUsd,
                 rmbPerUsd: route.rateRmbPerUsd,
               }}
-                suppliers={suppliers}
-                catalogIndex={initialCatalogIndex}
+              suppliers={suppliers}
               disabled={isLocked}
               onChanged={async () => {
-                setDraftReceiptKeys((keys) => keys.filter((entry) => entry !== key))
+                setDraftReceiptKeys((keys) =>
+                  keys.filter((entry) => entry !== key),
+                )
                 await refreshRoute()
               }}
             />

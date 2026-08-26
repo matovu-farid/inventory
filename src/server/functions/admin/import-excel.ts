@@ -11,6 +11,7 @@ import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { prepareImportItem } from './import-prepare'
 import { renderAuditDescription } from '#/server/audit/descriptions'
 import { getActorName } from '#/server/audit/actor'
+import { ensureSupplierCode } from '#/server/functions/supply/supplier-codes.server'
 
 const UNKNOWN_IMPORTED_SUPPLIER_NAME = 'Unknown (Imported)'
 
@@ -68,6 +69,7 @@ export const importExcel = createServerFn()
       if (!unknownSupplier) {
         throw new Error('Unknown supplier upsert failed')
       }
+      await ensureSupplierCode(tx, unknownSupplier.id)
       const unknownSupplierId = unknownSupplier.id
       const actorName = await getActorName(tx, userId)
 

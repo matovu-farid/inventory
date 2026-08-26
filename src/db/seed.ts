@@ -13,7 +13,9 @@ import {
   supplyRouteLines,
   storeStock,
   variants,
+  supplierCodes,
 } from './schema'
+import { generateSupplierCode } from '#/lib/suppliers/supplier-code'
 
 const DEFAULT_CATEGORIES = [
   // Assets
@@ -101,6 +103,15 @@ async function seed() {
       throw new Error('Failed to create or find seed supplier')
     }
     const seedSupplierId = existingSupplier.id
+    await db
+      .insert(supplierCodes)
+      .values({ supplierId: seedSupplierId, code: generateSupplierCode() })
+      .onConflictDoNothing()
+    const seedSupplierCode = await db.query.supplierCodes.findFirst({
+      where: eq(supplierCodes.supplierId, seedSupplierId),
+    })
+    if (!seedSupplierCode) throw new Error('Failed to create seed supplier code')
+    const seedSupplierCodeValue = seedSupplierCode.code
 
     // Stores / shops don't have unique constraints on name, so we look first.
     let store = await db.query.stores.findFirst({
@@ -168,6 +179,7 @@ async function seed() {
       await db.insert(itemArticleNumbers).values({
         itemId: created.id,
         articleNumber: args.articleNumber,
+        qualifiedArticleNumber: `${seedSupplierCodeValue}:${args.articleNumber}`,
       })
       return created
     }

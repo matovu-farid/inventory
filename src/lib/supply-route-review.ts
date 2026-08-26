@@ -6,6 +6,7 @@ export interface SupplyRouteReviewLineInput {
   supplierName?: string | null
   articleNumber?: string | null
   itemName?: string | null
+  design?: string | null
   colorName?: string | null
   size?: string | null
   quantity: number
@@ -32,6 +33,7 @@ export interface SupplyRouteReviewLine {
   supplierName: string
   articleNumber: string
   itemName: string
+  design: string
   colorName: string | null
   size: string | null
   quantity: number
@@ -85,6 +87,7 @@ export interface SupplyRouteReview {
 export interface SupplyRouteReviewItemGroup {
   key: string
   itemName: string
+  design: string
   articleNumber: string
   supplierNames: string[]
   dates: string[]
@@ -161,6 +164,7 @@ export function buildSupplyRouteReview(
       date: input.date ?? null,
       articleNumber: input.articleNumber || '—',
       itemName: input.itemName || 'Item',
+      design: input.design || '—',
       colorName: input.colorName ?? null,
       size: input.size ?? null,
       quantity,
@@ -255,7 +259,7 @@ export function groupSupplyRouteReviewLines(
   const groups = new Map<string, SupplyRouteReviewItemGroup>()
 
   for (const line of lines) {
-    const key = `${line.articleNumber}::${line.itemName}`
+    const key = `${line.articleNumber}::${line.itemName}::${line.design}`
     const existing = groups.get(key)
 
     if (existing) {
@@ -280,6 +284,7 @@ export function groupSupplyRouteReviewLines(
     groups.set(key, {
       key,
       itemName: line.itemName,
+      design: line.design,
       articleNumber: line.articleNumber,
       supplierNames: [line.supplierName],
       dates: line.date ? [line.date] : [],

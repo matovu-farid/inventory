@@ -163,16 +163,20 @@ export function SupplyRouteReview({
               <Stat
                 label="UGX per USD"
                 help="review.ugxPerUsd"
-                value={routeDetails.rateUgxPerUsd
-                  ? new BigNumber(routeDetails.rateUgxPerUsd).toFormat(0)
-                  : 'Not set'}
+                value={
+                  routeDetails.rateUgxPerUsd
+                    ? new BigNumber(routeDetails.rateUgxPerUsd).toFormat(0)
+                    : 'Not set'
+                }
               />
               <Stat
                 label="RMB per USD"
                 help="review.rmbPerUsd"
-                value={routeDetails.rateRmbPerUsd
-                  ? new BigNumber(routeDetails.rateRmbPerUsd).toFormat(2)
-                  : 'Not set'}
+                value={
+                  routeDetails.rateRmbPerUsd
+                    ? new BigNumber(routeDetails.rateRmbPerUsd).toFormat(2)
+                    : 'Not set'
+                }
               />
               <Stat
                 label="Suppliers"
@@ -347,6 +351,9 @@ export function SupplyRouteReview({
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="truncate font-semibold">
                           {group.itemName}
+                        </span>
+                        <span className="truncate text-sm text-muted-foreground">
+                          {group.design}
                         </span>
                         <span className="shrink-0 text-xs font-normal text-muted-foreground">
                           {group.articleNumber}
