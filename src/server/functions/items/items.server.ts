@@ -244,6 +244,7 @@ export async function searchItemsQuery(
       routeReturnDateFilter,
       or(
         ilike(items.name, like),
+        ilike(items.design, like),
         exists(
           db
             .select({ id: itemArticleNumbers.id })

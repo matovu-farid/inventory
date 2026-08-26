@@ -1,0 +1,393 @@
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { z } from 'zod'
+import { db } from '#/db'
+import {
+  itemColors,
+  itemArticleNumbers,
+  items,
+  storeReceivings,
+  suppliers,
+  supplyRouteLines,
+  supplyRouteReceipts,
+  supplyRoutes,
+} from '#/db/schema'
+import { requireSessionAndRole } from '#/server/middleware/rbac'
+import { normalizeReceiptLookupText, normalizeReceiptSizes } from '#/lib/supply-receipts'
+import { normalizeArticleNumber } from '#/lib/items/article-number'
+import { calculateSupplyLineAmounts } from './items-internals'
+
+export const receiptLineInput = z.object({
+  design: z.string().trim().min(1).max(64),
+  itemId: z.uuid().nullable().optional(),
+  articleNumber: z.string().trim().min(1).max(64),
+  colorId: z.uuid().nullable().optional(),
+  colorText: z.string().trim().max(200).optional(),
+  colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  size: z.string().trim().max(200).optional(),
+  quantity: z.number().int().positive(),
+  unitPriceForeign: z.string().trim().regex(/^\d+(\.\d{1,2})?$/),
+})
+
+export const receiptDraft = z.object({
+  supplyRouteId: z.uuid(),
+  receiptId: z.uuid().optional(),
+  supplierId: z.uuid(),
+  receiptDate: z.string().optional(),
+  reference: z.string().trim().max(120).optional(),
+  notes: z.string().max(2000).optional(),
+  foreignCurrency: z.enum(['RMB', 'USD', 'UGX']).default('RMB'),
+  exchangeRateForeignToUsd: z.string().optional(),
+  exchangeRateUsdToUgx: z.string().optional(),
+  lines: z.array(receiptLineInput).min(1),
+})
+
+export type ReceiptDraft = z.infer<typeof receiptDraft>
+type ReceiptTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+function isUniqueViolation(error: unknown): boolean {
+  let current: unknown = error
+  for (let depth = 0; depth < 5 && current; depth += 1) {
+    if (typeof current !== 'object') return false
+    const record = current as { code?: unknown; cause?: unknown }
+    if (record.code === '23505') return true
+    current = record.cause
+  }
+  return false
+}
+
+async function resolveReceiptLineItem(
+  tx: ReceiptTransaction,
+  line: ReceiptDraft['lines'][number],
+  supplier: typeof suppliers.$inferSelect,
+  foreignCurrency: ReceiptDraft['foreignCurrency'],
+) {
+  const design = line.design.trim()
+  const normalizedDesign = normalizeReceiptLookupText(design)
+  const articleNumber = normalizeArticleNumber(line.articleNumber)
+
+  // Keep concurrent receipts from creating two active items for one design.
+  await tx.execute(sql`
+    select pg_advisory_xact_lock(hashtextextended(${normalizedDesign}, 0))
+  `)
+
+  let item = line.itemId
+    ? await tx.query.items.findFirst({
+        where: and(eq(items.id, line.itemId), isNull(items.deletedAt)),
+        with: { articleNumbers: true },
+      })
+    : undefined
+
+  // A stale itemId must not make a changed/free-text design attach to the
+  // wrong catalog item. Resolve by the visible design instead.
+  if (item && normalizeReceiptLookupText(item.design) !== normalizedDesign) {
+    item = undefined
+  }
+
+  item ??= await tx.query.items.findFirst({
+    where: and(
+      isNull(items.deletedAt),
+      sql`lower(${items.design}) = ${normalizedDesign}`,
+    ),
+    with: { articleNumbers: true },
+    orderBy: [asc(items.createdAt), asc(items.id)],
+  })
+
+  if (!item) {
+    const [created] = await tx.insert(items).values({
+      name: design,
+      design,
+      supplierId: supplier.id,
+      costPrice: line.unitPriceForeign,
+      costCurrency: foreignCurrency,
+      minimumSellPriceUgx: '0',
+    }).returning()
+    item = { ...created, articleNumbers: [] }
+  }
+
+  const normalizedArticle = articleNumber.toLocaleLowerCase()
+  const owners = await tx.query.itemArticleNumbers.findMany({
+    where: sql`lower(${itemArticleNumbers.articleNumber}) = ${normalizedArticle}`,
+    with: { item: { columns: { design: true } } },
+  })
+  const ownerItemIds = new Set(owners.map((entry) => entry.itemId))
+  if (ownerItemIds.size > 1) {
+    throw new Error(`Art number "${articleNumber}" has conflicting catalog ownership`)
+  }
+  const owner = owners.at(0)
+  if (owner && owner.itemId !== item.id) {
+    throw new Error(
+      `Art number "${articleNumber}" already belongs to "${owner.item.design}"`,
+    )
+  }
+  if (!owner) {
+    try {
+      await tx.insert(itemArticleNumbers).values({
+        itemId: item.id,
+        articleNumber,
+      })
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error
+      const conflictingOwners = await tx.query.itemArticleNumbers.findMany({
+        where: sql`lower(${itemArticleNumbers.articleNumber}) = ${normalizedArticle}`,
+        with: { item: { columns: { design: true } } },
+      })
+      const conflictingOwnerItemIds = new Set(conflictingOwners.map((entry) => entry.itemId))
+      if (conflictingOwnerItemIds.size > 1) {
+        throw new Error(`Art number "${articleNumber}" has conflicting catalog ownership`)
+      }
+      const conflictingOwner = conflictingOwners.at(0)
+      if (conflictingOwner && conflictingOwner.itemId !== item.id) {
+        throw new Error(
+          `Art number "${articleNumber}" already belongs to "${conflictingOwner.item.design}"`,
+        )
+      }
+    }
+  }
+
+  return {
+    itemId: item.id,
+    articleNumber,
+  }
+}
+
+async function getOpenRoute(id: string) {
+  const route = await db.query.supplyRoutes.findFirst({ where: eq(supplyRoutes.id, id) })
+  if (!route) throw new Error('Supply route not found')
+  if (route.status !== 'open') throw new Error('Only open routes can be edited')
+  return route
+}
+
+async function getActiveSupplier(id: string) {
+  const supplier = await db.query.suppliers.findFirst({
+    where: and(eq(suppliers.id, id), isNull(suppliers.deletedAt)),
+  })
+  if (!supplier) throw new Error('Supplier not found')
+  return supplier
+}
+
+/** Keeps legacy line mutations attached to a visible receipt. */
+export async function ensureSupplyRouteReceipt(
+  tx: ReceiptTransaction,
+  input: {
+    supplyRouteId: string
+    supplierId: string
+    sourceEntryId: string
+    receiptDate?: string | null
+    foreignCurrency: 'RMB' | 'USD' | 'UGX'
+    exchangeRateForeignToUsd?: string | null
+    exchangeRateUsdToUgx?: string | null
+  },
+) {
+  const existing = await tx.query.supplyRouteReceipts.findFirst({
+    where: and(
+      eq(supplyRouteReceipts.supplyRouteId, input.supplyRouteId),
+      eq(supplyRouteReceipts.supplierId, input.supplierId),
+      eq(supplyRouteReceipts.sourceEntryId, input.sourceEntryId),
+    ),
+  })
+  if (existing) {
+    const receiptLines = await tx.query.supplyRouteLines.findMany({
+      where: eq(supplyRouteLines.receiptId, existing.id),
+      columns: { id: true },
+    })
+    if (receiptLines.length > 0) {
+      const received = await tx.query.storeReceivings.findFirst({
+        where: inArray(
+          storeReceivings.supplyRouteLineId,
+          receiptLines.map((line) => line.id),
+        ),
+      })
+      if (received) throw new Error('Received receipts cannot be changed')
+    }
+    return existing.id
+  }
+  await tx
+    .insert(supplyRouteReceipts)
+    .values({
+      supplyRouteId: input.supplyRouteId,
+      supplierId: input.supplierId,
+      sourceEntryId: input.sourceEntryId,
+      receiptDate: input.receiptDate ?? null,
+      foreignCurrency: input.foreignCurrency,
+      exchangeRateForeignToUsd: input.exchangeRateForeignToUsd ?? null,
+      exchangeRateUsdToUgx: input.exchangeRateUsdToUgx ?? null,
+    })
+    .onConflictDoNothing()
+  const receipt = await tx.query.supplyRouteReceipts.findFirst({
+    where: and(
+      eq(supplyRouteReceipts.supplyRouteId, input.supplyRouteId),
+      eq(supplyRouteReceipts.supplierId, input.supplierId),
+      eq(supplyRouteReceipts.sourceEntryId, input.sourceEntryId),
+    ),
+  })
+  if (!receipt) throw new Error('Could not create receipt')
+  return receipt.id
+}
+
+async function materializeReceiptLines(
+  tx: ReceiptTransaction,
+  draft: ReceiptDraft,
+  receiptId: string,
+  route: typeof supplyRoutes.$inferSelect,
+  supplier: typeof suppliers.$inferSelect,
+) {
+  const itemIds = Array.from(new Set(draft.lines.flatMap((line) => (line.itemId ? [line.itemId] : []))))
+  const colorIds = Array.from(new Set(draft.lines.flatMap((line) => (line.colorId ? [line.colorId] : []))))
+  const [catalogItems, colors] = await Promise.all([
+    itemIds.length
+      ? tx.query.items.findMany({ where: inArray(items.id, itemIds), with: { articleNumbers: true } })
+      : [],
+    colorIds.length
+      ? tx.query.itemColors.findMany({
+          where: inArray(itemColors.id, colorIds),
+          columns: { id: true, itemId: true, colorName: true, colorHex: true },
+        })
+      : [],
+  ])
+  const itemsById = new Map(catalogItems.map((item) => [item.id, item]))
+  const colorsById = new Map(colors.map((color) => [color.id, color]))
+  const foreignCurrency = draft.foreignCurrency
+  const foreignRate = draft.exchangeRateForeignToUsd ??
+    (foreignCurrency === 'RMB' ? (route.rateRmbPerUsd ?? undefined) : undefined)
+  const ugxRate = draft.exchangeRateUsdToUgx ??
+    (foreignCurrency !== 'UGX' ? (route.rateUgxPerUsd ?? undefined) : undefined)
+
+  return draft.lines.map((line) => {
+    const item = line.itemId ? itemsById.get(line.itemId) : undefined
+    if (line.itemId && !item) throw new Error('Catalog design not found')
+    const color = line.colorId ? colorsById.get(line.colorId) : undefined
+    if (line.colorId && !color) throw new Error('Catalog colour not found')
+    if (color && item && color.itemId !== item.id) throw new Error('Colour does not belong to the selected design')
+    const amounts = calculateSupplyLineAmounts({
+      quantity: line.quantity,
+      unitPriceForeign: line.unitPriceForeign,
+      foreignCurrency,
+      exchangeRateForeignToUsd: foreignRate,
+      exchangeRateUsdToUgx: ugxRate,
+    })
+    const articleNumber = line.articleNumber.trim()
+    const colorText = line.colorText?.trim() || color?.colorName || null
+    const sizes = normalizeReceiptSizes(line.size?.trim() ?? '')
+    return {
+      supplyRouteId: draft.supplyRouteId,
+      receiptId,
+      entryId: crypto.randomUUID(),
+      supplierId: supplier.id,
+      itemId: item?.id ?? null,
+      colorId: color?.id ?? null,
+      size: sizes.length === 1 ? sizes[0] : null,
+      sizeTextSnapshot: line.size?.trim() || null,
+      supplierNameSnapshot: supplier.name,
+      articleNumberSnapshot: articleNumber,
+      itemNameSnapshot: item?.name ?? line.design.trim(),
+      colorNameSnapshot: color?.colorName ?? colorText,
+      designSnapshot: line.design.trim(),
+      colorTextSnapshot: colorText,
+      colorHexSnapshot: line.colorHex ?? color?.colorHex ?? null,
+      quantity: line.quantity,
+      unitPriceForeign: line.unitPriceForeign,
+      foreignCurrency,
+      exchangeRateForeignToUsd: foreignRate,
+      exchangeRateUsdToUgx: ugxRate,
+      ...amounts,
+      minimumSellPriceUgx: item?.minimumSellPriceUgx ?? '0',
+    }
+  })
+}
+
+async function assertReceiptEditable(tx: ReceiptTransaction, receiptId: string) {
+  const receipt = await tx.query.supplyRouteReceipts.findFirst({
+    where: eq(supplyRouteReceipts.id, receiptId),
+    with: { supplyRoute: true, lines: true },
+  })
+  if (!receipt) throw new Error('Supply receipt not found')
+  if (receipt.supplyRoute.status !== 'open') throw new Error('Only open routes can be edited')
+  if (receipt.lines.length > 0) {
+    const received = await tx.query.storeReceivings.findFirst({
+      where: inArray(storeReceivings.supplyRouteLineId, receipt.lines.map((line) => line.id)),
+    })
+    if (received) throw new Error('Received receipt lines cannot be replaced')
+  }
+  return receipt
+}
+
+export async function createSupplyRouteReceiptServer(data: ReceiptDraft) {
+  await requireSessionAndRole(['admin'])
+  const route = await getOpenRoute(data.supplyRouteId)
+  const supplier = await getActiveSupplier(data.supplierId)
+  return db.transaction(async (tx) => {
+    const [receipt] = await tx.insert(supplyRouteReceipts).values({
+      supplyRouteId: route.id,
+      supplierId: supplier.id,
+      receiptDate: data.receiptDate,
+      reference: data.reference || null,
+      notes: data.notes || null,
+      foreignCurrency: data.foreignCurrency,
+      exchangeRateForeignToUsd: data.foreignCurrency === 'RMB'
+        ? (data.exchangeRateForeignToUsd ?? route.rateRmbPerUsd) : null,
+      exchangeRateUsdToUgx: data.foreignCurrency !== 'UGX'
+        ? (data.exchangeRateUsdToUgx ?? route.rateUgxPerUsd) : null,
+    }).returning()
+    const resolvedLines = []
+    for (const line of data.lines) {
+      const resolved = await resolveReceiptLineItem(tx, line, supplier, data.foreignCurrency)
+      resolvedLines.push({ ...line, ...resolved })
+    }
+    const lines = await materializeReceiptLines(
+      tx,
+      { ...data, lines: resolvedLines },
+      receipt.id,
+      route,
+      supplier,
+    )
+    const savedLines = await tx.insert(supplyRouteLines).values(lines).returning()
+    return { receipt, lines: savedLines }
+  })
+}
+
+export async function replaceSupplyRouteReceiptServer(data: ReceiptDraft & { receiptId: string }) {
+  await requireSessionAndRole(['admin'])
+  const route = await getOpenRoute(data.supplyRouteId)
+  const supplier = await getActiveSupplier(data.supplierId)
+  return db.transaction(async (tx) => {
+    const existing = await assertReceiptEditable(tx, data.receiptId)
+    if (existing.supplyRouteId !== route.id) throw new Error('Receipt does not belong to this route')
+    await tx.update(supplyRouteReceipts).set({
+      supplierId: supplier.id,
+      receiptDate: data.receiptDate,
+      reference: data.reference || null,
+      notes: data.notes || null,
+      foreignCurrency: data.foreignCurrency,
+      exchangeRateForeignToUsd: data.foreignCurrency === 'RMB'
+        ? (data.exchangeRateForeignToUsd ?? route.rateRmbPerUsd) : null,
+      exchangeRateUsdToUgx: data.foreignCurrency !== 'UGX'
+        ? (data.exchangeRateUsdToUgx ?? route.rateUgxPerUsd) : null,
+    }).where(eq(supplyRouteReceipts.id, data.receiptId))
+    await tx.delete(supplyRouteLines).where(eq(supplyRouteLines.receiptId, data.receiptId))
+    const resolvedLines = []
+    for (const line of data.lines) {
+      const resolved = await resolveReceiptLineItem(tx, line, supplier, data.foreignCurrency)
+      resolvedLines.push({ ...line, ...resolved })
+    }
+    const lines = await materializeReceiptLines(
+      tx,
+      { ...data, lines: resolvedLines },
+      data.receiptId,
+      route,
+      supplier,
+    )
+    const savedLines = await tx.insert(supplyRouteLines).values(lines).returning()
+    return { receipt: { ...existing, supplierId: supplier.id }, lines: savedLines }
+  })
+}
+
+export async function deleteSupplyRouteReceiptServer(data: { supplyRouteId: string; receiptId: string }) {
+  await requireSessionAndRole(['admin'])
+  await getOpenRoute(data.supplyRouteId)
+  return db.transaction(async (tx) => {
+    const receipt = await assertReceiptEditable(tx, data.receiptId)
+    if (receipt.supplyRouteId !== data.supplyRouteId) throw new Error('Receipt does not belong to this route')
+    await tx.delete(supplyRouteReceipts).where(eq(supplyRouteReceipts.id, data.receiptId))
+    return { id: data.receiptId }
+  })
+}

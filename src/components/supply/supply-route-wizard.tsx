@@ -5,9 +5,7 @@ import {
   updateSupplyRoute,
 } from '#/server/functions/supply/routes'
 import type { listSuppliersForSelect } from '#/server/functions/supply/routes'
-import { deleteSupplyRouteItem } from '#/server/functions/supply/items'
-import { AddItemForm } from '#/components/supply/add-item-form'
-import type { SupplyRouteEntryDraft } from '#/components/supply/add-item-form'
+import { ReceiptSection } from '#/components/supply/receipt-section'
 import { SupplyRouteExpenses } from '#/components/supply/supply-route-expenses'
 import { SupplyRouteReview } from '#/components/supply/supply-route-review'
 import { Button } from '#/components/ui/button'
@@ -20,11 +18,12 @@ import { ReviewLabel } from '#/components/supply/review-label'
 import type { HelpKey } from '#/lib/help-dictionary'
 import { Badge } from '#/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
-import { Trash2, ArrowLeft, ArrowRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Plus } from 'lucide-react'
 import { SUPPLY_ROUTE_STEPS, SupplyRouteStepper } from './supply-route-steps'
 import type { SupplyRouteStepId } from './supply-route-steps'
 import { getDistinctRouteSuppliers } from '#/lib/supply-route-suppliers'
 import { formatItemArticleNumbers } from '#/lib/items/article-number'
+import type { ReceiptCatalogIndexEntry } from '#/lib/supply-receipts'
 
 type RouteData = Awaited<ReturnType<typeof getSupplyRoute>>
 type SupplierOption = Awaited<ReturnType<typeof listSuppliersForSelect>>[number]
@@ -32,11 +31,13 @@ type SupplierOption = Awaited<ReturnType<typeof listSuppliersForSelect>>[number]
 export function SupplyRouteWizard({
   initialRoute,
   initialSuppliers,
+  initialCatalogIndex,
   initialStep = 'basics',
   onStepChange,
 }: {
   initialRoute: RouteData
   initialSuppliers: ReadonlyArray<SupplierOption>
+  initialCatalogIndex: ReadonlyArray<ReceiptCatalogIndexEntry>
   initialStep?: SupplyRouteStepId
   onStepChange?: (step: SupplyRouteStepId) => void
 }) {
@@ -60,35 +61,43 @@ export function SupplyRouteWizard({
     'saved',
   )
   const [error, setError] = useState('')
-  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
+  const [draftReceiptKeys, setDraftReceiptKeys] = useState<string[]>(() =>
+    initialRoute.receipts.length === 0 ? ['new-receipt'] : [],
+  )
 
   useEffect(() => {
     setStep(initialStep)
   }, [initialStep])
 
-  const entryGroups = useMemo(() => {
-    const groups = new Map<string, typeof route.items>()
-    for (const line of route.items) {
-      const current = groups.get(line.entryId) ?? []
-      current.push(line)
-      groups.set(line.entryId, current)
-    }
-    return [...groups.values()]
-  }, [route])
-
   const reviewLines = useMemo(
-    () =>
-      route.items.map((line) => {
+    () => {
+      const receiptLines = route.receipts.flatMap((receipt) =>
+        receipt.lines.map((line) => ({ line, receipt })),
+      )
+      const receiptLineIds = new Set(receiptLines.map(({ line }) => line.id))
+      const legacyLines = route.items
+        .filter((line) => !receiptLineIds.has(line.id))
+        .map((line) => ({ line, receipt: undefined }))
+
+      return [...receiptLines, ...legacyLines].map(({ line, receipt }) => {
         const item = line.item ?? line.itemColor?.item
         return {
-          date: route.departureDate,
-          supplierName: line.supplierNameSnapshot ?? line.supplier.name,
+          date: receipt?.receiptDate ?? route.departureDate,
+          supplierName:
+            line.supplierNameSnapshot ?? receipt?.supplier.name ?? line.supplier.name,
           articleNumber:
             line.articleNumberSnapshot ??
             (item ? formatItemArticleNumbers(item.articleNumbers) : undefined),
-          itemName: line.itemNameSnapshot ?? item?.name,
-          colorName: line.colorNameSnapshot ?? line.itemColor?.colorName,
-          size: line.size,
+          itemName:
+            line.designSnapshot ??
+            item?.design ??
+            line.itemNameSnapshot ??
+            item?.name,
+          colorName:
+            line.colorTextSnapshot ??
+            line.colorNameSnapshot ??
+            line.itemColor?.colorName,
+          size: line.sizeTextSnapshot ?? line.size,
           quantity: line.quantity,
           unitPriceForeign: line.unitPriceForeign,
           foreignCurrency: line.foreignCurrency,
@@ -99,36 +108,18 @@ export function SupplyRouteWizard({
           totalCostUgx: line.totalCostUgx,
           minimumSellPriceUgx: line.minimumSellPriceUgx,
         }
-      }),
-    [route.departureDate, route.items],
+      })
+    },
+    [route.departureDate, route.items, route.receipts],
   )
-
-  const editingEntry = useMemo<SupplyRouteEntryDraft | undefined>(() => {
-    if (!editingEntryId) return undefined
-    const group = entryGroups.find(
-      (rows) => rows[0]?.entryId === editingEntryId,
-    )
-    const first = group?.[0]
-    if (!group || !first?.item?.articleNumbers[0]) return undefined
-    return {
-      entryId: first.entryId,
-      itemId: first.item.id,
-      articleNumber: first.item.articleNumbers[0].articleNumber,
-      supplierId: first.supplierId,
-      foreignCurrency: first.foreignCurrency,
-      exchangeRateForeignToUsd: first.exchangeRateForeignToUsd,
-      exchangeRateUsdToUgx: first.exchangeRateUsdToUgx,
-      cells: group.map((line) => ({
-        itemColorId: line.colorId ?? undefined,
-        size: line.size ?? undefined,
-        quantity: line.quantity,
-      })),
-    }
-  }, [editingEntryId, entryGroups])
 
   async function refreshRoute() {
     const next = await getSupplyRoute({ data: { id: route.id } })
     setRoute(next)
+    // Receipt saves update both this wizard and the routes list. Invalidate
+    // the router cache so returning to this route cannot show the old loader
+    // snapshot from before the receipt was saved.
+    await router.invalidate()
   }
 
   const persistBasics = useCallback(async () => {
@@ -383,129 +374,67 @@ export function SupplyRouteWizard({
 
       {step === 'items' && (
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-3">
-                <CardTitle>
-                  {editingEntry ? 'Edit item entry' : 'Add items to this route'}
-                </CardTitle>
-                {editingEntry && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingEntryId(null)}
-                  >
-                    Cancel edit
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLocked ? (
-                <p className="text-sm text-muted-foreground">
-                  This route has been received and is locked.
-                </p>
-              ) : (
-                <AddItemForm
-                  key={editingEntryId ?? 'new-entry'}
-                  supplyRouteId={route.id}
-                  rateUgxPerUsd={route.rateUgxPerUsd}
-                  rateRmbPerUsd={route.rateRmbPerUsd}
-                  suppliers={suppliers}
-                  initialEntry={editingEntry}
-                  onSaved={() => {
-                    setEditingEntryId(null)
-                    return refreshRoute()
-                  }}
-                  onDone={async () => {
-                    await refreshRoute()
-                    await goTo('expenses')
-                  }}
-                />
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Items already entered</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {route.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No items entered yet.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {entryGroups.map((group) => {
-                    const first = group[0]
-                    const received = group.some((line) => line.received)
-                    return (
-                      <div
-                        key={first.entryId}
-                        className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm"
-                      >
-                        <div>
-                          <p className="font-medium">
-                            {first.item
-                              ? first.item.name
-                              : first.itemColor
-                                ? first.itemColor.item.name
-                                : 'Item'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {group.length} detail row
-                            {group.length === 1 ? '' : 's'} ·{' '}
-                            {group.reduce(
-                              (sum, line) => sum + line.quantity,
-                              0,
-                            )}{' '}
-                            units
-                            {received ? ' · received/locked' : ''}
-                          </p>
-                        </div>
-                        {!received && (
-                          <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditingEntryId(first.entryId)}
-                            >
-                              Edit quantities
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive"
-                              onClick={() => {
-                                if (!window.confirm('Remove this item entry?'))
-                                  return
-                                void deleteSupplyRouteItem({
-                                  data: { id: first.id },
-                                })
-                                  .then(() => refreshRoute())
-                                  .catch((cause) =>
-                                    setError(
-                                      cause instanceof Error
-                                        ? cause.message
-                                        : 'Could not remove item entry',
-                                    ),
-                                  )
-                              }}
-                            >
-                              <Trash2 className="mr-1 size-3" /> Remove entry
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Receipts</h2>
+              <p className="text-sm text-muted-foreground">
+                Add one supplier receipt at a time. Receipts stay stacked on this route.
+              </p>
+            </div>
+            {!isLocked && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setDraftReceiptKeys((keys) => [
+                    ...keys,
+                    `new-receipt-${crypto.randomUUID()}`,
+                  ])
+                }
+              >
+                <Plus className="mr-1 size-4" /> Add receipt
+              </Button>
+            )}
+          </div>
+          {route.receipts.map((receipt) => (
+            <ReceiptSection
+              key={receipt.id}
+              supplyRouteId={route.id}
+              routeRates={{
+                ugxPerUsd: route.rateUgxPerUsd,
+                rmbPerUsd: route.rateRmbPerUsd,
+              }}
+              suppliers={suppliers}
+              catalogIndex={initialCatalogIndex}
+              receipt={receipt}
+              disabled={isLocked}
+              onChanged={refreshRoute}
+            />
+          ))}
+          {draftReceiptKeys.map((key) => (
+            <ReceiptSection
+              key={key}
+              supplyRouteId={route.id}
+              routeRates={{
+                ugxPerUsd: route.rateUgxPerUsd,
+                rmbPerUsd: route.rateRmbPerUsd,
+              }}
+                suppliers={suppliers}
+                catalogIndex={initialCatalogIndex}
+              disabled={isLocked}
+              onChanged={async () => {
+                setDraftReceiptKeys((keys) => keys.filter((entry) => entry !== key))
+                await refreshRoute()
+              }}
+            />
+          ))}
+          {route.receipts.length === 0 && draftReceiptKeys.length === 0 && (
+            <Card>
+              <CardContent className="p-6 text-sm text-muted-foreground">
+                No receipts entered yet.
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 

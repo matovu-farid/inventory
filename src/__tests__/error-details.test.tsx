@@ -52,4 +52,15 @@ describe('ErrorDetails', () => {
     ).toBeNull()
     expect(screen.queryByText('production detail')).toBeNull()
   })
+
+  it('keeps long stack paths wrapped inside the diagnostics panel', () => {
+    const error = new Error('failure')
+    error.stack = `Error: failure\n    at ${'/Users/faridmatovu/projects/inventory/'.repeat(8)}file.ts:1:1`
+
+    render(<ErrorDetails error={error} development />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show error details' }))
+
+    const stack = screen.getByText(/file\.ts:1:1/)
+    expect(stack.className).toContain('[overflow-wrap:anywhere]')
+  })
 })

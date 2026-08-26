@@ -1,0 +1,185 @@
+// @vitest-environment jsdom
+
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ReceiptGridRow } from '#/components/supply/receipt-grid/types'
+import { ReceiptSection } from '../receipt-section'
+
+const { createReceipt, replaceReceipt, deleteReceipt } = vi.hoisted(() => ({
+  createReceipt: vi.fn(),
+  replaceReceipt: vi.fn(),
+  deleteReceipt: vi.fn(),
+}))
+
+vi.mock('#/server/functions/supply/receipts', () => ({
+  createSupplyRouteReceipt: createReceipt,
+  replaceSupplyRouteReceipt: replaceReceipt,
+  deleteSupplyRouteReceipt: deleteReceipt,
+}))
+
+vi.mock('../receipt-grid/receipt-grid', () => ({
+  ReceiptGrid: ({
+    rows,
+    onRowsChange,
+    historyControls,
+  }: {
+    rows: ReceiptGridRow[]
+    onRowsChange: (rows: ReceiptGridRow[]) => void
+    historyControls?: {
+      canUndo: boolean
+      canRedo: boolean
+      onUndo: () => void
+      onRedo: () => void
+    }
+  }) => (
+    <>
+      {historyControls && (
+        <>
+          <button
+            type="button"
+            onClick={historyControls.onUndo}
+            disabled={!historyControls.canUndo}
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={historyControls.onRedo}
+            disabled={!historyControls.canRedo}
+          >
+            Redo
+          </button>
+        </>
+      )}
+      <button
+        type="button"
+        onClick={() =>
+          onRowsChange([
+            {
+              ...rows[0],
+              design: 'Jacket',
+              quantity: 1,
+              unitPriceForeign: '3.00',
+            },
+          ])
+        }
+      >
+        Fill incomplete line
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onRowsChange([
+            {
+              ...rows[0],
+              design: 'Jacket',
+              articleNumber: 'JKT-1',
+              quantity: 1,
+              unitPriceForeign: '3.00',
+            },
+          ])
+        }
+      >
+        Fill complete line
+      </button>
+    </>
+  ),
+}))
+
+describe('ReceiptSection save validation', () => {
+  afterEach(() => {
+    cleanup()
+    vi.clearAllMocks()
+  })
+
+  it('blocks a non-empty line without an art number', () => {
+    render(
+      <ReceiptSection
+        supplyRouteId="route-1"
+        routeRates={{}}
+        suppliers={[
+          {
+            id: 'supplier-1',
+            name: 'Supplier',
+            type: 'local',
+            country: null,
+            deletedAt: null,
+          },
+        ]}
+        catalogIndex={[]}
+        onChanged={() => undefined}
+      />,
+    )
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Supplier *' }), {
+      target: { value: 'supplier-1' },
+    })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Fill incomplete line' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save receipt' }))
+
+    expect(createReceipt).not.toHaveBeenCalled()
+  })
+
+  it('shows a catalog art-number conflict before saving', () => {
+    render(
+      <ReceiptSection
+        supplyRouteId="route-1"
+        routeRates={{}}
+        suppliers={[
+          {
+            id: 'supplier-1',
+            name: 'Supplier',
+            type: 'local',
+            country: null,
+            deletedAt: null,
+          },
+        ]}
+        catalogIndex={[
+          { itemId: 'item-2', design: 'Trouser', articleNumbers: ['JKT-1'] },
+        ]}
+        onChanged={() => undefined}
+      />,
+    )
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Supplier *' }), {
+      target: { value: 'supplier-1' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Fill complete line' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save receipt' }))
+
+    expect(screen.getByRole('alert').textContent).toContain('belongs to design')
+    expect(createReceipt).not.toHaveBeenCalled()
+  })
+
+  it('undoes and redoes receipt header changes with the same history as grid changes', () => {
+    render(
+      <ReceiptSection
+        supplyRouteId="route-1"
+        routeRates={{}}
+        suppliers={[
+          {
+            id: 'supplier-1',
+            name: 'Supplier',
+            type: 'local',
+            country: null,
+            deletedAt: null,
+          },
+        ]}
+        catalogIndex={[]}
+        onChanged={() => undefined}
+      />,
+    )
+
+    const supplier = screen.getByRole('combobox', { name: 'Supplier *' })
+    fireEvent.change(supplier, { target: { value: 'supplier-1' } })
+    expect((supplier as unknown as HTMLSelectElement).value).toBe('supplier-1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect((supplier as unknown as HTMLSelectElement).value).toBe('')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
+    expect((supplier as unknown as HTMLSelectElement).value).toBe('supplier-1')
+  })
+})

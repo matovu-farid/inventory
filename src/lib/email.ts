@@ -34,6 +34,12 @@ function skipForTest(kind: string, to: string): boolean {
   return true
 }
 
+function skipRequestAccessForTest(): boolean {
+  if (!MOCK_EMAILS) return false
+  console.log('[Email:mock] request-access')
+  return true
+}
+
 export async function sendVerificationEmail({ to, name, url }: VerifyArgs) {
   if (skipForTest('verify', to)) return
   try {
@@ -107,7 +113,7 @@ export async function sendRequestAccessEmail({
   email,
   message,
 }: RequestAccessArgs) {
-  if (skipForTest('request-access', email)) return true
+  if (skipRequestAccessForTest()) return true
 
   try {
     const result = await resend.emails.send({

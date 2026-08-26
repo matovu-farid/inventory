@@ -1,0 +1,2 @@
+ALTER TABLE "supply_route_lines" ADD COLUMN "size_text_snapshot" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "uq_srr_route_supplier_source" ON "supply_route_receipts" USING btree ("supply_route_id","supplier_id","source_entry_id");

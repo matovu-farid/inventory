@@ -15,6 +15,7 @@ import { ErrorDialogProvider } from '#/components/error-dialog-provider'
 import { NotFoundPage, RouteErrorPage } from '#/components/error-pages'
 import { AppSidebar, SidebarTrigger } from '#/components/app-sidebar'
 import { Logo } from '#/components/logo'
+import { PortalRoot } from '#/components/ui/portal-root'
 import { getSession } from '#/server/middleware/auth'
 import { authClient } from '#/lib/auth-client'
 import { getSystemPrereqs } from '#/server/functions/prereqs/system'
@@ -66,6 +67,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <TooltipProvider delayDuration={150}>
           <ErrorDialogProvider>{children}</ErrorDialogProvider>
         </TooltipProvider>
+        <PortalRoot />
         <Scripts />
       </body>
     </html>

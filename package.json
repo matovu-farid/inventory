@@ -32,6 +32,7 @@
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",
     "@faker-js/faker": "^10.3.0",
+    "@glideapps/glide-data-grid": "^6.0.3",
     "@neondatabase/serverless": "^1.1.0",
     "@react-email/components": "^1.0.12",
     "@sentry/cloudflare": "^10.70.0",
@@ -78,6 +79,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.13.5",
+    "@cloudflare/workers-types": "4.20260507.1",
     "@react-email/render": "^2.0.8",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "^0.6.0",
@@ -91,6 +94,8 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/runner": "4.1.0",
+    "@vitest/snapshot": "4.1.0",
     "babel-plugin-react-compiler": "^1.0.0",
     "cypress": "^15.14.1",
     "dotenv": "^17.3.1",
@@ -103,8 +108,8 @@
     "tsx": "^4.21.0",
     "typescript": "^5.7.2",
     "vite": "^8.0.0",
-    "vitest": "^3.0.5",
-    "wrangler": "^4.70.0"
+    "vitest": "^4.1.0",
+    "wrangler": "4.90.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

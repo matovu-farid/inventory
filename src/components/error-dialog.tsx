@@ -32,13 +32,13 @@ export function ErrorDialog({
 }: ErrorDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="min-w-0 max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-md">
+        <DialogHeader className="min-w-0">
           <div className="mb-1 flex size-11 items-center justify-center rounded-full bg-destructive/10 text-destructive">
             <CircleAlert className="size-5" aria-hidden="true" />
           </div>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="min-w-0 break-words [overflow-wrap:anywhere]">
             {getSafeErrorMessage(error, message)}
           </DialogDescription>
           <ErrorDetails error={error} />

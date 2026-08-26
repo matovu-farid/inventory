@@ -8,6 +8,7 @@ import {
   itemColors,
   suppliers,
   supplyRoutes,
+  supplyRouteReceipts,
   storeReceivings,
 } from '#/db/schema'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
@@ -18,6 +19,7 @@ import {
   calculateSupplyLineAmounts,
   variantInput,
 } from './items-internals'
+import { ensureSupplyRouteReceipt } from './receipts.server'
 
 export type { MaterializedRow } from './items-internals'
 
@@ -99,7 +101,19 @@ export const addSupplyRouteVariants = createServerFn()
       ),
     })
     return db.transaction(async (tx) => {
-      return tx.insert(supplyRouteLines).values(rows).returning()
+      const receiptId = await ensureSupplyRouteReceipt(tx, {
+        supplyRouteId: route.id,
+        supplierId,
+        sourceEntryId: rows[0].entryId,
+        receiptDate: route.departureDate,
+        foreignCurrency: item.costCurrency as 'RMB' | 'USD' | 'UGX',
+        exchangeRateForeignToUsd,
+        exchangeRateUsdToUgx,
+      })
+      return tx
+        .insert(supplyRouteLines)
+        .values(rows.map((row) => ({ ...row, receiptId })))
+        .returning()
     })
   })
 
@@ -235,6 +249,23 @@ export const replaceSupplyRouteEntry = createServerFn()
             : item.name,
         colorNameById,
       })
+      const receiptId =
+        existing[0].receiptId ??
+        (await ensureSupplyRouteReceipt(tx, {
+          supplyRouteId: data.supplyRouteId,
+          supplierId,
+          sourceEntryId: data.entryId,
+          receiptDate: existing[0].supplyRoute.departureDate,
+          foreignCurrency: snapshot.foreignCurrency as 'RMB' | 'USD' | 'UGX',
+          exchangeRateForeignToUsd: foreignRate,
+          exchangeRateUsdToUgx: usdRate,
+        }))
+      if (existing[0].receiptId && existing[0].supplierId !== supplierId) {
+        await tx
+          .update(supplyRouteReceipts)
+          .set({ supplierId })
+          .where(eq(supplyRouteReceipts.id, existing[0].receiptId))
+      }
       await tx
         .delete(supplyRouteLines)
         .where(
@@ -243,7 +274,10 @@ export const replaceSupplyRouteEntry = createServerFn()
             eq(supplyRouteLines.entryId, data.entryId),
           ),
         )
-      return tx.insert(supplyRouteLines).values(rows).returning()
+      return tx
+        .insert(supplyRouteLines)
+        .values(rows.map((row) => ({ ...row, receiptId })))
+        .returning()
     })
   })
 
@@ -439,10 +473,24 @@ export const splitSupplyRouteItem = createServerFn()
         itemIdFallback,
         data.cells,
       )
+      const receiptId =
+        original.receiptId ??
+        (await ensureSupplyRouteReceipt(tx, {
+          supplyRouteId: original.supplyRouteId,
+          supplierId: original.supplierId,
+          sourceEntryId: original.entryId,
+          receiptDate: original.supplyRoute.departureDate,
+          foreignCurrency: original.foreignCurrency as 'RMB' | 'USD' | 'UGX',
+          exchangeRateForeignToUsd: original.exchangeRateForeignToUsd,
+          exchangeRateUsdToUgx: original.exchangeRateUsdToUgx,
+        }))
 
       await tx
         .delete(supplyRouteLines)
         .where(eq(supplyRouteLines.id, data.itemId))
-      return tx.insert(supplyRouteLines).values(rows).returning()
+      return tx
+        .insert(supplyRouteLines)
+        .values(rows.map((row) => ({ ...row, receiptId })))
+        .returning()
     })
   })

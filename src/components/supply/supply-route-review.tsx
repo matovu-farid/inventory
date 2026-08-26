@@ -163,12 +163,16 @@ export function SupplyRouteReview({
               <Stat
                 label="UGX per USD"
                 help="review.ugxPerUsd"
-                value={routeDetails.rateUgxPerUsd || 'Not set'}
+                value={routeDetails.rateUgxPerUsd
+                  ? new BigNumber(routeDetails.rateUgxPerUsd).toFormat(0)
+                  : 'Not set'}
               />
               <Stat
                 label="RMB per USD"
                 help="review.rmbPerUsd"
-                value={routeDetails.rateRmbPerUsd || 'Not set'}
+                value={routeDetails.rateRmbPerUsd
+                  ? new BigNumber(routeDetails.rateRmbPerUsd).toFormat(2)
+                  : 'Not set'}
               />
               <Stat
                 label="Suppliers"

@@ -6,6 +6,20 @@
   "main": "src/server/worker.ts",
   "workers_dev": true,
   "routes": [{ "pattern": "inventory.fidexa.org", "custom_domain": true }],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "REQUEST_ACCESS_RATE_LIMITER",
+        "class_name": "RequestAccessRateLimiter",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "request-access-rate-limiter-v1",
+      "new_sqlite_classes": ["RequestAccessRateLimiter"],
+    },
+  ],
   "triggers": {
     "crons": ["0 * * * *"],
   },

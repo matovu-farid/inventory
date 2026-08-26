@@ -32,7 +32,13 @@ export function HexColorField({
         )}
         style={{ backgroundColor: safe }}
       />
-      <PopoverContent className="w-auto p-3" align="start">
+      <PopoverContent
+        className="w-auto p-3"
+        align="start"
+        // The colour picker is rendered in a portal. Keep its pointer events
+        // from reaching the grid editor's outside-click dismissal handler.
+        onPointerDown={(event) => event.stopPropagation()}
+      >
         <div className="space-y-3">
           <HexColorPicker color={safe} onChange={onChange} />
           <div className="flex items-center gap-2">

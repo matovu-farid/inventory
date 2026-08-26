@@ -17,9 +17,9 @@ vi.mock('#/env', () => ({
 }))
 
 vi.mock('resend', () => ({
-  Resend: vi.fn(() => ({
-    emails: { send },
-  })),
+  Resend: class {
+    emails = { send }
+  },
 }))
 
 const request = {
@@ -82,5 +82,41 @@ describe('sendRequestAccessEmail', () => {
     const html = await render(options.react)
     expect(html).not.toContain(hostileMessage)
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+  })
+})
+
+describe('sendRequestAccessEmail mock mode', () => {
+  it('logs only a fixed event without requester PII', async () => {
+    vi.resetModules()
+    vi.doMock('#/env', () => ({
+      env: {
+        REQUEST_ACCESS_EMAIL: 'owner@example.com',
+        MOCK_EMAILS: 'true',
+        RESEND_API_KEY: 're_test_key',
+        EMAIL_FROM: 'Inventory Management <noreply@example.com>',
+        APP_URL: 'https://inventory.example.com',
+      },
+    }))
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+
+    try {
+      const { sendRequestAccessEmail: sendMockRequestAccessEmail } =
+        await import('#/lib/email')
+      await expect(
+        sendMockRequestAccessEmail({
+          name: 'Private Requester',
+          email: 'private@example.com',
+          message: 'Private message',
+        }),
+      ).resolves.toBe(true)
+      expect(log).toHaveBeenCalledWith('[Email:mock] request-access')
+      expect(log.mock.calls.flat().join(' ')).not.toMatch(
+        /Private Requester|private@example\.com|Private message|owner@example\.com/,
+      )
+    } finally {
+      log.mockRestore()
+      vi.doUnmock('#/env')
+      vi.resetModules()
+    }
   })
 })

@@ -10,8 +10,12 @@ import { db, withRequestDb } from '#/db'
 import { runThresholdChecksInternal } from '#/server/scheduled/run-threshold-checks'
 import { sendDailyLowStockDigestInternal } from '#/server/scheduled/send-low-stock-digest'
 import { getCloudflareSentryOptions } from '#/lib/sentry-config'
+import { withWorkerEnv } from './runtime-context'
+import type { WorkerRuntimeEnv } from './runtime-context'
 
-// Minimal Cloudflare Workers types (no @cloudflare/workers-types dep needed).
+export { RequestAccessRateLimiter } from './durable-objects/request-access-rate-limiter'
+
+// Minimal Cloudflare Workers event types not covered by the app's shared types.
 interface ScheduledEvent {
   scheduledTime: number
   cron: string
@@ -22,6 +26,7 @@ interface ExecutionContext {
 
 interface WorkerEnv {
   SENTRY_DSN?: string
+  REQUEST_ACCESS_RATE_LIMITER?: DurableObjectNamespace
 }
 
 async function runScheduledChecks(
@@ -44,12 +49,14 @@ const workerHandler = {
     env: WorkerEnv,
     ctx: ExecutionContext,
   ): Promise<Response> {
-    return withRequestDb(async () => {
-      const handler = tanstackHandler as unknown as {
-        fetch: (...args: unknown[]) => Response | Promise<Response>
-      }
-      return handler.fetch(request, env, ctx)
-    }, ctx.waitUntil.bind(ctx))
+    return withWorkerEnv(env as unknown as WorkerRuntimeEnv, () =>
+      withRequestDb(async () => {
+        const handler = tanstackHandler as unknown as {
+          fetch: (...args: unknown[]) => Response | Promise<Response>
+        }
+        return handler.fetch(request, env, ctx)
+      }, ctx.waitUntil.bind(ctx)),
+    )
   },
 
   scheduled: (

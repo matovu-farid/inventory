@@ -1,9 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
-import { eq, inArray } from 'drizzle-orm'
+import { asc as ascOrder, eq, inArray, isNull } from 'drizzle-orm'
 import BigNumber from 'bignumber.js'
 import { z } from 'zod'
 import { db } from '#/db'
-import { supplyRoutes, storeReceivings } from '#/db/schema'
+import { items, supplyRoutes, storeReceivings } from '#/db/schema'
 import { deriveSupplyRouteDisplayStatus } from '#/lib/supply-route-status'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { listSuppliersForSelectQuery } from './supplier-queries'
@@ -57,6 +57,21 @@ export const listSupplyRoutes = createServerFn().handler(async () => {
   }))
 })
 
+export const listReceiptCatalogIndex = createServerFn().handler(async () => {
+  await requireSessionAndRole(['admin'])
+  const catalog = await db.query.items.findMany({
+    where: isNull(items.deletedAt),
+    columns: { id: true, design: true },
+    with: { articleNumbers: { columns: { articleNumber: true } } },
+    orderBy: [ascOrder(items.createdAt), ascOrder(items.id)],
+  })
+  return catalog.map((item) => ({
+    itemId: item.id,
+    design: item.design,
+    articleNumbers: item.articleNumbers.map((article) => article.articleNumber),
+  }))
+})
+
 export const getSupplyRoute = createServerFn()
   .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
@@ -65,6 +80,32 @@ export const getSupplyRoute = createServerFn()
     const route = await db.query.supplyRoutes.findFirst({
       where: eq(supplyRoutes.id, data.id),
       with: {
+        receipts: {
+          with: {
+            supplier: true,
+            lines: {
+              with: {
+                supplier: true,
+                item: {
+                  with: { articleNumbers: true, colors: true, variants: true },
+                },
+                itemColor: {
+                  with: {
+                    item: {
+                      with: {
+                        articleNumbers: true,
+                        colors: true,
+                        variants: true,
+                      },
+                    },
+                  },
+                },
+              },
+              orderBy: (line, { asc }) => [asc(line.createdAt)],
+            },
+          },
+          orderBy: (receipt, { asc }) => [asc(receipt.createdAt)],
+        },
         items: {
           with: {
             supplier: true,
@@ -88,6 +129,13 @@ export const getSupplyRoute = createServerFn()
       items: route.items.map((line) => ({
         ...line,
         received: receivedIds.has(line.id),
+      })),
+      receipts: route.receipts.map((receipt) => ({
+        ...receipt,
+        lines: receipt.lines.map((line) => ({
+          ...line,
+          received: receivedIds.has(line.id),
+        })),
       })),
       displayStatus:
         route.status === 'received'

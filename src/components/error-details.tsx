@@ -39,7 +39,7 @@ export function ErrorDetails({
     <Collapsible
       open={open}
       onOpenChange={setOpen}
-      className="mt-5 rounded-lg border border-amber-500/30 bg-amber-500/5 text-left"
+      className="mt-5 min-w-0 max-w-full rounded-lg border border-amber-500/30 bg-amber-500/5 text-left"
     >
       <CollapsibleTrigger asChild>
         <Button
@@ -52,7 +52,7 @@ export function ErrorDetails({
           <ChevronDown className="size-4" aria-hidden="true" />
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-3 border-t border-amber-500/20 p-3">
+      <CollapsibleContent className="min-w-0 max-w-full space-y-3 border-t border-amber-500/20 p-3">
         <DiagnosticValue
           label="Message"
           value={diagnostics.message}
@@ -82,7 +82,7 @@ function DiagnosticValue({
   onCopy: () => void
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 max-w-full space-y-1.5">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           {label}
@@ -102,7 +102,7 @@ function DiagnosticValue({
           {copied ? 'Copied' : 'Copy'}
         </Button>
       </div>
-      <pre className="max-h-36 overflow-auto whitespace-pre-wrap break-words rounded-md bg-background/80 p-2 font-mono text-[11px] leading-5 text-foreground/80">
+      <pre className="min-w-0 max-w-full max-h-36 overflow-auto whitespace-pre-wrap break-words rounded-md bg-background/80 p-2 font-mono text-[11px] leading-5 text-foreground/80 [overflow-wrap:anywhere]">
         {value}
       </pre>
     </div>

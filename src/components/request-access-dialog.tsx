@@ -2,6 +2,7 @@ import type { FormEvent, ReactElement } from 'react'
 import { useEffect, useRef, useState } from 'react'
 
 import { requestAccess } from '#/server/functions/request-access'
+import { requestAccessInput } from '#/server/functions/request-access-input'
 import { Button } from '#/components/ui/button'
 import {
   Dialog,
@@ -69,8 +70,8 @@ export function RequestAccessDialog({
     const email = String(formData.get('email') ?? '').trim()
     const message = String(formData.get('message') ?? '').trim()
 
-    if (!name || !message) {
-      setError('Please enter a name and message.')
+    if (!requestAccessInput.safeParse({ name, email, message }).success) {
+      setError('Please enter a name, valid email, and message.')
       return
     }
 

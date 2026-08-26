@@ -9,6 +9,7 @@ import {
 } from '#/db/schema'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 import { formatItemArticleNumbers } from '#/lib/items/article-number'
+import { ensureSupplyRouteReceipt } from '#/server/functions/supply/receipts.server'
 
 /**
  * Plan 2c: requisitions are item-keyed. The UI renders an item label
@@ -80,10 +81,21 @@ export const promoteRequisitionsToRoute = createServerFn()
       }
 
       for (const req of stillOpen) {
+        const receiptId = await ensureSupplyRouteReceipt(tx, {
+          supplyRouteId: data.supplyRouteId,
+          supplierId: data.supplierId,
+          sourceEntryId: req.id,
+          receiptDate: route.departureDate,
+          foreignCurrency: 'RMB',
+          exchangeRateForeignToUsd: route.rateRmbPerUsd,
+          exchangeRateUsdToUgx: route.rateUgxPerUsd,
+        })
         const [line] = await tx
           .insert(supplyRouteLines)
           .values({
             supplyRouteId: data.supplyRouteId,
+            receiptId,
+            entryId: req.id,
             supplierId: data.supplierId,
             itemId: req.itemId,
             colorId: null,

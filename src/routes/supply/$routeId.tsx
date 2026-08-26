@@ -1,5 +1,4 @@
 import { createFileRoute, Outlet, useRouter } from '@tanstack/react-router'
-import * as React from 'react'
 import { useState } from 'react'
 import { requireUiPermission } from '#/lib/permissions'
 import BigNumber from 'bignumber.js'
@@ -19,51 +18,34 @@ import {
 import { DialogTrigger } from '#/components/ui/dialog'
 import { ResponsiveTable } from '#/components/ui/responsive-table'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '#/components/ui/table'
-import {
   Plus,
   Trash2,
-  Split,
-  ChevronDown,
-  ChevronRight,
-  Pencil,
 } from 'lucide-react'
 import {
   getSupplyRoute,
+  listReceiptCatalogIndex,
   listSuppliersForSelect,
   updateSupplyRoute,
 } from '#/server/functions/supply/routes'
-import {
-  deleteSupplyRouteItem,
-  updateSupplyRouteLineQuantity,
-} from '#/server/functions/supply/items'
-import { SplitItemForm } from '#/components/supply/split-item-form'
 import { deleteSupplyRouteExpense } from '#/server/functions/supply/expenses'
-import { AddItemForm as ExtractedAddItemForm } from '#/components/supply/add-item-form'
+import { ReceiptSection } from '#/components/supply/receipt-section'
 import { AddExpenseForm } from '#/components/supply/add-expense-form'
 import { convertExpenseToUgx } from '#/lib/currency/expense-conversion'
 import { getDistinctRouteSuppliers } from '#/lib/supply-route-suppliers'
 import {
   roundUgxFloor50,
-  roundUgxBankers50,
   formatUgxTotal,
 } from '#/lib/format'
-import { formatItemArticleNumbers } from '#/lib/items/article-number'
 
 export const Route = createFileRoute('/supply/$routeId')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'procurement.view'),
   loader: async ({ params }) => {
-    const [route, suppliers] = await Promise.all([
+    const [route, suppliers, catalogIndex] = await Promise.all([
       getSupplyRoute({ data: { id: params.routeId } }),
       listSuppliersForSelect(),
+      listReceiptCatalogIndex(),
     ])
-    return { route, suppliers }
+    return { route, suppliers, catalogIndex }
   },
   component: RouteDetailPage,
 })
@@ -88,58 +70,11 @@ function expenseAmountUgx(exp: {
 }
 
 function RouteDetailPage() {
-  const { route, suppliers } = Route.useLoaderData()
+  const { route, suppliers, catalogIndex } = Route.useLoaderData()
   const router = useRouter()
-  const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
   const [expenseError, setExpenseError] = useState('')
-  const [splittingItemId, setSplittingItemId] = useState<string | null>(null)
-  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(
-    new Set(),
-  )
-  const splittingItem =
-    route.items.find((i) => i.id === splittingItemId) ?? null
-
-  type RouteItem = (typeof route.items)[number]
-  const groupedItems = React.useMemo(() => {
-    const groups = new Map<
-      string,
-      {
-        id: string
-        name: string
-        articleNumbers: Array<{ articleNumber: string }>
-        items: RouteItem[]
-      }
-    >()
-    for (const line of route.items) {
-      const catalog = line.itemColor?.item ?? line.item
-      if (!catalog) continue
-      const key = catalog.id
-      let group = groups.get(key)
-      if (!group) {
-        group = {
-          id: key,
-          name: catalog.name,
-          articleNumbers: catalog.articleNumbers,
-          items: [],
-        }
-        groups.set(key, group)
-      }
-      group.items.push(line)
-    }
-    return Array.from(groups.values()).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    )
-  }, [route.items])
-
-  function toggleProduct(itemId: string) {
-    setExpandedProducts((prev) => {
-      const next = new Set(prev)
-      if (next.has(itemId)) next.delete(itemId)
-      else next.add(itemId)
-      return next
-    })
-  }
+  const [draftReceiptKeys, setDraftReceiptKeys] = useState<string[]>([])
 
   const totalItemCost = route.items.reduce(
     (sum, i) => sum.plus(i.totalCostUgx),
@@ -153,21 +88,6 @@ function RouteDetailPage() {
     (expense) => expenseAmountUgx(expense) === null,
   ).length
   const grandTotal = totalItemCost.plus(totalExpenses)
-
-  async function handleDeleteItem(id: string) {
-    await deleteSupplyRouteItem({ data: { id } })
-    void router.invalidate()
-  }
-
-  async function handleEditQuantity(item: RouteItem) {
-    if (route.status !== 'open') return
-    const raw = window.prompt('New quantity', String(item.quantity))
-    if (raw === null) return
-    const quantity = Number(raw)
-    if (!Number.isInteger(quantity) || quantity <= 0) return
-    await updateSupplyRouteLineQuantity({ data: { id: item.id, quantity } })
-    void router.invalidate()
-  }
 
   async function handleDeleteExpense(id: string) {
     if (route.status !== 'open') return
@@ -274,258 +194,69 @@ function RouteDetailPage() {
       {/* Items Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Items</h2>
-          <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" disabled={route.status !== 'open'}>
-                <Plus className="mr-1 h-4 w-4" />
-                Add Item
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-5xl">
-              <DialogHeader>
-                <DialogTitle>Add Item</DialogTitle>
-              </DialogHeader>
-              <ExtractedAddItemForm
-                supplyRouteId={route.id}
-                rateUgxPerUsd={route.rateUgxPerUsd}
-                rateRmbPerUsd={route.rateRmbPerUsd}
-                suppliers={suppliers}
-                onSaved={() => {
-                  void router.invalidate()
-                }}
-                onDone={() => {
-                  setItemDialogOpen(false)
-                  void router.invalidate()
-                }}
-              />
-            </DialogContent>
-          </Dialog>
+          <div>
+            <h2 className="text-lg font-semibold">Receipts</h2>
+            <p className="text-sm text-muted-foreground">
+              Each receipt has one supplier and keeps its lines together.
+            </p>
+          </div>
+          {route.status === 'open' && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setDraftReceiptKeys((keys) => [
+                  ...keys,
+                  `new-receipt-${crypto.randomUUID()}`,
+                ])
+              }
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Add receipt
+            </Button>
+          )}
         </div>
-
-        {groupedItems.length === 0 ? (
-          <p className="text-muted-foreground py-8 text-center text-sm">
-            No items added yet.
+        {route.receipts.length === 0 && draftReceiptKeys.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            No receipts added yet. Use Add receipt to enter one.
           </p>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8" />
-                  <TableHead>Product</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Article
-                  </TableHead>
-                  <TableHead>Color · Size</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Supplier
-                  </TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="hidden text-right md:table-cell">
-                    Unit Price
-                  </TableHead>
-                  <TableHead className="hidden text-right md:table-cell">
-                    Total (Foreign)
-                  </TableHead>
-                  <TableHead className="hidden text-right md:table-cell">
-                    Total (USD)
-                  </TableHead>
-                  <TableHead className="text-right">Total (UGX)</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {groupedItems.map((group) => {
-                  const expanded = expandedProducts.has(group.id)
-                  const totalQty = group.items.reduce(
-                    (s, i) => s + i.quantity,
-                    0,
-                  )
-                  const totalForeign = group.items.reduce(
-                    (s, i) => s.plus(i.totalAmountForeign),
-                    new BigNumber(0),
-                  )
-                  const totalUsd = group.items.reduce(
-                    (s, i) => (i.totalAmountUsd ? s.plus(i.totalAmountUsd) : s),
-                    new BigNumber(0),
-                  )
-                  const totalUgx = group.items.reduce(
-                    (s, i) => s.plus(i.totalCostUgx),
-                    new BigNumber(0),
-                  )
-                  const foreignCurrencies = Array.from(
-                    new Set(group.items.map((i) => i.foreignCurrency)),
-                  )
-                  return (
-                    <React.Fragment key={group.id}>
-                      <TableRow
-                        className="cursor-pointer bg-muted/30 font-medium hover:bg-muted/60"
-                        onClick={() => toggleProduct(group.id)}
-                        aria-expanded={expanded}
-                      >
-                        <TableCell className="text-center">
-                          {expanded ? (
-                            <ChevronDown className="size-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="size-4 text-muted-foreground" />
-                          )}
-                        </TableCell>
-                        <TableCell>{group.name}</TableCell>
-                        <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
-                          {formatItemArticleNumbers(group.articleNumbers)}
-                          <InfoPopover term="col.articleNumber" />
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-xs">
-                          {group.items.length} variant
-                          {group.items.length === 1 ? '' : 's'}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell" />
-                        <TableCell className="text-right font-mono">
-                          {totalQty}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell" />
-                        <TableCell className="hidden text-right font-mono md:table-cell">
-                          {totalForeign.toFormat(2)}
-                          {foreignCurrencies.length === 1 && (
-                            <span className="ml-1 text-xs text-muted-foreground">
-                              {foreignCurrencies[0]}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="hidden text-right font-mono md:table-cell">
-                          {totalUsd.gt(0) ? totalUsd.toFormat(2) : '-'}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-semibold">
-                          {roundUgxBankers50(totalUgx).toFormat(0)}
-                        </TableCell>
-                        <TableCell />
-                      </TableRow>
-                      {expanded &&
-                        group.items.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell />
-                            <TableCell className="text-muted-foreground text-xs">
-                              {/* keep product column empty in detail rows */}
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell" />
-                            <TableCell>
-                              {item.itemColor ? (
-                                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                                  <span
-                                    className="inline-block size-3 rounded-full border"
-                                    style={{
-                                      backgroundColor: item.itemColor.colorHex,
-                                    }}
-                                    aria-hidden
-                                  />
-                                  {item.itemColor.colorName}
-                                  {item.size ? ` · ${item.size}` : ''}
-                                </span>
-                              ) : (
-                                <Badge variant="outline" className="text-xs">
-                                  All variants
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              {item.supplier.name}
-                            </TableCell>
-                            <TableCell className="text-right font-mono">
-                              {item.quantity}
-                            </TableCell>
-                            <TableCell className="hidden text-right font-mono md:table-cell">
-                              {new BigNumber(item.unitPriceForeign).toFormat(2)}{' '}
-                              <span className="text-muted-foreground text-xs">
-                                {item.foreignCurrency}
-                              </span>
-                            </TableCell>
-                            <TableCell className="hidden text-right font-mono md:table-cell">
-                              {new BigNumber(item.totalAmountForeign).toFormat(
-                                2,
-                              )}
-                            </TableCell>
-                            <TableCell className="hidden text-right font-mono md:table-cell">
-                              {item.totalAmountUsd
-                                ? new BigNumber(item.totalAmountUsd).toFormat(2)
-                                : '-'}
-                            </TableCell>
-                            <TableCell className="text-right font-mono">
-                              {roundUgxBankers50(item.totalCostUgx).toFormat(0)}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center justify-end gap-1">
-                                {route.status === 'open' &&
-                                  !item.received &&
-                                  (!item.itemColor || !item.size) && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-7"
-                                      onClick={() =>
-                                        setSplittingItemId(item.id)
-                                      }
-                                    >
-                                      <Split className="mr-1 h-3.5 w-3.5" />
-                                      Split
-                                    </Button>
-                                  )}
-                                {route.status === 'open' && !item.received && (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    title="Edit quantity"
-                                    onClick={() =>
-                                      void handleEditQuantity(item)
-                                    }
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {route.status === 'open' && !item.received && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-destructive"
-                                    onClick={() => {
-                                      void handleDeleteItem(item.id)
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </React.Fragment>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
+          <>
+            {route.receipts.map((receipt) => (
+              <ReceiptSection
+                key={receipt.id}
+                supplyRouteId={route.id}
+                routeRates={{
+                  ugxPerUsd: route.rateUgxPerUsd,
+                  rmbPerUsd: route.rateRmbPerUsd,
+                }}
+                suppliers={suppliers}
+                catalogIndex={catalogIndex}
+                receipt={receipt}
+                disabled={route.status !== 'open'}
+                onChanged={() => router.invalidate()}
+              />
+            ))}
+            {draftReceiptKeys.map((key) => (
+              <ReceiptSection
+                key={key}
+                supplyRouteId={route.id}
+                routeRates={{
+                  ugxPerUsd: route.rateUgxPerUsd,
+                  rmbPerUsd: route.rateRmbPerUsd,
+                }}
+                suppliers={suppliers}
+                catalogIndex={catalogIndex}
+                disabled={route.status !== 'open'}
+                onChanged={async () => {
+                  setDraftReceiptKeys((keys) => keys.filter((entry) => entry !== key))
+                  await router.invalidate()
+                }}
+              />
+            ))}
+          </>
         )}
       </div>
-
-      <Dialog
-        open={splittingItem !== null}
-        onOpenChange={(open) => !open && setSplittingItemId(null)}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Split into variants</DialogTitle>
-          </DialogHeader>
-          {splittingItem && (
-            <SplitItemForm
-              item={splittingItem}
-              onSuccess={() => {
-                setSplittingItemId(null)
-                void router.invalidate()
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       <Separator />
 

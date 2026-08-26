@@ -169,7 +169,26 @@ describe('RequestAccessDialog', () => {
     fireEvent.submit(screen.getByRole('form'))
 
     const alert = await screen.findByRole('alert')
-    expect(alert.textContent).toMatch(/name and message/i)
+    expect(alert.textContent).toMatch(/name.*message/i)
+    expect(requestAccess).not.toHaveBeenCalled()
+  })
+
+  it('rejects a malformed email before delivery', async () => {
+    openRequestAccessDialog()
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: requestData.name },
+    })
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'not-an-email' },
+    })
+    fireEvent.change(screen.getByLabelText('Message'), {
+      target: { value: requestData.message },
+    })
+
+    fireEvent.submit(screen.getByRole('form'))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(/valid email/i)
     expect(requestAccess).not.toHaveBeenCalled()
   })
 

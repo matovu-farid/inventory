@@ -6,20 +6,12 @@ import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 
 import * as schema from './schema'
+import { isCloudflareWorkerRuntime } from './runtime'
 
 function getDatabaseUrl(): string {
   const url = process.env.DATABASE_URL
   if (!url) throw new Error('DATABASE_URL is not set')
   return url
-}
-
-function isCloudflareWorker(): boolean {
-  try {
-    require('cloudflare:workers')
-    return true
-  } catch {
-    return false
-  }
 }
 
 type DbInstance =
@@ -39,7 +31,7 @@ function getDbInstance(): DbInstance {
   const requestDb = requestDbStorage.getStore()
   if (requestDb) return requestDb
 
-  if (isCloudflareWorker()) {
+  if (isCloudflareWorkerRuntime()) {
     throw new Error(
       'Database accessed outside a Workers request. All fetch/cron handlers must run inside withRequestDb().',
     )

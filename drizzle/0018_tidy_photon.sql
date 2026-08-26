@@ -1,0 +1,1 @@
+ALTER TABLE "supply_route_lines" ADD COLUMN "color_hex_snapshot" text;

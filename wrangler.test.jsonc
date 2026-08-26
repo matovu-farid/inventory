@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "inventory-request-access-tests",
+  "compatibility_date": "2025-09-02",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/server/request-access-rate-limiter-test-worker.ts",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "REQUEST_ACCESS_RATE_LIMITER",
+        "class_name": "RequestAccessRateLimiter",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "request-access-rate-limiter-v1",
+      "new_sqlite_classes": ["RequestAccessRateLimiter"],
+    },
+  ],
+}

@@ -56,6 +56,48 @@ export const supplyRoutes = pgTable(
   (table) => [index('idx_route_external_ref').on(table.externalRef)],
 )
 
+export const supplyRouteReceipts = pgTable(
+  'supply_route_receipts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    supplyRouteId: uuid('supply_route_id')
+      .notNull()
+      .references(() => supplyRoutes.id, { onDelete: 'cascade' }),
+    supplierId: uuid('supplier_id')
+      .notNull()
+      .references(() => suppliers.id, { onDelete: 'restrict' }),
+    sourceEntryId: uuid('source_entry_id'),
+    receiptDate: date('receipt_date'),
+    reference: text('reference'),
+    notes: text('notes'),
+    foreignCurrency: text('foreign_currency').notNull().default('RMB'),
+    exchangeRateForeignToUsd: numeric('exchange_rate_foreign_to_usd', {
+      precision: 10,
+      scale: 6,
+    }),
+    exchangeRateUsdToUgx: numeric('exchange_rate_usd_to_ugx', {
+      precision: 10,
+      scale: 2,
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_srr_route').on(table.supplyRouteId),
+    index('idx_srr_supplier').on(table.supplierId),
+    uniqueIndex('uq_srr_route_supplier_source').on(
+      table.supplyRouteId,
+      table.supplierId,
+      table.sourceEntryId,
+    ),
+  ],
+)
+
 export const supplyRouteLines = pgTable(
   'supply_route_lines',
   {
@@ -64,6 +106,9 @@ export const supplyRouteLines = pgTable(
     supplyRouteId: uuid('supply_route_id')
       .notNull()
       .references(() => supplyRoutes.id, { onDelete: 'cascade' }),
+    receiptId: uuid('receipt_id').references(() => supplyRouteReceipts.id, {
+      onDelete: 'cascade',
+    }),
     supplierId: uuid('supplier_id')
       .notNull()
       .references(() => suppliers.id, { onDelete: 'restrict' }),
@@ -95,6 +140,10 @@ export const supplyRouteLines = pgTable(
     articleNumberSnapshot: text('article_number_snapshot'),
     itemNameSnapshot: text('item_name_snapshot'),
     colorNameSnapshot: text('color_name_snapshot'),
+    designSnapshot: text('design_snapshot'),
+    colorTextSnapshot: text('color_text_snapshot'),
+    colorHexSnapshot: text('color_hex_snapshot'),
+    sizeTextSnapshot: text('size_text_snapshot'),
     quantity: integer('quantity').notNull(),
     unitPriceForeign: numeric('unit_price_foreign', {
       precision: 15,
@@ -135,6 +184,7 @@ export const supplyRouteLines = pgTable(
   (table) => [
     index('idx_srl_entry').on(table.entryId),
     index('idx_srl_route').on(table.supplyRouteId),
+    index('idx_srl_receipt').on(table.receiptId),
     index('idx_srl_supplier').on(table.supplierId),
     index('idx_srl_color').on(table.colorId),
     index('idx_srl_item').on(table.itemId),
@@ -181,6 +231,7 @@ export const supplyRouteRelations = relations(supplyRoutes, ({ many }) => ({
   // "relation names renamed in lockstep" is honoured by renaming the
   // `*Relations` export const + `idx_srl_*` index names + FK column names.
   items: many(supplyRouteLines),
+  receipts: many(supplyRouteReceipts),
   expenses: many(supplyRouteExpenses),
 }))
 
@@ -190,6 +241,10 @@ export const supplyRouteLineRelations = relations(
     supplyRoute: one(supplyRoutes, {
       fields: [supplyRouteLines.supplyRouteId],
       references: [supplyRoutes.id],
+    }),
+    receipt: one(supplyRouteReceipts, {
+      fields: [supplyRouteLines.receiptId],
+      references: [supplyRouteReceipts.id],
     }),
     supplier: one(suppliers, {
       fields: [supplyRouteLines.supplierId],
@@ -203,6 +258,21 @@ export const supplyRouteLineRelations = relations(
       fields: [supplyRouteLines.colorId],
       references: [itemColors.id],
     }),
+  }),
+)
+
+export const supplyRouteReceiptRelations = relations(
+  supplyRouteReceipts,
+  ({ one, many }) => ({
+    supplyRoute: one(supplyRoutes, {
+      fields: [supplyRouteReceipts.supplyRouteId],
+      references: [supplyRoutes.id],
+    }),
+    supplier: one(suppliers, {
+      fields: [supplyRouteReceipts.supplierId],
+      references: [suppliers.id],
+    }),
+    lines: many(supplyRouteLines),
   }),
 )
 

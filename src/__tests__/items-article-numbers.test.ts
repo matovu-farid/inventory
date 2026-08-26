@@ -66,6 +66,18 @@ describe('item article-number relationship', () => {
     )
   })
 
+  it('searches catalog items by design', async () => {
+    const item = await createItem([`design-${suffix}`])
+    await db
+      .update(items)
+      .set({ design: `Unique design ${suffix}` })
+      .where(eq(items.id, item.id))
+
+    expect(
+      (await searchItemsQuery({ query: `Unique design ${suffix}` }))[0]?.id,
+    ).toBe(item.id)
+  })
+
   it('rejects duplicates within an item and across items', async () => {
     await expect(
       createItemQuery({

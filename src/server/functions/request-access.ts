@@ -1,24 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
-import { z } from 'zod'
-import { sendRequestAccessEmail } from '#/lib/email'
+import { requestAccessInput } from './request-access-input'
+import { submitRequestAccess } from './request-access.server'
 
-export const requestAccessInput = z.object({
-  name: z.string().trim().min(1).max(120),
-  email: z.email(),
-  message: z.string().trim().min(1).max(4000),
-})
-
-export async function submitRequestAccess(
-  data: z.infer<typeof requestAccessInput>,
-) {
-  const sent = await sendRequestAccessEmail(data)
-
-  if (sent === false) {
-    throw new Error('Could not send access request')
-  }
-
-  return { ok: true as const }
-}
+export { requestAccessInput } from './request-access-input'
 
 export const requestAccess = createServerFn()
   .inputValidator(requestAccessInput)
