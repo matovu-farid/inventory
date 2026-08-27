@@ -131,6 +131,36 @@ describe('ReceiptSection save validation', () => {
     expect(createReceipt).not.toHaveBeenCalled()
   })
 
+  it('explains when a foreign receipt is missing its exchange rates', () => {
+    render(
+      <ReceiptSection
+        supplyRouteId="route-1"
+        routeRates={{}}
+        suppliers={[
+          {
+            id: 'supplier-1',
+            name: 'Supplier',
+            type: 'local',
+            country: null,
+            deletedAt: null,
+          },
+        ]}
+        onChanged={() => undefined}
+      />,
+    )
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Supplier *' }), {
+      target: { value: 'supplier-1' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Fill complete line' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save receipt' }))
+
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Enter the RMB per USD exchange rate before saving this receipt',
+    )
+    expect(createReceipt).not.toHaveBeenCalled()
+  })
+
   it('undoes and redoes receipt header changes with the same history as grid changes', () => {
     render(
       <ReceiptSection
@@ -170,7 +200,7 @@ describe('ReceiptSection save validation', () => {
     render(
       <ReceiptSection
         supplyRouteId="route-1"
-        routeRates={{}}
+        routeRates={{ ugxPerUsd: '3735', rmbPerUsd: '6.70' }}
         suppliers={[
           {
             id: 'supplier-1',

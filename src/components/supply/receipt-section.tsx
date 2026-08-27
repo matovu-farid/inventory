@@ -269,6 +269,14 @@ export function ReceiptSection({
       setError(rowValidationError)
       return
     }
+    if (foreignCurrency === 'RMB' && !foreignRate.trim()) {
+      setError('Enter the RMB per USD exchange rate before saving this receipt')
+      return
+    }
+    if (foreignCurrency !== 'UGX' && !ugxRate.trim()) {
+      setError('Enter the UGX per USD exchange rate before saving this receipt')
+      return
+    }
     const lines = stripEmptyReceiptRows(rows).map((row) => ({
       itemName: row.itemName.trim(),
       design: row.design.trim(),
