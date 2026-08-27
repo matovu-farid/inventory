@@ -921,7 +921,7 @@ function PlainCellInput({
         disabled={disabled}
         className={`h-11 rounded-none border-0 shadow-none ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
         decimals={0}
-        roundTo={50}
+        roundTo={column === 'minimumSellPriceUgx' ? 50 : undefined}
       />
     )
   }

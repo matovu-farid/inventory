@@ -128,4 +128,18 @@ describe('custom ReceiptGrid', () => {
     expect(screen.getAllByText('30.00').length).toBeGreaterThan(0)
     expect(isReceiptRowEmpty(createEmptyReceiptRow('empty'))).toBe(true)
   })
+
+  it('does not round a receipt unit price as a UGX minimum sell price', async () => {
+    render(<Harness />)
+    const unitPrice = screen.getByRole('textbox', { name: 'Unit Price' })
+
+    fireEvent.change(unitPrice, { target: { value: '28' } })
+    fireEvent.blur(unitPrice)
+
+    await waitFor(() =>
+      expect(screen.getByTestId('grid-state').textContent).toContain(
+        'unitPriceForeign":"28',
+      ),
+    )
+  })
 })
