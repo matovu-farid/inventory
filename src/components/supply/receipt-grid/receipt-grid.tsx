@@ -68,9 +68,24 @@ const receiptColumns: ReadonlyArray<{
     title: 'Min sell price (UGX)',
     width: '155px',
   },
-  { id: 'lowStockThreshold', title: 'Low-stock threshold', width: '145px' },
+  { id: 'lowStockThreshold', title: 'Low-stock threshold', width: '175px' },
   { id: 'amount', title: 'Amount', width: '135px' },
 ]
+
+type ReceiptColumnId = (typeof receiptColumns)[number]['id']
+
+function stickyColumnClass(column: ReceiptColumnId): string {
+  if (column === 'minimumSellPriceUgx')
+    return 'sticky right-[175px] z-10 bg-background shadow-[-4px_0_8px_-8px_rgba(0,0,0,0.35)]'
+  if (column === 'lowStockThreshold')
+    return 'sticky right-0 z-10 bg-background shadow-[-4px_0_8px_-8px_rgba(0,0,0,0.35)]'
+  return ''
+}
+
+function stickyHeaderClass(column: ReceiptColumnId): string {
+  const sticky = stickyColumnClass(column)
+  return sticky ? sticky.replace('bg-background', 'bg-muted/60') : ''
+}
 
 function columnsFor(config: ItemEntryGridConfig) {
   return receiptColumns.map((column) =>
@@ -457,7 +472,7 @@ export function ReceiptGrid({
       onKeyDownCapture={handleShortcut}
     >
       <div className="overflow-x-auto">
-        <Table className="table-fixed">
+        <Table className="min-w-[1562px] table-fixed">
           <colgroup>
             {columns.map((column) => (
               <col key={column.id} style={{ width: column.width }} />
@@ -468,7 +483,7 @@ export function ReceiptGrid({
               {columns.map((column) => (
                 <TableHead
                   key={column.id}
-                  className="h-11 border-r px-3 text-foreground last:border-r-0"
+                  className={`h-11 border-r px-3 text-foreground last:border-r-0 ${stickyHeaderClass(column.id)}`}
                 >
                   {column.title}
                 </TableHead>
@@ -683,7 +698,7 @@ function EditableTableCell({
     fillDrag.source.column === column &&
     rowIndex > fillDrag.source.row &&
     rowIndex <= fillDrag.targetRow
-  const className = `relative border-r p-0 last:border-r-0 ${active ? 'bg-blue-50/80 dark:bg-blue-950/30' : ''} ${isFillPreview ? 'bg-blue-100/70 dark:bg-blue-900/30' : ''}`
+  const className = `relative border-r p-0 last:border-r-0 ${stickyColumnClass(column)} ${active ? '!bg-blue-50/80 dark:!bg-blue-950/30' : ''} ${isFillPreview ? '!bg-blue-100/70 dark:!bg-blue-900/30' : ''}`
   return (
     <TableCell className={className}>
       {column === 'design' ? (

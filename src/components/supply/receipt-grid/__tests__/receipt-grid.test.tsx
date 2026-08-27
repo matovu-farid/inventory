@@ -129,6 +129,29 @@ describe('custom ReceiptGrid', () => {
     expect(isReceiptRowEmpty(createEmptyReceiptRow('empty'))).toBe(true)
   })
 
+  it('keeps sell-price and low-stock columns visible while the grid scrolls', () => {
+    render(<Harness />)
+
+    expect(
+      screen.getByRole('columnheader', { name: 'Min sell price (UGX)' })
+        .className,
+    ).toContain('sticky')
+    expect(
+      screen.getByRole('columnheader', { name: 'Low-stock threshold' })
+        .className,
+    ).toContain('sticky')
+    expect(
+      screen
+        .getByRole('textbox', { name: 'Minimum sell price (UGX)' })
+        .closest('td')?.className,
+    ).toContain('sticky')
+    expect(
+      screen
+        .getByRole('spinbutton', { name: 'Low-stock threshold' })
+        .closest('td')?.className,
+    ).toContain('sticky')
+  })
+
   it('does not round a receipt unit price as a UGX minimum sell price', async () => {
     render(<Harness />)
     const unitPrice = screen.getByRole('textbox', { name: 'Unit Price' })
