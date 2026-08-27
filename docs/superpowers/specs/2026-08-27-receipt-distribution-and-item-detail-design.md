@@ -81,11 +81,12 @@ colour/size cells within one receipt line. The server validates the sum in the
 same transaction that writes the receipt.
 
 The existing `supply_route_lines` table will become the operational materialized
-line for each receipt allocation and will carry a required allocation id. The
-receiving and stock tables continue to reference these operational lines, so a
-distributed allocation resolves directly to one source line and an aggregate
-entry produces one unresolved source line. The database should not store UI
-undo events.
+line for each receipt allocation and will carry a `receiptAllocationId` for
+receipt-created lines. That link remains nullable for non-receipt operational
+lines created by imports or requisitions. The receiving and stock tables
+continue to reference these operational lines, so a distributed allocation
+resolves directly to one source line and an aggregate entry produces one
+unresolved source line. The database should not store UI undo events.
 
 Colours retain both an optional catalog `colorId` and name/hex snapshots so a
 free-text colour remains historically accurate even if the catalog changes.
