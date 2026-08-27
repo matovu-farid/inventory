@@ -152,7 +152,7 @@ function MoneyInput({
           {...props}
           type="text"
           inputMode="decimal"
-          aria-invalid={!!error || undefined}
+          aria-invalid={props['aria-invalid'] ?? (!!error || undefined)}
           aria-describedby={
             props['aria-describedby'] ?? (error ? errorId : undefined)
           }

@@ -390,4 +390,68 @@ describe('addStoreOpeningBalance — auto-create variant from colorId+size', () 
     await db.delete(itemColors).where(eq(itemColors.id, royal.id))
     await db.delete(items).where(eq(items.id, item.id))
   })
+
+  it('uses row commercial values for the stock snapshot and item threshold', async () => {
+    const suffix = Date.now()
+    const [item] = await db
+      .insert(items)
+      .values({
+        name: 'Opening balance commercial values',
+        design: 'Test',
+      })
+      .returning()
+    await db
+      .insert(itemArticleNumbers)
+      .values({ itemId: item.id, articleNumber: `OB-CV-${suffix}` })
+    const [color] = await db
+      .insert(itemColors)
+      .values({ itemId: item.id, colorName: 'Navy', colorHex: '#000080' })
+      .returning()
+    await db
+      .insert(stores)
+      .values({ name: `Commercial values store ${suffix}` })
+      .onConflictDoNothing()
+    const store = await db.query.stores.findFirst()
+    if (!store) throw new Error('store not seeded')
+
+    await callServerFn(() =>
+      addStoreOpeningBalance({
+        data: {
+          items: [
+            {
+              itemId: item.id,
+              unitCostUgx: '12500.00',
+              minimumSellPriceUgx: '22000.00',
+              lowStockThreshold: 7,
+              cells: [{ colorId: color.id, size: 'L', quantity: 12 }],
+            },
+          ],
+        },
+      }),
+    )
+
+    const updatedItem = await db.query.items.findFirst({
+      where: eq(items.id, item.id),
+    })
+    expect(updatedItem?.minimumSellPriceUgx).toBe('22000.00')
+    expect(updatedItem?.lowStockThreshold).toBe(7)
+
+    const variant = await db.query.variants.findFirst({
+      where: and(eq(variants.colorId, color.id), eq(variants.size, 'L')),
+    })
+    if (!variant) throw new Error('variant not created')
+    const stockRow = await db.query.storeStock.findFirst({
+      where: and(
+        eq(storeStock.storeId, store.id),
+        eq(storeStock.variantId, variant.id),
+      ),
+    })
+    expect(stockRow?.costPerUnitUgx).toBe('12500.00')
+    expect(stockRow?.minimumSellPriceUgx).toBe('22000.00')
+
+    await db.delete(storeStock).where(eq(storeStock.variantId, variant.id))
+    await db.delete(variants).where(eq(variants.id, variant.id))
+    await db.delete(itemColors).where(eq(itemColors.id, color.id))
+    await db.delete(items).where(eq(items.id, item.id))
+  })
 })

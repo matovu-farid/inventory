@@ -1,7 +1,7 @@
 // Server-only: opening balance mutations. Split from opening-balance.ts because
 // that file is client-reachable via opening-balance-form.tsx.
 
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import BigNumber from 'bignumber.js'
 import { db } from '#/db'
@@ -42,6 +42,8 @@ export const cellSchema = z
 export const itemEntry = z.object({
   itemId: z.uuid(),
   unitCostUgx: z.string().min(1),
+  minimumSellPriceUgx: z.string().min(1).optional(),
+  lowStockThreshold: z.number().int().min(0).optional(),
   cells: z.array(cellSchema).min(1),
 })
 
@@ -57,6 +59,8 @@ type NormalisedCell = { variantId: string | null; quantity: number }
 interface NormalisedItemEntry {
   itemId: string
   unitCostUgx: string
+  minimumSellPriceUgx?: string
+  lowStockThreshold?: number
   cells: NormalisedCell[]
 }
 
@@ -116,6 +120,12 @@ async function normaliseOpeningBalanceCell(
   itemId: string,
   cell: CellInput,
 ): Promise<NormalisedCell> {
+  if (
+    typeof cell.variantId === 'string' &&
+    (cell.colorId !== undefined || cell.size !== undefined)
+  ) {
+    throw new Error('variantId cannot be combined with colorId or size')
+  }
   if (typeof cell.variantId === 'string') {
     const existing = await tx.query.variants.findFirst({
       where: eq(variants.id, cell.variantId),
@@ -152,6 +162,18 @@ async function normaliseOpeningBalanceCell(
     throw new Error(`Color ${colorId} does not belong to item ${itemId}`)
   }
 
+  const existingVariant = (
+    await tx.query.variants.findMany({
+      where: and(eq(variants.itemId, itemId), eq(variants.colorId, colorId)),
+    })
+  ).find(
+    (variant) =>
+      variant.size.trim().toLocaleLowerCase() === size.toLocaleLowerCase(),
+  )
+  if (existingVariant) {
+    return { variantId: existingVariant.id, quantity: cell.quantity }
+  }
+
   const [variantRow] = await tx
     .insert(variants)
     .values({ itemId, colorId, size })
@@ -169,14 +191,29 @@ async function normaliseOpeningBalanceItems(
   itemEntries: z.infer<typeof storeOpeningInput>['items'],
 ): Promise<NormalisedItemEntry[]> {
   const normalised: NormalisedItemEntry[] = []
+  const seenCells = new Set<string>()
   for (const entry of itemEntries) {
     const cells: NormalisedCell[] = []
     for (const cell of entry.cells) {
-      cells.push(await normaliseOpeningBalanceCell(tx, entry.itemId, cell))
+      const normalisedCell = await normaliseOpeningBalanceCell(
+        tx,
+        entry.itemId,
+        cell,
+      )
+      const cellKey = `${entry.itemId}:${normalisedCell.variantId ?? 'unresolved'}`
+      if (seenCells.has(cellKey)) {
+        throw new Error(
+          `Duplicate opening balance cell for item ${entry.itemId} and ${normalisedCell.variantId ? `variant ${normalisedCell.variantId}` : 'unresolved stock'}`,
+        )
+      }
+      seenCells.add(cellKey)
+      cells.push(normalisedCell)
     }
     normalised.push({
       itemId: entry.itemId,
       unitCostUgx: entry.unitCostUgx,
+      minimumSellPriceUgx: entry.minimumSellPriceUgx,
+      lowStockThreshold: entry.lowStockThreshold,
       cells,
     })
   }
@@ -186,7 +223,32 @@ async function normaliseOpeningBalanceItems(
 function validateOpeningBalanceItems(
   itemEntries: z.infer<typeof storeOpeningInput>['items'],
 ): void {
+  const thresholdsByItem = new Map<string, number>()
+  const minimumPricesByItem = new Map<string, string>()
   for (const entry of itemEntries) {
+    if (entry.minimumSellPriceUgx !== undefined) {
+      const minimumSellPrice = new BigNumber(entry.minimumSellPriceUgx)
+      if (!minimumSellPrice.isFinite() || minimumSellPrice.isNegative()) {
+        throw new Error('minimumSellPriceUgx must be a non-negative amount')
+      }
+      const normalizedMinimumSellPrice = minimumSellPrice.toFixed(2)
+      const previous = minimumPricesByItem.get(entry.itemId)
+      if (previous !== undefined && previous !== normalizedMinimumSellPrice) {
+        throw new Error(
+          `Opening balance contains conflicting minimum sell prices for item ${entry.itemId}`,
+        )
+      }
+      minimumPricesByItem.set(entry.itemId, normalizedMinimumSellPrice)
+    }
+    if (entry.lowStockThreshold !== undefined) {
+      const previous = thresholdsByItem.get(entry.itemId)
+      if (previous !== undefined && previous !== entry.lowStockThreshold) {
+        throw new Error(
+          `Opening balance contains conflicting low-stock thresholds for item ${entry.itemId}`,
+        )
+      }
+      thresholdsByItem.set(entry.itemId, entry.lowStockThreshold)
+    }
     for (const cell of entry.cells) {
       validateOpeningBalanceCell(cell, entry.unitCostUgx)
     }
@@ -240,6 +302,26 @@ async function postOpeningBalanceStock(
       columns: { minimumSellPriceUgx: true },
     })
     if (!item) throw new Error(`Item not found: ${entry.itemId}`)
+    const minimumSellPriceUgx =
+      entry.minimumSellPriceUgx !== undefined
+        ? new BigNumber(entry.minimumSellPriceUgx).toFixed(2)
+        : item.minimumSellPriceUgx
+    if (
+      entry.minimumSellPriceUgx !== undefined ||
+      entry.lowStockThreshold !== undefined
+    ) {
+      await tx
+        .update(items)
+        .set({
+          ...(entry.minimumSellPriceUgx !== undefined
+            ? { minimumSellPriceUgx }
+            : {}),
+          ...(entry.lowStockThreshold !== undefined
+            ? { lowStockThreshold: entry.lowStockThreshold }
+            : {}),
+        })
+        .where(eq(items.id, entry.itemId))
+    }
     let entryValue = new BigNumber(0)
     const entryRowIds: string[] = []
 
@@ -257,7 +339,7 @@ async function postOpeningBalanceStock(
         variantId: cell.variantId,
         quantity: cell.quantity,
         costPerUnitUgx: cost.toFixed(2),
-        minimumSellPriceUgx: item.minimumSellPriceUgx,
+        minimumSellPriceUgx,
       })
       entryRowIds.push(row.id)
       createdIds.push(row.id)

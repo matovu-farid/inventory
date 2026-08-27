@@ -37,6 +37,8 @@ interface ComboboxProps {
   onCreateNew?: (value: string) => void
   id?: string
   'aria-invalid'?: boolean
+  'aria-label'?: string
+  onSearchChange?: (query: string) => void
 }
 
 function Combobox({
@@ -52,6 +54,8 @@ function Combobox({
   onCreateNew,
   id,
   'aria-invalid': ariaInvalid,
+  'aria-label': ariaLabel,
+  onSearchChange,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState('')
@@ -77,6 +81,7 @@ function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          aria-label={ariaLabel}
           aria-invalid={ariaInvalid || undefined}
           disabled={disabled}
           className={cn(
@@ -104,7 +109,10 @@ function Combobox({
           <CommandInput
             placeholder={searchPlaceholder}
             value={query}
-            onValueChange={setQuery}
+            onValueChange={(nextQuery) => {
+              setQuery(nextQuery)
+              onSearchChange?.(nextQuery)
+            }}
           />
           <CommandList>
             <CommandEmpty>{emptyMessage}</CommandEmpty>

@@ -13,6 +13,7 @@ export interface ItemSummary {
   costCurrency?: 'RMB' | 'USD' | 'UGX' | string | null
   supplier?: { id: string; name: string } | null
   minimumSellPriceUgx?: string
+  lowStockThreshold?: number
   deletedAt?: Date | string | null
   colors: Array<{
     id: string
