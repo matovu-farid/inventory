@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   calculateItemEntryGridTotals,
+  copyItemEntryRowField,
   createEmptyItemEntryRow,
   fillDownItemEntryCells,
   updateItemEntryCell,
@@ -43,6 +44,27 @@ describe('item entry grid state', () => {
       'JKT-1',
     ])
     expect(next.at(-1)?.id).not.toBe('one')
+  })
+
+  it('fills down a quantity together with an independent distribution', () => {
+    const source = row('one', {
+      quantity: 5,
+      distribution: {
+        mode: 'colors',
+        cells: [{ color: 'Red', quantity: 5 }],
+      },
+    })
+    const copied = copyItemEntryRowField(source, 'quantity')
+
+    expect(copied).toEqual({
+      quantity: 5,
+      distribution: {
+        mode: 'colors',
+        cells: [{ color: 'Red', quantity: 5 }],
+      },
+    })
+    expect(copied.distribution).not.toBe(source.distribution)
+    expect(copied.distribution?.cells).not.toBe(source.distribution?.cells)
   })
 
   it('parses quantity and threshold as non-negative whole numbers', () => {

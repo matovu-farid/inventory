@@ -68,6 +68,18 @@ export const getSupplyRoute = createServerFn()
         receipts: {
           with: {
             supplier: true,
+            entries: {
+              with: {
+                item: {
+                  with: { articleNumbers: true, colors: true, variants: true },
+                },
+                allocations: {
+                  with: { color: true },
+                  orderBy: (allocation, { asc }) => [asc(allocation.createdAt)],
+                },
+              },
+              orderBy: (entry, { asc }) => [asc(entry.createdAt)],
+            },
             lines: {
               with: {
                 supplier: true,

@@ -19,10 +19,10 @@ Create:
 - `src/components/item-entry-grid/quantity-distribution-editor.tsx` — colour-only popover and colour×size responsive editor.
 - `src/components/item-entry-grid/__tests__/distribution-state.test.ts` — pure state tests.
 - `src/components/item-entry-grid/__tests__/quantity-distribution-editor.test.tsx` — editor interaction tests.
-- `src/db/schema/supply-route-receipt-entries.ts` — normalized parent/allocation schema and relations.
+- `src/db/schema/supply-routes.ts` — normalized parent/allocation schema and relations.
 - `src/server/functions/items/item-stock-details.ts` — item stock aggregation.
 - `src/components/items/item-stock-details.tsx` — item stock/provenance UI.
-- `drizzle/0025_receipt_distribution.sql` — generated SQL migration, renamed to this stable filename after inspection.
+- `drizzle/0025_conscious_sumo.sql` — generated SQL migration.
 
 Modify:
 
@@ -38,7 +38,7 @@ Modify:
 
 ## Task 1: Add the normalized receipt-entry schema
 
-**Files:** `src/db/schema/supply-route-receipt-entries.ts`, `src/db/schema/supply-routes.ts`, `src/db/schema/index.ts`, generated `drizzle` migration.
+**Files:** `src/db/schema/supply-routes.ts`, `src/db/schema/index.ts`, generated `drizzle` migration.
 
 - [ ] **Step 1: Define parent and allocation tables.**
 
@@ -86,7 +86,7 @@ drop receiving or stock foreign keys, and typecheck exits with code 0.
 - [ ] **Step 3: Commit the schema.**
 
 ```bash
-git add src/db/schema/supply-route-receipt-entries.ts src/db/schema/supply-routes.ts src/db/schema/index.ts drizzle
+git add src/db/schema/supply-routes.ts src/db/schema/index.ts drizzle
 git commit -m "feat: add receipt allocation schema"
 ```
 

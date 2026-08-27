@@ -30,6 +30,26 @@ const receiptLineInput = z.object({
     .regex(/^\d+(\.\d{1,2})?$/)
     .optional(),
   lowStockThreshold: z.number().int().min(0).optional(),
+  distribution: z
+    .object({
+      mode: z.enum(['colors', 'variants']),
+      cells: z
+        .array(
+          z.object({
+            color: z.string().trim().min(1).max(80),
+            colorId: z.uuid().nullable().optional(),
+            colorHex: z
+              .string()
+              .regex(/^#[0-9a-fA-F]{6}$/)
+              .nullable()
+              .optional(),
+            size: z.string().trim().min(1).max(40).optional(),
+            quantity: z.number().int().min(0),
+          }),
+        )
+        .min(1),
+    })
+    .optional(),
 })
 
 const receiptDraft = z.object({

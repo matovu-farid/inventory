@@ -1,3 +1,5 @@
+import type { ReceiptQuantityDistribution } from './distribution-types'
+
 export const ITEM_ENTRY_COLUMNS = [
   'itemName',
   'design',
@@ -42,6 +44,7 @@ export interface ItemEntryRow {
   unitPriceForeign: string
   minimumSellPriceUgx: string
   lowStockThreshold: number
+  distribution: ReceiptQuantityDistribution | null
 }
 
 export interface ItemEntryCellLocation {
@@ -65,4 +68,5 @@ export interface ItemEntryGridConfig {
   amountLabel: string
   totalLabel: string
   currency: 'foreign' | 'UGX'
+  distributionEnabled?: boolean
 }

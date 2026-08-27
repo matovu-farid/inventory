@@ -76,6 +76,7 @@ function toEntryRow(row: OpeningBalanceTableRow): ItemEntryRow {
     unitPriceForeign: row.unitCostUgx,
     minimumSellPriceUgx: row.minimumSellPriceUgx,
     lowStockThreshold: row.lowStockThreshold,
+    distribution: null,
   }
 }
 
@@ -122,6 +123,7 @@ export function OpeningBalanceTable({
       amountLabel: 'Amount (UGX)',
       totalLabel: 'Total (UGX)',
       currency: 'UGX' as const,
+      distributionEnabled: false,
     }),
     [],
   )

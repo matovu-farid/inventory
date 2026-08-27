@@ -9,6 +9,8 @@ import {
   storeReceivings,
   suppliers,
   supplyRouteLines,
+  supplyRouteReceiptEntries,
+  supplyRouteReceiptLineAllocations,
   supplyRouteReceipts,
   supplyRoutes,
 } from '#/db/schema'
@@ -50,6 +52,26 @@ export const receiptLineInput = z.object({
     .regex(/^\d+(\.\d{1,2})?$/)
     .optional(),
   lowStockThreshold: z.number().int().min(0).optional(),
+  distribution: z
+    .object({
+      mode: z.enum(['colors', 'variants']),
+      cells: z
+        .array(
+          z.object({
+            color: z.string().trim().min(1).max(80),
+            colorId: z.uuid().nullable().optional(),
+            colorHex: z
+              .string()
+              .regex(/^#[0-9a-fA-F]{6}$/)
+              .nullable()
+              .optional(),
+            size: z.string().trim().min(1).max(40).optional(),
+            quantity: z.number().int().min(0),
+          }),
+        )
+        .min(1),
+    })
+    .optional(),
 })
 
 export const receiptDraft = z.object({
@@ -322,7 +344,7 @@ async function resolveReceiptLineItem(
       const conflictingOwner = conflictingOwners.at(0)
       if (conflictingOwner && conflictingOwner.itemId !== item.id) {
         throw new Error(
-          `Art number "${articleNumber}" already belongs to "${conflictingOwner.item.design}"`,
+          `Art number "${articleNumber}" already belongs to "${conflictingOwner.item.design}" for supplier "${conflictingOwner.item.supplier?.name ?? 'another supplier'}"`,
         )
       }
     }
@@ -332,8 +354,7 @@ async function resolveReceiptLineItem(
     normalizeMinimumSellPrice(line.minimumSellPriceUgx) ??
     item.minimumSellPriceUgx
   const lowStockThreshold =
-    normalizeLowStockThreshold(line.lowStockThreshold) ??
-    item.lowStockThreshold
+    normalizeLowStockThreshold(line.lowStockThreshold) ?? item.lowStockThreshold
   const defaults = {
     costPrice: new BigNumber(line.unitPriceForeign).toFixed(2),
     costCurrency: foreignCurrency,
@@ -350,10 +371,33 @@ async function resolveReceiptLineItem(
   itemDefaults.set(item.id, defaults)
   await tx.update(items).set(defaults).where(eq(items.id, item.id))
 
+  const distributionColorCells = line.distribution?.cells ?? []
+  const distributionColorNames = Array.from(
+    new Map(
+      distributionColorCells.map((cell) => [
+        cell.color.trim().toLocaleLowerCase(),
+        cell.color.trim(),
+      ]),
+    ).values(),
+  )
+  const distributionSizes = Array.from(
+    new Set(
+      distributionColorCells
+        .map((cell) => cell.size?.trim())
+        .filter((size): size is string => Boolean(size)),
+    ),
+  )
   const materializedColorId = await materializeReceiptItemAttributes(
     tx,
     item.id,
-    line,
+    {
+      ...line,
+      colorText:
+        line.colorText?.trim() ||
+        distributionColorNames.join(', ') ||
+        undefined,
+      size: line.size?.trim() || distributionSizes.join(', ') || undefined,
+    },
   )
 
   return {
@@ -480,51 +524,171 @@ async function materializeReceiptLines(
     draft.exchangeRateUsdToUgx ??
     (foreignCurrency !== 'UGX' ? (route.rateUgxPerUsd ?? undefined) : undefined)
 
-  return draft.lines.map((line) => {
+  const materializedLines: Array<typeof supplyRouteLines.$inferInsert> = []
+  for (const line of draft.lines) {
     const item = line.itemId ? itemsById.get(line.itemId) : undefined
     if (line.itemId && !item) throw new Error('Catalog design not found')
     const color = line.colorId ? colorsById.get(line.colorId) : undefined
     if (line.colorId && !color) throw new Error('Catalog colour not found')
     if (color && item && color.itemId !== item.id)
       throw new Error('Colour does not belong to the selected design')
-    const amounts = calculateSupplyLineAmounts({
-      quantity: line.quantity,
-      unitPriceForeign: line.unitPriceForeign,
-      foreignCurrency,
-      exchangeRateForeignToUsd: foreignRate,
-      exchangeRateUsdToUgx: ugxRate,
-    })
     const articleNumber = line.articleNumber.trim()
     const colorText = line.colorText?.trim() || color?.colorName || null
     const sizes = normalizeReceiptSizes(line.size?.trim() ?? '')
-    return {
-      supplyRouteId: draft.supplyRouteId,
-      receiptId,
-      entryId: crypto.randomUUID(),
-      supplierId: supplier.id,
-      itemId: item?.id ?? null,
-      colorId: color?.id ?? null,
-      size: sizes.length === 1 ? sizes[0] : null,
-      sizeTextSnapshot: line.size?.trim() || null,
-      supplierNameSnapshot: supplier.name,
-      articleNumberSnapshot: articleNumber,
-      itemNameSnapshot:
-        line.itemName?.trim() || item?.name || line.design.trim(),
-      colorNameSnapshot: color?.colorName ?? colorText,
-      designSnapshot: line.design.trim(),
-      colorTextSnapshot: colorText,
-      colorHexSnapshot: line.colorHex ?? color?.colorHex ?? null,
-      quantity: line.quantity,
-      unitPriceForeign: line.unitPriceForeign,
-      foreignCurrency,
-      exchangeRateForeignToUsd: foreignRate,
-      exchangeRateUsdToUgx: ugxRate,
-      ...amounts,
-      minimumSellPriceUgx:
-        line.minimumSellPriceUgx ?? item?.minimumSellPriceUgx ?? '0',
-      lowStockThreshold: line.lowStockThreshold ?? item?.lowStockThreshold ?? 0,
+    const minimumSellPriceUgx =
+      line.minimumSellPriceUgx ?? item?.minimumSellPriceUgx ?? '0'
+    const lowStockThreshold =
+      line.lowStockThreshold ?? item?.lowStockThreshold ?? 0
+    const [entry] = await tx
+      .insert(supplyRouteReceiptEntries)
+      .values({
+        receiptId,
+        itemId: item?.id ?? null,
+        supplierId: supplier.id,
+        articleNumberSnapshot: articleNumber,
+        itemNameSnapshot:
+          line.itemName?.trim() || item?.name || line.design.trim(),
+        designSnapshot: line.design.trim(),
+        quantity: line.quantity,
+        unitPriceForeign: line.unitPriceForeign,
+        minimumSellPriceUgx,
+        lowStockThreshold,
+      })
+      .returning({ id: supplyRouteReceiptEntries.id })
+
+    const itemColorsForLine = item
+      ? await tx.query.itemColors.findMany({
+          where: eq(itemColors.itemId, item.id),
+          columns: { id: true, colorName: true, colorHex: true },
+        })
+      : []
+    const requestedCells = line.distribution?.cells.length
+      ? line.distribution.cells
+      : [
+          {
+            color: colorText ?? '',
+            colorId: color?.id ?? line.colorId ?? null,
+            colorHex: line.colorHex ?? color?.colorHex ?? null,
+            size: sizes.length === 1 ? sizes[0] : undefined,
+            quantity: line.quantity,
+          },
+        ]
+    if (line.distribution) {
+      const seenCells = new Set<string>()
+      const distributionTotal = line.distribution.cells.reduce(
+        (total, cell) => total + cell.quantity,
+        0,
+      )
+      if (distributionTotal !== line.quantity) {
+        throw new Error(
+          `Distribution for ${line.design.trim()} must equal ${line.quantity} pieces`,
+        )
+      }
+      for (const cell of line.distribution.cells) {
+        if (line.distribution.mode === 'colors' && cell.size) {
+          throw new Error('Colour-only distributions cannot include sizes')
+        }
+        if (line.distribution.mode === 'variants' && !cell.size) {
+          throw new Error('Colour and size distributions require a size')
+        }
+        const key = `${cell.color.trim().toLocaleLowerCase()}\u0000${cell.size?.trim().toLocaleLowerCase() ?? ''}`
+        if (seenCells.has(key)) {
+          throw new Error(
+            'A distribution cannot contain duplicate colour and size cells',
+          )
+        }
+        seenCells.add(key)
+      }
     }
-  })
+    const allocationKind = line.distribution
+      ? line.distribution.mode === 'colors'
+        ? 'color'
+        : 'variant'
+      : 'aggregate'
+    const allocations = []
+    for (const cell of requestedCells) {
+      const cellColor = cell.colorId
+        ? itemColorsForLine.find((candidate) => candidate.id === cell.colorId)
+        : itemColorsForLine.find(
+            (candidate) =>
+              candidate.colorName.toLocaleLowerCase() ===
+              cell.color.trim().toLocaleLowerCase(),
+          )
+      if (cell.colorId && !cellColor) {
+        throw new Error(
+          'Distributed colour does not belong to the selected design',
+        )
+      }
+      const [allocation] = await tx
+        .insert(supplyRouteReceiptLineAllocations)
+        .values({
+          receiptEntryId: entry.id,
+          kind: allocationKind,
+          colorId: cellColor?.id ?? null,
+          colorNameSnapshot:
+            cellColor?.colorName ?? (cell.color.trim() || null),
+          colorHexSnapshot:
+            cell.colorHex ??
+            cellColor?.colorHex ??
+            (cell.color ? colorNameToHex(cell.color) : null),
+          size: cell.size?.trim() || null,
+          quantity: cell.quantity,
+        })
+        .returning({ id: supplyRouteReceiptLineAllocations.id })
+      allocations.push({ allocation, cell, cellColor })
+    }
+    const allocationTotal = allocations.reduce(
+      (total, { cell }) => total + cell.quantity,
+      0,
+    )
+    if (allocationTotal !== line.quantity) {
+      throw new Error(
+        `Distribution for ${line.design.trim()} must equal ${line.quantity} pieces`,
+      )
+    }
+    for (const { allocation, cell, cellColor } of allocations) {
+      if (cell.quantity === 0) continue
+      const cellAmounts = calculateSupplyLineAmounts({
+        quantity: cell.quantity,
+        unitPriceForeign: line.unitPriceForeign,
+        foreignCurrency,
+        exchangeRateForeignToUsd: foreignRate,
+        exchangeRateUsdToUgx: ugxRate,
+      })
+      const visibleColor = cellColor?.colorName ?? (cell.color.trim() || null)
+      materializedLines.push({
+        supplyRouteId: draft.supplyRouteId,
+        receiptId,
+        receiptAllocationId: allocation.id,
+        entryId: crypto.randomUUID(),
+        supplierId: supplier.id,
+        itemId: item?.id ?? null,
+        colorId: cellColor?.id ?? null,
+        size: cell.size?.trim() || null,
+        sizeTextSnapshot: line.size?.trim() || null,
+        supplierNameSnapshot: supplier.name,
+        articleNumberSnapshot: articleNumber,
+        itemNameSnapshot:
+          line.itemName?.trim() || item?.name || line.design.trim(),
+        colorNameSnapshot: visibleColor,
+        designSnapshot: line.design.trim(),
+        colorTextSnapshot: visibleColor,
+        colorHexSnapshot:
+          cell.colorHex ??
+          cellColor?.colorHex ??
+          (visibleColor ? colorNameToHex(visibleColor) : null),
+        quantity: cell.quantity,
+        unitPriceForeign: line.unitPriceForeign,
+        foreignCurrency,
+        exchangeRateForeignToUsd: foreignRate,
+        exchangeRateUsdToUgx: ugxRate,
+        ...cellAmounts,
+        minimumSellPriceUgx,
+        lowStockThreshold,
+      })
+    }
+  }
+  return materializedLines
 }
 
 async function assertReceiptEditable(
@@ -640,6 +804,9 @@ export async function replaceSupplyRouteReceiptServer(
     await tx
       .delete(supplyRouteLines)
       .where(eq(supplyRouteLines.receiptId, data.receiptId))
+    await tx
+      .delete(supplyRouteReceiptEntries)
+      .where(eq(supplyRouteReceiptEntries.receiptId, data.receiptId))
     const resolvedLines = []
     const itemDefaults = new Map<
       string,

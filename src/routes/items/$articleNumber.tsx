@@ -374,6 +374,7 @@ function ProductDetailPage() {
         colors={product.colors}
         variants={product.variants}
         stockCounts={variantStockCounts}
+        prices={prices}
         canManage={canManage}
         onChanged={() => {
           void router.invalidate()
@@ -611,6 +612,14 @@ type StockPrices = {
     quantityOnHand: number
     minimumSellPriceUgx: string
     store: { name: string }
+    supplyRouteLine: {
+      articleNumberSnapshot: string | null
+      itemNameSnapshot: string | null
+      designSnapshot: string | null
+      colorNameSnapshot: string | null
+      colorTextSnapshot: string | null
+      sizeTextSnapshot: string | null
+    } | null
     variant: {
       size: string
       color: { colorName: string; colorHex: string }
@@ -621,6 +630,14 @@ type StockPrices = {
     quantityOnHand: number
     minimumSellPriceUgx: string
     shop: { name: string }
+    supplyRouteLine: {
+      articleNumberSnapshot: string | null
+      itemNameSnapshot: string | null
+      designSnapshot: string | null
+      colorNameSnapshot: string | null
+      colorTextSnapshot: string | null
+      sizeTextSnapshot: string | null
+    } | null
     variant: {
       size: string
       color: { colorName: string; colorHex: string }
@@ -635,6 +652,7 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
       location: `Store · ${s.store.name}`,
       color: s.variant?.color ?? null,
       size: s.variant?.size ?? null,
+      snapshot: s.supplyRouteLine,
       qty: s.quantityOnHand,
       price: s.minimumSellPriceUgx,
     })),
@@ -643,6 +661,7 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
       location: `Shop · ${s.shop.name}`,
       color: s.variant?.color ?? null,
       size: s.variant?.size ?? null,
+      snapshot: s.supplyRouteLine,
       qty: s.quantityOnHand,
       price: s.minimumSellPriceUgx,
     })),
@@ -660,7 +679,7 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
         <thead className="bg-muted/50 text-left">
           <tr>
             <th className="p-2 font-medium">Location</th>
-            <th className="p-2 font-medium">Color · Size</th>
+            <th className="p-2 font-medium">Colour · Size</th>
             <th className="p-2 text-right font-medium">Qty</th>
             <th className="p-2 text-right font-medium">Min sell (UGX)</th>
           </tr>
@@ -678,6 +697,16 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
                       aria-hidden
                     />
                     {r.color.colorName} · {r.size}
+                  </span>
+                ) : r.snapshot?.colorNameSnapshot ||
+                  r.snapshot?.sizeTextSnapshot ? (
+                  <span>
+                    {[r.snapshot.colorNameSnapshot, r.snapshot.sizeTextSnapshot]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      (not fully specified)
+                    </span>
                   </span>
                 ) : (
                   <span className="text-xs text-muted-foreground">—</span>
@@ -837,6 +866,7 @@ interface VariantsSectionProps {
   }>
   variants: Array<{ id: string; colorId: string; size: string }>
   stockCounts: Array<{ variantId: string; qty: number; locations: number }>
+  prices: StockPrices
   canManage: boolean
   onChanged: () => void
 }
@@ -853,6 +883,7 @@ function VariantsSection({
   colors,
   variants,
   stockCounts,
+  prices,
   canManage,
   onChanged,
 }: VariantsSectionProps) {
@@ -863,6 +894,20 @@ function VariantsSection({
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const stockByVariant = new Map(stockCounts.map((c) => [c.variantId, c]))
+  const unresolvedStock = [
+    ...prices.store.map((stock) => ({
+      location: `Store · ${stock.store.name}`,
+      quantity: stock.quantityOnHand,
+      variant: stock.variant,
+      source: stock.supplyRouteLine,
+    })),
+    ...prices.shop.map((stock) => ({
+      location: `Shop · ${stock.shop.name}`,
+      quantity: stock.quantityOnHand,
+      variant: stock.variant,
+      source: stock.supplyRouteLine,
+    })),
+  ].filter((stock) => stock.quantity > 0 && !stock.variant)
 
   const sorted = [...variants].sort((a, b) => {
     const ac = colors.find((c) => c.id === a.colorId)?.colorName ?? ''
@@ -1079,6 +1124,26 @@ function VariantsSection({
               })}
             </tbody>
           </table>
+        </div>
+      )}
+      {unresolvedStock.length > 0 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/30">
+          <p className="font-medium">Unspecified stock</p>
+          <p className="mt-1 text-muted-foreground">
+            Some stock is recorded for this item without a fully resolved colour
+            × size variant. It is included in inventory totals until it is
+            specified.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {unresolvedStock.map((stock) => (
+              <li key={stock.location} className="flex justify-between gap-3">
+                <span>{stock.location}</span>
+                <span className="font-mono">
+                  {stock.quantity.toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

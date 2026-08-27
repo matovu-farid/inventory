@@ -1,5 +1,6 @@
 import BigNumber from 'bignumber.js'
 import { ITEM_ENTRY_COLUMNS } from './types'
+import { cloneDistribution } from './distribution-state'
 import type {
   ItemEntryCellLocation,
   ItemEntryColumnId,
@@ -23,6 +24,7 @@ export function createEmptyItemEntryRow(id: string): ItemEntryRow {
     unitPriceForeign: '',
     minimumSellPriceUgx: '',
     lowStockThreshold: 0,
+    distribution: null,
   }
 }
 
@@ -37,7 +39,8 @@ export function isItemEntryRowEmpty(row: ItemEntryRow): boolean {
     row.quantity === null &&
     !row.unitPriceForeign.trim() &&
     !row.minimumSellPriceUgx.trim() &&
-    row.lowStockThreshold === 0
+    row.lowStockThreshold === 0 &&
+    row.distribution === null
   )
 }
 
@@ -146,6 +149,7 @@ export function copyItemEntryRow(row: ItemEntryRow, id: string): ItemEntryRow {
           })),
         }
       : null,
+    distribution: cloneDistribution(row.distribution),
   }
 }
 
@@ -170,7 +174,10 @@ export function copyItemEntryRowField(
         colorIds: [...row.colorIds],
       }
     case 'quantity':
-      return { quantity: row.quantity }
+      return {
+        quantity: row.quantity,
+        distribution: cloneDistribution(row.distribution),
+      }
     case 'articleNumber':
       return { articleNumber: row.articleNumber }
     case 'sizeText':
@@ -224,8 +231,17 @@ export function updateItemEntryCell(
   value: string,
 ): ItemEntryRow[] {
   if (rowIndex < 0 || rowIndex >= rows.length) return rows
+  const cellPatch = parseCellValue(column, value)
+  const clearsDistribution =
+    column === 'quantity' || column === 'colorText' || column === 'sizeText'
   return rows.map((row, index) =>
-    index === rowIndex ? { ...row, ...parseCellValue(column, value) } : row,
+    index === rowIndex
+      ? {
+          ...row,
+          ...cellPatch,
+          ...(clearsDistribution ? { distribution: null } : {}),
+        }
+      : row,
   )
 }
 

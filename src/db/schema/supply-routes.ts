@@ -8,6 +8,7 @@ import {
   integer,
   timestamp,
   index,
+  check,
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
@@ -98,6 +99,93 @@ export const supplyRouteReceipts = pgTable(
   ],
 )
 
+export const receiptAllocationKindEnum = pgEnum('receipt_allocation_kind', [
+  'aggregate',
+  'color',
+  'variant',
+])
+
+/** One row for each visible row entered in the receipt grid. */
+export const supplyRouteReceiptEntries = pgTable(
+  'supply_route_receipt_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    receiptId: uuid('receipt_id')
+      .notNull()
+      .references(() => supplyRouteReceipts.id, { onDelete: 'cascade' }),
+    itemId: uuid('item_id').references(() => items.id, {
+      onDelete: 'restrict',
+    }),
+    supplierId: uuid('supplier_id')
+      .notNull()
+      .references(() => suppliers.id, { onDelete: 'restrict' }),
+    articleNumberSnapshot: text('article_number_snapshot').notNull(),
+    itemNameSnapshot: text('item_name_snapshot').notNull(),
+    designSnapshot: text('design_snapshot').notNull(),
+    quantity: integer('quantity').notNull(),
+    unitPriceForeign: numeric('unit_price_foreign', {
+      precision: 15,
+      scale: 2,
+    }).notNull(),
+    minimumSellPriceUgx: numeric('minimum_sell_price_ugx', {
+      precision: 15,
+      scale: 2,
+    })
+      .notNull()
+      .default('0'),
+    lowStockThreshold: integer('low_stock_threshold').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_srre_receipt').on(table.receiptId),
+    index('idx_srre_item').on(table.itemId),
+    index('idx_srre_supplier').on(table.supplierId),
+    check('chk_srre_quantity_non_negative', sql`${table.quantity} >= 0`),
+    check(
+      'chk_srre_threshold_non_negative',
+      sql`${table.lowStockThreshold} >= 0`,
+    ),
+  ],
+)
+
+/** Atomic quantities belonging to one visible receipt entry. */
+export const supplyRouteReceiptLineAllocations = pgTable(
+  'supply_route_receipt_line_allocations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    receiptEntryId: uuid('receipt_entry_id')
+      .notNull()
+      .references(() => supplyRouteReceiptEntries.id, { onDelete: 'cascade' }),
+    kind: receiptAllocationKindEnum('kind').notNull(),
+    colorId: uuid('color_id').references(() => itemColors.id, {
+      onDelete: 'restrict',
+    }),
+    colorNameSnapshot: text('color_name_snapshot'),
+    colorHexSnapshot: text('color_hex_snapshot'),
+    size: text('size'),
+    quantity: integer('quantity').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('idx_srrla_entry').on(table.receiptEntryId),
+    index('idx_srrla_color').on(table.colorId),
+    uniqueIndex('uq_srrla_entry_cell').on(
+      table.receiptEntryId,
+      sql`coalesce(${table.colorId}::text, lower(trim(${table.colorNameSnapshot})), '')`,
+      sql`coalesce(lower(trim(${table.size})), '')`,
+    ),
+    check('chk_srrla_quantity_non_negative', sql`${table.quantity} >= 0`),
+  ],
+)
+
 export const supplyRouteLines = pgTable(
   'supply_route_lines',
   {
@@ -109,6 +197,10 @@ export const supplyRouteLines = pgTable(
     receiptId: uuid('receipt_id').references(() => supplyRouteReceipts.id, {
       onDelete: 'cascade',
     }),
+    receiptAllocationId: uuid('receipt_allocation_id').references(
+      () => supplyRouteReceiptLineAllocations.id,
+      { onDelete: 'restrict' },
+    ),
     supplierId: uuid('supplier_id')
       .notNull()
       .references(() => suppliers.id, { onDelete: 'restrict' }),
@@ -186,6 +278,7 @@ export const supplyRouteLines = pgTable(
     index('idx_srl_entry').on(table.entryId),
     index('idx_srl_route').on(table.supplyRouteId),
     index('idx_srl_receipt').on(table.receiptId),
+    index('idx_srl_receipt_allocation').on(table.receiptAllocationId),
     index('idx_srl_supplier').on(table.supplierId),
     index('idx_srl_color').on(table.colorId),
     index('idx_srl_item').on(table.itemId),
@@ -247,6 +340,10 @@ export const supplyRouteLineRelations = relations(
       fields: [supplyRouteLines.receiptId],
       references: [supplyRouteReceipts.id],
     }),
+    receiptAllocation: one(supplyRouteReceiptLineAllocations, {
+      fields: [supplyRouteLines.receiptAllocationId],
+      references: [supplyRouteReceiptLineAllocations.id],
+    }),
     supplier: one(suppliers, {
       fields: [supplyRouteLines.supplierId],
       references: [suppliers.id],
@@ -262,6 +359,40 @@ export const supplyRouteLineRelations = relations(
   }),
 )
 
+export const supplyRouteReceiptEntryRelations = relations(
+  supplyRouteReceiptEntries,
+  ({ one, many }) => ({
+    receipt: one(supplyRouteReceipts, {
+      fields: [supplyRouteReceiptEntries.receiptId],
+      references: [supplyRouteReceipts.id],
+    }),
+    item: one(items, {
+      fields: [supplyRouteReceiptEntries.itemId],
+      references: [items.id],
+    }),
+    supplier: one(suppliers, {
+      fields: [supplyRouteReceiptEntries.supplierId],
+      references: [suppliers.id],
+    }),
+    allocations: many(supplyRouteReceiptLineAllocations),
+  }),
+)
+
+export const supplyRouteReceiptLineAllocationRelations = relations(
+  supplyRouteReceiptLineAllocations,
+  ({ one, many }) => ({
+    entry: one(supplyRouteReceiptEntries, {
+      fields: [supplyRouteReceiptLineAllocations.receiptEntryId],
+      references: [supplyRouteReceiptEntries.id],
+    }),
+    color: one(itemColors, {
+      fields: [supplyRouteReceiptLineAllocations.colorId],
+      references: [itemColors.id],
+    }),
+    operationalLines: many(supplyRouteLines),
+  }),
+)
+
 export const supplyRouteReceiptRelations = relations(
   supplyRouteReceipts,
   ({ one, many }) => ({
@@ -273,6 +404,7 @@ export const supplyRouteReceiptRelations = relations(
       fields: [supplyRouteReceipts.supplierId],
       references: [suppliers.id],
     }),
+    entries: many(supplyRouteReceiptEntries),
     lines: many(supplyRouteLines),
   }),
 )

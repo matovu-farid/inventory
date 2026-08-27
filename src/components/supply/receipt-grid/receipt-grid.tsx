@@ -42,6 +42,13 @@ import {
   removeReceiptRow,
   updateReceiptCell,
 } from './receipt-grid-state'
+import { QuantityDistributionEditor } from './quantity-distribution-editor'
+import {
+  cloneDistribution,
+  distributionSummary,
+  validateDistribution,
+} from '#/components/item-entry-grid/distribution-state'
+import type { ReceiptQuantityDistribution } from '#/components/item-entry-grid/distribution-types'
 import { calculateItemEntryGridTotals } from '#/components/item-entry-grid/item-entry-grid-state'
 import type {
   ItemEntryGridConfig,
@@ -118,6 +125,8 @@ export function isReceiptGridOutsideClick(event: MouseEvent | TouchEvent) {
   )
 }
 
+const receiptQuantityClipboardType = 'application/x-receipt-quantity'
+
 function range(start: number, end: number): number[] {
   return Array.from(
     { length: Math.max(0, end - start + 1) },
@@ -142,6 +151,9 @@ export function ReceiptGrid({
 }) {
   const [activeCell, setActiveCell] = useState<CellLocation | null>(null)
   const [fillDrag, setFillDrag] = useState<FillDrag | null>(null)
+  const [distributionRowIndex, setDistributionRowIndex] = useState<
+    number | null
+  >(null)
   const currentRowsRef = useRef(rows)
   const localHistoryRef = useRef<LocalHistory>({ past: [], future: [] })
   const rowRefs = useRef<Record<number, HTMLTableRowElement | null>>({})
@@ -312,6 +324,7 @@ export function ReceiptGrid({
               catalogItem.articleNumbers.length === 1
                 ? catalogItem.articleNumbers[0].articleNumber
                 : row.articleNumber,
+            distribution: null,
           }
         }
         return {
@@ -321,6 +334,7 @@ export function ReceiptGrid({
           colorIds: [],
           minimumSellPriceUgx: '',
           lowStockThreshold: 0,
+          distribution: null,
         }
       })
       commitRows(nextRows)
@@ -345,8 +359,24 @@ export function ReceiptGrid({
                 colorText: value.text,
                 colorHexText: value.hexText,
                 colorIds: value.ids,
+                distribution: null,
               }
             : row,
+        ),
+      )
+    },
+    [commitRows],
+  )
+
+  const updateDistribution = useCallback(
+    (rowIndex: number, distribution: ReceiptQuantityDistribution | null) => {
+      const editableRows = ensureReceiptRows(
+        currentRowsRef.current,
+        rowIndex + 1,
+      )
+      commitRows(
+        editableRows.map((row, index) =>
+          index === rowIndex ? { ...row, distribution } : row,
         ),
       )
     },
@@ -419,6 +449,45 @@ export function ReceiptGrid({
     column: EditableColumn,
   ) {
     const text = event.clipboardData.getData('text/plain')
+    if (column === 'quantity') {
+      const serializedDistribution = event.clipboardData.getData(
+        receiptQuantityClipboardType,
+      )
+      if (serializedDistribution) {
+        try {
+          const parsed = JSON.parse(serializedDistribution) as {
+            quantity?: number
+            distribution?: ReceiptQuantityDistribution | null
+          }
+          const quantity = Number(text.trim())
+          const distribution = parsed.distribution ?? null
+          if (
+            parsed.quantity === quantity &&
+            validateDistribution(distribution, quantity).valid
+          ) {
+            const nextRows = updateReceiptCell(
+              ensureReceiptRows(currentRowsRef.current, row + 1),
+              row,
+              column,
+              text,
+            ).map((currentRow, index) =>
+              index === row
+                ? {
+                    ...currentRow,
+                    distribution: cloneDistribution(distribution),
+                  }
+                : currentRow,
+            )
+            event.preventDefault()
+            commitRows(nextRows)
+            return
+          }
+        } catch {
+          // Ignore malformed application clipboard data and handle the paste
+          // as ordinary text below.
+        }
+      }
+    }
     if (!text.includes('\t') && !text.includes('\n')) return
     event.preventDefault()
     const matrix = text
@@ -438,6 +507,27 @@ export function ReceiptGrid({
     if (disabled || isReceiptRowEmpty(currentRowsRef.current[rowIndex])) return
     commitRows(removeReceiptRow(currentRowsRef.current, rowIndex))
     setActiveCell(null)
+  }
+
+  function handleCopy(
+    event: React.ClipboardEvent<HTMLInputElement>,
+    rowIndex: number,
+    column: EditableColumn,
+  ) {
+    if (column !== 'quantity') return
+    const row = currentRowsRef.current[rowIndex]
+    if (row.quantity === null) return
+    event.clipboardData.setData('text/plain', String(row.quantity))
+    if (row.distribution) {
+      event.clipboardData.setData(
+        receiptQuantityClipboardType,
+        JSON.stringify({
+          quantity: row.quantity,
+          distribution: row.distribution,
+        }),
+      )
+    }
+    event.preventDefault()
   }
 
   function handleAddRow() {
@@ -553,6 +643,7 @@ export function ReceiptGrid({
                         : undefined
                     }
                     onPaste={handlePaste}
+                    onCopy={handleCopy}
                     onFillStart={beginFill}
                     fillDrag={fillDrag}
                     supplierId={effectiveSupplierId}
@@ -560,6 +651,10 @@ export function ReceiptGrid({
                     mode={config.mode}
                     rowNumber={rowIndex + 1}
                     currency={config.currency}
+                    distributionEnabled={
+                      config.distributionEnabled ?? config.mode === 'receipt'
+                    }
+                    onOpenDistribution={() => setDistributionRowIndex(rowIndex)}
                   />
                 ))}
                 <TableCell className="border-r p-0 last:border-r-0">
@@ -574,6 +669,20 @@ export function ReceiptGrid({
           </TableBody>
         </Table>
       </div>
+      {distributionRowIndex !== null && rows[distributionRowIndex] && (
+        <QuantityDistributionEditor
+          row={rows[distributionRowIndex]}
+          open
+          disabled={disabled}
+          onOpenChange={(open) => {
+            if (!open) setDistributionRowIndex(null)
+          }}
+          onApply={(distribution) => {
+            updateDistribution(distributionRowIndex, distribution)
+            setDistributionRowIndex(null)
+          }}
+        />
+      )}
       {!disabled && (
         <button
           type="button"
@@ -639,6 +748,7 @@ function EditableTableCell({
   onCommit,
   onCatalogItemSelected,
   onPaste,
+  onCopy,
   onFillStart,
   fillDrag,
   supplierId,
@@ -646,6 +756,8 @@ function EditableTableCell({
   mode,
   rowNumber,
   currency,
+  distributionEnabled,
+  onOpenDistribution,
 }: {
   row: ReceiptGridRow
   rowIndex: number
@@ -662,6 +774,11 @@ function EditableTableCell({
     row: number,
     column: EditableColumn,
   ) => void
+  onCopy: (
+    event: React.ClipboardEvent<HTMLInputElement>,
+    row: number,
+    column: EditableColumn,
+  ) => void
   onFillStart: (event: React.PointerEvent, source: CellLocation) => void
   fillDrag: FillDrag | null
   supplierId?: string
@@ -669,6 +786,8 @@ function EditableTableCell({
   mode: ItemEntryGridConfig['mode']
   rowNumber: number
   currency: ItemEntryGridConfig['currency']
+  distributionEnabled: boolean
+  onOpenDistribution: () => void
 }) {
   const value =
     column === 'quantity'
@@ -695,6 +814,7 @@ function EditableTableCell({
           onCommit={(next) => onCommit(next)}
           onCatalogItemSelected={onCatalogItemSelected}
           onPaste={(event) => onPaste(event, rowIndex, column)}
+          onCopy={(event) => onCopy(event, rowIndex, column)}
           supplierId={supplierId}
           mode={mode}
           rowNumber={rowNumber}
@@ -707,6 +827,7 @@ function EditableTableCell({
           onActivate={() => onActivate(rowIndex, column)}
           onCommit={(next) => onCommit(next)}
           onPaste={(event) => onPaste(event, rowIndex, column)}
+          onCopy={(event) => onCopy(event, rowIndex, column)}
           rowNumber={rowNumber}
           mode={mode}
         />
@@ -721,6 +842,7 @@ function EditableTableCell({
           onActivate={() => onActivate(rowIndex, column)}
           onCommit={(next) => onCommit(next)}
           onPaste={(event) => onPaste(event, rowIndex, column)}
+          onCopy={(event) => onCopy(event, rowIndex, column)}
         />
       ) : (
         <PlainCellInput
@@ -731,10 +853,14 @@ function EditableTableCell({
           onActivate={() => onActivate(rowIndex, column)}
           onCommit={(next) => onCommit(next)}
           onPaste={(event) => onPaste(event, rowIndex, column)}
+          onCopy={(event) => onCopy(event, rowIndex, column)}
           costLabel={costLabel}
           currency={currency}
           rowNumber={rowNumber}
           mode={mode}
+          distribution={row.distribution}
+          distributionEnabled={distributionEnabled}
+          onOpenDistribution={onOpenDistribution}
         />
       )}
       {active && !disabled && (
@@ -762,6 +888,7 @@ function SizeEditor({
   onActivate,
   onCommit,
   onPaste,
+  onCopy,
 }: {
   row: ReceiptGridRow
   value: string
@@ -772,6 +899,7 @@ function SizeEditor({
   onActivate: () => void
   onCommit: (value: string) => void
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+  onCopy: (event: React.ClipboardEvent<HTMLInputElement>) => void
 }) {
   const [draft, setDraft] = useState(value)
   const [open, setOpen] = useState(false)
@@ -811,6 +939,7 @@ function SizeEditor({
               setOpen(true)
             }}
             onPaste={onPaste}
+            onCopy={onCopy}
             onBlur={() => window.setTimeout(() => finish(), 0)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
@@ -861,10 +990,14 @@ function PlainCellInput({
   onActivate,
   onCommit,
   onPaste,
+  onCopy,
   costLabel,
   currency,
   rowNumber,
   mode,
+  distribution,
+  distributionEnabled,
+  onOpenDistribution,
 }: {
   value: string
   column: EditableColumn
@@ -873,10 +1006,14 @@ function PlainCellInput({
   onActivate: () => void
   onCommit: (value: string) => void
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+  onCopy: (event: React.ClipboardEvent<HTMLInputElement>) => void
   costLabel: string
   currency: ItemEntryGridConfig['currency']
   rowNumber: number
   mode: ItemEntryGridConfig['mode']
+  distribution: ReceiptQuantityDistribution | null
+  distributionEnabled: boolean
+  onOpenDistribution: () => void
 }) {
   const [draft, setDraft] = useState(value)
   const draftRef = useRef(value)
@@ -910,6 +1047,7 @@ function PlainCellInput({
         }}
         onFocus={onActivate}
         onPaste={onPaste}
+        onCopy={onCopy}
         onKeyDown={(event) => {
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
@@ -925,7 +1063,7 @@ function PlainCellInput({
       />
     )
   }
-  return (
+  const input = (
     <Input
       data-receipt-cell-input="true"
       data-receipt-dirty={draft !== value ? 'true' : 'false'}
@@ -968,7 +1106,7 @@ function PlainCellInput({
             ? '0'
             : undefined
       }
-      className={`h-11 w-full rounded-none border-0 bg-transparent px-3 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
+      className={`h-11 w-full rounded-none border-0 bg-transparent px-3 pr-9 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
       onFocus={onActivate}
       onChange={(event) => {
         draftRef.current = event.target.value
@@ -976,6 +1114,7 @@ function PlainCellInput({
         onCommit(event.target.value)
       }}
       onPaste={onPaste}
+      onCopy={onCopy}
       onBlur={finish}
       onKeyDown={(event) => {
         if (event.key === 'Enter') event.currentTarget.blur()
@@ -985,6 +1124,30 @@ function PlainCellInput({
         }
       }}
     />
+  )
+  if (column !== 'quantity' || !distributionEnabled) return input
+  return (
+    <div className="relative">
+      {input}
+      <button
+        type="button"
+        aria-label={`Distribute quantity for row ${rowNumber}`}
+        title={
+          distribution
+            ? distributionSummary(distribution)
+            : 'Distribute quantity'
+        }
+        className={`absolute right-1 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded ${distribution ? 'bg-primary/10 text-primary' : 'text-muted-foreground'} hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onOpenDistribution}
+        disabled={disabled || !value}
+      >
+        <span className="sr-only">Distribute</span>
+        <span className="text-xs font-bold" aria-hidden="true">
+          ÷
+        </span>
+      </button>
+    </div>
   )
 }
 
@@ -997,6 +1160,7 @@ function DesignEditor({
   onCommit,
   onCatalogItemSelected,
   onPaste,
+  onCopy,
   mode,
   rowNumber,
 }: {
@@ -1008,6 +1172,7 @@ function DesignEditor({
   onCommit: (value: string) => void
   onCatalogItemSelected?: (item: ReceiptGridCatalogItem) => void
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+  onCopy: (event: React.ClipboardEvent<HTMLInputElement>) => void
   mode: ItemEntryGridConfig['mode']
   rowNumber: number
 }) {
@@ -1095,6 +1260,7 @@ function DesignEditor({
               setOpen(true)
             }}
             onPaste={onPaste}
+            onCopy={onCopy}
             onBlur={() => {
               window.setTimeout(() => {
                 if (selectedCatalogItem.current) {
@@ -1194,6 +1360,7 @@ function ColorEditor({
   onActivate,
   onCommit,
   onPaste,
+  onCopy,
   rowNumber,
   mode,
 }: {
@@ -1203,6 +1370,7 @@ function ColorEditor({
   onActivate: () => void
   onCommit: (value: { text: string; hexText: string; ids: string[] }) => void
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+  onCopy: (event: React.ClipboardEvent<HTMLInputElement>) => void
   rowNumber: number
   mode: ItemEntryGridConfig['mode']
 }) {
@@ -1325,6 +1493,7 @@ function ColorEditor({
               setOpen(true)
             }}
             onPaste={onPaste}
+            onCopy={onCopy}
             onBlur={() =>
               window.setTimeout(() => {
                 const activeElement = document.activeElement

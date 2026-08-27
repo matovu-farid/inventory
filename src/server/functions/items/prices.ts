@@ -23,6 +23,16 @@ export const listItemStockPrices = createServerFn()
         where: eq(storeStock.itemId, data.itemId),
         with: {
           store: { columns: { name: true } },
+          supplyRouteLine: {
+            columns: {
+              articleNumberSnapshot: true,
+              itemNameSnapshot: true,
+              designSnapshot: true,
+              colorNameSnapshot: true,
+              colorTextSnapshot: true,
+              sizeTextSnapshot: true,
+            },
+          },
           variant: {
             with: {
               color: { columns: { colorName: true, colorHex: true } },
@@ -34,6 +44,16 @@ export const listItemStockPrices = createServerFn()
         where: eq(shopStock.itemId, data.itemId),
         with: {
           shop: { columns: { name: true } },
+          supplyRouteLine: {
+            columns: {
+              articleNumberSnapshot: true,
+              itemNameSnapshot: true,
+              designSnapshot: true,
+              colorNameSnapshot: true,
+              colorTextSnapshot: true,
+              sizeTextSnapshot: true,
+            },
+          },
           variant: {
             with: {
               color: { columns: { colorName: true, colorHex: true } },

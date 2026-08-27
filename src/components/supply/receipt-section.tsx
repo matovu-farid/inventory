@@ -27,6 +27,7 @@ import type {
   ReceiptGridCatalogItem,
   ReceiptGridRow,
 } from './receipt-grid/types'
+import type { ReceiptQuantityDistribution } from '#/components/item-entry-grid/distribution-types'
 
 type RouteData = Awaited<ReturnType<typeof getSupplyRoute>>
 type ReceiptData = RouteData['receipts'][number]
@@ -55,6 +56,87 @@ function catalogItemFromLine(
 }
 
 function rowsFromReceipt(receipt: ReceiptData): ReceiptGridRow[] {
+  const entryRows = receipt.entries.map((entry) => {
+    const allocations = entry.allocations
+    const distributed =
+      allocations.length > 1 ||
+      allocations.some((allocation) => allocation.kind !== 'aggregate')
+    const distribution: ReceiptQuantityDistribution | null = distributed
+      ? {
+          mode: allocations.some((allocation) => allocation.kind === 'variant')
+            ? 'variants'
+            : 'colors',
+          cells: allocations.map((allocation) => ({
+            color: allocation.colorNameSnapshot ?? '',
+            colorId: allocation.colorId,
+            colorHex: allocation.colorHexSnapshot,
+            size: allocation.size ?? undefined,
+            quantity: allocation.quantity,
+          })),
+        }
+      : null
+    const colors = Array.from(
+      new Map(
+        allocations.flatMap((allocation) =>
+          allocation.colorNameSnapshot
+            ? [
+                [
+                  allocation.colorNameSnapshot.toLocaleLowerCase(),
+                  allocation,
+                ] as const,
+              ]
+            : [],
+        ),
+      ).values(),
+    )
+    const sizes = Array.from(
+      new Set(
+        allocations
+          .map((allocation) => allocation.size)
+          .filter((size): size is string => Boolean(size)),
+      ),
+    )
+    const item = entry.item
+    return {
+      ...createEmptyReceiptRow(entry.id),
+      itemName: entry.itemNameSnapshot,
+      design: entry.designSnapshot,
+      itemId: entry.itemId,
+      catalogItem: item
+        ? {
+            id: item.id,
+            name: item.name,
+            design: item.design,
+            articleNumbers: item.articleNumbers,
+            colors: item.colors,
+            variants: item.variants,
+            costCurrency: item.costCurrency,
+            minimumSellPriceUgx: item.minimumSellPriceUgx,
+            lowStockThreshold: item.lowStockThreshold,
+          }
+        : null,
+      articleNumber: entry.articleNumberSnapshot,
+      colorText: colors
+        .map((allocation) => allocation.colorNameSnapshot)
+        .join(', '),
+      colorHexText: colors
+        .map((allocation) => allocation.colorHexSnapshot)
+        .filter(Boolean)
+        .join(', '),
+      colorIds: colors
+        .map((allocation) => allocation.colorId)
+        .filter((id): id is string => Boolean(id)),
+      sizeText: sizes.join(', '),
+      quantity: entry.quantity,
+      unitPriceForeign: entry.unitPriceForeign,
+      minimumSellPriceUgx: entry.minimumSellPriceUgx,
+      lowStockThreshold: entry.lowStockThreshold,
+      distribution,
+    }
+  })
+  if (entryRows.length) {
+    return [...entryRows, createEmptyReceiptRow(`${receipt.id}-buffer`)]
+  }
   return [
     ...receipt.lines.map((line) => ({
       ...createEmptyReceiptRow(line.id),
@@ -290,6 +372,7 @@ export function ReceiptSection({
       unitPriceForeign: row.unitPriceForeign.trim(),
       minimumSellPriceUgx: row.minimumSellPriceUgx.trim() || undefined,
       lowStockThreshold: row.lowStockThreshold,
+      distribution: row.distribution ?? undefined,
     }))
     setBusyAction('save')
     setError('')
