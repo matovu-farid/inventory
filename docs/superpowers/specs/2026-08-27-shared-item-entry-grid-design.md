@@ -81,7 +81,10 @@ balance searches active items without a supplier filter because the destination
 is a warehouse or shop, not a supplier receipt.
 
 When a user selects an existing item, the row keeps its item id and the server
-reuses that catalog item. When the user enters a new opening-balance row, the
+reuses that catalog item. If the entered art number is not already attached to
+that item, the server adds it as another article-number mapping after checking
+ownership in the item's supplier scope (or as an unqualified mapping for a
+supplier-neutral item). When the user enters a new opening-balance row, the
 row can omit `itemId` and is saved as a new catalog item. Because opening
 balance has no supplier selector, this new item is supplier-neutral:
 
