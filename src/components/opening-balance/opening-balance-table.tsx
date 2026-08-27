@@ -50,6 +50,7 @@ function OpeningBalanceItemPicker({
 }: OpeningBalanceItemPickerProps) {
   const [results, setResults] = React.useState<ItemSummary[]>([])
   const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
   const selectedItems = React.useRef(new Map<string, ItemSummary>())
   const requestId = React.useRef(0)
   const searchTimer = React.useRef<number | null>(null)
@@ -57,6 +58,7 @@ function OpeningBalanceItemPicker({
   const load = React.useCallback(async (query: string) => {
     const currentRequest = ++requestId.current
     setLoading(true)
+    setError(null)
     try {
       const response = await searchItems({
         data: { query, includeArchived: false },
@@ -66,7 +68,10 @@ function OpeningBalanceItemPicker({
       next.forEach((item) => selectedItems.current.set(item.id, item))
       setResults(next)
     } catch {
-      if (currentRequest === requestId.current) setResults([])
+      if (currentRequest === requestId.current) {
+        setResults([])
+        setError('Could not search items. Try again.')
+      }
     } finally {
       if (currentRequest === requestId.current) setLoading(false)
     }
@@ -107,7 +112,7 @@ function OpeningBalanceItemPicker({
         }}
         placeholder="Select item…"
         searchPlaceholder="Type article number, design, or item name…"
-        emptyMessage={loading ? 'Searching…' : 'No matching item.'}
+        emptyMessage={loading ? 'Searching…' : (error ?? 'No matching item.')}
         aria-label={`Item row ${rowNumber}`}
         disabled={disabled}
       />
@@ -153,6 +158,7 @@ export function OpeningBalanceTable({
   const [activeCell, setActiveCell] =
     React.useState<OpeningBalanceCellLocation | null>(null)
   const [fillTarget, setFillTarget] = React.useState<number | null>(null)
+  const fillTargetRef = React.useRef<number | null>(null)
   const fillSource = React.useRef<OpeningBalanceCellLocation | null>(null)
   const rowRefs = React.useRef<Record<number, HTMLTableRowElement | null>>({})
 
@@ -249,13 +255,15 @@ export function OpeningBalanceTable({
     function handlePointerMove(event: PointerEvent) {
       if (!fillSource.current) return
       const target = getTargetRow(event.clientY)
+      fillTargetRef.current = target
       setFillTarget(target)
     }
 
     function handlePointerUp() {
       const source = fillSource.current
-      const target = fillTarget
+      const target = fillTargetRef.current
       fillSource.current = null
+      fillTargetRef.current = null
       setFillTarget(null)
       if (!source || target === null || target <= source.row) return
       const targetRows = Array.from(
@@ -273,7 +281,7 @@ export function OpeningBalanceTable({
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('pointerup', handlePointerUp)
     }
-  }, [commitRows, fillTarget, getTargetRow])
+  }, [commitRows, getTargetRow])
 
   function startFill(
     event: React.PointerEvent,
@@ -284,6 +292,7 @@ export function OpeningBalanceTable({
     event.stopPropagation()
     fillSource.current = cell
     setActiveCell(cell)
+    fillTargetRef.current = cell.row
     setFillTarget(cell.row)
   }
 

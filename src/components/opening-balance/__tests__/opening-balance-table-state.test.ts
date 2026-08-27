@@ -117,4 +117,42 @@ describe('opening balance table state', () => {
       '12500',
     ])
   })
+
+  it('carries item context when filling a colour into a new row', () => {
+    const filled = fillDownOpeningBalanceCells(
+      [row(), createEmptyOpeningBalanceRow('blank')],
+      { row: 0, column: 'color' },
+      [1],
+    )
+    expect(filled[1]).toMatchObject({
+      itemId: item.id,
+      colorId: 'color-red',
+      size: '',
+      quantity: null,
+      unitCostUgx: '',
+    })
+  })
+
+  it('resets stale lot values when filling a different item', () => {
+    const otherItem = { ...item, id: 'item-2', name: 'Other item' }
+    const filled = fillDownOpeningBalanceCells(
+      [
+        row(),
+        row({
+          id: 'row-2',
+          item: otherItem,
+          itemId: otherItem.id,
+          quantity: 4,
+          unitCostUgx: '9999',
+        }),
+      ],
+      { row: 0, column: 'item' },
+      [1],
+    )
+    expect(filled[1]).toMatchObject({
+      itemId: item.id,
+      quantity: null,
+      unitCostUgx: '',
+    })
+  })
 })

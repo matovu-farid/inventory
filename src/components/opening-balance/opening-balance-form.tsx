@@ -1,5 +1,5 @@
 import { useRouter } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import BigNumber from 'bignumber.js'
 import { LoaderCircle } from 'lucide-react'
 
@@ -71,7 +71,9 @@ export function OpeningBalanceForm({
     newOpeningBalanceRow(),
   ])
   const [shopId, setShopId] = useState<string>(() => {
-    if (initialShopId) return initialShopId
+    if (initialShopId && shops.some((shop) => shop.id === initialShopId)) {
+      return initialShopId
+    }
     if (shops.length === 0) return ''
     return shops[0].id
   })
@@ -80,6 +82,18 @@ export function OpeningBalanceForm({
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<SubmitSummary | null>(null)
   const [resetToken, setResetToken] = useState(0)
+
+  useEffect(() => {
+    if (
+      scope === 'shop' &&
+      initialShopId &&
+      shops.some((shop) => shop.id === initialShopId)
+    ) {
+      setShopId((currentShopId) =>
+        currentShopId === initialShopId ? currentShopId : initialShopId,
+      )
+    }
+  }, [initialShopId, scope, shops])
 
   const populatedRows = rows.filter((row) => !isOpeningBalanceRowEmpty(row))
   const total = populatedRows.reduce(

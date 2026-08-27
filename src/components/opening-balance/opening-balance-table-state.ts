@@ -201,7 +201,9 @@ function cellForRow(row: OpeningBalanceTableRow): OpeningBalancePayloadCell {
   if (row.colorId && row.size.trim()) {
     const existingVariant = row.item?.variants?.find(
       (variant) =>
-        variant.colorId === row.colorId && variant.size === row.size.trim(),
+        variant.colorId === row.colorId &&
+        variant.size.trim().toLocaleLowerCase() ===
+          row.size.trim().toLocaleLowerCase(),
     )
     if (existingVariant) {
       return { variantId: existingVariant.id, quantity: row.quantity ?? 0 }

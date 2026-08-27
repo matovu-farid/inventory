@@ -21,6 +21,7 @@ globalThis.ResizeObserver = class {
   unobserve() {}
   disconnect() {}
 }
+Element.prototype.scrollIntoView = () => {}
 
 const item = vi.hoisted(() => ({
   id: 'item-1',
@@ -92,5 +93,33 @@ describe('OpeningBalanceTable', () => {
         document.querySelectorAll('[data-opening-balance-row]').length,
       ).toBe(3),
     )
+  })
+
+  it('edits colour, size, quantity, cost, amount, and deletes a line', async () => {
+    render(
+      <Harness
+        initialRows={[
+          rowForOpeningBalanceItem('row-1', item),
+          createEmptyOpeningBalanceRow('row-2'),
+        ]}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Colour row 1' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Red' }))
+    fireEvent.click(screen.getByRole('combobox', { name: 'Size row 1' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'M' }))
+    fireEvent.change(screen.getByLabelText('Quantity row 1'), {
+      target: { value: '10' },
+    })
+    fireEvent.change(screen.getByLabelText('Unit cost row 1'), {
+      target: { value: '12500' },
+    })
+
+    expect(screen.getByText('125,000')).toBeTruthy()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Delete opening balance line 1' }),
+    )
+    expect(screen.getByRole('combobox', { name: 'Item row 1' })).toBeTruthy()
   })
 })
