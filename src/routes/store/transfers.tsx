@@ -19,6 +19,7 @@ import {
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
   ResponsiveDialogHeader as DialogHeader,
   ResponsiveDialogTitle as DialogTitle,
 } from '#/components/ui/responsive-dialog'
@@ -89,6 +90,10 @@ function TransfersPage() {
               <DialogContent className="max-w-xl">
                 <DialogHeader>
                   <DialogTitle>Confirm Transfer Receipt</DialogTitle>
+                  <DialogDescription>
+                    Select the dispatched transfer and confirm the quantity
+                    received at the destination shop.
+                  </DialogDescription>
                 </DialogHeader>
                 <ReceiveTransferForm
                   transfers={dispatchedTransfers}
@@ -110,6 +115,10 @@ function TransfersPage() {
             <DialogContent className="max-w-xl">
               <DialogHeader>
                 <DialogTitle>Create Transfer</DialogTitle>
+                <DialogDescription>
+                  Choose a destination shop, select warehouse stock, and set the
+                  quantity to dispatch.
+                </DialogDescription>
               </DialogHeader>
               <CreateTransferForm
                 stock={stock}

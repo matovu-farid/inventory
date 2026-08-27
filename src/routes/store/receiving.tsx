@@ -13,6 +13,7 @@ import { SplitItemForm } from '#/components/supply/split-item-form'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -217,8 +218,9 @@ function ReceivingPage() {
         {unresolvedCount > 0 && (
           <p className="text-sm text-muted-foreground">
             {unresolvedCount} item{unresolvedCount === 1 ? '' : 's'} on this
-            route have no color or size yet. You can receive as-is and label
-            them later, or use Split to assign variants now.
+            route {unresolvedCount === 1 ? 'is' : 'are'} not assigned to a
+            specific colour/size variant yet. You can receive them as-is and
+            label them later, or use Split to assign variants now.
           </p>
         )}
 
@@ -444,6 +446,10 @@ function ReceivingPage() {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Split into variants</DialogTitle>
+              <DialogDescription>
+                Assign the received quantity to specific colour and size
+                variants before it enters warehouse stock.
+              </DialogDescription>
             </DialogHeader>
             {splittingItem && (
               <SplitItemForm
