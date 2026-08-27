@@ -65,9 +65,11 @@ describe('OpeningBalanceTable', () => {
     const option = await screen.findByRole('option', { name: /JACKET 678/ })
     fireEvent.click(option)
 
-    expect(screen.getByText('Press Jacket')).toBeTruthy()
-    expect(screen.getByText('Jacket')).toBeTruthy()
-    expect(screen.getByText('JACKET 678')).toBeTruthy()
+    expect(screen.getByDisplayValue('Press Jacket')).toBeTruthy()
+    expect(screen.getByDisplayValue('Jacket')).toBeTruthy()
+    expect(screen.getByDisplayValue('JACKET 678')).toBeTruthy()
+    expect(screen.getByDisplayValue('Red')).toBeTruthy()
+    expect(screen.getByDisplayValue('M')).toBeTruthy()
     expect(
       screen.getByLabelText('Minimum sell price row 1').getAttribute('value'),
     ).toBe('28,000')

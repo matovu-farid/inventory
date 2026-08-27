@@ -333,6 +333,95 @@ describe('addShopOpeningBalance — auto-create variant from colorId+size', () =
 })
 
 describe('addStoreOpeningBalance — auto-create variant from colorId+size', () => {
+  it('creates a catalog item from a free-text design and art number on save', async () => {
+    const suffix = Date.now()
+    await db
+      .insert(stores)
+      .values({ name: `Free text store ${suffix}` })
+      .onConflictDoNothing()
+    const store = await db.query.stores.findFirst()
+    if (!store) throw new Error('store not seeded')
+
+    const articleNumber = `OB-FREE-${suffix}`
+    const design = `Free text design ${suffix}`
+    await callServerFn(() =>
+      addStoreOpeningBalance({
+        data: {
+          items: [
+            {
+              itemId: null,
+              itemName: 'Free Text Shirt',
+              design,
+              articleNumber,
+              unitCostUgx: '12500.00',
+              minimumSellPriceUgx: '22000.00',
+              lowStockThreshold: 3,
+              cells: [
+                {
+                  colorText: 'Coral',
+                  colorHexText: '#ff7f50',
+                  size: 'M',
+                  quantity: 9,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    )
+
+    const created = await db.query.items.findFirst({
+      where: eq(items.design, design),
+    })
+    expect(created).toBeDefined()
+    if (!created) throw new Error('free-text item was not created')
+    expect(created.name).toBe('Free Text Shirt')
+    expect(created.supplierId).toBeNull()
+    expect(created.minimumSellPriceUgx).toBe('22000.00')
+    expect(created.lowStockThreshold).toBe(3)
+
+    const article = await db.query.itemArticleNumbers.findFirst({
+      where: and(
+        eq(itemArticleNumbers.itemId, created.id),
+        eq(itemArticleNumbers.articleNumber, articleNumber),
+      ),
+    })
+    expect(article).toBeDefined()
+
+    const color = await db.query.itemColors.findFirst({
+      where: and(
+        eq(itemColors.itemId, created.id),
+        eq(itemColors.colorName, 'Coral'),
+      ),
+    })
+    expect(color?.colorHex).toBe('#ff7f50')
+    if (!color) throw new Error('free-text color was not created')
+
+    const variant = await db.query.variants.findFirst({
+      where: and(
+        eq(variants.itemId, created.id),
+        eq(variants.colorId, color.id),
+        eq(variants.size, 'M'),
+      ),
+    })
+    expect(variant).toBeDefined()
+    if (!variant) throw new Error('free-text variant was not created')
+
+    const stock = await db.query.storeStock.findFirst({
+      where: and(
+        eq(storeStock.storeId, store.id),
+        eq(storeStock.itemId, created.id),
+        eq(storeStock.variantId, variant.id),
+      ),
+    })
+    expect(stock?.quantityOnHand).toBe(9)
+    expect(stock?.costPerUnitUgx).toBe('12500.00')
+    expect(stock?.minimumSellPriceUgx).toBe('22000.00')
+
+    await db.delete(storeStock).where(eq(storeStock.itemId, created.id))
+    await db.delete(items).where(eq(items.id, created.id))
+  })
+
   it('materialises missing variant on store opening balance', async () => {
     const suffix = Date.now()
     const [item] = await db

@@ -3,5 +3,6 @@ export type {
   ItemEntryCatalogItem as ReceiptGridCatalogItem,
   ItemEntryCellLocation as ReceiptGridCellLocation,
   ItemEntryColumnId as ReceiptGridColumnId,
+  ItemEntryGridConfig,
   ItemEntryRow as ReceiptGridRow,
 } from '#/components/item-entry-grid/types'

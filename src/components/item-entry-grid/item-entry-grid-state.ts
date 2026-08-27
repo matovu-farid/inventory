@@ -41,9 +41,7 @@ export function isItemEntryRowEmpty(row: ItemEntryRow): boolean {
   )
 }
 
-export function stripEmptyItemEntryRows(
-  rows: ItemEntryRow[],
-): ItemEntryRow[] {
+export function stripEmptyItemEntryRows(rows: ItemEntryRow[]): ItemEntryRow[] {
   return rows.filter((row) => !isItemEntryRowEmpty(row))
 }
 
@@ -131,10 +129,7 @@ export function validateItemEntryRows(
   return null
 }
 
-export function copyItemEntryRow(
-  row: ItemEntryRow,
-  id: string,
-): ItemEntryRow {
+export function copyItemEntryRow(row: ItemEntryRow, id: string): ItemEntryRow {
   return {
     ...row,
     id,
@@ -277,25 +272,23 @@ export function applyPasteMatrix(
 }
 
 export function calculateItemEntryGridTotals(rows: ItemEntryRow[]) {
-  const totalAmount = rows.reduce(
-    (sum, row) => {
-      const quantity = row.quantity
-      return typeof quantity === 'number' && Number.isInteger(quantity) && quantity > 0
-        ? sum.plus(calculateItemEntryRowAmount(row) || 0)
-        : sum
-    },
-    new BigNumber(0),
-  )
+  const totalAmount = rows.reduce((sum, row) => {
+    const quantity = row.quantity
+    return typeof quantity === 'number' &&
+      Number.isInteger(quantity) &&
+      quantity > 0
+      ? sum.plus(calculateItemEntryRowAmount(row) || 0)
+      : sum
+  }, new BigNumber(0))
   return {
-    totalPieces: rows.reduce(
-      (sum, row) => {
-        const quantity = row.quantity
-        return typeof quantity === 'number' && Number.isInteger(quantity) && quantity > 0
-          ? sum + quantity
-          : sum
-      },
-      0,
-    ),
+    totalPieces: rows.reduce((sum, row) => {
+      const quantity = row.quantity
+      return typeof quantity === 'number' &&
+        Number.isInteger(quantity) &&
+        quantity > 0
+        ? sum + quantity
+        : sum
+    }, 0),
     totalAmount: totalAmount.toFixed(2),
   }
 }

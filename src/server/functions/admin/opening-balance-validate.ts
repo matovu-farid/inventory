@@ -5,6 +5,8 @@ export interface OpeningBalanceCell {
   variantId?: string | null
   /** Grid cell color — server upserts variant when paired with size. */
   colorId?: string
+  colorText?: string
+  colorHexText?: string
   size?: string
   quantity: number
 }
@@ -26,16 +28,17 @@ export function validateOpeningBalanceCell(
     cell.colorId === undefined &&
     cell.size === undefined
   const hasPair = cell.colorId !== undefined || cell.size !== undefined
+  const hasTextColour = Boolean(cell.colorText?.trim())
 
   if (cell.variantId === '') {
     throw new Error('variantId must be a uuid, null, or omitted')
   }
-  if (cell.variantId === null && hasPair) {
+  if (cell.variantId === null && hasPair && !hasTextColour) {
     throw new Error(
       'variantId null cannot be combined with colorId+size — use one mode per cell',
     )
   }
-  if (!hasUuid && !isUnresolved) {
+  if (!hasUuid && !isUnresolved && !hasTextColour) {
     const hasColor = cell.colorId !== undefined
     const hasSize = cell.size !== undefined && cell.size.trim().length > 0
     if (hasColor !== hasSize) {

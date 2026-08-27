@@ -24,6 +24,12 @@ export interface OpeningBalanceTableRow {
   unitCostUgx: string
   minimumSellPriceUgx: string
   lowStockThreshold: number
+  /** Free-text values are kept until submit, when a catalog item is created. */
+  itemName?: string
+  design?: string
+  articleNumber?: string
+  colorText?: string
+  colorHexText?: string
 }
 
 export interface OpeningBalancePayloadCell {
@@ -31,10 +37,15 @@ export interface OpeningBalancePayloadCell {
   colorId?: string
   size?: string
   quantity: number
+  colorText?: string
+  colorHexText?: string
 }
 
 export interface OpeningBalancePayloadEntry {
-  itemId: string
+  itemId: string | null
+  itemName?: string
+  design?: string
+  articleNumber?: string
   unitCostUgx: string
   minimumSellPriceUgx: string
   lowStockThreshold: number
@@ -60,6 +71,11 @@ export function createEmptyOpeningBalanceRow(
     unitCostUgx: '',
     minimumSellPriceUgx: '',
     lowStockThreshold: 0,
+    itemName: '',
+    design: '',
+    articleNumber: '',
+    colorText: '',
+    colorHexText: '',
   }
 }
 
@@ -73,12 +89,18 @@ export function rowForOpeningBalanceItem(
     item,
     minimumSellPriceUgx: item.minimumSellPriceUgx ?? '0',
     lowStockThreshold: item.lowStockThreshold ?? 0,
+    itemName: item.name,
+    design: item.design,
+    articleNumber: item.articleNumbers[0]?.articleNumber ?? '',
   }
 }
 
 export function isOpeningBalanceRowEmpty(row: OpeningBalanceTableRow): boolean {
   return (
     !row.itemId &&
+    !(row.itemName ?? '').trim() &&
+    !(row.design ?? '').trim() &&
+    !(row.articleNumber ?? '').trim() &&
     !row.colorId &&
     !row.size.trim() &&
     row.quantity === null &&
@@ -158,11 +180,16 @@ export function validateOpeningBalanceRows(
   for (const [index, row] of rows.entries()) {
     if (isOpeningBalanceRowEmpty(row)) continue
     const label = `Opening-balance line ${index + 1}`
-    if (!row.itemId || !row.item) return `${label}: select an item`
+    if (!row.itemId && !(row.design ?? '').trim()) {
+      return `${label}: enter a design or select an item`
+    }
+    if (!row.itemId && !(row.articleNumber ?? '').trim()) {
+      return `${label}: enter an art number for the new item`
+    }
     if (row.colorId && !row.size.trim()) {
       return `${label}: choose both colour and size, or leave both blank`
     }
-    if (!row.colorId && row.size.trim()) {
+    if (!row.colorId && row.size.trim() && !(row.colorText ?? '').trim()) {
       return `${label}: choose both colour and size, or leave both blank`
     }
     if (row.quantity === null || row.quantity <= 0) {
@@ -183,7 +210,7 @@ export function validateOpeningBalanceRows(
     if (!Number.isInteger(row.lowStockThreshold) || row.lowStockThreshold < 0) {
       return `${label}: enter a valid low-stock threshold`
     }
-    const key = `${row.itemId}:${rowVariantKey(row)}`
+    const key = `${row.itemId ?? `${row.design}:${row.articleNumber}`}:${rowVariantKey(row)}`
     if (seen.has(key)) return `${label}: duplicate item and variant`
     seen.add(key)
   }
@@ -214,7 +241,15 @@ function cellForRow(row: OpeningBalanceTableRow): OpeningBalancePayloadCell {
       quantity: row.quantity ?? 0,
     }
   }
-  return { variantId: null, quantity: row.quantity ?? 0 }
+  return {
+    variantId: null,
+    quantity: row.quantity ?? 0,
+    ...(row.size.trim() ? { size: row.size.trim() } : {}),
+    ...(row.colorText?.trim() ? { colorText: row.colorText.trim() } : {}),
+    ...(row.colorHexText?.trim()
+      ? { colorHexText: row.colorHexText.trim() }
+      : {}),
+  }
 }
 
 export function groupOpeningBalanceRows(
@@ -227,14 +262,19 @@ export function groupOpeningBalanceRows(
   for (const row of rows) {
     if (isOpeningBalanceRowEmpty(row)) continue
     const key = [
-      row.itemId,
+      row.itemId ?? `${row.design?.trim()}:${row.articleNumber?.trim()}`,
       row.unitCostUgx.trim(),
       normalizedMinimumSellPrice(row),
       row.lowStockThreshold,
     ].join(':')
     const existing = groups.get(key)
     const entry = existing ?? {
-      itemId: row.itemId as string,
+      itemId: row.itemId,
+      ...(row.itemName?.trim() ? { itemName: row.itemName.trim() } : {}),
+      ...(row.design?.trim() ? { design: row.design.trim() } : {}),
+      ...(row.articleNumber?.trim()
+        ? { articleNumber: row.articleNumber.trim() }
+        : {}),
       unitCostUgx: new BigNumber(row.unitCostUgx).toFixed(2),
       minimumSellPriceUgx: normalizedMinimumSellPrice(row),
       lowStockThreshold: row.lowStockThreshold,

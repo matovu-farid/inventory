@@ -6,7 +6,6 @@ import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandItem,
   CommandList,
 } from '#/components/ui/command'
 import { Input } from '#/components/ui/input'
@@ -22,6 +21,7 @@ import {
   TableRow,
 } from '#/components/ui/table'
 import { matchPaletteHex } from '#/lib/colors/match-palette'
+import { roundUgxBankers50 } from '#/lib/format'
 import {
   colorNameToHex,
   getActiveColorIndex,
@@ -33,7 +33,6 @@ import {
 import {
   addReceiptRow,
   applyPasteMatrix,
-  calculateGridTotals,
   calculateRowAmount,
   copyReceiptRow,
   createEmptyReceiptRow,
@@ -43,13 +42,15 @@ import {
   removeReceiptRow,
   updateReceiptCell,
 } from './receipt-grid-state'
+import { calculateItemEntryGridTotals } from '#/components/item-entry-grid/item-entry-grid-state'
 import type {
+  ItemEntryGridConfig,
   ReceiptGridCatalogItem,
   ReceiptGridColumnId,
   ReceiptGridRow,
 } from './types'
 
-const columns: ReadonlyArray<{
+const receiptColumns: ReadonlyArray<{
   id: ReceiptGridColumnId | 'remove' | 'amount'
   title: string
   width: string
@@ -71,6 +72,16 @@ const columns: ReadonlyArray<{
   { id: 'amount', title: 'Amount', width: '135px' },
 ]
 
+function columnsFor(config: ItemEntryGridConfig) {
+  return receiptColumns.map((column) =>
+    column.id === 'unitPriceForeign'
+      ? { ...column, title: config.costLabel }
+      : column.id === 'amount'
+        ? { ...column, title: config.amountLabel }
+        : column,
+  )
+}
+
 type EditableColumn = ReceiptGridColumnId
 
 export type ReceiptGridHistoryControls = {
@@ -78,6 +89,14 @@ export type ReceiptGridHistoryControls = {
   canRedo: boolean
   onUndo: () => void
   onRedo: () => void
+}
+
+export const RECEIPT_GRID_CONFIG: ItemEntryGridConfig = {
+  mode: 'receipt',
+  costLabel: 'Unit Price',
+  amountLabel: 'Amount',
+  totalLabel: 'Total amount',
+  currency: 'foreign',
 }
 
 type LocalHistory = { past: ReceiptGridRow[][]; future: ReceiptGridRow[][] }
@@ -112,12 +131,14 @@ export function ReceiptGrid({
   disabled = false,
   onRowsChange,
   historyControls,
+  config = RECEIPT_GRID_CONFIG,
 }: {
   rows: ReceiptGridRow[]
   supplierId?: string
   disabled?: boolean
   onRowsChange: (rows: ReceiptGridRow[]) => void
   historyControls?: ReceiptGridHistoryControls
+  config?: ItemEntryGridConfig
 }) {
   const [activeCell, setActiveCell] = useState<CellLocation | null>(null)
   const [fillDrag, setFillDrag] = useState<FillDrag | null>(null)
@@ -126,7 +147,9 @@ export function ReceiptGrid({
   const rowRefs = useRef<Record<number, HTMLTableRowElement | null>>({})
   const fillTargetRef = useRef(0)
   const [, setHistoryVersion] = useState(0)
-  const totals = useMemo(() => calculateGridTotals(rows), [rows])
+  const totals = useMemo(() => calculateItemEntryGridTotals(rows), [rows])
+  const columns = useMemo(() => columnsFor(config), [config])
+  const effectiveSupplierId = config.supplierId ?? supplierId
   currentRowsRef.current = rows
 
   const commitRows = useCallback(
@@ -257,11 +280,32 @@ export function ReceiptGrid({
       ).map((row, index) => {
         if (index !== rowIndex) return row
         if (catalogItem) {
+          const catalogColors = catalogItem.colors
+          const catalogSizes = Array.from(
+            new Set(
+              (catalogItem.variants ?? []).map((variant) => variant.size),
+            ),
+          )
+          const hasSingleVariant =
+            catalogColors.length === 1 && catalogSizes.length === 1
           return {
             ...row,
             itemName: catalogItem.name,
             itemId: catalogItem.id,
             catalogItem,
+            colorText:
+              row.colorText.trim() ||
+              catalogColors.map((color) => color.colorName).join(', '),
+            colorHexText:
+              row.colorHexText.trim() ||
+              catalogColors.map((color) => color.colorHex).join(', '),
+            colorIds:
+              row.colorIds.length > 0
+                ? row.colorIds
+                : hasSingleVariant
+                  ? [catalogColors[0].id]
+                  : [],
+            sizeText: row.sizeText.trim() || catalogSizes.join(', '),
             minimumSellPriceUgx: catalogItem.minimumSellPriceUgx,
             lowStockThreshold: catalogItem.lowStockThreshold,
             articleNumber:
@@ -408,6 +452,7 @@ export function ReceiptGrid({
   return (
     <div
       data-testid="receipt-grid"
+      data-item-entry-grid="true"
       className="min-w-[1000px] overflow-hidden rounded-md border bg-background text-foreground"
       onKeyDownCapture={handleShortcut}
     >
@@ -438,13 +483,16 @@ export function ReceiptGrid({
                   rowRefs.current[rowIndex] = element
                 }}
                 data-receipt-row={rowIndex}
+                data-opening-balance-row={
+                  config.mode === 'opening-balance' ? true : undefined
+                }
                 className="group hover:bg-muted/20"
               >
                 <TableCell className="border-r p-0 text-center">
                   {!isReceiptRowEmpty(row) && !disabled && (
                     <button
                       type="button"
-                      aria-label={`Delete receipt line ${rowIndex + 1}`}
+                      aria-label={`Delete ${config.mode === 'opening-balance' ? 'opening balance' : 'receipt'} line ${rowIndex + 1}`}
                       title="Delete receipt line"
                       className="inline-flex size-7 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
                       onClick={() => handleDelete(rowIndex)}
@@ -507,12 +555,18 @@ export function ReceiptGrid({
                     onPaste={handlePaste}
                     onFillStart={beginFill}
                     fillDrag={fillDrag}
-                    supplierId={supplierId}
+                    supplierId={effectiveSupplierId}
+                    costLabel={config.costLabel}
+                    mode={config.mode}
+                    rowNumber={rowIndex + 1}
+                    currency={config.currency}
                   />
                 ))}
                 <TableCell className="border-r p-0 last:border-r-0">
                   <div className="flex min-h-11 items-center justify-end px-3 font-medium text-foreground">
-                    {calculateRowAmount(row)}
+                    {config.currency === 'UGX' && calculateRowAmount(row)
+                      ? roundUgxBankers50(calculateRowAmount(row)).toFormat(0)
+                      : calculateRowAmount(row)}
                   </div>
                 </TableCell>
               </TableRow>
@@ -527,7 +581,9 @@ export function ReceiptGrid({
           onClick={handleAddRow}
         >
           <Plus className="size-4" aria-hidden="true" />
-          Add receipt line
+          {config.mode === 'opening-balance'
+            ? 'Add opening balance line'
+            : 'Add receipt line'}
         </button>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 text-sm text-muted-foreground">
@@ -564,10 +620,8 @@ export function ReceiptGrid({
             <strong className="text-foreground">{totals.totalPieces}</strong>
           </span>
           <span>
-            Total amount:{' '}
-            <strong className="text-foreground">
-              {totals.totalAmountForeign}
-            </strong>
+            {config.totalLabel}:{' '}
+            <strong className="text-foreground">{totals.totalAmount}</strong>
           </span>
         </div>
       </div>
@@ -588,6 +642,10 @@ function EditableTableCell({
   onFillStart,
   fillDrag,
   supplierId,
+  costLabel,
+  mode,
+  rowNumber,
+  currency,
 }: {
   row: ReceiptGridRow
   rowIndex: number
@@ -607,6 +665,10 @@ function EditableTableCell({
   onFillStart: (event: React.PointerEvent, source: CellLocation) => void
   fillDrag: FillDrag | null
   supplierId?: string
+  costLabel: string
+  mode: ItemEntryGridConfig['mode']
+  rowNumber: number
+  currency: ItemEntryGridConfig['currency']
 }) {
   const value =
     column === 'quantity'
@@ -634,12 +696,28 @@ function EditableTableCell({
           onCatalogItemSelected={onCatalogItemSelected}
           onPaste={(event) => onPaste(event, rowIndex, column)}
           supplierId={supplierId}
+          mode={mode}
+          rowNumber={rowNumber}
         />
       ) : column === 'colorText' ? (
         <ColorEditor
           row={row}
           disabled={disabled}
           active={active}
+          onActivate={() => onActivate(rowIndex, column)}
+          onCommit={(next) => onCommit(next)}
+          onPaste={(event) => onPaste(event, rowIndex, column)}
+          rowNumber={rowNumber}
+          mode={mode}
+        />
+      ) : column === 'sizeText' ? (
+        <SizeEditor
+          row={row}
+          value={value}
+          disabled={disabled}
+          active={active}
+          mode={mode}
+          rowNumber={rowNumber}
           onActivate={() => onActivate(rowIndex, column)}
           onCommit={(next) => onCommit(next)}
           onPaste={(event) => onPaste(event, rowIndex, column)}
@@ -653,6 +731,10 @@ function EditableTableCell({
           onActivate={() => onActivate(rowIndex, column)}
           onCommit={(next) => onCommit(next)}
           onPaste={(event) => onPaste(event, rowIndex, column)}
+          costLabel={costLabel}
+          currency={currency}
+          rowNumber={rowNumber}
+          mode={mode}
         />
       )}
       {active && !disabled && (
@@ -670,6 +752,107 @@ function EditableTableCell({
   )
 }
 
+function SizeEditor({
+  row,
+  value,
+  disabled,
+  active,
+  mode,
+  rowNumber,
+  onActivate,
+  onCommit,
+  onPaste,
+}: {
+  row: ReceiptGridRow
+  value: string
+  disabled: boolean
+  active: boolean
+  mode: ItemEntryGridConfig['mode']
+  rowNumber: number
+  onActivate: () => void
+  onCommit: (value: string) => void
+  onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+}) {
+  const [draft, setDraft] = useState(value)
+  const [open, setOpen] = useState(false)
+  useEffect(() => setDraft(value), [value])
+  const options = Array.from(
+    new Set((row.catalogItem?.variants ?? []).map((variant) => variant.size)),
+  )
+  function finish(next = draft) {
+    const trimmed = next.trim()
+    setDraft(trimmed)
+    if (trimmed !== value) onCommit(trimmed)
+    setOpen(false)
+  }
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverAnchor asChild>
+        <div>
+          <Input
+            data-receipt-cell-input="true"
+            data-receipt-dirty={draft !== value ? 'true' : 'false'}
+            role="combobox"
+            aria-label={`${mode === 'opening-balance' ? 'Size' : 'Size'}${mode === 'opening-balance' ? ` row ${rowNumber}` : ''}`}
+            value={draft}
+            disabled={disabled}
+            placeholder="S, M, L"
+            className={`h-11 w-full rounded-none border-0 bg-transparent px-3 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
+            onFocus={() => {
+              onActivate()
+              setOpen(true)
+            }}
+            onClick={() => {
+              onActivate()
+              setOpen(true)
+            }}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              setOpen(true)
+            }}
+            onPaste={onPaste}
+            onBlur={() => window.setTimeout(() => finish(), 0)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                finish()
+              }
+              if (event.key === 'Escape') {
+                setDraft(value)
+                setOpen(false)
+              }
+            }}
+          />
+        </div>
+      </PopoverAnchor>
+      <PopoverContent
+        align="start"
+        className="w-56 p-2"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
+        <p className="px-1 pb-1 text-xs text-muted-foreground">
+          Type comma-separated sizes or choose one
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {options.map((option) => (
+            <Button
+              key={option}
+              type="button"
+              size="sm"
+              variant="outline"
+              role="option"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => finish(option)}
+            >
+              {option}
+            </Button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function PlainCellInput({
   value,
   column,
@@ -678,6 +861,10 @@ function PlainCellInput({
   onActivate,
   onCommit,
   onPaste,
+  costLabel,
+  currency,
+  rowNumber,
+  mode,
 }: {
   value: string
   column: EditableColumn
@@ -686,6 +873,10 @@ function PlainCellInput({
   onActivate: () => void
   onCommit: (value: string) => void
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+  costLabel: string
+  currency: ItemEntryGridConfig['currency']
+  rowNumber: number
+  mode: ItemEntryGridConfig['mode']
 }) {
   const [draft, setDraft] = useState(value)
   const draftRef = useRef(value)
@@ -696,16 +887,26 @@ function PlainCellInput({
   function finish() {
     if (draftRef.current !== value) onCommit(draftRef.current)
   }
-  if (column === 'minimumSellPriceUgx') {
+  if (column === 'minimumSellPriceUgx' || column === 'unitPriceForeign') {
     return (
       <MoneyInput
         data-receipt-cell-input="true"
         data-receipt-dirty={draft !== value ? 'true' : 'false'}
-        aria-label="Minimum sell price (UGX)"
+        aria-label={
+          column === 'minimumSellPriceUgx'
+            ? mode === 'opening-balance'
+              ? `Minimum sell price row ${rowNumber}`
+              : 'Minimum sell price (UGX)'
+            : mode === 'opening-balance'
+              ? `Unit cost row ${rowNumber}`
+              : costLabel
+        }
+        currency={currency === 'UGX' ? 'UGX' : undefined}
         value={draft}
         onChange={(next) => {
           draftRef.current = next
           setDraft(next)
+          onCommit(next)
         }}
         onFocus={onActivate}
         onPaste={onPaste}
@@ -728,18 +929,23 @@ function PlainCellInput({
     <Input
       data-receipt-cell-input="true"
       data-receipt-dirty={draft !== value ? 'true' : 'false'}
+      role={
+        mode === 'opening-balance' && column === 'sizeText'
+          ? 'combobox'
+          : undefined
+      }
       aria-label={
         column === 'itemName'
-          ? 'Item name'
+          ? `Item name${mode === 'opening-balance' ? ` row ${rowNumber}` : ''}`
           : column === 'articleNumber'
-            ? 'Art No.'
+            ? `Art No.${mode === 'opening-balance' ? ` row ${rowNumber}` : ''}`
             : column === 'sizeText'
-              ? 'Size'
+              ? `Size${mode === 'opening-balance' ? ` row ${rowNumber}` : ''}`
               : column === 'quantity'
-                ? 'Qty (pcs)'
+                ? `${mode === 'opening-balance' ? 'Quantity' : 'Qty (pcs)'}${mode === 'opening-balance' ? ` row ${rowNumber}` : ''}`
                 : column === 'lowStockThreshold'
-                  ? 'Low-stock threshold'
-                  : 'Unit Price'
+                  ? `Low-stock threshold${mode === 'opening-balance' ? ` row ${rowNumber}` : ''}`
+                  : `${costLabel}${mode === 'opening-balance' ? ` row ${rowNumber}` : ''}`
       }
       type={
         column === 'quantity' || column === 'lowStockThreshold'
@@ -767,6 +973,7 @@ function PlainCellInput({
       onChange={(event) => {
         draftRef.current = event.target.value
         setDraft(event.target.value)
+        onCommit(event.target.value)
       }}
       onPaste={onPaste}
       onBlur={finish}
@@ -790,6 +997,8 @@ function DesignEditor({
   onCommit,
   onCatalogItemSelected,
   onPaste,
+  mode,
+  rowNumber,
 }: {
   value: string
   supplierId?: string
@@ -799,29 +1008,41 @@ function DesignEditor({
   onCommit: (value: string) => void
   onCatalogItemSelected?: (item: ReceiptGridCatalogItem) => void
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+  mode: ItemEntryGridConfig['mode']
+  rowNumber: number
 }) {
   const [draft, setDraft] = useState(value)
   const [open, setOpen] = useState(false)
   const [results, setResults] = useState<ReceiptGridCatalogItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
   const sequence = useRef(0)
+  const selectedCatalogItem = useRef(false)
   useEffect(() => setDraft(value), [value])
   useEffect(() => {
     const request = ++sequence.current
-    if (!open || !draft.trim() || !supplierId) {
+    if (!open || !draft.trim()) {
       setResults([])
+      setHasSearched(false)
+      setLoading(false)
       return
     }
+    setLoading(true)
     const timer = window.setTimeout(() => {
-      setLoading(true)
       void searchItems({
         data: { query: draft.trim(), supplierId: supplierId || undefined },
       })
         .then((items) => {
-          if (request === sequence.current) setResults(items)
+          if (request === sequence.current) {
+            setResults(items)
+            setHasSearched(true)
+          }
         })
         .catch(() => {
-          if (request === sequence.current) setResults([])
+          if (request === sequence.current) {
+            setResults([])
+            setHasSearched(true)
+          }
         })
         .finally(() => {
           if (request === sequence.current) setLoading(false)
@@ -835,6 +1056,13 @@ function DesignEditor({
     onCommit(next)
     setOpen(false)
   }
+  function selectCatalogItem(item: ReceiptGridCatalogItem) {
+    const next = item.design || item.name
+    selectedCatalogItem.current = true
+    setDraft(next)
+    onCatalogItemSelected?.(item)
+    setOpen(false)
+  }
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
@@ -842,12 +1070,23 @@ function DesignEditor({
           <Input
             data-receipt-cell-input="true"
             data-receipt-dirty={draft !== value ? 'true' : 'false'}
-            aria-label="Design"
+            role={mode === 'opening-balance' ? 'combobox' : undefined}
+            aria-label={
+              mode === 'opening-balance' ? `Item row ${rowNumber}` : 'Design'
+            }
             value={draft}
             disabled={disabled}
-            placeholder="Design"
+            placeholder={
+              mode === 'opening-balance' && active
+                ? 'Type article number, design, or item name…'
+                : 'Design'
+            }
             className={`h-11 w-full rounded-none border-0 bg-transparent px-3 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
             onFocus={() => {
+              onActivate()
+              setOpen(true)
+            }}
+            onClick={() => {
               onActivate()
               setOpen(true)
             }}
@@ -858,6 +1097,10 @@ function DesignEditor({
             onPaste={onPaste}
             onBlur={() => {
               window.setTimeout(() => {
+                if (selectedCatalogItem.current) {
+                  selectedCatalogItem.current = false
+                  return
+                }
                 if (
                   document.activeElement?.getAttribute('data-design-option') !==
                   'true'
@@ -869,8 +1112,7 @@ function DesignEditor({
               if (event.key === 'Enter') {
                 event.preventDefault()
                 if (results[0]) {
-                  onCatalogItemSelected?.(results[0])
-                  finish(results[0].design || results[0].name)
+                  selectCatalogItem(results[0])
                 } else finish()
               }
               if (event.key === 'Escape') {
@@ -893,14 +1135,19 @@ function DesignEditor({
                 Searching…
               </p>
             )}
-            {!loading && draft.trim() && results.length === 0 && (
-              <CommandItem
-                value={`free-text-${draft}`}
-                onSelect={() => finish()}
-              >
-                Use “{draft.trim()}” as a new design
-              </CommandItem>
-            )}
+            {!loading &&
+              hasSearched &&
+              draft.trim() &&
+              results.length === 0 && (
+                <button
+                  type="button"
+                  className="flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                  value={`free-text-${draft}`}
+                  onClick={() => finish()}
+                >
+                  Use “{draft.trim()}” as a new design
+                </button>
+              )}
             <CommandEmpty>
               {draft.trim()
                 ? 'No matching catalog items.'
@@ -908,15 +1155,16 @@ function DesignEditor({
             </CommandEmpty>
             <CommandGroup>
               {results.map((item) => (
-                <CommandItem
+                <button
                   key={item.id}
-                  value={`${item.design} ${item.name} ${item.articleNumbers.map((number) => number.articleNumber).join(' ')}`}
+                  type="button"
+                  role="option"
                   data-design-option="true"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onSelect={() => {
-                    onCatalogItemSelected?.(item)
-                    finish(item.design || item.name)
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    selectCatalogItem(item)
                   }}
+                  onClick={() => selectCatalogItem(item)}
                 >
                   <Check className="mr-2 size-4 opacity-0" aria-hidden="true" />
                   <span className="min-w-0">
@@ -929,7 +1177,7 @@ function DesignEditor({
                         .join(', ')}
                     </span>
                   </span>
-                </CommandItem>
+                </button>
               ))}
             </CommandGroup>
           </CommandList>
@@ -946,6 +1194,8 @@ function ColorEditor({
   onActivate,
   onCommit,
   onPaste,
+  rowNumber,
+  mode,
 }: {
   row: ReceiptGridRow
   disabled: boolean
@@ -953,6 +1203,8 @@ function ColorEditor({
   onActivate: () => void
   onCommit: (value: { text: string; hexText: string; ids: string[] }) => void
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
+  rowNumber: number
+  mode: ItemEntryGridConfig['mode']
 }) {
   const [value, setValue] = useState(row.colorText)
   const [hexValues, setHexValues] = useState(() =>
@@ -1052,12 +1304,19 @@ function ColorEditor({
           <Input
             data-receipt-cell-input="true"
             data-receipt-dirty={value !== row.colorText ? 'true' : 'false'}
-            aria-label="Colour"
+            role={mode === 'opening-balance' ? 'combobox' : undefined}
+            aria-label={
+              mode === 'opening-balance' ? `Colour row ${rowNumber}` : 'Colour'
+            }
             value={value}
             disabled={disabled}
             placeholder="Colour"
             className={`h-11 w-full rounded-none border-0 bg-transparent px-3 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
             onFocus={() => {
+              onActivate()
+              setOpen(true)
+            }}
+            onClick={() => {
               onActivate()
               setOpen(true)
             }}
@@ -1125,6 +1384,7 @@ function ColorEditor({
               }
               className="justify-start gap-2"
               data-colour-option="true"
+              role="option"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectOption(option)}
             >

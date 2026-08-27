@@ -251,9 +251,10 @@ export function OpeningBalanceForm({
         />
 
         <p className="text-xs text-muted-foreground">
-          Select an existing item, then enter its stock details. Amounts are
-          calculated automatically. Drag the blue handle on a selected cell down
-          to copy it into more lines.
+          Search the catalog by item name, design, or art number, or type a new
+          item directly. New designs are added to the catalog when you submit.
+          Amounts are calculated automatically. Drag the blue handle on a
+          selected cell down to copy it into more lines.
         </p>
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
