@@ -561,8 +561,8 @@ export function ReceiptSection({
 
 function ReceiptGridFallback() {
   return (
-    <div className="min-w-[1562px] overflow-x-auto rounded-md border bg-background">
-      <div className="grid grid-cols-11 border-b bg-muted/50 text-xs font-semibold text-muted-foreground">
+    <div className="min-w-[1160px] overflow-hidden rounded-md border bg-background">
+      <div className="grid grid-cols-9 border-b bg-muted/50 text-xs font-semibold text-muted-foreground">
         {[
           '',
           'Item name',
