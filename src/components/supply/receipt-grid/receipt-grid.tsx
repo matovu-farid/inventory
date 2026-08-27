@@ -10,6 +10,7 @@ import {
   CommandList,
 } from '#/components/ui/command'
 import { Input } from '#/components/ui/input'
+import { MoneyInput } from '#/components/ui/money-input'
 import { HexColorField } from '#/components/items/hex-color-field'
 import { Popover, PopoverAnchor, PopoverContent } from '#/components/ui/popover'
 import {
@@ -61,6 +62,12 @@ const columns: ReadonlyArray<{
   { id: 'sizeText', title: 'Size', width: '145px' },
   { id: 'quantity', title: 'Qty (pcs)', width: '105px' },
   { id: 'unitPriceForeign', title: 'Unit Price', width: '125px' },
+  {
+    id: 'minimumSellPriceUgx',
+    title: 'Min sell price (UGX)',
+    width: '155px',
+  },
+  { id: 'lowStockThreshold', title: 'Low-stock threshold', width: '145px' },
   { id: 'amount', title: 'Amount', width: '135px' },
 ]
 
@@ -255,13 +262,22 @@ export function ReceiptGrid({
             itemName: catalogItem.name,
             itemId: catalogItem.id,
             catalogItem,
+            minimumSellPriceUgx: catalogItem.minimumSellPriceUgx,
+            lowStockThreshold: catalogItem.lowStockThreshold,
             articleNumber:
               catalogItem.articleNumbers.length === 1
                 ? catalogItem.articleNumbers[0].articleNumber
                 : row.articleNumber,
           }
         }
-        return { ...row, itemId: null, catalogItem: null, colorIds: [] }
+        return {
+          ...row,
+          itemId: null,
+          catalogItem: null,
+          colorIds: [],
+          minimumSellPriceUgx: '',
+          lowStockThreshold: 0,
+        }
       })
       commitRows(nextRows)
     },
@@ -447,6 +463,8 @@ export function ReceiptGrid({
                     'sizeText',
                     'quantity',
                     'unitPriceForeign',
+                    'minimumSellPriceUgx',
+                    'lowStockThreshold',
                   ] as EditableColumn[]
                 ).map((column) => (
                   <EditableTableCell
@@ -595,7 +613,9 @@ function EditableTableCell({
       ? row.quantity === null
         ? ''
         : String(row.quantity)
-      : row[column]
+      : column === 'lowStockThreshold'
+        ? String(row.lowStockThreshold)
+        : row[column]
   const isFillPreview =
     fillDrag &&
     fillDrag.source.column === column &&
@@ -668,9 +688,41 @@ function PlainCellInput({
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
 }) {
   const [draft, setDraft] = useState(value)
-  useEffect(() => setDraft(value), [value])
+  const draftRef = useRef(value)
+  useEffect(() => {
+    draftRef.current = value
+    setDraft(value)
+  }, [value])
   function finish() {
-    if (draft !== value) onCommit(draft)
+    if (draftRef.current !== value) onCommit(draftRef.current)
+  }
+  if (column === 'minimumSellPriceUgx') {
+    return (
+      <MoneyInput
+        data-receipt-cell-input="true"
+        data-receipt-dirty={draft !== value ? 'true' : 'false'}
+        aria-label="Minimum sell price (UGX)"
+        value={draft}
+        onChange={(next) => {
+          draftRef.current = next
+          setDraft(next)
+        }}
+        onFocus={onActivate}
+        onPaste={onPaste}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur()
+          if (event.key === 'Escape') {
+            setDraft(value)
+            event.currentTarget.blur()
+          }
+        }}
+        onBlur={finish}
+        disabled={disabled}
+        className={`h-11 rounded-none border-0 shadow-none ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
+        decimals={0}
+        roundTo={50}
+      />
+    )
   }
   return (
     <Input
@@ -685,17 +737,37 @@ function PlainCellInput({
               ? 'Size'
               : column === 'quantity'
                 ? 'Qty (pcs)'
-                : 'Unit Price'
+                : column === 'lowStockThreshold'
+                  ? 'Low-stock threshold'
+                  : 'Unit Price'
       }
-      type={column === 'quantity' ? 'number' : 'text'}
-      min={column === 'quantity' ? 0 : undefined}
-      step={column === 'quantity' ? 1 : undefined}
+      type={
+        column === 'quantity' || column === 'lowStockThreshold'
+          ? 'number'
+          : 'text'
+      }
+      inputMode={column === 'lowStockThreshold' ? 'numeric' : undefined}
+      min={
+        column === 'quantity' || column === 'lowStockThreshold' ? 0 : undefined
+      }
+      step={
+        column === 'quantity' || column === 'lowStockThreshold' ? 1 : undefined
+      }
       value={draft}
       disabled={disabled}
-      placeholder={column === 'sizeText' ? 'S, M, L' : undefined}
+      placeholder={
+        column === 'sizeText'
+          ? 'S, M, L'
+          : column === 'lowStockThreshold'
+            ? '0'
+            : undefined
+      }
       className={`h-11 w-full rounded-none border-0 bg-transparent px-3 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
       onFocus={onActivate}
-      onChange={(event) => setDraft(event.target.value)}
+      onChange={(event) => {
+        draftRef.current = event.target.value
+        setDraft(event.target.value)
+      }}
       onPaste={onPaste}
       onBlur={finish}
       onKeyDown={(event) => {

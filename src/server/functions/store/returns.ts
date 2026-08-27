@@ -63,6 +63,7 @@ export const dispatchStoreReturn = createServerFn()
           shopStockId: string
           quantity: number
           costPerUnitUgx: string
+          minimumSellPriceUgx: string
           supplyRouteLineId: string | null
         }>
       }> = []
@@ -151,6 +152,7 @@ export const dispatchStoreReturn = createServerFn()
             supplyRouteLineId: alloc.supplyRouteLineId,
             quantity: alloc.quantity,
             costPerUnitUgx: alloc.costPerUnitUgx,
+            minimumSellPriceUgx: alloc.minimumSellPriceUgx,
           })
           await tx
             .update(shopStock)
@@ -349,6 +351,7 @@ export const receiveStoreReturn = createServerFn()
               supplyRouteLineId: a.supplyRouteLineId,
               quantityOnHand: portion,
               costPerUnitUgx: a.costPerUnitUgx,
+              minimumSellPriceUgx: a.minimumSellPriceUgx,
             })
           }
         }

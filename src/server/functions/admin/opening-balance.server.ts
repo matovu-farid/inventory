@@ -5,7 +5,14 @@ import { eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import BigNumber from 'bignumber.js'
 import { db } from '#/db'
-import { itemColors, shopStock, shops, storeStock, variants } from '#/db/schema'
+import {
+  itemColors,
+  items,
+  shopStock,
+  shops,
+  storeStock,
+  variants,
+} from '#/db/schema'
 import { postJournalEntry } from '#/lib/accounting/ledger'
 import { recordAuditLog } from '#/server/middleware/audit-store'
 import { validateOpeningBalanceCell } from './opening-balance-validate'
@@ -159,10 +166,10 @@ async function normaliseOpeningBalanceCell(
 
 async function normaliseOpeningBalanceItems(
   tx: Tx,
-  items: z.infer<typeof storeOpeningInput>['items'],
+  itemEntries: z.infer<typeof storeOpeningInput>['items'],
 ): Promise<NormalisedItemEntry[]> {
   const normalised: NormalisedItemEntry[] = []
-  for (const entry of items) {
+  for (const entry of itemEntries) {
     const cells: NormalisedCell[] = []
     for (const cell of entry.cells) {
       cells.push(await normaliseOpeningBalanceCell(tx, entry.itemId, cell))
@@ -177,9 +184,9 @@ async function normaliseOpeningBalanceItems(
 }
 
 function validateOpeningBalanceItems(
-  items: z.infer<typeof storeOpeningInput>['items'],
+  itemEntries: z.infer<typeof storeOpeningInput>['items'],
 ): void {
-  for (const entry of items) {
+  for (const entry of itemEntries) {
     for (const cell of entry.cells) {
       validateOpeningBalanceCell(cell, entry.unitCostUgx)
     }
@@ -204,6 +211,7 @@ async function postOpeningBalanceStock(
       variantId: string | null
       quantity: number
       costPerUnitUgx: string
+      minimumSellPriceUgx: string
     }) => Promise<{ id: string }>
   },
 ) {
@@ -227,6 +235,11 @@ async function postOpeningBalanceStock(
 
   for (const entry of normalisedItems) {
     const cost = new BigNumber(entry.unitCostUgx).dp(2, BigNumber.ROUND_HALF_UP)
+    const item = await tx.query.items.findFirst({
+      where: eq(items.id, entry.itemId),
+      columns: { minimumSellPriceUgx: true },
+    })
+    if (!item) throw new Error(`Item not found: ${entry.itemId}`)
     let entryValue = new BigNumber(0)
     const entryRowIds: string[] = []
 
@@ -244,6 +257,7 @@ async function postOpeningBalanceStock(
         variantId: cell.variantId,
         quantity: cell.quantity,
         costPerUnitUgx: cost.toFixed(2),
+        minimumSellPriceUgx: item.minimumSellPriceUgx,
       })
       entryRowIds.push(row.id)
       createdIds.push(row.id)
@@ -333,7 +347,13 @@ export async function addStoreOpeningBalanceQuery(
       locationId: store.id,
       auditAction: 'openingBalance.store',
       entityType: 'store_stock',
-      insertStock: async ({ itemId, variantId, quantity, costPerUnitUgx }) => {
+      insertStock: async ({
+        itemId,
+        variantId,
+        quantity,
+        costPerUnitUgx,
+        minimumSellPriceUgx,
+      }) => {
         const [row] = await tx
           .insert(storeStock)
           .values({
@@ -343,6 +363,7 @@ export async function addStoreOpeningBalanceQuery(
             supplyRouteLineId: null,
             quantityOnHand: quantity,
             costPerUnitUgx,
+            minimumSellPriceUgx,
           })
           .returning()
         return row
@@ -378,7 +399,13 @@ export async function addShopOpeningBalanceQuery(
       auditAction: 'openingBalance.shop',
       entityType: 'shop_stock',
       shopName: shop.name,
-      insertStock: async ({ itemId, variantId, quantity, costPerUnitUgx }) => {
+      insertStock: async ({
+        itemId,
+        variantId,
+        quantity,
+        costPerUnitUgx,
+        minimumSellPriceUgx,
+      }) => {
         const [row] = await tx
           .insert(shopStock)
           .values({
@@ -389,6 +416,7 @@ export async function addShopOpeningBalanceQuery(
             storeTransferItemId: null,
             quantityOnHand: quantity,
             costPerUnitUgx,
+            minimumSellPriceUgx,
           })
           .returning()
         return row

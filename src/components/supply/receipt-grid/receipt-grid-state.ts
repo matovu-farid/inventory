@@ -21,6 +21,8 @@ export function createEmptyReceiptRow(id: string): ReceiptGridRow {
     sizeText: '',
     quantity: null,
     unitPriceForeign: '',
+    minimumSellPriceUgx: '',
+    lowStockThreshold: 0,
   }
 }
 
@@ -33,7 +35,9 @@ export function isReceiptRowEmpty(row: ReceiptGridRow): boolean {
     !row.colorHexText.trim() &&
     !row.sizeText.trim() &&
     row.quantity === null &&
-    !row.unitPriceForeign.trim()
+    !row.unitPriceForeign.trim() &&
+    !row.minimumSellPriceUgx.trim() &&
+    row.lowStockThreshold === 0
   )
 }
 
@@ -146,6 +150,10 @@ export function copyReceiptRowField(
       return { sizeText: row.sizeText }
     case 'unitPriceForeign':
       return { [column]: row[column] }
+    case 'minimumSellPriceUgx':
+      return { minimumSellPriceUgx: row.minimumSellPriceUgx }
+    case 'lowStockThreshold':
+      return { lowStockThreshold: row.lowStockThreshold }
   }
 }
 
@@ -168,6 +176,15 @@ function parseCellValue(
     const quantity = Number(trimmed)
     return {
       quantity: Number.isInteger(quantity) && quantity >= 0 ? quantity : null,
+    }
+  }
+  if (column === 'lowStockThreshold') {
+    const trimmed = value.trim()
+    if (!trimmed) return { lowStockThreshold: 0 }
+    const threshold = Number(trimmed)
+    return {
+      lowStockThreshold:
+        Number.isInteger(threshold) && threshold >= 0 ? threshold : 0,
     }
   }
   return { [column]: value }

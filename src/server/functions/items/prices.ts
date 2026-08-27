@@ -16,9 +16,8 @@ export const listItemStockPrices = createServerFn()
     })
     if (!item) return { item: null, store: [], shop: [] }
 
-    // Both store and shop stock now key on item_id directly. Min sell
-    // price lives on `items.minimumSellPriceUgx` — the callers read it
-    // from `item.minimumSellPriceUgx` rather than from any per-row column.
+    // Stock rows carry immutable lot snapshots. The item value is returned
+    // separately as the current default for future stock.
     const [store, shop] = await Promise.all([
       db.query.storeStock.findMany({
         where: eq(storeStock.itemId, data.itemId),
@@ -53,16 +52,12 @@ const priceAmount = z
   })
 
 /**
- * Item-level minimum sell price. The single writer for the floor; both
- * store and shop callers honour `items.minimumSellPriceUgx` at the
- * item level (Plan 2b removed the per-shop-stock-row floor entirely).
+ * Item-level minimum sell price default. Zero means no floor; stock rows keep
+ * their own immutable snapshot for historical pricing.
  */
 const setItemMinPriceInput = z.object({
   itemId: z.uuid(),
-  minimumSellPriceUgx: priceAmount.refine(
-    (v) => Number(v) > 0,
-    'Minimum sell price must be positive',
-  ),
+  minimumSellPriceUgx: priceAmount,
 })
 
 export const setItemMinimumSellPrice = createServerFn()
@@ -88,10 +83,7 @@ export const updateItemCommercialProfile = createServerFn()
       supplierId: z.uuid(),
       costPrice: priceAmount,
       costCurrency: z.enum(['RMB', 'USD', 'UGX']),
-      minimumSellPriceUgx: priceAmount.refine(
-        (v) => Number(v) > 0,
-        'Minimum sell price must be positive',
-      ),
+      minimumSellPriceUgx: priceAmount,
     }),
   )
   .handler(async ({ data }) => {

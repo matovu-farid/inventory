@@ -102,8 +102,7 @@ export async function pickStoreStockFifo(
       storeStockId: a.stockId,
       quantity: a.quantity,
       costPerUnitUgx: a.costPerUnitUgx,
-      minimumSellPriceUgx:
-        rows.find((r) => r.id === a.stockId)?.minimumSellPriceUgx ?? '0',
+      minimumSellPriceUgx: a.minimumSellPriceUgx,
       supplyRouteLineId: a.supplyRouteLineId,
     })),
     shortfall: plan.shortfall,

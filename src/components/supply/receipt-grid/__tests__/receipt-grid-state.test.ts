@@ -22,6 +22,25 @@ const row = (
 })
 
 describe('receipt grid state', () => {
+  it('defaults commercial settings and copies them with a row', () => {
+    const empty = createEmptyReceiptRow('empty')
+    expect(empty).toMatchObject({
+      minimumSellPriceUgx: '',
+      lowStockThreshold: 0,
+    })
+    expect(isReceiptRowEmpty(empty)).toBe(true)
+
+    const filled = row('filled', {
+      minimumSellPriceUgx: '12000',
+      lowStockThreshold: 5,
+    })
+    expect(isReceiptRowEmpty(filled)).toBe(false)
+    expect(filled).toMatchObject({
+      minimumSellPriceUgx: '12000',
+      lowStockThreshold: 5,
+    })
+  })
+
   it('calculates a row amount from quantity and unit price', () => {
     expect(
       calculateRowAmount(row('1', { quantity: 100, unitPriceForeign: '31' })),
@@ -127,5 +146,28 @@ describe('receipt grid state', () => {
     expect(next[0]).toMatchObject({ quantity: 100, unitPriceForeign: '31' })
     expect(next[1]).toMatchObject({ quantity: 200, unitPriceForeign: '28' })
     expect(calculateRowAmount(next[1])).toBe('5600.00')
+  })
+
+  it('copies commercial settings when filling cells down', () => {
+    const rows = [
+      row('1', { minimumSellPriceUgx: '12000', lowStockThreshold: 5 }),
+    ]
+    const next = fillDownReceiptCells(
+      rows,
+      { row: 0, column: 'minimumSellPriceUgx' },
+      [1],
+    )
+
+    expect(next[1]).toMatchObject({
+      minimumSellPriceUgx: '12000',
+      lowStockThreshold: 0,
+    })
+
+    const thresholdNext = fillDownReceiptCells(
+      rows,
+      { row: 0, column: 'lowStockThreshold' },
+      [1],
+    )
+    expect(thresholdNext[1].lowStockThreshold).toBe(5)
   })
 })

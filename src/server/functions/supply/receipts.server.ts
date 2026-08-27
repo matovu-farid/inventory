@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import BigNumber from 'bignumber.js'
 import { db } from '#/db'
 import {
   itemColors,
@@ -43,6 +44,12 @@ export const receiptLineInput = z.object({
     .string()
     .trim()
     .regex(/^\d+(\.\d{1,2})?$/),
+  minimumSellPriceUgx: z
+    .string()
+    .trim()
+    .regex(/^\d+(\.\d{1,2})?$/)
+    .optional(),
+  lowStockThreshold: z.number().int().min(0).optional(),
 })
 
 export const receiptDraft = z.object({
@@ -77,6 +84,29 @@ function splitReceiptValues(value: string | null | undefined): string[] {
     .split(',')
     .map((entry) => entry.trim())
     .filter(Boolean)
+}
+
+function normalizeMinimumSellPrice(
+  value: string | null | undefined,
+): string | undefined {
+  if (value === undefined || value === null || value.trim() === '') {
+    return undefined
+  }
+  const price = new BigNumber(value)
+  if (!price.isFinite() || price.isNegative()) {
+    throw new Error('Minimum sell price must be a non-negative UGX amount')
+  }
+  return price.toFixed(2)
+}
+
+function normalizeLowStockThreshold(
+  value: number | null | undefined,
+): number | undefined {
+  if (value === undefined || value === null) return undefined
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error('Low-stock threshold must be a non-negative whole number')
+  }
+  return value
 }
 
 async function materializeReceiptItemAttributes(
@@ -149,6 +179,15 @@ async function resolveReceiptLineItem(
   line: ReceiptDraft['lines'][number],
   supplier: typeof suppliers.$inferSelect,
   foreignCurrency: ReceiptDraft['foreignCurrency'],
+  itemDefaults: Map<
+    string,
+    {
+      costPrice: string
+      costCurrency: string
+      minimumSellPriceUgx: string
+      lowStockThreshold: number
+    }
+  >,
 ) {
   const design = line.design.trim()
   const itemName = line.itemName?.trim() || design
@@ -230,6 +269,10 @@ async function resolveReceiptLineItem(
   })
 
   if (!item) {
+    const minimumSellPriceUgx =
+      normalizeMinimumSellPrice(line.minimumSellPriceUgx) ?? '0.00'
+    const lowStockThreshold =
+      normalizeLowStockThreshold(line.lowStockThreshold) ?? 0
     const [created] = await tx
       .insert(items)
       .values({
@@ -238,7 +281,8 @@ async function resolveReceiptLineItem(
         supplierId: supplier.id,
         costPrice: line.unitPriceForeign,
         costCurrency: foreignCurrency,
-        minimumSellPriceUgx: '0',
+        minimumSellPriceUgx,
+        lowStockThreshold,
       })
       .returning()
     item = { ...created, articleNumbers: [] }
@@ -284,6 +328,28 @@ async function resolveReceiptLineItem(
     }
   }
 
+  const minimumSellPriceUgx =
+    normalizeMinimumSellPrice(line.minimumSellPriceUgx) ??
+    item.minimumSellPriceUgx
+  const lowStockThreshold =
+    normalizeLowStockThreshold(line.lowStockThreshold) ??
+    item.lowStockThreshold
+  const defaults = {
+    costPrice: new BigNumber(line.unitPriceForeign).toFixed(2),
+    costCurrency: foreignCurrency,
+    minimumSellPriceUgx,
+    lowStockThreshold,
+  }
+  const previousDefaults = itemDefaults.get(item.id)
+  if (
+    previousDefaults &&
+    JSON.stringify(previousDefaults) !== JSON.stringify(defaults)
+  ) {
+    throw new Error('Receipt contains conflicting defaults for the same item')
+  }
+  itemDefaults.set(item.id, defaults)
+  await tx.update(items).set(defaults).where(eq(items.id, item.id))
+
   const materializedColorId = await materializeReceiptItemAttributes(
     tx,
     item.id,
@@ -294,6 +360,8 @@ async function resolveReceiptLineItem(
     itemId: item.id,
     articleNumber,
     colorId: materializedColorId,
+    minimumSellPriceUgx,
+    lowStockThreshold,
   }
 }
 
@@ -452,7 +520,9 @@ async function materializeReceiptLines(
       exchangeRateForeignToUsd: foreignRate,
       exchangeRateUsdToUgx: ugxRate,
       ...amounts,
-      minimumSellPriceUgx: item?.minimumSellPriceUgx ?? '0',
+      minimumSellPriceUgx:
+        line.minimumSellPriceUgx ?? item?.minimumSellPriceUgx ?? '0',
+      lowStockThreshold: line.lowStockThreshold ?? item?.lowStockThreshold ?? 0,
     }
   })
 }
@@ -505,12 +575,22 @@ export async function createSupplyRouteReceiptServer(data: ReceiptDraft) {
       })
       .returning()
     const resolvedLines = []
+    const itemDefaults = new Map<
+      string,
+      {
+        costPrice: string
+        costCurrency: string
+        minimumSellPriceUgx: string
+        lowStockThreshold: number
+      }
+    >()
     for (const line of data.lines) {
       const resolved = await resolveReceiptLineItem(
         tx,
         line,
         supplier,
         data.foreignCurrency,
+        itemDefaults,
       )
       resolvedLines.push({ ...line, ...resolved })
     }
@@ -561,12 +641,22 @@ export async function replaceSupplyRouteReceiptServer(
       .delete(supplyRouteLines)
       .where(eq(supplyRouteLines.receiptId, data.receiptId))
     const resolvedLines = []
+    const itemDefaults = new Map<
+      string,
+      {
+        costPrice: string
+        costCurrency: string
+        minimumSellPriceUgx: string
+        lowStockThreshold: number
+      }
+    >()
     for (const line of data.lines) {
       const resolved = await resolveReceiptLineItem(
         tx,
         line,
         supplier,
         data.foreignCurrency,
+        itemDefaults,
       )
       resolvedLines.push({ ...line, ...resolved })
     }

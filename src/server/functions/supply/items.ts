@@ -63,12 +63,10 @@ export const addSupplyRouteVariants = createServerFn()
       !item.supplierId ||
       !item.costPrice ||
       Number(item.costPrice) <= 0 ||
-      !item.costCurrency ||
-      !item.minimumSellPriceUgx ||
-      Number(item.minimumSellPriceUgx) <= 0
+      !item.costCurrency
     ) {
       throw new Error(
-        'Configure the item supplier, cost, currency, and minimum sell price before purchasing it',
+        'Configure the item supplier, cost, and currency before purchasing it',
       )
     }
     const exchangeRateForeignToUsd =
@@ -91,6 +89,7 @@ export const addSupplyRouteVariants = createServerFn()
       unitPriceForeign: item.costPrice,
       foreignCurrency: item.costCurrency,
       minimumSellPriceUgx: item.minimumSellPriceUgx,
+      lowStockThreshold: item.lowStockThreshold,
       exchangeRateForeignToUsd,
       exchangeRateUsdToUgx,
       supplierNameSnapshot: supplier.name,
@@ -160,11 +159,13 @@ export const replaceSupplyRouteEntry = createServerFn()
               unitPriceForeign: existing[0].unitPriceForeign,
               foreignCurrency: existing[0].foreignCurrency,
               minimumSellPriceUgx: existing[0].minimumSellPriceUgx,
+              lowStockThreshold: existing[0].lowStockThreshold,
             }
           : {
               unitPriceForeign: item.costPrice,
               foreignCurrency: item.costCurrency,
               minimumSellPriceUgx: item.minimumSellPriceUgx,
+              lowStockThreshold: item.lowStockThreshold,
             }
       const supplierId = data.supplierId ?? existing[0].supplierId
       if (!supplierId) throw new Error('Select a supplier for this purchase')
@@ -195,14 +196,9 @@ export const replaceSupplyRouteEntry = createServerFn()
           }
         }
       }
-      if (
-        !snapshot.unitPriceForeign ||
-        !snapshot.foreignCurrency ||
-        !snapshot.minimumSellPriceUgx ||
-        Number(snapshot.minimumSellPriceUgx) <= 0
-      ) {
+      if (!snapshot.unitPriceForeign || !snapshot.foreignCurrency) {
         throw new Error(
-          'Configure the item supplier, cost, currency, and minimum sell price before purchasing it',
+          'Configure the item supplier, cost, and currency before purchasing it',
         )
       }
       const foreignRate =
@@ -232,6 +228,7 @@ export const replaceSupplyRouteEntry = createServerFn()
         unitPriceForeign: snapshot.unitPriceForeign,
         foreignCurrency: snapshot.foreignCurrency,
         minimumSellPriceUgx: snapshot.minimumSellPriceUgx,
+        lowStockThreshold: snapshot.lowStockThreshold,
         exchangeRateForeignToUsd: foreignRate,
         exchangeRateUsdToUgx: usdRate,
         supplierNameSnapshot:
@@ -464,6 +461,7 @@ export const splitSupplyRouteItem = createServerFn()
           exchangeRateForeignToUsd: original.exchangeRateForeignToUsd,
           exchangeRateUsdToUgx: original.exchangeRateUsdToUgx,
           minimumSellPriceUgx: original.minimumSellPriceUgx,
+          lowStockThreshold: original.lowStockThreshold,
           supplierNameSnapshot: original.supplierNameSnapshot,
           articleNumberSnapshot: original.articleNumberSnapshot,
           itemNameSnapshot: original.itemNameSnapshot,

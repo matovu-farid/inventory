@@ -18,6 +18,7 @@ export interface SupplyRouteReviewLineInput {
   totalAmountUsd?: string | null
   totalCostUgx: string
   minimumSellPriceUgx: string | null
+  lowStockThreshold?: number | null
 }
 
 export interface SupplyRouteReviewExpenseInput {
@@ -46,6 +47,7 @@ export interface SupplyRouteReviewLine {
   landedCostUgx: BigNumber
   unitCostUgx: BigNumber
   minimumSellPriceUgx: BigNumber | null
+  lowStockThreshold: number
   sellingValueUgx: BigNumber
   grossProfitUgx: BigNumber
 }
@@ -182,6 +184,7 @@ export function buildSupplyRouteReview(
       unitCostUgx:
         quantity > 0 ? landedCostUgx.div(quantity) : new BigNumber(0),
       minimumSellPriceUgx,
+      lowStockThreshold: input.lowStockThreshold ?? 0,
       sellingValueUgx,
       grossProfitUgx: sellingValueUgx.minus(landedCostUgx),
     }

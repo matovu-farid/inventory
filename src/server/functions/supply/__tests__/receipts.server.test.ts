@@ -234,6 +234,93 @@ describe('receipt item materialization', () => {
     if (first.lines[0].itemId) createdItemIds.push(first.lines[0].itemId)
   })
 
+  it('updates item defaults while preserving each receipt minimum price snapshot', async () => {
+    const design = `Commercial defaults ${suffix}`
+    const articleNumber = `DEFAULTS-${suffix}`
+    const first = await createSupplyRouteReceiptServer({
+      ...draft(design, articleNumber),
+      lines: [
+        {
+          itemName: 'Shirt',
+          design,
+          articleNumber,
+          minimumSellPriceUgx: '12000',
+          lowStockThreshold: 5,
+          quantity: 10,
+          unitPriceForeign: '20',
+        },
+      ],
+    })
+    const second = await createSupplyRouteReceiptServer({
+      ...draft(
+        design,
+        articleNumber,
+        supplierId,
+        first.lines[0].itemId ?? undefined,
+      ),
+      lines: [
+        {
+          itemName: 'Shirt',
+          design,
+          articleNumber,
+          minimumSellPriceUgx: '15000',
+          lowStockThreshold: 8,
+          quantity: 10,
+          unitPriceForeign: '25',
+        },
+      ],
+    })
+    const itemId = second.lines[0].itemId
+    expect(itemId).toBeTruthy()
+    const item = itemId
+      ? await db.query.items.findFirst({ where: eq(items.id, itemId) })
+      : undefined
+    if (item) createdItemIds.push(item.id)
+
+    expect(item).toMatchObject({
+      minimumSellPriceUgx: '15000.00',
+      lowStockThreshold: 8,
+      costPrice: '25.00',
+      costCurrency: 'RMB',
+    })
+    expect(first.lines[0].minimumSellPriceUgx).toBe('12000.00')
+    expect(second.lines[0].minimumSellPriceUgx).toBe('15000.00')
+  })
+
+  it('rejects conflicting item defaults on duplicate rows in one receipt', async () => {
+    const design = `Conflicting defaults ${suffix}`
+    try {
+      await expect(
+        createSupplyRouteReceiptServer({
+          ...draft(design, `CONFLICT-${suffix}`),
+          lines: [
+            {
+              design,
+              articleNumber: `CONFLICT-${suffix}`,
+              minimumSellPriceUgx: '12000',
+              lowStockThreshold: 5,
+              quantity: 10,
+              unitPriceForeign: '20',
+            },
+            {
+              design,
+              articleNumber: `CONFLICT-${suffix}`,
+              minimumSellPriceUgx: '15000',
+              lowStockThreshold: 5,
+              quantity: 10,
+              unitPriceForeign: '20',
+            },
+          ],
+        }),
+      ).rejects.toThrow('conflicting defaults')
+    } finally {
+      const created = await db.query.items.findFirst({
+        where: eq(items.design, design),
+      })
+      if (created) createdItemIds.push(created.id)
+    }
+  })
+
   it('allows the same supplier art number for another supplier', async () => {
     const design = `Supplier-specific design ${suffix}`
     const articleNumber = `SUPPLIER-${suffix}`

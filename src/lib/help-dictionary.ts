@@ -106,7 +106,7 @@ export const helpDict = {
   },
   'item.lowStockThreshold': {
     description:
-      'When total on-hand for this item at a location drops below this number, a low-stock alert fires. Leave blank to disable alerts for this item.',
+      'When total on-hand for this item at a location drops below this number, a low-stock alert fires. Use 0 to disable alerts for this item.',
     example: '5 units',
   },
   'item.variantsOptional': {

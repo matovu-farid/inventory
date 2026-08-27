@@ -70,9 +70,8 @@ export const storeReceivings = pgTable(
  * `uq_ss_store_item_variant_line` constraint uses `NULLS NOT DISTINCT` so
  * at most one unresolved row exists per (store, item, supply line).
  *
- * Cost per unit stays per row (lot-specific). Minimum sell price moved up
- * to `items.minimum_sell_price_ugx` — it's an item-wide floor now, not a
- * per-lot setting.
+ * Cost and minimum sell price stay per row (lot-specific). The item value is
+ * only the current default for future stock.
  */
 export const storeStock = pgTable(
   'store_stock',

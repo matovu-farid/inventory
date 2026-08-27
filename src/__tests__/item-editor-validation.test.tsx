@@ -365,7 +365,7 @@ describe('ItemEditor validation errors', () => {
     expect(onCreated).toHaveBeenLastCalledWith('created-item', 'TEE-001')
   })
 
-  it('shows a field error and does not submit a zero minimum sell price', async () => {
+  it('allows a zero minimum sell price to mean no floor', async () => {
     render(
       <TooltipProvider>
         <ItemEditor item={{ ...item, minimumSellPriceUgx: '0' }} />
@@ -374,11 +374,12 @@ describe('ItemEditor validation errors', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
 
-    expect(
-      await screen.findByText('Minimum sell price must be positive'),
-    ).toBeTruthy()
-    expect(updateItem).not.toHaveBeenCalled()
-    expect(screen.queryByText(/"minimumSellPriceUgx"/)).toBeNull()
+    await vi.waitFor(() => expect(updateItem).toHaveBeenCalledTimes(1))
+    expect(updateItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ minimumSellPriceUgx: '0' }),
+      }),
+    )
   })
 
   it('turns a server validation issue into the same field error', async () => {

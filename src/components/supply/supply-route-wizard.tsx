@@ -110,6 +110,7 @@ export function SupplyRouteWizard({
         totalAmountUsd: line.totalAmountUsd,
         totalCostUgx: line.totalCostUgx,
         minimumSellPriceUgx: line.minimumSellPriceUgx,
+        lowStockThreshold: line.lowStockThreshold,
       }
     })
   }, [route.departureDate, route.items, route.receipts])

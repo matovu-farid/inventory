@@ -459,7 +459,7 @@ function NewSaleForm({
         {
           stockId,
           qty: 1,
-          price: item.item.minimumSellPriceUgx,
+          price: item.minimumSellPriceUgx,
           belowMinimumReason: '',
         },
       ]
@@ -508,7 +508,7 @@ function NewSaleForm({
       if (
         s &&
         item.price !== '' &&
-        new BigNumber(item.price || 0).lt(s.item.minimumSellPriceUgx) &&
+        new BigNumber(item.price || 0).lt(s.minimumSellPriceUgx) &&
         item.belowMinimumReason.trim().length === 0
       ) {
         newErrors[`reason_${item.stockId}`] =
@@ -593,7 +593,7 @@ function NewSaleForm({
                   <div className="flex shrink-0 gap-3 text-xs text-muted-foreground">
                     <span>avail {s.quantityOnHand}</span>
                     <span className="font-mono">
-                      min {formatUgx(s.item.minimumSellPriceUgx)}
+                      min {formatUgx(s.minimumSellPriceUgx)}
                     </span>
                   </div>
                 </CommandItem>
@@ -637,7 +637,7 @@ function NewSaleForm({
             if (!s) return null
             const isBelowMin =
               item.price !== '' &&
-              new BigNumber(item.price || 0).lt(s.item.minimumSellPriceUgx)
+              new BigNumber(item.price || 0).lt(s.minimumSellPriceUgx)
             const decQty = () =>
               updateCart(item.stockId, 'qty', String(Math.max(1, item.qty - 1)))
             const incQty = () =>
@@ -704,7 +704,7 @@ function NewSaleForm({
                   </div>
                   <div className="min-w-[10rem] flex-1 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
-                      Price (min: {formatUgx(s.item.minimumSellPriceUgx)})
+                      Price (min: {formatUgx(s.minimumSellPriceUgx)})
                     </Label>
                     <MoneyInput
                       currency="UGX"
@@ -720,7 +720,7 @@ function NewSaleForm({
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
                       Reason for selling below{' '}
-                      {formatUgx(s.item.minimumSellPriceUgx)}
+                      {formatUgx(s.minimumSellPriceUgx)}
                     </Label>
                     <Input
                       className="h-11 text-base"

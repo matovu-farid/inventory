@@ -69,6 +69,7 @@ async function planReturnAllocations(
     shopStockId: string
     quantity: number
     costPerUnitUgx: string
+    minimumSellPriceUgx: string
     supplyRouteLineId: string | null
   }>
 > {
@@ -76,6 +77,7 @@ async function planReturnAllocations(
     shopStockId: string
     quantity: number
     costPerUnitUgx: string
+    minimumSellPriceUgx: string
     supplyRouteLineId: string | null
   }> = []
   let remaining = input.quantity
@@ -103,6 +105,7 @@ async function planReturnAllocations(
           shopStockId: a.shopStockId,
           quantity: take,
           costPerUnitUgx: a.costPerUnitUgx,
+          minimumSellPriceUgx: a.minimumSellPriceUgx,
           supplyRouteLineId: a.supplyRouteLineId,
         })
         remaining -= take
@@ -135,6 +138,7 @@ async function planReturnAllocations(
       shopStockId: target.id,
       quantity: remaining,
       costPerUnitUgx: target.costPerUnitUgx,
+      minimumSellPriceUgx: target.minimumSellPriceUgx,
       supplyRouteLineId: target.supplyRouteLineId,
     })
   }
@@ -187,6 +191,7 @@ export const recordCustomerReturn = createServerFn()
           shopStockId: string
           quantity: number
           costPerUnitUgx: string
+          minimumSellPriceUgx: string
           supplyRouteLineId: string | null
         }>
       }> = []
@@ -270,6 +275,7 @@ export const recordCustomerReturn = createServerFn()
             supplyRouteLineId: alloc.supplyRouteLineId,
             quantity: alloc.quantity,
             costPerUnitUgx: alloc.costPerUnitUgx,
+            minimumSellPriceUgx: alloc.minimumSellPriceUgx,
           })
           await tx
             .update(shopStock)

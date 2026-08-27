@@ -226,6 +226,7 @@ export async function seedStoreStockLot(input: {
   supplyRouteLineId: string | null
   quantity: number
   costPerUnitUgx: string
+  minimumSellPriceUgx?: string
 }): Promise<{ stockId: string; variantId: string | null }> {
   let resolvedVariantId: string | null
   if (input.variantId === null) {
@@ -263,6 +264,12 @@ export async function seedStoreStockLot(input: {
     )
   }
 
+  const item = await db.query.items.findFirst({
+    where: eq(items.id, input.itemId),
+    columns: { minimumSellPriceUgx: true },
+  })
+  assertDefined(item, 'seedStoreStockLot: item not found')
+
   const [row] = await db
     .insert(storeStock)
     .values({
@@ -272,6 +279,8 @@ export async function seedStoreStockLot(input: {
       supplyRouteLineId: input.supplyRouteLineId,
       quantityOnHand: input.quantity,
       costPerUnitUgx: input.costPerUnitUgx,
+      minimumSellPriceUgx:
+        input.minimumSellPriceUgx ?? item.minimumSellPriceUgx,
     })
     .returning()
   assertDefined(row, 'seedStoreStockLot: insert returned no row')
@@ -297,6 +306,7 @@ export async function seedShopStockLot(input: {
   supplyRouteLineId: string | null
   quantity: number
   costPerUnitUgx: string
+  minimumSellPriceUgx?: string
 }): Promise<{ stockId: string; variantId: string | null }> {
   let resolvedVariantId: string | null
   if (input.variantId === null) {
@@ -331,6 +341,12 @@ export async function seedShopStockLot(input: {
     )
   }
 
+  const item = await db.query.items.findFirst({
+    where: eq(items.id, input.itemId),
+    columns: { minimumSellPriceUgx: true },
+  })
+  assertDefined(item, 'seedShopStockLot: item not found')
+
   const [row] = await db
     .insert(shopStock)
     .values({
@@ -340,6 +356,8 @@ export async function seedShopStockLot(input: {
       supplyRouteLineId: input.supplyRouteLineId,
       quantityOnHand: input.quantity,
       costPerUnitUgx: input.costPerUnitUgx,
+      minimumSellPriceUgx:
+        input.minimumSellPriceUgx ?? item.minimumSellPriceUgx,
     })
     .returning()
   assertDefined(row, 'seedShopStockLot: insert returned no row')
@@ -359,6 +377,7 @@ export async function seedUnresolvedShopStock(input: {
   supplyRouteLineId?: string | null
   quantity: number
   costPerUnitUgx: string
+  minimumSellPriceUgx?: string
 }): Promise<{ stockId: string; supplyRouteLineId: string | null }> {
   const supplyRouteLineId =
     input.supplyRouteLineId === undefined
@@ -377,6 +396,15 @@ export async function seedUnresolvedShopStock(input: {
       supplyRouteLineId,
       quantityOnHand: input.quantity,
       costPerUnitUgx: input.costPerUnitUgx,
+      minimumSellPriceUgx:
+        input.minimumSellPriceUgx ??
+        (
+          await db.query.items.findFirst({
+            where: eq(items.id, input.itemId),
+            columns: { minimumSellPriceUgx: true },
+          })
+        )?.minimumSellPriceUgx ??
+        '0',
     })
     .returning()
   assertDefined(row, 'seedUnresolvedShopStock: insert returned no row')

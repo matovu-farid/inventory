@@ -110,7 +110,8 @@ async function seed() {
     const seedSupplierCode = await db.query.supplierCodes.findFirst({
       where: eq(supplierCodes.supplierId, seedSupplierId),
     })
-    if (!seedSupplierCode) throw new Error('Failed to create seed supplier code')
+    if (!seedSupplierCode)
+      throw new Error('Failed to create seed supplier code')
     const seedSupplierCodeValue = seedSupplierCode.code
 
     // Stores / shops don't have unique constraints on name, so we look first.
@@ -436,10 +437,9 @@ async function seed() {
           `Seed: variant missing for (${s.itemColorId}, ${s.size}) — run pnpm backfill:variants`,
         )
       }
-      // Variant-flexibility Plan 1 moved minimum_sell_price from
-      // store_stock to items (item-wide floor). Push the seed's
-      // sell-floor up to the item before inserting stock; the same item
-      // may be touched multiple times — fine, the value is the same.
+      // Keep the catalog default current and snapshot the same value on each
+      // opening stock lot. Later receipts may change the default without
+      // changing these already-seeded lots.
       await db
         .update(items)
         .set({ minimumSellPriceUgx: sellFloor })
@@ -452,6 +452,7 @@ async function seed() {
           variantId: variantRow.id,
           quantityOnHand: s.qty,
           costPerUnitUgx: s.costUgx,
+          minimumSellPriceUgx: sellFloor,
         })
         .onConflictDoNothing({
           target: [

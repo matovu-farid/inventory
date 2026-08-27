@@ -112,7 +112,13 @@ const saleItemInput = z.object({
   itemId: z.uuid(),
   variantId: z.uuid().optional(),
   quantity: z.number().int().positive(),
-  unitPriceUgx: z.string(),
+  unitPriceUgx: z
+    .string()
+    .trim()
+    .regex(/^\d+(\.\d{1,2})?$/, 'Sale price must be a positive UGX amount')
+    .refine((value) => new BigNumber(value).gt(0), {
+      message: 'Sale price must be a positive UGX amount',
+    }),
   belowMinimumReason: z.string().optional(),
 })
 
@@ -182,6 +188,7 @@ export const recordSale = createServerFn()
           shopStockId: string
           quantity: number
           costPerUnitUgx: string
+          minimumSellPriceUgx: string
           supplyRouteLineId: string | null
         }>
       }> = []
@@ -189,7 +196,7 @@ export const recordSale = createServerFn()
       for (const input of data.items) {
         const item = await tx.query.items.findFirst({
           where: eq(items.id, input.itemId),
-          columns: { id: true, name: true, minimumSellPriceUgx: true },
+          columns: { id: true, name: true },
           with: { articleNumbers: true },
         })
         if (!item) throw new Error(`Item not found: ${input.itemId}`)
@@ -217,12 +224,7 @@ export const recordSale = createServerFn()
         const minimumSellPriceUgx = plan.allocations
           .reduce((max, a) => {
             const snapshot = new BigNumber(a.minimumSellPriceUgx)
-            return BigNumber.maximum(
-              max,
-              snapshot.gt(0)
-                ? snapshot
-                : new BigNumber(item.minimumSellPriceUgx),
-            )
+            return BigNumber.maximum(max, snapshot)
           }, new BigNumber(0))
           .toFixed(2)
         const { isBelowMinimum, reason: belowMinimumReason } =
@@ -303,6 +305,7 @@ export const recordSale = createServerFn()
             supplyRouteLineId: alloc.supplyRouteLineId,
             quantity: alloc.quantity,
             costPerUnitUgx: alloc.costPerUnitUgx,
+            minimumSellPriceUgx: alloc.minimumSellPriceUgx,
           })
           // Decrement source row.
           const sourceRow = await tx.query.shopStock.findFirst({

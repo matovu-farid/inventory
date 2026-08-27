@@ -173,6 +173,7 @@ export const supplyRouteLines = pgTable(
     })
       .notNull()
       .default('0'),
+    lowStockThreshold: integer('low_stock_threshold').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

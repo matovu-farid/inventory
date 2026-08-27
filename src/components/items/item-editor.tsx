@@ -70,7 +70,7 @@ function ItemEditorPill({ children }: { children: ReactNode }) {
   )
 }
 
-const MINIMUM_SELL_PRICE_ERROR = 'Minimum sell price must be positive'
+const MINIMUM_SELL_PRICE_ERROR = 'Minimum sell price cannot be negative'
 
 function getValidationMessage(error: unknown, field: string): string | null {
   if (!(error instanceof Error)) return null
@@ -146,8 +146,8 @@ export function ItemEditor({
   const [minimumSellPriceUgx, setMinimumSellPriceUgx] = useState<string>(
     item?.minimumSellPriceUgx ?? '',
   )
-  const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
-    item?.lowStockThreshold ?? null,
+  const [lowStockThreshold, setLowStockThreshold] = useState<number>(
+    item?.lowStockThreshold ?? 0,
   )
   const [sizes, setSizes] = useState<string[]>(
     item?.variants
@@ -204,7 +204,7 @@ export function ItemEditor({
         : 'RMB',
     )
     setMinimumSellPriceUgx(item.minimumSellPriceUgx ?? '')
-    setLowStockThreshold(item.lowStockThreshold ?? null)
+    setLowStockThreshold(item.lowStockThreshold ?? 0)
     setSizes(
       item.variants
         ? [...new Set(item.variants.map((variant) => variant.size))]
@@ -307,8 +307,9 @@ export function ItemEditor({
     setError(null)
     setMinimumSellPriceError(null)
 
-    const minimumSellPrice = Number(minimumSellPriceUgx)
-    if (!Number.isFinite(minimumSellPrice) || minimumSellPrice <= 0) {
+    const effectiveMinimumSellPriceUgx = minimumSellPriceUgx.trim() || '0'
+    const minimumSellPrice = Number(effectiveMinimumSellPriceUgx)
+    if (!Number.isFinite(minimumSellPrice) || minimumSellPrice < 0) {
       setMinimumSellPriceError(MINIMUM_SELL_PRICE_ERROR)
       setSubmitting(false)
       return
@@ -325,7 +326,7 @@ export function ItemEditor({
             supplierId,
             costPrice,
             costCurrency,
-            minimumSellPriceUgx,
+            minimumSellPriceUgx: effectiveMinimumSellPriceUgx,
             lowStockThreshold,
           },
         })
@@ -348,7 +349,7 @@ export function ItemEditor({
               costCurrency,
               sizes,
               colors,
-              minimumSellPriceUgx,
+              minimumSellPriceUgx: effectiveMinimumSellPriceUgx,
               lowStockThreshold,
             },
           })
@@ -544,11 +545,11 @@ export function ItemEditor({
               min={0}
               step={1}
               placeholder="No alert"
-              value={lowStockThreshold ?? ''}
+              value={lowStockThreshold}
               onChange={(e) => {
                 const v = e.target.value
                 setLowStockThreshold(
-                  v === '' ? null : Math.max(0, Math.floor(Number(v))),
+                  v === '' ? 0 : Math.max(0, Math.floor(Number(v))),
                 )
               }}
             />
@@ -705,7 +706,6 @@ export function ItemEditor({
             !design.trim() ||
             !supplierId ||
             !costPrice ||
-            !minimumSellPriceUgx ||
             submitting
           }
         >

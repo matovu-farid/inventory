@@ -61,6 +61,7 @@ const purchaseReviewColumns = [
   ['USD rate', 'item.ugxPerUsd'],
   ['Total cost (UGX)', 'col.totalUgx'],
   ['Selling/unit', 'reviewCol.sellingUnit'],
+  ['Low-stock threshold', 'item.lowStockThreshold'],
   ['Total selling', 'reviewCol.totalSelling'],
   ['Gross profit', 'reviewCol.grossProfit'],
 ] satisfies ReadonlyArray<[string, HelpKey]>
@@ -514,6 +515,13 @@ export function SupplyRouteReview({
                                 {line.minimumSellPriceUgx
                                   ? formatUgx(line.minimumSellPriceUgx)
                                   : '—'}
+                              </td>
+                              <td className="whitespace-nowrap px-2 py-2 text-right font-mono">
+                                {line.lowStockThreshold === 0
+                                  ? '0 (off)'
+                                  : line.lowStockThreshold.toLocaleString(
+                                      'en-UG',
+                                    )}
                               </td>
                               <td className="whitespace-nowrap px-2 py-2 text-right font-mono">
                                 {formatUgx(line.sellingValueUgx)}

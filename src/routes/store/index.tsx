@@ -144,7 +144,7 @@ function StoreStockPage() {
                   </TableHead>
                   <TableHead className="text-right">
                     <span className="inline-flex items-center gap-1.5">
-                      Min Sell Price
+                      Current Min Sell Price
                       <InfoPopover term="item.minSellPrice" />
                     </span>
                   </TableHead>
@@ -177,7 +177,7 @@ function ItemStockRow({
   const [open, setOpen] = useState(false)
   const [specifying, setSpecifying] = useState<string | null>(null)
   const lowStock =
-    group.item.lowStockThreshold !== null &&
+    group.item.lowStockThreshold > 0 &&
     group.totalQty < group.item.lowStockThreshold
 
   const specifyingRow =

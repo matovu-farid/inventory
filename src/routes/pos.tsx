@@ -92,8 +92,7 @@ function PosInner() {
         itemColorId: s.variant.color.id,
         size: s.variant.size,
         quantityOnHand: s.quantityOnHand,
-        // Min sell price moved from shop_stock to items in the schema flip.
-        minimumSellPriceUgx: s.item.minimumSellPriceUgx,
+        minimumSellPriceUgx: s.minimumSellPriceUgx,
       })),
     [resolved],
   )

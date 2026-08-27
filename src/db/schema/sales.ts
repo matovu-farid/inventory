@@ -186,6 +186,12 @@ export const shopSaleLineAllocations = pgTable(
       precision: 15,
       scale: 2,
     }).notNull(),
+    minimumSellPriceUgx: numeric('minimum_sell_price_ugx', {
+      precision: 15,
+      scale: 2,
+    })
+      .notNull()
+      .default('0'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

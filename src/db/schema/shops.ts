@@ -55,7 +55,8 @@ export const shopStock = pgTable(
     variantId: uuid('variant_id').references(() => variants.id, {
       onDelete: 'restrict',
     }),
-    // Carries the original purchase lot from supply through store → shop.
+    // Carries the original purchase lot from supply through store → shop,
+    // including its immutable cost and minimum-sell-price snapshots.
     // Two shop_stock rows for the same (shop, item, variant) but different
     // supply lines stay separate so per-lot cost is preserved.
     supplyRouteLineId: uuid('supply_route_line_id').references(

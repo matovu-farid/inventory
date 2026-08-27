@@ -596,7 +596,7 @@ function CommercialEditor({
       <Button
         className="w-full"
         onClick={() => void save()}
-        disabled={saving || !supplierId || !costPrice || !minimumSellPriceUgx}
+        disabled={saving || !supplierId || !costPrice}
       >
         {saving ? 'Saving…' : 'Save item pricing'}
       </Button>
@@ -605,26 +605,21 @@ function CommercialEditor({
 }
 
 type StockPrices = {
-  // Store min sell price moved to `items.minimumSellPriceUgx` in
-  // variant-flexibility Task 2 — it's item-wide, not per-row. Shop stock
-  // still has per-lot pricing. Stock rows joined to a variant may have a
-  // null variant after the same task made `store_stock.variant_id`
-  // nullable for unresolved lots.
   item: { id: string; minimumSellPriceUgx: string } | null
   store: Array<{
     id: string
     quantityOnHand: number
+    minimumSellPriceUgx: string
     store: { name: string }
     variant: {
       size: string
       color: { colorName: string; colorHex: string }
     } | null
   }>
-  // Plan 2b: shop_stock no longer carries a per-row minimum sell price —
-  // shop floors are read from `item.minimumSellPriceUgx` like store floors.
   shop: Array<{
     id: string
     quantityOnHand: number
+    minimumSellPriceUgx: string
     shop: { name: string }
     variant: {
       size: string
@@ -634,19 +629,14 @@ type StockPrices = {
 }
 
 function PriceSummary({ prices }: { prices: StockPrices }) {
-  const itemFloor = prices.item?.minimumSellPriceUgx ?? '0'
   const rows = [
-    // Store rows now inherit their min sell price from the item itself —
-    // each row shows the item-wide floor in the "Min sell" column. Rows
-    // whose variant is unresolved (variant_id NULL after Task 2) show "—"
-    // for color/size; they're still counted in qty.
     ...prices.store.map((s) => ({
       key: `store-${s.id}`,
       location: `Store · ${s.store.name}`,
       color: s.variant?.color ?? null,
       size: s.variant?.size ?? null,
       qty: s.quantityOnHand,
-      price: itemFloor,
+      price: s.minimumSellPriceUgx,
     })),
     ...prices.shop.map((s) => ({
       key: `shop-${s.id}`,
@@ -654,8 +644,7 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
       color: s.variant?.color ?? null,
       size: s.variant?.size ?? null,
       qty: s.quantityOnHand,
-      // Shop rows inherit the item-wide floor after Plan 2b.
-      price: itemFloor,
+      price: s.minimumSellPriceUgx,
     })),
   ]
   if (rows.length === 0) {
@@ -711,8 +700,8 @@ function PriceEditor({
   prices: StockPrices
   onSaved: () => void
 }) {
-  // Plan 2b: a single item-wide minimum sell price applies to every
-  // store + shop lot. The editor has one row.
+  // Item defaults are edited here; stock rows display their immutable
+  // snapshots in PriceSummary above.
   type DraftRow = {
     key: 'item'
     itemId: string
@@ -734,7 +723,7 @@ function PriceEditor({
       {
         key: 'item',
         itemId,
-        location: 'Item-wide floor (store + shop)',
+        location: 'Current item default (future stock)',
         original: itemFloor,
         value: itemFloor,
         qty: totalQty,

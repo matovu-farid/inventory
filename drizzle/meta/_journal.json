@@ -155,6 +155,27 @@
       "when": 1787781054632,
       "tag": "0021_happy_krista_starr",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1787787117749,
+      "tag": "0022_shiny_amphibian",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1787787291743,
+      "tag": "0023_brave_sway",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787787950538,
+      "tag": "0024_abnormal_robin_chapel",
+      "breakpoints": true
     }
   ]
 }

@@ -95,7 +95,9 @@ describe('useSyncEngine', () => {
 
   it("concurrent invocations don't double-process the same sale", async () => {
     // Each call to recordSale resolves after a small delay
+    // This mock intentionally returns a delayed promise to exercise the mutex.
     mockRecordSale.mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       () =>
         new Promise<{ id: string }>((res) =>
           setTimeout(() => res({ id: 'srv-ok' }), 10),

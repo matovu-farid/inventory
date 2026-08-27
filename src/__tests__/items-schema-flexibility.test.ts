@@ -8,9 +8,10 @@ describe('items schema — variant-flexibility fields', () => {
     expect((col as { notNull?: boolean }).notNull).toBe(true)
   })
 
-  it('has low_stock_threshold as nullable integer', () => {
+  it('has low_stock_threshold as NOT NULL integer with a zero default', () => {
     const col = items.lowStockThreshold
     expect(col).toBeDefined()
-    expect((col as { notNull?: boolean }).notNull).toBeFalsy()
+    expect((col as { notNull?: boolean }).notNull).toBe(true)
+    expect((col as { default?: unknown }).default).toBe(0)
   })
 })

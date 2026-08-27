@@ -122,15 +122,14 @@ export const upsertInput = z.object({
   /**
    * Variant-flexibility Plan 1, Task 4: item-level floor price and
    * low-stock threshold. Both optional on input; the create handler
-   * defaults them to "0" and null respectively (matching the column
-   * defaults / nullability in items schema).
+   * defaults them to "0" (matching the column defaults in items schema).
    */
   minimumSellPriceUgx: z
     .string()
     .regex(/^\d+(\.\d{1,2})?$/)
-    .refine((v) => Number(v) > 0, 'Minimum sell price must be positive')
+    .refine((v) => Number(v) >= 0, 'Minimum sell price must be non-negative')
     .optional(),
-  lowStockThreshold: z.number().int().min(0).nullable().optional(),
+  lowStockThreshold: z.number().int().min(0).optional(),
 })
 
 export const updateInput = upsertInput
@@ -401,12 +400,12 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
     !data.supplierId ||
     !data.costPrice ||
     !data.costCurrency ||
-    !data.minimumSellPriceUgx ||
     Number(data.costPrice) <= 0 ||
-    Number(data.minimumSellPriceUgx) <= 0
+    (data.minimumSellPriceUgx !== undefined &&
+      Number(data.minimumSellPriceUgx) < 0)
   ) {
     throw new Error(
-      'Supplier, supplier cost, cost currency, and a positive minimum sell price are required',
+      'Supplier, supplier cost, and cost currency are required; minimum sell price cannot be negative',
     )
   }
   const articleNumbers = normalizeArticleNumbers(data.articleNumbers)
@@ -430,7 +429,7 @@ export async function createItemQuery(data: z.infer<typeof upsertInput>) {
           costPrice: data.costPrice,
           costCurrency: data.costCurrency,
           minimumSellPriceUgx: data.minimumSellPriceUgx,
-          lowStockThreshold: data.lowStockThreshold ?? null,
+          lowStockThreshold: data.lowStockThreshold ?? 0,
         })
         .returning()
 
@@ -506,7 +505,7 @@ export async function updateItemQuery(data: z.infer<typeof updateInput>) {
     ...(fields.costCurrency === undefined
       ? {}
       : { costCurrency: fields.costCurrency }),
-    // Treat undefined as "no change"; null clears the threshold.
+    // Treat undefined as "no change". Threshold 0 disables the alert.
     // Using `=== undefined` (not `"key" in data`) so a caller that
     // explicitly passes the key with `undefined` is still a no-op,
     // matching the symmetric treatment of minimumSellPriceUgx.

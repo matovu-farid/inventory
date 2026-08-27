@@ -36,6 +36,7 @@ export const variantInput = z.object({
   unitPriceForeign: z.string().optional(),
   foreignCurrency: z.string().optional(),
   minimumSellPriceUgx: z.string().optional(),
+  lowStockThreshold: z.number().int().min(0).optional(),
   cells: z.array(cellSchema).min(1),
 })
 
@@ -62,6 +63,7 @@ export type MaterializedRow = {
   totalAmountUsd: string | null
   totalCostUgx: string
   minimumSellPriceUgx: string
+  lowStockThreshold: number
 }
 
 type MaterializeInput = z.infer<typeof variantInput> & {
@@ -187,6 +189,7 @@ export function materializeVariantRows(
       exchangeRateUsdToUgx,
       ...amounts,
       minimumSellPriceUgx: input.minimumSellPriceUgx ?? '0',
+      lowStockThreshold: input.lowStockThreshold ?? 0,
     }
   })
 }
@@ -211,6 +214,7 @@ export interface SplitSourceRow {
   exchangeRateForeignToUsd: string | null
   exchangeRateUsdToUgx: string | null
   minimumSellPriceUgx?: string | null
+  lowStockThreshold?: number | null
   supplierNameSnapshot?: string | null
   articleNumberSnapshot?: string | null
   itemNameSnapshot?: string | null
@@ -244,6 +248,7 @@ export function materializeSplitRows(
     exchangeRateForeignToUsd: source.exchangeRateForeignToUsd ?? undefined,
     exchangeRateUsdToUgx: source.exchangeRateUsdToUgx ?? undefined,
     minimumSellPriceUgx: source.minimumSellPriceUgx ?? '0',
+    lowStockThreshold: source.lowStockThreshold ?? 0,
     supplierNameSnapshot: source.supplierNameSnapshot,
     articleNumberSnapshot: source.articleNumberSnapshot,
     itemNameSnapshot: source.itemNameSnapshot,

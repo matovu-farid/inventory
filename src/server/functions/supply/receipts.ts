@@ -24,6 +24,12 @@ const receiptLineInput = z.object({
     .string()
     .trim()
     .regex(/^\d+(\.\d{1,2})?$/),
+  minimumSellPriceUgx: z
+    .string()
+    .trim()
+    .regex(/^\d+(\.\d{1,2})?$/)
+    .optional(),
+  lowStockThreshold: z.number().int().min(0).optional(),
 })
 
 const receiptDraft = z.object({

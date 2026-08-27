@@ -149,6 +149,7 @@ async function insertAggregateSupplyLine(input: {
   itemId: string
   quantity: number
   totalCostUgx: string
+  minimumSellPriceUgx: string
 }): Promise<string> {
   const [row] = await db
     .insert(supplyRouteLines)
@@ -163,6 +164,7 @@ async function insertAggregateSupplyLine(input: {
       foreignCurrency: 'RMB',
       totalAmountForeign: input.quantity.toFixed(2),
       totalCostUgx: input.totalCostUgx,
+      minimumSellPriceUgx: input.minimumSellPriceUgx,
     })
     .returning()
   assertDefined(row, 'insertAggregateSupplyLine: no row returned')
@@ -213,6 +215,7 @@ describe('Plan 2a E2E — unresolved chain', () => {
       itemId,
       quantity: 10,
       totalCostUgx: '1000.00',
+      minimumSellPriceUgx: '200.00',
     })
 
     // ---- 2. Receive 10 unresolved into the store ----
@@ -374,6 +377,7 @@ describe('Plan 2a E2E — variant-scoped chain', () => {
       itemId,
       quantity: 10,
       totalCostUgx: '1500.00', // 150 UGX/unit
+      minimumSellPriceUgx: '300.00',
     })
 
     // ---- 2. Receive 10 unresolved into the store ----

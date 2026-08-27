@@ -14,8 +14,17 @@ import { eq, inArray } from 'drizzle-orm'
 import { runWithStartContext } from '@tanstack/start-storage-context'
 
 import { db } from '#/db'
-import { items, itemArticleNumbers } from '#/db/schema'
-import { setItemMinimumSellPrice } from '#/server/functions/items/prices'
+import {
+  items,
+  itemArticleNumbers,
+  shopStock,
+  shops,
+  suppliers,
+} from '#/db/schema'
+import {
+  setItemMinimumSellPrice,
+  updateItemCommercialProfile,
+} from '#/server/functions/items/prices'
 
 const TEST_USER_ID = '00000000-0000-0000-0000-0000000000c8'
 vi.mock('#/server/middleware/auth', () => ({
@@ -47,10 +56,22 @@ function callServerFn<T>(fn: () => Promise<T>): Promise<T> {
 
 const SUFFIX = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const createdItemIds: string[] = []
+const createdStockIds: string[] = []
+const createdShopIds: string[] = []
+const createdSupplierIds: string[] = []
 
 afterAll(async () => {
+  if (createdStockIds.length > 0) {
+    await db.delete(shopStock).where(inArray(shopStock.id, createdStockIds))
+  }
   if (createdItemIds.length > 0) {
     await db.delete(items).where(inArray(items.id, createdItemIds))
+  }
+  if (createdSupplierIds.length > 0) {
+    await db.delete(suppliers).where(inArray(suppliers.id, createdSupplierIds))
+  }
+  if (createdShopIds.length > 0) {
+    await db.delete(shops).where(inArray(shops.id, createdShopIds))
   }
 })
 
@@ -93,5 +114,69 @@ describe('setItemMinimumSellPrice', () => {
         }),
       ),
     ).rejects.toThrow()
+  })
+
+  it('does not rewrite commercial snapshots on stock already on hand', async () => {
+    const [supplier] = await db
+      .insert(suppliers)
+      .values({ name: `Snapshot supplier ${SUFFIX}`, type: 'local' })
+      .returning()
+    const [shop] = await db
+      .insert(shops)
+      .values({ name: `Snapshot shop ${SUFFIX}` })
+      .returning()
+    const [inserted] = await db
+      .insert(items)
+      .values({
+        name: 'Snapshot tester',
+        design: 'Test',
+        supplierId: supplier.id,
+        costPrice: '100.00',
+        costCurrency: 'RMB',
+        minimumSellPriceUgx: '12500.00',
+      })
+      .returning()
+    const [stock] = await db
+      .insert(shopStock)
+      .values({
+        shopId: shop.id,
+        itemId: inserted.id,
+        variantId: null,
+        supplyRouteLineId: null,
+        quantityOnHand: 4,
+        costPerUnitUgx: '370000.00',
+        minimumSellPriceUgx: '12500.00',
+      })
+      .returning()
+    createdSupplierIds.push(supplier.id)
+    createdShopIds.push(shop.id)
+    createdItemIds.push(inserted.id)
+    createdStockIds.push(stock.id)
+
+    await callServerFn(() =>
+      setItemMinimumSellPrice({
+        data: { itemId: inserted.id, minimumSellPriceUgx: '15000.00' },
+      }),
+    )
+    await callServerFn(() =>
+      updateItemCommercialProfile({
+        data: {
+          itemId: inserted.id,
+          supplierId: supplier.id,
+          costPrice: '110.00',
+          costCurrency: 'RMB',
+          minimumSellPriceUgx: '16000.00',
+        },
+      }),
+    )
+
+    const unchanged = await db.query.shopStock.findFirst({
+      where: eq(shopStock.id, stock.id),
+    })
+    expect(unchanged).toMatchObject({
+      quantityOnHand: 4,
+      costPerUnitUgx: '370000.00',
+      minimumSellPriceUgx: '12500.00',
+    })
   })
 })

@@ -49,6 +49,8 @@ function catalogItemFromLine(
     })),
     variants: item.variants,
     costCurrency: item.costCurrency,
+    minimumSellPriceUgx: item.minimumSellPriceUgx,
+    lowStockThreshold: item.lowStockThreshold,
   }
 }
 
@@ -84,6 +86,8 @@ function rowsFromReceipt(receipt: ReceiptData): ReceiptGridRow[] {
       sizeText: line.sizeTextSnapshot ?? line.size ?? '',
       quantity: line.quantity,
       unitPriceForeign: line.unitPriceForeign,
+      minimumSellPriceUgx: line.minimumSellPriceUgx,
+      lowStockThreshold: line.lowStockThreshold,
     })),
     createEmptyReceiptRow(`${receipt.id}-buffer`),
   ]
@@ -276,6 +280,8 @@ export function ReceiptSection({
       size: row.sizeText.trim() || undefined,
       quantity: row.quantity as number,
       unitPriceForeign: row.unitPriceForeign.trim(),
+      minimumSellPriceUgx: row.minimumSellPriceUgx.trim() || undefined,
+      lowStockThreshold: row.lowStockThreshold,
     }))
     setBusyAction('save')
     setError('')
@@ -558,6 +564,8 @@ function ReceiptGridFallback() {
           'Size',
           'Qty (pcs)',
           'Unit Price',
+          'Min sell price (UGX)',
+          'Low-stock threshold',
           'Amount',
         ].map((label) => (
           <div key={label} className="border-r px-3 py-2 last:border-r-0">

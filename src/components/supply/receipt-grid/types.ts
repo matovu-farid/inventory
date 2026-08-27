@@ -6,6 +6,8 @@ export const RECEIPT_GRID_COLUMNS = [
   'sizeText',
   'quantity',
   'unitPriceForeign',
+  'minimumSellPriceUgx',
+  'lowStockThreshold',
 ] as const
 
 export type ReceiptGridColumnId = (typeof RECEIPT_GRID_COLUMNS)[number]
@@ -18,6 +20,8 @@ export interface ReceiptGridCatalogItem {
   colors: Array<{ id: string; colorName: string; colorHex: string }>
   variants?: Array<{ id: string; colorId: string; size: string }>
   costCurrency?: string | null
+  minimumSellPriceUgx: string
+  lowStockThreshold: number
 }
 
 export interface ReceiptGridRow {
@@ -33,6 +37,8 @@ export interface ReceiptGridRow {
   sizeText: string
   quantity: number | null
   unitPriceForeign: string
+  minimumSellPriceUgx: string
+  lowStockThreshold: number
 }
 
 export interface ReceiptGridCellLocation {

@@ -134,12 +134,7 @@ export const createTransfer = createServerFn()
 
         const unitPrice = plan.allocations.reduce((max, a) => {
           const snapshot = new BigNumber(a.minimumSellPriceUgx)
-          return BigNumber.maximum(
-            max,
-            snapshot.gt(0)
-              ? snapshot
-              : new BigNumber(itemRow.minimumSellPriceUgx),
-          )
+          return BigNumber.maximum(max, snapshot)
         }, new BigNumber(0))
         const totalPrice = unitPrice.times(item.quantityDispatched)
         // Cost: weighted sum across allocations (lot costs may differ).
@@ -172,9 +167,7 @@ export const createTransfer = createServerFn()
             supplyRouteLineId: alloc.supplyRouteLineId,
             quantity: alloc.quantity,
             costPerUnitUgx: alloc.costPerUnitUgx,
-            minimumSellPriceUgx: new BigNumber(alloc.minimumSellPriceUgx).gt(0)
-              ? alloc.minimumSellPriceUgx
-              : itemRow.minimumSellPriceUgx,
+            minimumSellPriceUgx: alloc.minimumSellPriceUgx,
           })
           await tx
             .update(storeStock)
@@ -396,11 +389,7 @@ export const confirmTransferReceipt = createServerFn()
               storeTransferItemId: tl.id,
               quantityOnHand: take,
               costPerUnitUgx: alloc.costPerUnitUgx,
-              minimumSellPriceUgx: new BigNumber(alloc.minimumSellPriceUgx).gt(
-                0,
-              )
-                ? alloc.minimumSellPriceUgx
-                : tl.item.minimumSellPriceUgx,
+              minimumSellPriceUgx: alloc.minimumSellPriceUgx,
             })
           }
         }

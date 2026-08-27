@@ -44,6 +44,7 @@ export interface FifoCandidateRow {
   supplyRouteLineId: string | null
   quantityOnHand: number
   costPerUnitUgx: string
+  minimumSellPriceUgx: string
   supplyLineCreatedAt: Date | null
 }
 
@@ -51,6 +52,7 @@ export interface GenericFifoAllocation {
   stockId: string
   quantity: number
   costPerUnitUgx: string
+  minimumSellPriceUgx: string
   supplyRouteLineId: string | null
 }
 
@@ -100,6 +102,7 @@ export function planFifoFromRows(
       stockId: r.id,
       quantity: take,
       costPerUnitUgx: r.costPerUnitUgx,
+      minimumSellPriceUgx: r.minimumSellPriceUgx,
       supplyRouteLineId: r.supplyRouteLineId,
     })
     remaining -= take

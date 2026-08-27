@@ -30,6 +30,8 @@ function Harness({ filled = false }: { filled?: boolean }) {
             design: 'Jacket',
             articleNumbers: [],
             colors: [],
+            minimumSellPriceUgx: '0',
+            lowStockThreshold: 0,
           }
         : null,
       articleNumber: filled ? 'JKT-1' : '',
