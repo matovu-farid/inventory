@@ -48,15 +48,17 @@ export function validateDistribution(
   distribution: ReceiptQuantityDistribution | null,
   quantity: number | null,
 ): DistributionValidation {
-  if (quantity === null || !Number.isInteger(quantity) || quantity < 0) {
+  if (quantity !== null && (!Number.isInteger(quantity) || quantity < 0)) {
     return invalid(
       distributionTotal(distribution),
       quantity,
-      'Enter a valid quantity first',
+      'Enter a valid quantity or add an allocation',
     )
   }
   if (!distribution) {
-    return { valid: true, total: quantity, difference: 0 }
+    return quantity === null
+      ? invalid(0, quantity, 'Add at least one allocation')
+      : { valid: true, total: quantity, difference: 0 }
   }
   if (distribution.cells.length === 0) {
     return invalid(0, quantity, 'Add at least one allocation')
@@ -93,6 +95,12 @@ export function validateDistribution(
   }
   if (firstError) {
     return invalid(total, quantity, firstError)
+  }
+
+  if (quantity === null) {
+    return total > 0
+      ? { valid: true, total, difference: 0 }
+      : invalid(total, quantity, 'Allocate at least one piece')
   }
 
   const difference = total - quantity

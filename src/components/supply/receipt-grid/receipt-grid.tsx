@@ -38,14 +38,17 @@ import {
   createEmptyReceiptRow,
   ensureReceiptRows,
   fillDownReceiptCells,
+  getNextReceiptCell,
   isReceiptRowEmpty,
   removeReceiptRow,
+  RECEIPT_GRID_COLUMNS,
   updateReceiptCell,
 } from './receipt-grid-state'
 import { QuantityDistributionEditor } from './quantity-distribution-editor'
 import {
   cloneDistribution,
   distributionSummary,
+  distributionTotal,
   validateDistribution,
 } from '#/components/item-entry-grid/distribution-state'
 import type { ReceiptQuantityDistribution } from '#/components/item-entry-grid/distribution-types'
@@ -264,6 +267,23 @@ export function ReceiptGrid({
     [appendBlankAfter],
   )
 
+  const advanceCell = useCallback(
+    (source: CellLocation) => {
+      const next = getNextReceiptCell(source)
+      commitRows(ensureReceiptRows(currentRowsRef.current, next.row + 1))
+      setActiveCell(next)
+      window.setTimeout(() => {
+        const rowElement = rowRefs.current[next.row]
+        const columnIndex = RECEIPT_GRID_COLUMNS.indexOf(next.column)
+        if (!rowElement) return
+        rowElement
+          .querySelectorAll<HTMLInputElement>('input')
+          [columnIndex].focus()
+      }, 0)
+    },
+    [commitRows],
+  )
+
   const updateCell = useCallback(
     (rowIndex: number, column: EditableColumn, value: string) => {
       commitRows(
@@ -369,14 +389,26 @@ export function ReceiptGrid({
   )
 
   const updateDistribution = useCallback(
-    (rowIndex: number, distribution: ReceiptQuantityDistribution | null) => {
+    (
+      rowIndex: number,
+      distribution: ReceiptQuantityDistribution | null,
+      derivedQuantity?: number,
+    ) => {
       const editableRows = ensureReceiptRows(
         currentRowsRef.current,
         rowIndex + 1,
       )
       commitRows(
         editableRows.map((row, index) =>
-          index === rowIndex ? { ...row, distribution } : row,
+          index === rowIndex
+            ? {
+                ...row,
+                distribution,
+                ...(row.quantity === null && derivedQuantity !== undefined
+                  ? { quantity: derivedQuantity }
+                  : {}),
+              }
+            : row,
         ),
       )
     },
@@ -463,17 +495,17 @@ export function ReceiptGrid({
           const distribution = parsed.distribution ?? null
           if (
             parsed.quantity === quantity &&
+            quantity === distributionTotal(distribution) &&
             validateDistribution(distribution, quantity).valid
           ) {
-            const nextRows = updateReceiptCell(
-              ensureReceiptRows(currentRowsRef.current, row + 1),
-              row,
-              column,
-              text,
+            const nextRows = ensureReceiptRows(
+              currentRowsRef.current,
+              row + 1,
             ).map((currentRow, index) =>
               index === row
                 ? {
                     ...currentRow,
+                    quantity,
                     distribution: cloneDistribution(distribution),
                   }
                 : currentRow,
@@ -516,13 +548,16 @@ export function ReceiptGrid({
   ) {
     if (column !== 'quantity') return
     const row = currentRowsRef.current[rowIndex]
-    if (row.quantity === null) return
-    event.clipboardData.setData('text/plain', String(row.quantity))
+    const quantity = row.distribution
+      ? distributionTotal(row.distribution)
+      : row.quantity
+    if (quantity === null) return
+    event.clipboardData.setData('text/plain', String(quantity))
     if (row.distribution) {
       event.clipboardData.setData(
         receiptQuantityClipboardType,
         JSON.stringify({
-          quantity: row.quantity,
+          quantity,
           distribution: row.distribution,
         }),
       )
@@ -616,6 +651,7 @@ export function ReceiptGrid({
                     }
                     disabled={disabled}
                     onActivate={activateCell}
+                    onAdvance={() => advanceCell({ row: rowIndex, column })}
                     onCommit={
                       column === 'design'
                         ? (value) => updateDesign(rowIndex, value as string)
@@ -677,8 +713,12 @@ export function ReceiptGrid({
           onOpenChange={(open) => {
             if (!open) setDistributionRowIndex(null)
           }}
-          onApply={(distribution) => {
-            updateDistribution(distributionRowIndex, distribution)
+          onApply={(distribution, derivedQuantity) => {
+            updateDistribution(
+              distributionRowIndex,
+              distribution,
+              derivedQuantity,
+            )
             setDistributionRowIndex(null)
           }}
         />
@@ -758,6 +798,7 @@ function EditableTableCell({
   currency,
   distributionEnabled,
   onOpenDistribution,
+  onAdvance,
 }: {
   row: ReceiptGridRow
   rowIndex: number
@@ -765,6 +806,7 @@ function EditableTableCell({
   active: boolean
   disabled: boolean
   onActivate: (row: number, column: EditableColumn) => void
+  onAdvance: () => void
   onCommit: (
     value: string | { text: string; hexText: string; ids: string[] },
   ) => void
@@ -791,9 +833,11 @@ function EditableTableCell({
 }) {
   const value =
     column === 'quantity'
-      ? row.quantity === null
-        ? ''
-        : String(row.quantity)
+      ? row.distribution
+        ? String(distributionTotal(row.distribution))
+        : row.quantity === null
+          ? ''
+          : String(row.quantity)
       : column === 'lowStockThreshold'
         ? String(row.lowStockThreshold)
         : row[column]
@@ -811,6 +855,7 @@ function EditableTableCell({
           disabled={disabled}
           active={active}
           onActivate={() => onActivate(rowIndex, column)}
+          onAdvance={onAdvance}
           onCommit={(next) => onCommit(next)}
           onCatalogItemSelected={onCatalogItemSelected}
           onPaste={(event) => onPaste(event, rowIndex, column)}
@@ -825,6 +870,7 @@ function EditableTableCell({
           disabled={disabled}
           active={active}
           onActivate={() => onActivate(rowIndex, column)}
+          onAdvance={onAdvance}
           onCommit={(next) => onCommit(next)}
           onPaste={(event) => onPaste(event, rowIndex, column)}
           onCopy={(event) => onCopy(event, rowIndex, column)}
@@ -840,6 +886,7 @@ function EditableTableCell({
           mode={mode}
           rowNumber={rowNumber}
           onActivate={() => onActivate(rowIndex, column)}
+          onAdvance={onAdvance}
           onCommit={(next) => onCommit(next)}
           onPaste={(event) => onPaste(event, rowIndex, column)}
           onCopy={(event) => onCopy(event, rowIndex, column)}
@@ -851,6 +898,7 @@ function EditableTableCell({
           disabled={disabled}
           active={active}
           onActivate={() => onActivate(rowIndex, column)}
+          onAdvance={onAdvance}
           onCommit={(next) => onCommit(next)}
           onPaste={(event) => onPaste(event, rowIndex, column)}
           onCopy={(event) => onCopy(event, rowIndex, column)}
@@ -860,6 +908,7 @@ function EditableTableCell({
           mode={mode}
           distribution={row.distribution}
           distributionEnabled={distributionEnabled}
+          quantityLocked={column === 'quantity' && row.distribution !== null}
           onOpenDistribution={onOpenDistribution}
         />
       )}
@@ -886,6 +935,7 @@ function SizeEditor({
   mode,
   rowNumber,
   onActivate,
+  onAdvance,
   onCommit,
   onPaste,
   onCopy,
@@ -897,6 +947,7 @@ function SizeEditor({
   mode: ItemEntryGridConfig['mode']
   rowNumber: number
   onActivate: () => void
+  onAdvance: () => void
   onCommit: (value: string) => void
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
   onCopy: (event: React.ClipboardEvent<HTMLInputElement>) => void
@@ -945,6 +996,7 @@ function SizeEditor({
               if (event.key === 'Enter') {
                 event.preventDefault()
                 finish()
+                onAdvance()
               }
               if (event.key === 'Escape') {
                 setDraft(value)
@@ -988,6 +1040,7 @@ function PlainCellInput({
   disabled,
   active,
   onActivate,
+  onAdvance,
   onCommit,
   onPaste,
   onCopy,
@@ -997,6 +1050,7 @@ function PlainCellInput({
   mode,
   distribution,
   distributionEnabled,
+  quantityLocked,
   onOpenDistribution,
 }: {
   value: string
@@ -1004,6 +1058,7 @@ function PlainCellInput({
   disabled: boolean
   active: boolean
   onActivate: () => void
+  onAdvance: () => void
   onCommit: (value: string) => void
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
   onCopy: (event: React.ClipboardEvent<HTMLInputElement>) => void
@@ -1013,6 +1068,7 @@ function PlainCellInput({
   mode: ItemEntryGridConfig['mode']
   distribution: ReceiptQuantityDistribution | null
   distributionEnabled: boolean
+  quantityLocked: boolean
   onOpenDistribution: () => void
 }) {
   const [draft, setDraft] = useState(value)
@@ -1022,7 +1078,9 @@ function PlainCellInput({
     setDraft(value)
   }, [value])
   function finish() {
-    if (draftRef.current !== value) onCommit(draftRef.current)
+    if (!quantityLocked && draftRef.current !== value) {
+      onCommit(draftRef.current)
+    }
   }
   if (column === 'minimumSellPriceUgx' || column === 'unitPriceForeign') {
     return (
@@ -1049,7 +1107,11 @@ function PlainCellInput({
         onPaste={onPaste}
         onCopy={onCopy}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur()
+          if (event.key === 'Enter') {
+            event.preventDefault()
+            event.currentTarget.blur()
+            onAdvance()
+          }
           if (event.key === 'Escape') {
             setDraft(value)
             event.currentTarget.blur()
@@ -1099,6 +1161,11 @@ function PlainCellInput({
       }
       value={draft}
       disabled={disabled}
+      title={
+        quantityLocked
+          ? 'Distributed quantity is locked. Edit it from the distribution dialog.'
+          : undefined
+      }
       placeholder={
         column === 'sizeText'
           ? 'S, M, L'
@@ -1106,18 +1173,24 @@ function PlainCellInput({
             ? '0'
             : undefined
       }
-      className={`h-11 w-full rounded-none border-0 bg-transparent px-3 pr-9 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
+      className={`h-11 w-full rounded-none border-0 bg-transparent px-3 pr-9 text-sm text-foreground shadow-none placeholder:text-muted-foreground read-only:cursor-default read-only:bg-muted/20 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${active ? 'ring-2 ring-inset ring-ring' : ''}`}
       onFocus={onActivate}
       onChange={(event) => {
+        if (quantityLocked) return
         draftRef.current = event.target.value
         setDraft(event.target.value)
         onCommit(event.target.value)
       }}
       onPaste={onPaste}
       onCopy={onCopy}
+      readOnly={quantityLocked}
       onBlur={finish}
       onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur()
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          event.currentTarget.blur()
+          onAdvance()
+        }
         if (event.key === 'Escape') {
           setDraft(value)
           event.currentTarget.blur()
@@ -1140,7 +1213,7 @@ function PlainCellInput({
         className={`absolute right-1 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded ${distribution ? 'bg-primary/10 text-primary' : 'text-muted-foreground'} hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
         onMouseDown={(event) => event.preventDefault()}
         onClick={onOpenDistribution}
-        disabled={disabled || !value}
+        disabled={disabled}
       >
         <span className="sr-only">Distribute</span>
         <span className="text-xs font-bold" aria-hidden="true">
@@ -1157,6 +1230,7 @@ function DesignEditor({
   disabled,
   active,
   onActivate,
+  onAdvance,
   onCommit,
   onCatalogItemSelected,
   onPaste,
@@ -1169,6 +1243,7 @@ function DesignEditor({
   disabled: boolean
   active: boolean
   onActivate: () => void
+  onAdvance: () => void
   onCommit: (value: string) => void
   onCatalogItemSelected?: (item: ReceiptGridCatalogItem) => void
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
@@ -1280,6 +1355,7 @@ function DesignEditor({
                 if (results[0]) {
                   selectCatalogItem(results[0])
                 } else finish()
+                onAdvance()
               }
               if (event.key === 'Escape') {
                 setDraft(value)
@@ -1358,6 +1434,7 @@ function ColorEditor({
   disabled,
   active,
   onActivate,
+  onAdvance,
   onCommit,
   onPaste,
   onCopy,
@@ -1368,6 +1445,7 @@ function ColorEditor({
   disabled: boolean
   active: boolean
   onActivate: () => void
+  onAdvance: () => void
   onCommit: (value: { text: string; hexText: string; ids: string[] }) => void
   onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
   onCopy: (event: React.ClipboardEvent<HTMLInputElement>) => void
@@ -1515,6 +1593,7 @@ function ColorEditor({
                   commit()
                   setOpen(false)
                 }
+                onAdvance()
               }
               if (event.key === 'Escape') {
                 setValue(row.colorText)

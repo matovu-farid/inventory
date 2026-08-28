@@ -14,7 +14,12 @@ import { createEmptyReceiptRow, isReceiptRowEmpty } from '../receipt-grid-state'
 import type { ReceiptGridRow } from '../types'
 
 vi.mock('#/server/functions/items/items', () => ({
+  getItemByArticle: vi.fn().mockResolvedValue(null),
   searchItems: vi.fn().mockResolvedValue([]),
+}))
+
+vi.mock('#/server/functions/supply/items', () => ({
+  splitSupplyRouteItem: vi.fn().mockResolvedValue(null),
 }))
 
 function Harness({ filled = false }: { filled?: boolean }) {
@@ -41,6 +46,12 @@ function Harness({ filled = false }: { filled?: boolean }) {
       sizeText: filled ? 'S, M' : '',
       quantity: filled ? 10 : null,
       unitPriceForeign: filled ? '3.00' : '',
+      distribution: filled
+        ? {
+            mode: 'colors',
+            cells: [{ color: 'Red', colorId: 'red-1', colorHex: '#ff0000', quantity: 10 }],
+          }
+        : null,
     },
   ])
   return (
@@ -140,6 +151,54 @@ describe('custom ReceiptGrid', () => {
       expect(screen.getByTestId('grid-state').textContent).toContain(
         'unitPriceForeign":"28',
       ),
+    )
+  })
+
+  it('locks the aggregate quantity while keeping distribution editing available', () => {
+    render(<Harness filled />)
+
+    const quantity = screen.getByRole('spinbutton', { name: 'Qty (pcs)' })
+    expect(quantity.getAttribute('readonly')).not.toBeNull()
+    expect(
+      screen.getByRole('button', {
+        name: 'Distribute quantity for row 1',
+      }).getAttribute('disabled'),
+    ).toBeNull()
+
+    fireEvent.change(quantity, { target: { value: '8' } })
+    expect(screen.getByTestId('grid-state').textContent).toContain(
+      '"quantity":10',
+    )
+  })
+
+  it('keeps an undistributed quantity editable', () => {
+    render(<Harness />)
+
+    expect(
+      screen.getByRole('spinbutton', { name: 'Qty (pcs)' }).getAttribute(
+        'readonly',
+      ),
+    ).toBeNull()
+  })
+
+  it('unlocks quantity only after clearing its distribution', async () => {
+    render(<Harness filled />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Distribute quantity for row 1' }),
+    )
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear distribution' }))
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('spinbutton', { name: 'Qty (pcs)' }).getAttribute(
+          'readonly',
+        ),
+      ).toBeNull(),
+    )
+    expect(screen.getByTestId('grid-state').textContent).toContain(
+      '"distribution":null',
     )
   })
 })

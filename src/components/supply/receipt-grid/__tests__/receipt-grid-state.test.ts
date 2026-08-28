@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   applyPasteMatrix,
   addReceiptRow,
+  calculateGridTotals,
   calculateRowAmount,
   createEmptyReceiptRow,
   fillDownReceiptCells,
@@ -45,6 +46,26 @@ describe('receipt grid state', () => {
     expect(
       calculateRowAmount(row('1', { quantity: 100, unitPriceForeign: '31' })),
     ).toBe('3100.00')
+  })
+
+  it('calculates amount from the distributed quantity when the row is bottom-up', () => {
+    const bottomUpRow = row('1', {
+      quantity: null,
+      unitPriceForeign: '31',
+      distribution: {
+        mode: 'colors',
+        cells: [
+          { color: 'Black', quantity: 40 },
+          { color: 'Red', quantity: 60 },
+        ],
+      },
+    })
+
+    expect(calculateRowAmount(bottomUpRow)).toBe('3100.00')
+    expect(calculateGridTotals([bottomUpRow])).toEqual({
+      totalPieces: 100,
+      totalAmountForeign: '3100.00',
+    })
   })
 
   it('updates a cell without mutating the original row', () => {

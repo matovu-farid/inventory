@@ -11,6 +11,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ReceiptGridRow } from '#/components/supply/receipt-grid/types'
 import { ReceiptSection } from '../receipt-section'
 
+function selectSupplier(name: string) {
+  fireEvent.click(screen.getByRole('combobox', { name: 'Supplier *' }))
+  fireEvent.change(screen.getByPlaceholderText('Search suppliers...'), {
+    target: { value: name },
+  })
+  fireEvent.click(screen.getByRole('option', { name }))
+}
+
 const { createReceipt, replaceReceipt, deleteReceipt } = vi.hoisted(() => ({
   createReceipt: vi.fn(),
   replaceReceipt: vi.fn(),
@@ -96,6 +104,15 @@ vi.mock('../receipt-grid/receipt-grid', () => ({
   ),
 }))
 
+class ResizeObserverStub {
+  observe() {}
+  disconnect() {}
+  unobserve() {}
+}
+
+vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+Element.prototype.scrollIntoView = vi.fn()
+
 describe('ReceiptSection save validation', () => {
   afterEach(() => {
     cleanup()
@@ -120,9 +137,7 @@ describe('ReceiptSection save validation', () => {
       />,
     )
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Supplier *' }), {
-      target: { value: 'supplier-1' },
-    })
+    selectSupplier('Supplier')
     fireEvent.click(
       screen.getByRole('button', { name: 'Fill incomplete line' }),
     )
@@ -149,9 +164,7 @@ describe('ReceiptSection save validation', () => {
       />,
     )
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Supplier *' }), {
-      target: { value: 'supplier-1' },
-    })
+    selectSupplier('Supplier')
     fireEvent.click(screen.getByRole('button', { name: 'Fill complete line' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save receipt' }))
 
@@ -180,14 +193,14 @@ describe('ReceiptSection save validation', () => {
     )
 
     const supplier = screen.getByRole('combobox', { name: 'Supplier *' })
-    fireEvent.change(supplier, { target: { value: 'supplier-1' } })
-    expect((supplier as unknown as HTMLSelectElement).value).toBe('supplier-1')
+    selectSupplier('Supplier')
+    expect(supplier.textContent).toContain('Supplier')
 
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
-    expect((supplier as unknown as HTMLSelectElement).value).toBe('')
+    expect(supplier.textContent).toContain('Select supplier')
 
     fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
-    expect((supplier as unknown as HTMLSelectElement).value).toBe('supplier-1')
+    expect(supplier.textContent).toContain('Supplier')
   })
 
   it('disables the receipt and shows a saving state while saving', async () => {
@@ -214,9 +227,7 @@ describe('ReceiptSection save validation', () => {
       />,
     )
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Supplier *' }), {
-      target: { value: 'supplier-1' },
-    })
+    selectSupplier('Supplier')
     fireEvent.click(screen.getByRole('button', { name: 'Fill complete line' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save receipt' }))
 
@@ -244,5 +255,19 @@ describe('ReceiptSection save validation', () => {
 
     resolveSave()
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull())
+  })
+
+  it('uses the shared date picker for the optional receipt date', () => {
+    render(
+      <ReceiptSection
+        supplyRouteId="route-1"
+        routeRates={{}}
+        suppliers={[]}
+        onChanged={() => undefined}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Receipt date' })).toBeTruthy()
+    expect(screen.queryByRole('textbox', { name: 'Receipt date' })).toBeNull()
   })
 })

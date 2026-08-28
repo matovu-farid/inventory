@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js'
 import { ITEM_ENTRY_COLUMNS } from './types'
-import { cloneDistribution } from './distribution-state'
+import { cloneDistribution, distributionTotal } from './distribution-state'
 import type {
   ItemEntryCellLocation,
   ItemEntryColumnId,
@@ -57,6 +57,19 @@ export function ensureItemEntryRows(
     next.push(createEmptyItemEntryRow(crypto.randomUUID()))
   }
   return next
+}
+
+export function getNextItemEntryCell(
+  source: ItemEntryCellLocation,
+): ItemEntryCellLocation {
+  const columnIndex = ITEM_ENTRY_COLUMNS.indexOf(source.column)
+  if (columnIndex < 0 || columnIndex === ITEM_ENTRY_COLUMNS.length - 1) {
+    return { row: source.row + 1, column: ITEM_ENTRY_COLUMNS[0] }
+  }
+  return {
+    row: source.row,
+    column: ITEM_ENTRY_COLUMNS[columnIndex + 1],
+  }
 }
 
 export function addItemEntryRow(rows: ItemEntryRow[]): ItemEntryRow[] {
@@ -175,7 +188,10 @@ export function copyItemEntryRowField(
       }
     case 'quantity':
       return {
-        quantity: row.quantity,
+        quantity:
+          row.distribution !== null
+            ? distributionTotal(row.distribution)
+            : row.quantity,
         distribution: cloneDistribution(row.distribution),
       }
     case 'articleNumber':
@@ -192,12 +208,15 @@ export function copyItemEntryRowField(
 }
 
 export function calculateItemEntryRowAmount(row: ItemEntryRow): string {
-  if (!row.quantity || row.quantity <= 0 || !row.unitPriceForeign.trim()) {
+  const quantity = row.distribution
+    ? distributionTotal(row.distribution)
+    : row.quantity
+  if (!quantity || quantity <= 0 || !row.unitPriceForeign.trim()) {
     return ''
   }
   const price = new BigNumber(row.unitPriceForeign)
   if (!price.isFinite() || price.isNegative()) return ''
-  return price.times(row.quantity).toFixed(2)
+  return price.times(quantity).toFixed(2)
 }
 
 function parseCellValue(
@@ -236,11 +255,13 @@ export function updateItemEntryCell(
     column === 'quantity' || column === 'colorText' || column === 'sizeText'
   return rows.map((row, index) =>
     index === rowIndex
-      ? {
-          ...row,
-          ...cellPatch,
-          ...(clearsDistribution ? { distribution: null } : {}),
-        }
+      ? column === 'quantity' && row.distribution !== null
+        ? row
+        : {
+            ...row,
+            ...cellPatch,
+            ...(clearsDistribution ? { distribution: null } : {}),
+          }
       : row,
   )
 }
@@ -289,7 +310,9 @@ export function applyPasteMatrix(
 
 export function calculateItemEntryGridTotals(rows: ItemEntryRow[]) {
   const totalAmount = rows.reduce((sum, row) => {
-    const quantity = row.quantity
+    const quantity = row.distribution
+      ? distributionTotal(row.distribution)
+      : row.quantity
     return typeof quantity === 'number' &&
       Number.isInteger(quantity) &&
       quantity > 0
@@ -298,7 +321,9 @@ export function calculateItemEntryGridTotals(rows: ItemEntryRow[]) {
   }, new BigNumber(0))
   return {
     totalPieces: rows.reduce((sum, row) => {
-      const quantity = row.quantity
+      const quantity = row.distribution
+        ? distributionTotal(row.distribution)
+        : row.quantity
       return typeof quantity === 'number' &&
         Number.isInteger(quantity) &&
         quantity > 0

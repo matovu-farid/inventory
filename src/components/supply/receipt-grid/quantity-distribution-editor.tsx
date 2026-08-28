@@ -4,17 +4,18 @@ import { ColorQuantityList } from '#/components/supply/split-item-form'
 import { VariantGrid } from '#/components/items/variant-grid'
 import { Button } from '#/components/ui/button'
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '#/components/ui/sheet'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '#/components/ui/dialog'
 import { colorNameToHex, splitColorSegments } from '#/lib/colors/receipt-colors'
 import {
   cloneDistribution,
   distributionSummary,
+  distributionTotal,
   validateDistribution,
 } from '#/components/item-entry-grid/distribution-state'
 import type { ReceiptQuantityDistribution } from '#/components/item-entry-grid/distribution-types'
@@ -96,7 +97,10 @@ export function QuantityDistributionEditor({
   open: boolean
   disabled: boolean
   onOpenChange: (open: boolean) => void
-  onApply: (distribution: ReceiptQuantityDistribution | null) => void
+  onApply: (
+    distribution: ReceiptQuantityDistribution | null,
+    derivedQuantity?: number,
+  ) => void
 }) {
   const colors = useMemo(() => rowColors(row), [row])
   const sizes = useMemo(() => rowSizes(row), [row])
@@ -114,7 +118,6 @@ export function QuantityDistributionEditor({
     setCellValues(distributionToCellValues(row.distribution, colors))
   }, [colors, mode, open, row])
 
-  const quantity = row.quantity ?? 0
   const workingDistribution: ReceiptQuantityDistribution = {
     mode: workingMode,
     cells:
@@ -137,6 +140,30 @@ export function QuantityDistributionEditor({
   }
   const validation = validateDistribution(workingDistribution, row.quantity)
   const summary = distributionSummary(workingDistribution)
+  const remainder = (() => {
+    if (row.quantity === null || workingDistribution.cells.length < 2) {
+      return null
+    }
+    const emptyCells = workingDistribution.cells.filter(
+      (cell) => cell.quantity === 0,
+    )
+    const hasOnlyWholeNonNegativeQuantities = workingDistribution.cells.every(
+      (cell) => Number.isInteger(cell.quantity) && cell.quantity >= 0,
+    )
+    const total = distributionTotal(workingDistribution)
+    if (
+      emptyCells.length !== 1 ||
+      !hasOnlyWholeNonNegativeQuantities ||
+      total >= row.quantity
+    ) {
+      return null
+    }
+    const cell = emptyCells[0]
+    return {
+      cell,
+      quantity: row.quantity - total,
+    }
+  })()
 
   function clear() {
     onApply(null)
@@ -145,25 +172,32 @@ export function QuantityDistributionEditor({
 
   function apply() {
     if (!validation.valid) return
-    onApply({
-      mode: workingMode,
-      cells: workingDistribution.cells,
-    })
+    onApply(
+      {
+        mode: workingMode,
+        cells: workingDistribution.cells,
+      },
+      row.quantity ?? distributionTotal(workingDistribution),
+    )
     onOpenChange(false)
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto">
-        <SheetHeader className="mx-auto w-full max-w-4xl px-0">
-          <SheetTitle>Distribute {quantity.toLocaleString()} pieces</SheetTitle>
-          <SheetDescription>
-            Optional: allocate this row by{' '}
-            {workingMode === 'colors' ? 'colour' : 'colour and size'}. The
-            allocation must equal the row quantity.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="mx-auto w-full max-w-4xl space-y-4">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader className="pr-8">
+          <DialogTitle>
+            {row.quantity === null
+              ? 'Distribute quantity'
+              : `Distribute ${row.quantity.toLocaleString()} pieces`}
+          </DialogTitle>
+          <DialogDescription>
+            {row.quantity === null
+              ? 'Enter quantities below. The row quantity will be calculated from the total you distribute.'
+              : `Optional: allocate this row by ${workingMode === 'colors' ? 'colour' : 'colour and size'}. The allocation must equal ${row.quantity.toLocaleString()} pieces.`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
           {colors.length === 0 ? (
             <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
               Enter at least one colour in the row before distributing quantity.
@@ -209,20 +243,62 @@ export function QuantityDistributionEditor({
                   <ListTree className="size-4" aria-hidden="true" />
                   {summary}
                 </span>
-                <span
-                  className={
-                    validation.valid
-                      ? 'text-emerald-700 dark:text-emerald-400'
-                      : 'text-destructive'
-                  }
-                >
-                  {validation.valid ? 'Ready to apply' : validation.message}
-                </span>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {remainder && (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto px-0"
+                      onClick={() => {
+                        if (workingMode === 'colors') {
+                          const color = colors.find(
+                            (option) =>
+                              normalize(option.colorName) ===
+                              normalize(remainder.cell.color),
+                          )
+                          if (!color) return
+                          setColorValues((values) => ({
+                            ...values,
+                            [color.id]: remainder.quantity,
+                          }))
+                        } else {
+                          const color = colors.find(
+                            (option) =>
+                              normalize(option.colorName) ===
+                              normalize(remainder.cell.color),
+                          )
+                          if (!color || !remainder.cell.size) return
+                          setCellValues((values) => ({
+                            ...values,
+                            [`${color.id}|${remainder.cell.size}`]:
+                              remainder.quantity,
+                          }))
+                        }
+                      }}
+                    >
+                      Fill {remainder.cell.color}
+                      {remainder.cell.size
+                        ? ` / ${remainder.cell.size}`
+                        : ''}{' '}
+                      with {remainder.quantity.toLocaleString()}
+                    </Button>
+                  )}
+                  <span
+                    className={
+                      validation.valid
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-destructive'
+                    }
+                  >
+                    {validation.valid ? 'Ready to apply' : validation.message}
+                  </span>
+                </div>
               </div>
             </>
           )}
         </div>
-        <SheetFooter className="mx-auto w-full max-w-4xl px-0 sm:flex-row sm:justify-between">
+        <DialogFooter className="pt-2 sm:flex-row sm:justify-between">
           <Button
             type="button"
             variant="ghost"
@@ -248,9 +324,9 @@ export function QuantityDistributionEditor({
               Apply distribution
             </Button>
           </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

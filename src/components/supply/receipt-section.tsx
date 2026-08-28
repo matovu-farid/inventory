@@ -15,6 +15,15 @@ import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Spinner } from '#/components/ui/spinner'
+import { Combobox } from '#/components/ui/combobox'
+import { DatePicker } from '#/components/ui/date-picker'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '#/components/ui/select'
 import { ReceiptGrid } from './receipt-grid/receipt-grid'
 import { ReceiptRateInput } from './receipt-rate-input'
 import {
@@ -283,6 +292,14 @@ export function ReceiptSection({
     () => suppliers.find((supplier) => supplier.id === supplierId),
     [supplierId, suppliers],
   )
+  const supplierOptions = useMemo(
+    () =>
+      suppliers.map((supplier) => ({
+        value: supplier.id,
+        label: supplier.name,
+      })),
+    [suppliers],
+  )
 
   draftRef.current = draft
 
@@ -491,39 +508,31 @@ export function ReceiptSection({
         </CardHeader>
         <CardContent className="space-y-4 p-4">
           <div className="grid gap-3 md:grid-cols-4">
-            <label className="space-y-1 text-sm">
+            <div className="space-y-1 text-sm">
               <Label>Supplier *</Label>
-              <select
-                name="receipt-supplier"
-                aria-label="Supplier *"
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              <Combobox
+                options={supplierOptions}
                 value={supplierId}
+                onChange={(value) => updateDraftField('supplierId', value)}
+                placeholder="Select supplier"
+                searchPlaceholder="Search suppliers..."
+                emptyMessage="No suppliers found."
                 disabled={locked}
-                onChange={(event) =>
-                  updateDraftField('supplierId', event.target.value)
-                }
-              >
-                <option value="">Select supplier</option>
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm">
-              <Label>Receipt date</Label>
-              <Input
+                aria-label="Supplier *"
+              />
+            </div>
+            <div className="space-y-1 text-sm">
+              <Label htmlFor="receipt-date">Receipt date</Label>
+              <DatePicker
+                id="receipt-date"
                 name="receipt-date"
-                type="date"
                 value={receiptDate}
                 disabled={locked}
-                onChange={(event) =>
-                  updateDraftField('receiptDate', event.target.value)
-                }
+                onChange={(value) => updateDraftField('receiptDate', value)}
+                placeholder="Select receipt date"
               />
-            </label>
-            <label className="space-y-1 text-sm">
+            </div>
+            <div className="space-y-1 text-sm">
               <Label>Reference</Label>
               <Input
                 name="receipt-reference"
@@ -534,24 +543,26 @@ export function ReceiptSection({
                   updateDraftField('reference', event.target.value)
                 }
               />
-            </label>
-            <label className="space-y-1 text-sm">
+            </div>
+            <div className="space-y-1 text-sm">
               <Label>Currency</Label>
-              <select
-                name="receipt-currency"
-                aria-label="Currency"
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              <Select
                 value={foreignCurrency}
-                disabled={locked}
-                onChange={(event) =>
-                  updateDraftField('foreignCurrency', event.target.value)
+                onValueChange={(value) =>
+                  updateDraftField('foreignCurrency', value)
                 }
+                disabled={locked}
               >
-                <option value="RMB">RMB</option>
-                <option value="USD">USD</option>
-                <option value="UGX">UGX</option>
-              </select>
-            </label>
+                <SelectTrigger aria-label="Currency" className="w-full">
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RMB">RMB</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="UGX">UGX</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           {foreignCurrency !== 'UGX' && (
             <div className="grid gap-3 sm:grid-cols-2">

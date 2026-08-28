@@ -3,6 +3,7 @@ import {
   calculateItemEntryGridTotals,
   copyItemEntryRowField,
   createEmptyItemEntryRow,
+  getNextItemEntryCell,
   fillDownItemEntryCells,
   updateItemEntryCell,
   validateItemEntryRows,
@@ -18,6 +19,15 @@ const row = (
 })
 
 describe('item entry grid state', () => {
+  it('moves Enter to the next cell and wraps to the next row', () => {
+    expect(getNextItemEntryCell({ row: 0, column: 'design' })).toEqual({
+      row: 0,
+      column: 'articleNumber',
+    })
+    expect(
+      getNextItemEntryCell({ row: 0, column: 'lowStockThreshold' }),
+    ).toEqual({ row: 1, column: 'itemName' })
+  })
   it('creates a row with opening-safe defaults', () => {
     expect(createEmptyItemEntryRow('row-1')).toMatchObject({
       itemName: '',
@@ -63,6 +73,50 @@ describe('item entry grid state', () => {
         cells: [{ color: 'Red', quantity: 5 }],
       },
     })
+    expect(copied.distribution).not.toBe(source.distribution)
+    expect(copied.distribution?.cells).not.toBe(source.distribution?.cells)
+  })
+
+  it('does not let an ordinary quantity edit clear or change a distribution', () => {
+    const source = row('one', {
+      quantity: 5,
+      distribution: {
+        mode: 'colors',
+        cells: [{ color: 'Red', quantity: 5 }],
+      },
+    })
+
+    const updated = updateItemEntryCell([source], 0, 'quantity', '8')
+
+    expect(updated[0]).toEqual(source)
+  })
+
+  it('keeps ordinary quantity editing available when no distribution exists', () => {
+    expect(
+      updateItemEntryCell([row('one')], 0, 'quantity', '8')[0].quantity,
+    ).toBe(8)
+  })
+
+  it('copies the distribution aggregate when filling a bottom-up quantity', () => {
+    const source = row('one', {
+      quantity: null,
+      distribution: {
+        mode: 'colors',
+        cells: [
+          { color: 'Red', quantity: 3 },
+          { color: 'Black', quantity: 2 },
+        ],
+      },
+    })
+
+    const copied = fillDownItemEntryCells(
+      [source],
+      { row: 0, column: 'quantity' },
+      [1],
+    )[1]
+
+    expect(copied.quantity).toBe(5)
+    expect(copied.distribution).toEqual(source.distribution)
     expect(copied.distribution).not.toBe(source.distribution)
     expect(copied.distribution?.cells).not.toBe(source.distribution?.cells)
   })

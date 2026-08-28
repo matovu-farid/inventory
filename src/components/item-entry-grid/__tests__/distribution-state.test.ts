@@ -39,6 +39,35 @@ describe('receipt quantity distribution state', () => {
     expect(result.message).toContain('50')
   })
 
+  it('accepts a positive allocation when the parent quantity is blank', () => {
+    const distribution: ReceiptQuantityDistribution = {
+      mode: 'colors',
+      cells: [
+        { color: 'Black', quantity: 50 },
+        { color: 'Charcoal', quantity: 25 },
+      ],
+    }
+
+    expect(validateDistribution(distribution, null)).toEqual({
+      valid: true,
+      total: 75,
+      difference: 0,
+    })
+  })
+
+  it('requires at least one piece when both quantity and allocation are blank', () => {
+    expect(
+      validateDistribution(
+        { mode: 'colors', cells: [{ color: 'Black', quantity: 0 }] },
+        null,
+      ),
+    ).toMatchObject({
+      valid: false,
+      total: 0,
+      message: 'Allocate at least one piece',
+    })
+  })
+
   it('rejects duplicate colour and size cells after normalization', () => {
     const result = validateDistribution(
       {
