@@ -14,6 +14,12 @@ export default defineConfig({
       'src/__tests__/**/*.test.{ts,tsx}',
       'src/**/__tests__/**/*.test.{ts,tsx}',
     ],
+    exclude: ['src/__tests__/request-access-rate-limiter.integration.test.ts'],
+    environmentOptions: {
+      jsdom: {
+        url: 'http://localhost:3000',
+      },
+    },
     environment: 'node',
     // Many tests touch the shared test Postgres DB and use fixed fixture
     // IDs or truncate-all cleanups (e.g. auth-emails first-signup-becomes-

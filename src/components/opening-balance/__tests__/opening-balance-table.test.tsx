@@ -45,6 +45,10 @@ vi.mock('#/server/functions/items/items', () => ({
   searchItems: vi.fn().mockResolvedValue([item]),
 }))
 
+vi.mock('#/server/middleware/rbac', () => ({
+  requireSessionAndRole: vi.fn(),
+}))
+
 function Harness({ initialRows }: { initialRows?: OpeningBalanceTableRow[] }) {
   const [rows, setRows] = useState(
     initialRows ?? [createEmptyOpeningBalanceRow('row-1')],

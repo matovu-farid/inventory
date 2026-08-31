@@ -30,17 +30,23 @@ describe('Guided supply route entry', () => {
       cy.contains('button', 'Continue').click()
       cy.contains('Edit route details').should('be.visible')
       cy.contains('Route basics', { timeout: 10000 }).should('be.visible')
-      cy.contains('Step 2 of 4').should('be.visible')
+      cy.contains('Step 4 of 4').should('be.visible')
 
       cy.contains('Route suppliers').should('not.exist')
-      cy.contains('Add items to this route').should('be.visible')
+      cy.contains('Review route entry').should('be.visible')
+
+      cy.contains('button', 'Edit route details').click()
+      cy.contains('Step 1 of 4').should('be.visible')
+      cy.contains('button', 'Items').click()
+      cy.contains('Step 2 of 4').should('be.visible')
+      cy.contains('Receipts').should('be.visible')
 
       cy.contains('Save and exit').click()
       cy.location('pathname').should('eq', `/supply/${routeRows[0].id}`)
-      cy.visit(`/supply/${routeRows[0].id}/entry`)
+      cy.visit(`/supply/${routeRows[0].id}/entry?step=items`)
       cy.waitForHydration()
       cy.contains('Step 2 of 4').should('be.visible')
-      cy.contains('Add items to this route').should('be.visible')
+      cy.contains('Receipts').should('be.visible')
 
       cy.contains('button', 'Expenses').click()
       cy.contains('Route expenses').should('be.visible')
@@ -53,42 +59,19 @@ describe('Guided supply route entry', () => {
     })
   })
 
-  it('enters a flexible item, then edits the completed entry', () => {
+  it('opens a new receipt entry on the items step', () => {
     const suffix = Date.now()
     cy.dbQuery(
-      `INSERT INTO suppliers (name, type) VALUES ('Journey Supplier ${suffix}', 'international'), ('Journey Supplier Two ${suffix}', 'international') RETURNING id`,
-    ).then((supplierRows: Array<{ id: string }>) => {
-      const supplierId = supplierRows[0].id
-      cy.dbQuery(
-        `INSERT INTO items (name, design, supplier_id, cost_price, cost_currency, minimum_sell_price_ugx)
-         VALUES ('Journey tee ${suffix}', 'Journey design ${suffix}', '${supplierId}', '15000', 'UGX', '30000') RETURNING id`,
-      ).then((itemRows: Array<{ id: string }>) => {
-        cy.dbQuery(
-          `INSERT INTO item_article_numbers (item_id, article_number)
-             VALUES ('${itemRows[0].id}', 'JOURNEY-${suffix}')`,
-        )
-        const itemId = itemRows[0].id
-        cy.dbQuery(
-          `INSERT INTO item_colors (item_id, color_name, color_hex) VALUES ('${itemId}', 'Red', '#ff0000') RETURNING id`,
-        ).then((colorRows: Array<{ id: string }>) => {
-          const colorId = colorRows[0].id
-          cy.dbQuery(
-            `INSERT INTO variants (item_id, color_id, size) VALUES ('${itemId}', '${colorId}', 'M'), ('${itemId}', '${colorId}', 'L')`,
-          )
-          cy.dbQuery(
-            `INSERT INTO supply_routes (name, status) VALUES ('Journey Route ${suffix}', 'open') RETURNING id`,
-          ).then((routeRows: Array<{ id: string }>) => {
-            const routeId = routeRows[0].id
-            cy.visit(`/supply/${routeId}/entry`)
-            cy.waitForHydration()
-            cy.contains('Add items to this route').should('be.visible')
-            cy.contains('Step 2 of 4').should('be.visible')
-            cy.contains('Select item…').should('be.visible')
-            cy.contains('Items already entered').should('be.visible')
-            cy.contains('Review route entry').should('not.exist')
-          })
-        })
-      })
+      `INSERT INTO supply_routes (name, status) VALUES ('Journey Route ${suffix}', 'open') RETURNING id`,
+    ).then((routeRows: Array<{ id: string }>) => {
+      cy.visit(`/supply/${routeRows[0].id}/entry?step=items`)
+      cy.waitForHydration()
+      cy.contains('Receipts').should('be.visible')
+      cy.contains('Step 2 of 4').should('be.visible')
+      cy.get('[data-receipt-row="0"] input[aria-label="Item name"]').should(
+        'be.visible',
+      )
+      cy.contains('Review route entry').should('not.exist')
     })
   })
 })
