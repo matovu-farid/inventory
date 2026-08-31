@@ -7,7 +7,7 @@ import {
   reportDateRangeSchema,
 } from '#/lib/report-date-range'
 import { buildCsv, downloadCsv } from '#/lib/report-export'
-import { formatUgx, formatUgxTotal } from '#/lib/format'
+import { formatUgxTotal } from '#/lib/format'
 import {
   Card,
   CardContent,
@@ -127,7 +127,7 @@ function StatementTable({
               <tr key={row.name}>
                 <td className="py-1.5 pl-6">{row.name}</td>
                 <td className="py-1.5 text-right font-mono tabular-nums">
-                  {formatUgx(row.amount)}
+                  {formatUgxTotal(row.amount)}
                 </td>
               </tr>
             ))}
