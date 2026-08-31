@@ -5,12 +5,12 @@ import BigNumber from 'bignumber.js'
 import { db } from '#/db'
 import { transactions, transactionCategories, bankAccounts } from '#/db/schema'
 import { getTrialBalance } from '#/lib/accounting/ledger-queries'
+import { parseReportDate, reportDateRangeSchema } from '#/lib/report-date-range'
 import { requireSessionAndRole } from '#/server/middleware/rbac'
 
-const dateRangeInput = z.object({
-  from: z.string().optional(),
-  to: z.string().optional(),
-})
+const dateRangeInput = reportDateRangeSchema
+
+const asOfInput = z.object({ asOf: z.iso.date().optional() })
 
 /**
  * Trial Balance — all categories with DR/CR totals.
@@ -20,7 +20,7 @@ export const getTrialBalanceReport = createServerFn()
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor'])
 
-    const asOf = data.to ? new Date(data.to) : undefined
+    const asOf = parseReportDate(data.to, 'end')
     const tb = await getTrialBalance(db, asOf)
 
     return tb.map((row) => ({
@@ -43,11 +43,11 @@ export const getProfitAndLoss = createServerFn()
     const conditions = []
     if (data.from)
       conditions.push(
-        sql`${transactions.transactionDate} >= ${new Date(data.from)}`,
+        sql`${transactions.transactionDate} >= ${parseReportDate(data.from, 'start')}`,
       )
     if (data.to)
       conditions.push(
-        sql`${transactions.transactionDate} <= ${new Date(data.to)}`,
+        sql`${transactions.transactionDate} <= ${parseReportDate(data.to, 'end')}`,
       )
 
     const rows = await db
@@ -120,11 +120,11 @@ export const getProfitAndLoss = createServerFn()
  * Balance Sheet — assets, liabilities, equity at a point in time.
  */
 export const getBalanceSheet = createServerFn()
-  .inputValidator(z.object({ asOf: z.string().optional() }))
+  .inputValidator(asOfInput)
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor'])
 
-    const asOf = data.asOf ? new Date(data.asOf) : undefined
+    const asOf = parseReportDate(data.asOf, 'end')
     const tb = await getTrialBalance(db, asOf)
 
     const assets: Array<{ name: string; balance: string }> = []
@@ -182,62 +182,78 @@ export const getBalanceSheet = createServerFn()
 /**
  * Cash position — cash + bank balances.
  */
-export const getCashPosition = createServerFn().handler(async () => {
-  await requireSessionAndRole(['admin', 'supervisor'])
+export const getCashPosition = createServerFn()
+  .inputValidator(dateRangeInput)
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor'])
 
-  // Cash balance = sum of all Cash transactions
-  const cashRows = await db
-    .select({
-      txnType: transactions.type,
-      total: sql<string>`sum(${transactions.amount})`,
-    })
-    .from(transactions)
-    .innerJoin(
-      transactionCategories,
-      eq(transactions.categoryId, transactionCategories.id),
-    )
-    .where(eq(transactionCategories.name, 'Cash'))
-    .groupBy(transactions.type)
+    const asOf = parseReportDate(data.to, 'end')
+    const cashCondition = asOf
+      ? and(
+          eq(transactionCategories.name, 'Cash'),
+          sql`${transactions.transactionDate} <= ${asOf}`,
+        )
+      : eq(transactionCategories.name, 'Cash')
 
-  let cashBalance = new BigNumber(0)
-  for (const r of cashRows) {
-    if (r.txnType === 'debit') cashBalance = cashBalance.plus(r.total)
-    else cashBalance = cashBalance.minus(r.total)
-  }
+    // Cash balance = sum of all Cash transactions
+    const cashRows = await db
+      .select({
+        txnType: transactions.type,
+        total: sql<string>`sum(${transactions.amount})`,
+      })
+      .from(transactions)
+      .innerJoin(
+        transactionCategories,
+        eq(transactions.categoryId, transactionCategories.id),
+      )
+      .where(cashCondition)
+      .groupBy(transactions.type)
 
-  // Bank balance
-  const bankRows = await db
-    .select({
-      txnType: transactions.type,
-      total: sql<string>`sum(${transactions.amount})`,
-    })
-    .from(transactions)
-    .innerJoin(
-      transactionCategories,
-      eq(transactions.categoryId, transactionCategories.id),
-    )
-    .where(eq(transactionCategories.name, 'Bank'))
-    .groupBy(transactions.type)
+    let cashBalance = new BigNumber(0)
+    for (const r of cashRows) {
+      if (r.txnType === 'debit') cashBalance = cashBalance.plus(r.total)
+      else cashBalance = cashBalance.minus(r.total)
+    }
 
-  let bankBalance = new BigNumber(0)
-  for (const r of bankRows) {
-    if (r.txnType === 'debit') bankBalance = bankBalance.plus(r.total)
-    else bankBalance = bankBalance.minus(r.total)
-  }
+    // Bank balance
+    const bankCondition = asOf
+      ? and(
+          eq(transactionCategories.name, 'Bank'),
+          sql`${transactions.transactionDate} <= ${asOf}`,
+        )
+      : eq(transactionCategories.name, 'Bank')
+    const bankRows = await db
+      .select({
+        txnType: transactions.type,
+        total: sql<string>`sum(${transactions.amount})`,
+      })
+      .from(transactions)
+      .innerJoin(
+        transactionCategories,
+        eq(transactions.categoryId, transactionCategories.id),
+      )
+      .where(bankCondition)
+      .groupBy(transactions.type)
 
-  // Bank accounts list
-  const accounts = await db
-    .select()
-    .from(bankAccounts)
-    .orderBy(bankAccounts.bankName)
+    let bankBalance = new BigNumber(0)
+    for (const r of bankRows) {
+      if (r.txnType === 'debit') bankBalance = bankBalance.plus(r.total)
+      else bankBalance = bankBalance.minus(r.total)
+    }
 
-  return {
-    cashBalance: cashBalance.toFixed(2),
-    bankBalance: bankBalance.toFixed(2),
-    totalBalance: cashBalance.plus(bankBalance).toFixed(2),
-    bankAccounts: accounts,
-  }
-})
+    // Bank accounts list
+    const accounts = await db
+      .select()
+      .from(bankAccounts)
+      .orderBy(bankAccounts.bankName)
+
+    return {
+      cashBalance: cashBalance.toFixed(2),
+      bankBalance: bankBalance.toFixed(2),
+      totalBalance: cashBalance.plus(bankBalance).toFixed(2),
+      bankAccounts: accounts,
+    }
+  })
 
 /**
  * Inter-branch balances — what each shop owes the store.
@@ -279,13 +295,19 @@ export const getInterBranchBalances = createServerFn().handler(async () => {
  */
 export const getLedgerEntries = createServerFn()
   .inputValidator(
-    z.object({
+    dateRangeInput.extend({
       limit: z.number().int().positive().default(50),
       offset: z.number().int().min(0).default(0),
     }),
   )
   .handler(async ({ data }) => {
     await requireSessionAndRole(['admin', 'supervisor'])
+
+    const conditions = []
+    const from = parseReportDate(data.from, 'start')
+    const to = parseReportDate(data.to, 'end')
+    if (from) conditions.push(sql`${transactions.transactionDate} >= ${from}`)
+    if (to) conditions.push(sql`${transactions.transactionDate} <= ${to}`)
 
     const entries = await db
       .select({
@@ -305,6 +327,7 @@ export const getLedgerEntries = createServerFn()
         transactionCategories,
         eq(transactions.categoryId, transactionCategories.id),
       )
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(sql`${transactions.transactionDate} DESC`)
       .limit(data.limit)
       .offset(data.offset)
