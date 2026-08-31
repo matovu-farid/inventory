@@ -116,30 +116,35 @@ function StatementTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      {rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          {emptyMessage}
-        </p>
-      ) : (
-        <table className="w-full text-sm">
-          <tbody>
-            {rows.map((row) => (
+      <table className="w-full text-sm">
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td
+                colSpan={2}
+                className="py-8 text-center text-sm text-muted-foreground"
+              >
+                {emptyMessage}
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
               <tr key={row.name}>
                 <td className="py-1.5 pl-6">{row.name}</td>
                 <td className="py-1.5 text-right font-mono tabular-nums">
                   {formatUgxTotal(row.amount)}
                 </td>
               </tr>
-            ))}
-            <tr className="border-t">
-              <td className="py-2 pl-2 font-semibold">{totalLabel}</td>
-              <td className="py-2 text-right font-mono font-semibold tabular-nums">
-                {formatUgxTotal(total)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      )}
+            ))
+          )}
+          <tr className="border-t">
+            <td className="py-2 pl-2 font-semibold">{totalLabel}</td>
+            <td className="py-2 text-right font-mono font-semibold tabular-nums">
+              {formatUgxTotal(total)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   )
 }
