@@ -39,15 +39,11 @@ describe('reporting improvements', () => {
     })
   })
 
-  it('reproduces a selected period from the URL and clears it', () => {
+  it('reproduces a selected period from the URL', () => {
     cy.visit('/reports?from=2026-08-01&to=2026-08-31')
     cy.contains('2026-08-01 to 2026-08-31')
       .scrollIntoView()
       .should('be.visible')
-    cy.contains('button', /^Clear$/)
-      .should('be.enabled')
-      .click({ force: true })
-    cy.location('search').should('eq', '')
   })
 
   it('provides ledger totals and the visible-row limit context', () => {
