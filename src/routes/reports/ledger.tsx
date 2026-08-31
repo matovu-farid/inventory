@@ -1,5 +1,4 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
-import BigNumber from 'bignumber.js'
 import { formatUgx, formatUgxTotal, formatDate } from '#/lib/format'
 import {
   formatReportPeriod,
@@ -11,33 +10,32 @@ import { Badge } from '#/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { ResponsiveTable } from '#/components/ui/responsive-table'
 import { ReportToolbar } from '#/components/reports/report-toolbar'
-import { getLedgerEntries } from '#/server/functions/accounting/reports'
+import {
+  getLedgerEntries,
+  getLedgerTotals,
+} from '#/server/functions/accounting/reports'
 
 export const Route = createFileRoute('/reports/ledger')({
   beforeLoad: ({ context }) => requireUiPermission(context, 'reports.view'),
   validateSearch: reportDateRangeSchema,
   loaderDeps: ({ search }) => ({ from: search.from, to: search.to }),
-  loader: ({ deps }) =>
-    getLedgerEntries({
-      data: { from: deps.from, to: deps.to, limit: 100, offset: 0 },
-    }),
+  loader: async ({ deps }) => {
+    const [entries, totals] = await Promise.all([
+      getLedgerEntries({
+        data: { from: deps.from, to: deps.to, limit: 100, offset: 0 },
+      }),
+      getLedgerTotals({ data: { from: deps.from, to: deps.to } }),
+    ])
+    return { entries, totals }
+  },
   component: LedgerPage,
 })
 
 function LedgerPage() {
-  const entries = Route.useLoaderData()
+  const { entries, totals } = Route.useLoaderData()
   const { from = '', to = '' } = Route.useSearch()
   const router = useRouter()
   const periodLabel = formatReportPeriod(from, to)
-  const totals = entries.reduce(
-    (result, entry) => {
-      const amount = new BigNumber(entry.amount)
-      if (entry.type === 'debit') result.debits = result.debits.plus(amount)
-      else result.credits = result.credits.plus(amount)
-      return result
-    },
-    { debits: new BigNumber(0), credits: new BigNumber(0) },
-  )
 
   function applyRange(nextFrom: string, nextTo: string) {
     void router.navigate({
@@ -51,16 +49,19 @@ function LedgerPage() {
   }
 
   function exportCsv() {
-    const rows = entries.map((entry) => [
-      formatDate(entry.transactionDate),
-      entry.categoryName,
-      entry.type === 'debit' ? 'DR' : 'CR',
-      entry.amount,
-      entry.categoryType,
-      entry.description ?? '',
-      entry.referenceType ?? '',
-      entry.locationType,
-    ])
+    const rows = [
+      ['Scope: latest 100 entries', '', '', '', '', '', '', ''],
+      ...entries.map((entry) => [
+        formatDate(entry.transactionDate),
+        entry.categoryName,
+        entry.type === 'debit' ? 'DR' : 'CR',
+        entry.amount,
+        entry.categoryType,
+        entry.description ?? '',
+        entry.referenceType ?? '',
+        entry.locationType,
+      ]),
+    ]
     downloadCsv(
       'general-ledger.csv',
       buildCsv(
@@ -123,6 +124,9 @@ function LedgerPage() {
             <p className="font-mono text-xl font-bold tabular-nums">
               {formatUgxTotal(totals.debits)}
             </p>
+            <p className="text-xs text-muted-foreground">
+              All filtered journal entries
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -134,6 +138,9 @@ function LedgerPage() {
           <CardContent>
             <p className="font-mono text-xl font-bold tabular-nums">
               {formatUgxTotal(totals.credits)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              All filtered journal entries
             </p>
           </CardContent>
         </Card>

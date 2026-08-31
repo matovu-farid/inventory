@@ -3,6 +3,7 @@ import { z } from 'zod'
 export type ReportDateBound = 'start' | 'end'
 
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/
+const KAMPALA_OFFSET_MS = 3 * 60 * 60 * 1000
 
 export const reportDateRangeSchema = z
   .object({
@@ -26,27 +27,22 @@ export function parseReportDate(
   const year = Number(match[1])
   const month = Number(match[2])
   const day = Number(match[3])
-  const endOfDay = bound === 'end'
-  const date = new Date(
-    Date.UTC(
-      year,
-      month - 1,
-      day,
-      endOfDay ? 23 : 0,
-      endOfDay ? 59 : 0,
-      endOfDay ? 59 : 0,
-      endOfDay ? 999 : 0,
-    ),
-  )
+  const calendarDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
 
   if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
+    calendarDate.getUTCFullYear() !== year ||
+    calendarDate.getUTCMonth() !== month - 1 ||
+    calendarDate.getUTCDate() !== day
   ) {
     return undefined
   }
-  return date
+
+  const startOfBusinessDay = calendarDate.getTime() - KAMPALA_OFFSET_MS
+  return new Date(
+    bound === 'start'
+      ? startOfBusinessDay
+      : startOfBusinessDay + 24 * 60 * 60 * 1000 - 1,
+  )
 }
 
 export function formatReportPeriod(from?: string, to?: string): string {

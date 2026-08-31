@@ -6,12 +6,12 @@ import {
 } from '#/lib/report-date-range'
 
 describe('report date range', () => {
-  it('parses date-only start and end boundaries in UTC', () => {
+  it('parses date-only start and end boundaries for Kampala business days', () => {
     expect(parseReportDate('2026-08-31', 'start')?.toISOString()).toBe(
-      '2026-08-31T00:00:00.000Z',
+      '2026-08-30T21:00:00.000Z',
     )
     expect(parseReportDate('2026-08-31', 'end')?.toISOString()).toBe(
-      '2026-08-31T23:59:59.999Z',
+      '2026-08-31T20:59:59.999Z',
     )
   })
 

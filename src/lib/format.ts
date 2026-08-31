@@ -1,6 +1,7 @@
 import BigNumber from 'bignumber.js'
 
 const STEP = new BigNumber(50)
+const DISPLAY_TIME_ZONE = 'Africa/Kampala'
 
 /**
  * Format a date as a calendar date (no time component). Use for table cells
@@ -12,7 +13,7 @@ export function formatDate(
   locale: string = 'en-UG',
 ): string {
   const d = typeof date === 'string' ? new Date(date) : date
-  return d.toLocaleDateString(locale)
+  return d.toLocaleDateString(locale, { timeZone: DISPLAY_TIME_ZONE })
 }
 
 /**
@@ -25,7 +26,7 @@ export function formatDateTime(
   locale: string = 'en-UG',
 ): string {
   const d = typeof date === 'string' ? new Date(date) : date
-  return d.toLocaleString(locale)
+  return d.toLocaleString(locale, { timeZone: DISPLAY_TIME_ZONE })
 }
 
 /**

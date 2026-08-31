@@ -17,7 +17,6 @@ describe('reporting improvements', () => {
 
   beforeEach(() => {
     cy.loginAndCache(admin, password)
-    cy.on('uncaught:exception', () => false)
   })
 
   it('renders the financial summary and report hub', () => {

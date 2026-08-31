@@ -134,6 +134,7 @@ export const getBalanceSheet = createServerFn()
     let totalAssets = new BigNumber(0)
     let totalLiabilities = new BigNumber(0)
     let totalEquity = new BigNumber(0)
+    let netIncome = new BigNumber(0)
 
     for (const row of tb) {
       const item = { name: row.categoryName, balance: row.balance.toFixed(2) }
@@ -152,18 +153,17 @@ export const getBalanceSheet = createServerFn()
           break
         case 'revenue':
         case 'expense':
-          // Net income goes into equity
+          // Current-period profit or loss is presented as retained earnings.
           if (row.categoryType === 'revenue') {
-            totalEquity = totalEquity.plus(row.balance)
+            netIncome = netIncome.plus(row.balance)
           } else {
-            totalEquity = totalEquity.minus(row.balance)
+            netIncome = netIncome.minus(row.balance)
           }
           break
       }
     }
 
     // Add net income to equity section
-    const netIncome = totalAssets.minus(totalLiabilities).minus(totalEquity)
     if (!netIncome.isZero()) {
       equity.push({ name: 'Retained Earnings', balance: netIncome.toFixed(2) })
       totalEquity = totalEquity.plus(netIncome)
@@ -289,6 +289,40 @@ export const getInterBranchBalances = createServerFn().handler(async () => {
     balance: balance.toFixed(2),
   }))
 })
+
+/**
+ * Period-wide debit and credit totals for the general ledger.
+ * The ledger table itself is intentionally limited to the latest 100 rows.
+ */
+export const getLedgerTotals = createServerFn()
+  .inputValidator(dateRangeInput)
+  .handler(async ({ data }) => {
+    await requireSessionAndRole(['admin', 'supervisor'])
+
+    const conditions = []
+    const from = parseReportDate(data.from, 'start')
+    const to = parseReportDate(data.to, 'end')
+    if (from) conditions.push(sql`${transactions.transactionDate} >= ${from}`)
+    if (to) conditions.push(sql`${transactions.transactionDate} <= ${to}`)
+
+    const rows = await db
+      .select({
+        type: transactions.type,
+        total: sql<string>`sum(${transactions.amount})`,
+      })
+      .from(transactions)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(transactions.type)
+
+    let debits = new BigNumber(0)
+    let credits = new BigNumber(0)
+    for (const row of rows) {
+      if (row.type === 'debit') debits = debits.plus(row.total)
+      else credits = credits.plus(row.total)
+    }
+
+    return { debits: debits.toFixed(2), credits: credits.toFixed(2) }
+  })
 
 /**
  * General ledger — paginated journal entries.

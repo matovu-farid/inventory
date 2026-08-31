@@ -23,4 +23,19 @@ describe('report CSV export', () => {
   it('normalizes missing values to empty CSV fields', () => {
     expect(buildCsv(['A', 'B'], [[undefined, false]])).toBe('A,B\n,false\n')
   })
+
+  it('neutralizes spreadsheet formula-like text without changing numeric cells', () => {
+    expect(
+      buildCsv(
+        ['Description', 'Amount'],
+        [
+          ['=HYPERLINK("https://example.com")', '-1250.00'],
+          ['+1+1', 1250],
+          ['@import', '-note'],
+        ],
+      ),
+    ).toBe(
+      'Description,Amount\n"\'=HYPERLINK(""https://example.com"")",-1250.00\n\'+1+1,1250\n\'@import,\'-note\n',
+    )
+  })
 })
