@@ -15,7 +15,7 @@ describe('Top-level item chooser', () => {
   })
 
   after(() => {
-    cy.visit('about:blank')
+    cy.visit('/login')
     cy.cleanupAllTestData()
   })
 

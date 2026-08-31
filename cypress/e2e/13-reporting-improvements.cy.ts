@@ -46,7 +46,7 @@ describe('reporting improvements', () => {
       .should('be.visible')
     cy.contains('button', /^Clear$/)
       .should('be.enabled')
-      .click()
+      .click({ force: true })
     cy.location('search').should('eq', '')
   })
 
