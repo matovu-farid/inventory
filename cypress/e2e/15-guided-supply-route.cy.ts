@@ -68,7 +68,9 @@ describe('Guided supply route entry', () => {
       cy.waitForHydration()
       cy.contains('Receipts').should('be.visible')
       cy.contains('Step 2 of 4').should('be.visible')
-      cy.contains('Select item…').should('be.visible')
+      cy.get('[data-receipt-row="0"] input[aria-label="Item name"]').should(
+        'be.visible',
+      )
       cy.contains('Review route entry').should('not.exist')
     })
   })

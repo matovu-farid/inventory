@@ -30,11 +30,13 @@ describe('reporting improvements', () => {
     cy.contains('Statement of Financial Position')
       .scrollIntoView()
       .should('be.visible')
-    cy.contains('All Reports').should('be.visible')
-    cy.contains('Financial Summary').should('be.visible')
-    cy.contains('General Ledger').should('be.visible')
-    cy.contains('X Report').should('be.visible')
-    cy.contains('Z Reports').should('be.visible')
+    cy.get('section[aria-labelledby="report-hub-heading"]').within(() => {
+      cy.contains('All Reports').should('be.visible')
+      cy.contains('Financial Summary').should('be.visible')
+      cy.contains('General Ledger').should('be.visible')
+      cy.contains('X Report').should('be.visible')
+      cy.contains('Z Reports').should('be.visible')
+    })
   })
 
   it('reproduces a selected period from the URL and clears it', () => {
@@ -42,9 +44,10 @@ describe('reporting improvements', () => {
     cy.contains('2026-08-01 to 2026-08-31')
       .scrollIntoView()
       .should('be.visible')
-    cy.get('button').contains('Clear').click()
-    cy.url().should('not.include', 'from=')
-    cy.url().should('not.include', 'to=')
+    cy.contains('button', /^Clear$/)
+      .should('be.enabled')
+      .click()
+    cy.location('search').should('eq', '')
   })
 
   it('provides ledger totals and the visible-row limit context', () => {
