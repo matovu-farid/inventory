@@ -30,17 +30,23 @@ describe('Guided supply route entry', () => {
       cy.contains('button', 'Continue').click()
       cy.contains('Edit route details').should('be.visible')
       cy.contains('Route basics', { timeout: 10000 }).should('be.visible')
-      cy.contains('Step 2 of 4').should('be.visible')
+      cy.contains('Step 4 of 4').should('be.visible')
 
       cy.contains('Route suppliers').should('not.exist')
-      cy.contains('Add items to this route').should('be.visible')
+      cy.contains('Review route entry').should('be.visible')
+
+      cy.contains('button', 'Edit route details').click()
+      cy.contains('Step 1 of 4').should('be.visible')
+      cy.contains('button', 'Items').click()
+      cy.contains('Step 2 of 4').should('be.visible')
+      cy.contains('Receipts').should('be.visible')
 
       cy.contains('Save and exit').click()
       cy.location('pathname').should('eq', `/supply/${routeRows[0].id}`)
-      cy.visit(`/supply/${routeRows[0].id}/entry`)
+      cy.visit(`/supply/${routeRows[0].id}/entry?step=items`)
       cy.waitForHydration()
       cy.contains('Step 2 of 4').should('be.visible')
-      cy.contains('Add items to this route').should('be.visible')
+      cy.contains('Receipts').should('be.visible')
 
       cy.contains('button', 'Expenses').click()
       cy.contains('Route expenses').should('be.visible')
@@ -79,12 +85,11 @@ describe('Guided supply route entry', () => {
             `INSERT INTO supply_routes (name, status) VALUES ('Journey Route ${suffix}', 'open') RETURNING id`,
           ).then((routeRows: Array<{ id: string }>) => {
             const routeId = routeRows[0].id
-            cy.visit(`/supply/${routeId}/entry`)
+            cy.visit(`/supply/${routeId}/entry?step=items`)
             cy.waitForHydration()
-            cy.contains('Add items to this route').should('be.visible')
+            cy.contains('Receipts').should('be.visible')
             cy.contains('Step 2 of 4').should('be.visible')
             cy.contains('Select item…').should('be.visible')
-            cy.contains('Items already entered').should('be.visible')
             cy.contains('Review route entry').should('not.exist')
           })
         })

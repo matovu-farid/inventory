@@ -5,7 +5,36 @@ import { CartProvider, useCart } from '#/components/pos/cart-context'
 import type { CartItem } from '#/lib/pos/cart-reducer'
 
 afterEach(cleanup)
-beforeEach(() => window.localStorage.clear())
+
+const storageValues = new Map<string, string>()
+const localStorageMock: Storage = {
+  get length() {
+    return storageValues.size
+  },
+  clear() {
+    storageValues.clear()
+  },
+  getItem(key) {
+    return storageValues.get(key) ?? null
+  },
+  key(index) {
+    return [...storageValues.keys()][index] ?? null
+  },
+  removeItem(key) {
+    storageValues.delete(key)
+  },
+  setItem(key, value) {
+    storageValues.set(key, String(value))
+  },
+}
+
+beforeEach(() => {
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: localStorageMock,
+  })
+  window.localStorage.clear()
+})
 
 const item: CartItem = {
   shopStockId: 'stk1',
