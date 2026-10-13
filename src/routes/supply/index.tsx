@@ -46,7 +46,7 @@ function SupplyRoutesPage() {
     : undefined
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Supply Routes</h1>
@@ -277,7 +277,7 @@ export function CreateRouteForm({
       onSubmit={(e) => {
         void handleSubmit(e)
       }}
-      className="space-y-4"
+      className="flex flex-col gap-4"
     >
       <div className="space-y-2">
         <FieldLabel htmlFor="name" help="supplyRoute.name">

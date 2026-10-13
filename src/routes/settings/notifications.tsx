@@ -115,7 +115,7 @@ function NotificationsSettingsPage() {
             Used for every variant unless a per-product override applies.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="flex flex-col gap-6">
           <ThresholdField
             label="Store (warehouse) threshold"
             helpText="Default trigger when warehouse stock for a variant runs low."
@@ -151,7 +151,7 @@ function NotificationsSettingsPage() {
             Run the threshold scan now. Normally runs every hour.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           {runBanner && <FormMessage message={runBanner} />}
           <Button
             variant="outline"

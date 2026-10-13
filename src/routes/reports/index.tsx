@@ -18,6 +18,14 @@ import {
 import { InfoPopover } from '#/components/ui/info-popover'
 import { Button } from '#/components/ui/button'
 import { ReportToolbar } from '#/components/reports/report-toolbar'
+import { FinancialOverviewChart } from '#/components/reports/financial-overview-chart'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableRow,
+} from '#/components/ui/table'
 import {
   getBalanceSheet,
   getCashPosition,
@@ -115,37 +123,41 @@ function StatementTable({
   emptyMessage: string
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td
-                colSpan={2}
-                className="py-8 text-center text-sm text-muted-foreground"
-              >
-                {emptyMessage}
-              </td>
-            </tr>
-          ) : (
-            rows.map((row) => (
-              <tr key={row.name}>
-                <td className="py-1.5 pl-6">{row.name}</td>
-                <td className="py-1.5 text-right font-mono tabular-nums">
-                  {formatUgxTotal(row.amount)}
-                </td>
-              </tr>
-            ))
-          )}
-          <tr className="border-t">
-            <td className="py-2 pl-2 font-semibold">{totalLabel}</td>
-            <td className="py-2 text-right font-mono font-semibold tabular-nums">
-              {formatUgxTotal(total)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <Table>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow className="border-0">
+            <TableCell
+              colSpan={2}
+              className="py-8 text-center text-sm text-muted-foreground"
+            >
+              {emptyMessage}
+            </TableCell>
+          </TableRow>
+        ) : (
+          rows.map((row) => (
+            <TableRow key={row.name} className="border-0">
+              <TableCell className="py-1.5 pl-6 whitespace-normal">
+                {row.name}
+              </TableCell>
+              <TableCell className="py-1.5 text-right font-mono tabular-nums">
+                {formatUgxTotal(row.amount)}
+              </TableCell>
+            </TableRow>
+          ))
+        )}
+      </TableBody>
+      <TableFooter className="print:table-row-group print:bg-transparent">
+        <TableRow>
+          <TableCell className="py-2 pl-2 font-semibold">
+            {totalLabel}
+          </TableCell>
+          <TableCell className="py-2 text-right font-mono font-semibold tabular-nums">
+            {formatUgxTotal(total)}
+          </TableCell>
+        </TableRow>
+      </TableFooter>
+    </Table>
   )
 }
 
@@ -217,7 +229,10 @@ function ReportsDashboard() {
         onExportCsv={exportCsv}
       />
 
-      <section aria-labelledby="cash-position-heading" className="space-y-4">
+      <section
+        aria-labelledby="cash-position-heading"
+        className="flex flex-col gap-4"
+      >
         <div>
           <h2 id="cash-position-heading" className="text-lg font-semibold">
             Cash Position
@@ -245,7 +260,7 @@ function ReportsDashboard() {
         </div>
       </section>
 
-      <section aria-labelledby="pnl-heading" className="space-y-4">
+      <section aria-labelledby="pnl-heading" className="flex flex-col gap-4">
         <div>
           <h2 id="pnl-heading" className="text-lg font-semibold">
             Profit &amp; Loss
@@ -254,6 +269,12 @@ function ReportsDashboard() {
             Activity recorded during {periodLabel.toLowerCase()}.
           </p>
         </div>
+        <FinancialOverviewChart
+          totalRevenue={pnl.totalRevenue}
+          totalExpenses={pnl.totalExpenses}
+          netIncome={pnl.netIncome}
+          periodLabel={periodLabel}
+        />
         <Card className="print:border-0 print:shadow-none">
           <CardContent className="pt-6">
             <ReportStatementHeader
@@ -313,7 +334,10 @@ function ReportsDashboard() {
         </Card>
       </section>
 
-      <section aria-labelledby="balance-sheet-heading" className="space-y-4">
+      <section
+        aria-labelledby="balance-sheet-heading"
+        className="flex flex-col gap-4"
+      >
         <div>
           <h2 id="balance-sheet-heading" className="text-lg font-semibold">
             Balance Sheet

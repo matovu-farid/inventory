@@ -1,3 +1,4 @@
+import { Table, TableBody, TableRow, TableCell } from '#/components/ui/table'
 import * as React from 'react'
 import { useState } from 'react'
 import { X } from 'lucide-react'
@@ -235,11 +236,11 @@ export function ColorQuantityList({
   return (
     <div className="space-y-2">
       <div className="overflow-hidden rounded border">
-        <table className="w-full text-sm">
-          <tbody>
+        <Table className="w-full text-sm">
+          <TableBody>
             {colors.map((c) => (
-              <tr key={c.id} className="border-t first:border-t-0">
-                <td className="p-2">
+              <TableRow key={c.id} className="border-t first:border-t-0">
+                <TableCell className="p-2">
                   <span className="inline-flex items-center gap-2">
                     <span
                       className="inline-block size-4 rounded border"
@@ -248,8 +249,8 @@ export function ColorQuantityList({
                     />
                     {c.colorName}
                   </span>
-                </td>
-                <td className="p-1.5 w-32">
+                </TableCell>
+                <TableCell className="p-1.5 w-32">
                   <Input
                     type="number"
                     inputMode="numeric"
@@ -258,9 +259,9 @@ export function ColorQuantityList({
                     onChange={(event) => set(c.id, event.target.value)}
                     placeholder="0"
                   />
-                </td>
+                </TableCell>
                 {onRemoveColor && (
-                  <td className="p-1 w-10 text-center">
+                  <TableCell className="p-1 w-10 text-center">
                     <Button
                       type="button"
                       size="icon"
@@ -271,12 +272,12 @@ export function ColorQuantityList({
                     >
                       <X className="size-4" />
                     </Button>
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       <p className="text-xs text-muted-foreground">
         Total units: <span className="font-mono">{total}</span>

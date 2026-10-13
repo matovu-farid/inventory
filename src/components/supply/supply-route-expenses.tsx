@@ -1,3 +1,11 @@
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '#/components/ui/table'
 import { useState } from 'react'
 import BigNumber from 'bignumber.js'
 import { Button } from '#/components/ui/button'
@@ -117,51 +125,57 @@ export function SupplyRouteExpenses({
           </p>
         ) : (
           <div className="overflow-x-auto rounded-md border">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-                <tr>
-                  <th scope="col" className="px-3 py-2 font-medium">
+            <Table className="w-full min-w-[720px] text-sm">
+              <TableHeader className="bg-muted/50 text-left text-xs text-muted-foreground">
+                <TableRow>
+                  <TableHead scope="col" className="px-3 py-2 font-medium">
                     Category
-                  </th>
-                  <th scope="col" className="px-3 py-2 font-medium">
+                  </TableHead>
+                  <TableHead scope="col" className="px-3 py-2 font-medium">
                     Description
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">
+                  </TableHead>
+                  <TableHead
+                    scope="col"
+                    className="px-3 py-2 text-right font-medium"
+                  >
                     Amount
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">
+                  </TableHead>
+                  <TableHead
+                    scope="col"
+                    className="px-3 py-2 text-right font-medium"
+                  >
                     Rate
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium">
+                  </TableHead>
+                  <TableHead className="px-3 py-2 text-right font-medium">
                     Total UGX
-                  </th>
-                  <th scope="col" className="px-3 py-2" />
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                  <TableHead scope="col" className="px-3 py-2" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {expenses.map((expense) => {
                   const totalUgx = expenseAmountUgx(expense)
                   return (
-                    <tr key={expense.id} className="border-t">
-                      <td className="px-3 py-2">
+                    <TableRow key={expense.id} className="border-t">
+                      <TableCell className="px-3 py-2">
                         <Badge variant="outline">{expense.category}</Badge>
-                      </td>
-                      <td className="px-3 py-2">
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
                         {expense.description || '—'}
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono">
+                      </TableCell>
+                      <TableCell className="px-3 py-2 text-right font-mono">
                         {new BigNumber(expense.amount).toFormat(2)}{' '}
                         {expense.currency ?? 'UGX'}
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">
+                      </TableCell>
+                      <TableCell className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">
                         {expense.exchangeRate
                           ? new BigNumber(expense.exchangeRate).toFormat(2)
                           : '—'}
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono font-semibold">
+                      </TableCell>
+                      <TableCell className="px-3 py-2 text-right font-mono font-semibold">
                         {totalUgx ? formatUgx(totalUgx) : 'Conversion needed'}
-                      </td>
-                      <td className="px-3 py-2 text-right">
+                      </TableCell>
+                      <TableCell className="px-3 py-2 text-right">
                         <Button
                           type="button"
                           variant="ghost"
@@ -172,12 +186,12 @@ export function SupplyRouteExpenses({
                         >
                           Remove
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </CardContent>

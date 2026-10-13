@@ -27,7 +27,7 @@ export const Route = createFileRoute('/reports/z')({
 function ZIndexPage() {
   const { history } = Route.useLoaderData()
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Z Reports</h1>
         <Button asChild>

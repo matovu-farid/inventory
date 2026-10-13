@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import {
   HeadContent,
-  Link,
   Outlet,
   Scripts,
   createRootRouteWithContext,
@@ -13,8 +12,9 @@ import {
 import { TooltipProvider } from '#/components/ui/tooltip'
 import { ErrorDialogProvider } from '#/components/error-dialog-provider'
 import { NotFoundPage, RouteErrorPage } from '#/components/error-pages'
-import { AppSidebar, SidebarTrigger } from '#/components/app-sidebar'
-import { Logo } from '#/components/logo'
+import { AppSidebar } from '#/components/app-sidebar'
+import { AppHeader } from '#/components/app-header'
+import { SidebarInset, SidebarProvider } from '#/components/ui/sidebar'
 import { PortalRoot } from '#/components/ui/portal-root'
 import { getSession } from '#/server/middleware/auth'
 import { authClient } from '#/lib/auth-client'
@@ -141,41 +141,29 @@ function RootLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <SidebarProvider className="h-svh min-h-0 overflow-hidden">
+      <a
+        href="#main-content"
+        className="sr-only fixed left-4 top-4 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:z-50"
+      >
+        Skip to content
+      </a>
       <AppSidebar
         userName={userName}
         userRole={userRole}
+        userEmail={session?.user.email}
+        userImage={session?.user.image}
         onLogout={onLogout}
         pendingHardCount={pendingHardCount}
       />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Mobile header */}
-        <header className="flex h-14 items-center gap-3 border-b border-border/60 bg-sidebar px-4 md:hidden">
-          <SidebarTrigger
-            userName={userName}
-            userRole={userRole}
-            onLogout={onLogout}
-            pendingHardCount={pendingHardCount}
-          />
-          <Link
-            to="/"
-            aria-label="Go to dashboard"
-            className="flex items-center gap-3 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
-          >
-            <Logo className="size-7" />
-            <span className="text-[15px] font-semibold tracking-[-0.01em]">
-              Inventory
-            </span>
-          </Link>
-        </header>
-
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto bg-background">
-          <div className="mx-auto w-full max-w-[1120px] px-8 py-8">
+      <SidebarInset className="min-w-0 overflow-hidden">
+        <AppHeader userRole={userRole} />
+        <div className="flex-1 overflow-y-auto" id="main-content" tabIndex={-1}>
+          <div className="mx-auto w-full max-w-[1440px] px-4 py-6 lg:px-6 lg:py-8">
             <Outlet />
           </div>
-        </main>
-      </div>
-    </div>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

@@ -170,7 +170,8 @@ body {
 
 /* ── Selection ── */
 ::selection {
-  background: oklch(0.546 0.245 262.88 / 0.15);
+  background: color-mix(in oklch, var(--primary) 15%, transparent);
+  color: var(--foreground);
 }
 
 /* ── Scrollbar ── */
@@ -182,11 +183,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.75 0.005 286 / 0.4);
+  background: color-mix(in oklch, var(--muted-foreground) 35%, transparent);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.65 0.005 286 / 0.5);
+  background: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
 }
 
 /* ── Links ── */

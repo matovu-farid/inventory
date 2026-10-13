@@ -88,7 +88,7 @@ function ProfileCard({
           onSubmit={(e) => {
             void submit(e)
           }}
-          className="space-y-4"
+          className="flex flex-col gap-4"
         >
           {message && <FormMessage message={message} />}
           <div className="space-y-1.5">
@@ -177,7 +177,7 @@ function ChangePasswordCard() {
           onSubmit={(e) => {
             void submit(e)
           }}
-          className="space-y-4"
+          className="flex flex-col gap-4"
         >
           {message && <FormMessage message={message} />}
           <div className="space-y-1.5">
@@ -245,7 +245,7 @@ function SetupChecklist({ summary }: { summary: SystemPrereqsSummary }) {
   const softItems = summary.items.filter((i) => i.severity === 'soft')
 
   return (
-    <section className="space-y-4">
+    <section className="flex flex-col gap-4">
       <div>
         <h2 className="text-lg font-semibold">Setup Checklist</h2>
         <p className="text-sm text-muted-foreground">

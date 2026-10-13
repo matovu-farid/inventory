@@ -1,3 +1,11 @@
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '#/components/ui/table'
 import { useCallback, useEffect, useState } from 'react'
 import BigNumber from 'bignumber.js'
 import {
@@ -182,36 +190,42 @@ export function ShopExpensesCard({ shopId }: { shopId: string }) {
           </p>
         ) : (
           <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-                <tr>
-                  <th scope="col" className="px-3 py-2">
+            <Table className="w-full text-sm">
+              <TableHeader className="bg-muted/50 text-left text-xs text-muted-foreground">
+                <TableRow>
+                  <TableHead scope="col" className="px-3 py-2">
                     Date
-                  </th>
-                  <th scope="col" className="px-3 py-2">
+                  </TableHead>
+                  <TableHead scope="col" className="px-3 py-2">
                     Category
-                  </th>
-                  <th scope="col" className="px-3 py-2">
+                  </TableHead>
+                  <TableHead scope="col" className="px-3 py-2">
                     Description
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-right">
+                  </TableHead>
+                  <TableHead scope="col" className="px-3 py-2 text-right">
                     Amount (UGX)
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {expenses.map((expense) => (
-                  <tr key={expense.id} className="border-t">
-                    <td className="px-3 py-2">{expense.expenseDate}</td>
-                    <td className="px-3 py-2 capitalize">{expense.category}</td>
-                    <td className="px-3 py-2">{expense.description || '—'}</td>
-                    <td className="px-3 py-2 text-right font-mono">
+                  <TableRow key={expense.id} className="border-t">
+                    <TableCell className="px-3 py-2">
+                      {expense.expenseDate}
+                    </TableCell>
+                    <TableCell className="px-3 py-2 capitalize">
+                      {expense.category}
+                    </TableCell>
+                    <TableCell className="px-3 py-2">
+                      {expense.description || '—'}
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-right font-mono">
                       {new BigNumber(expense.amount).toFormat(0)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </CardContent>

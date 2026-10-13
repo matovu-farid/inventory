@@ -37,7 +37,7 @@ function ProductsPage() {
   const canManage = useCan('items.manage')
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between">
         <h1 className="text-2xl font-bold">Items</h1>
         {canManage && (

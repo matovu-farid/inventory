@@ -102,7 +102,7 @@ function RouteDetailPage() {
   const routeSuppliers = getDistinctRouteSuppliers(route.items)
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Header - outside PagePrerequisites */}
       <div className="flex items-start justify-between">
         <div>
@@ -184,7 +184,7 @@ function RouteDetailPage() {
       <Separator />
 
       {/* Items Section */}
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold">Receipts</h2>
@@ -253,7 +253,7 @@ function RouteDetailPage() {
       <Separator />
 
       {/* Expenses Section */}
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Expenses</h2>
           <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>

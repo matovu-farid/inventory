@@ -288,7 +288,7 @@ function InviteDialog({
           They&apos;ll get an email with a link to set their password and join.
         </DialogDescription>
       </DialogHeader>
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="flex flex-col gap-4">
         {error && (
           <div className="rounded-xl bg-destructive/10 px-4 py-3 text-[13px] text-destructive">
             {error}

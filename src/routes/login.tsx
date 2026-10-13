@@ -110,7 +110,7 @@ function LoginPage() {
             onSubmit={(e) => {
               void handleSubmit(e)
             }}
-            className="space-y-4"
+            className="flex flex-col gap-4"
           >
             {search.reset === 'success' && (
               <div className="rounded-xl bg-emerald-50 px-4 py-3 text-[13px] text-emerald-700">

@@ -68,7 +68,7 @@ function ForgotPasswordPage() {
               onSubmit={(e) => {
                 void handleSubmit(e)
               }}
-              className="space-y-4"
+              className="flex flex-col gap-4"
             >
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-[13px]">

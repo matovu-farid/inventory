@@ -1,3 +1,11 @@
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '#/components/ui/table'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { Fragment, useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react'
@@ -230,7 +238,7 @@ function ProductDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="font-mono text-sm text-muted-foreground">
@@ -281,7 +289,7 @@ function ProductDetailPage() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <ItemImageGallery
             itemName={product.name}
             images={product.images}
@@ -562,7 +570,7 @@ function CommercialEditor({
     }
   }
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <Combobox
         options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
         value={supplierId}
@@ -675,20 +683,22 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
   }
   return (
     <div className="overflow-x-auto rounded border">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-left">
-          <tr>
-            <th className="p-2 font-medium">Location</th>
-            <th className="p-2 font-medium">Colour · Size</th>
-            <th className="p-2 text-right font-medium">Qty</th>
-            <th className="p-2 text-right font-medium">Min sell (UGX)</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table className="w-full text-sm">
+        <TableHeader className="bg-muted/50 text-left">
+          <TableRow>
+            <TableHead className="p-2 font-medium">Location</TableHead>
+            <TableHead className="p-2 font-medium">Colour · Size</TableHead>
+            <TableHead className="p-2 text-right font-medium">Qty</TableHead>
+            <TableHead className="p-2 text-right font-medium">
+              Min sell (UGX)
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((r) => (
-            <tr key={r.key} className="border-t">
-              <td className="p-2">{r.location}</td>
-              <td className="p-2">
+            <TableRow key={r.key} className="border-t">
+              <TableCell className="p-2">{r.location}</TableCell>
+              <TableCell className="p-2">
                 {r.color && r.size ? (
                   <span className="inline-flex items-center gap-1.5">
                     <span
@@ -711,13 +721,17 @@ function PriceSummary({ prices }: { prices: StockPrices }) {
                 ) : (
                   <span className="text-xs text-muted-foreground">—</span>
                 )}
-              </td>
-              <td className="p-2 text-right tabular-nums">{r.qty}</td>
-              <td className="p-2 text-right font-mono">{r.price}</td>
-            </tr>
+              </TableCell>
+              <TableCell className="p-2 text-right tabular-nums">
+                {r.qty}
+              </TableCell>
+              <TableCell className="p-2 text-right font-mono">
+                {r.price}
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   )
 }
@@ -791,28 +805,32 @@ function PriceEditor({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="overflow-x-auto rounded border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left">
-            <tr>
-              <th className="p-2 font-medium">Location</th>
-              <th className="p-2 font-medium">Color · Size</th>
-              <th className="p-2 text-right font-medium">Qty</th>
-              <th className="p-2 text-right font-medium">Min sell (UGX)</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="w-full text-sm">
+          <TableHeader className="bg-muted/50 text-left">
+            <TableRow>
+              <TableHead className="p-2 font-medium">Location</TableHead>
+              <TableHead className="p-2 font-medium">Color · Size</TableHead>
+              <TableHead className="p-2 text-right font-medium">Qty</TableHead>
+              <TableHead className="p-2 text-right font-medium">
+                Min sell (UGX)
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((r, idx) => (
-              <tr key={r.key} className="border-t align-top">
-                <td className="p-2">{r.location}</td>
-                <td className="p-2">
+              <TableRow key={r.key} className="border-t align-top">
+                <TableCell className="p-2">{r.location}</TableCell>
+                <TableCell className="p-2">
                   <span className="text-xs text-muted-foreground">
                     all colors · all sizes
                   </span>
-                </td>
-                <td className="p-2 text-right tabular-nums">{r.qty}</td>
-                <td className="p-2 w-44">
+                </TableCell>
+                <TableCell className="p-2 text-right tabular-nums">
+                  {r.qty}
+                </TableCell>
+                <TableCell className="p-2 w-44">
                   <MoneyInput
                     currency="UGX"
                     decimals={0}
@@ -826,11 +844,11 @@ function PriceEditor({
                       )
                     }
                   />
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       <div className="flex items-center justify-between gap-3">
         <div className="text-xs text-muted-foreground">
@@ -996,28 +1014,30 @@ function VariantsSection({
         </p>
       ) : (
         <div className="overflow-x-auto rounded border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="p-2 font-medium">Color</th>
-                <th className="p-2 font-medium">Size</th>
-                <th className="p-2 font-medium">Stock</th>
-                {canManage && <th className="p-2 w-10" aria-label="Actions" />}
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="w-full text-sm">
+            <TableHeader className="bg-muted/50 text-left">
+              <TableRow>
+                <TableHead className="p-2 font-medium">Color</TableHead>
+                <TableHead className="p-2 font-medium">Size</TableHead>
+                <TableHead className="p-2 font-medium">Stock</TableHead>
+                {canManage && (
+                  <TableHead className="p-2 w-10" aria-label="Actions" />
+                )}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {groups.map((g) => {
                 const isOpen = expanded.has(g.colorId)
                 const colCount = canManage ? 4 : 3
                 return (
                   <Fragment key={g.colorId}>
-                    <tr
+                    <TableRow
                       className="border-t bg-muted/20 hover:bg-muted/40 cursor-pointer"
                       data-cy="variant-group"
                       data-color-id={g.colorId}
                       data-expanded={isOpen ? 'true' : 'false'}
                     >
-                      <td colSpan={colCount} className="p-0">
+                      <TableCell colSpan={colCount} className="p-0">
                         <button
                           type="button"
                           onClick={() => toggleGroup(g.colorId)}
@@ -1064,18 +1084,18 @@ function VariantsSection({
                           </span>
                           {canManage && <span aria-hidden />}
                         </button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                     {g.variants.map((v) => {
                       const stock = stockByVariant.get(v.id)
                       return (
-                        <tr
+                        <TableRow
                           key={v.id}
                           className="border-t"
                           data-cy="variant-row"
                           hidden={!isOpen}
                         >
-                          <td className="p-2 pl-8">
+                          <TableCell className="p-2 pl-8">
                             <span className="inline-flex items-center gap-1.5 text-muted-foreground">
                               <span
                                 className="inline-block size-3 rounded-full border"
@@ -1086,9 +1106,11 @@ function VariantsSection({
                               />
                               {g.color?.colorName ?? '—'}
                             </span>
-                          </td>
-                          <td className="p-2 font-medium">{v.size}</td>
-                          <td className="p-2">
+                          </TableCell>
+                          <TableCell className="p-2 font-medium">
+                            {v.size}
+                          </TableCell>
+                          <TableCell className="p-2">
                             {stock && stock.qty > 0 ? (
                               <Badge variant="secondary">
                                 {stock.qty} in stock at {stock.locations}{' '}
@@ -1099,9 +1121,9 @@ function VariantsSection({
                                 no stock
                               </span>
                             )}
-                          </td>
+                          </TableCell>
                           {canManage && (
-                            <td className="p-2 text-right">
+                            <TableCell className="p-2 text-right">
                               <Button
                                 type="button"
                                 size="icon"
@@ -1114,16 +1136,16 @@ function VariantsSection({
                               >
                                 <Trash2 className="size-4" />
                               </Button>
-                            </td>
+                            </TableCell>
                           )}
-                        </tr>
+                        </TableRow>
                       )
                     })}
                   </Fragment>
                 )
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
       {unresolvedStock.length > 0 && (

@@ -1,3 +1,12 @@
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '#/components/ui/table'
 import { useState } from 'react'
 import BigNumber from 'bignumber.js'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
@@ -443,12 +452,12 @@ export function SupplyRouteReview({
                       </div>
                     </div>
                     <div className="overflow-x-auto rounded-md border">
-                      <table className="w-full min-w-[1380px] text-xs">
-                        <thead className="bg-muted/50 text-left text-muted-foreground">
-                          <tr>
+                      <Table className="w-full min-w-[1380px] text-xs">
+                        <TableHeader className="bg-muted/50 text-left text-muted-foreground">
+                          <TableRow>
                             {purchaseReviewColumns.map(
                               ([heading, help], index) => (
-                                <th
+                                <TableHead
                                   key={heading}
                                   scope="col"
                                   className={cn(
@@ -457,76 +466,78 @@ export function SupplyRouteReview({
                                   )}
                                 >
                                   <ReviewLabel label={heading} help={help} />
-                                </th>
+                                </TableHead>
                               ),
                             )}
-                          </tr>
-                        </thead>
-                        <tbody>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {group.lines.map((line, index) => (
-                            <tr
+                            <TableRow
                               key={`${line.articleNumber}-${line.colorName}-${line.size}-${index}`}
                               className="border-t align-top"
                             >
-                              <td className="whitespace-nowrap px-2 py-2">
+                              <TableCell className="whitespace-nowrap px-2 py-2">
                                 {line.date || '—'}
-                              </td>
-                              <td className="px-2 py-2">{line.supplierName}</td>
-                              <td className="px-2 py-2">
+                              </TableCell>
+                              <TableCell className="px-2 py-2">
+                                {line.supplierName}
+                              </TableCell>
+                              <TableCell className="px-2 py-2">
                                 {[line.colorName, line.size]
                                   .filter(Boolean)
                                   .join(' · ') || '—'}
-                              </td>
-                              <td className="whitespace-nowrap px-2 py-2 text-right font-mono">
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap px-2 py-2 text-right font-mono">
                                 {formatRate(
                                   line.sourceCurrency,
                                   line.exchangeRateForeignToUsd,
                                 )}
-                              </td>
-                              <td className="px-2 py-2 text-right font-mono">
+                              </TableCell>
+                              <TableCell className="px-2 py-2 text-right font-mono">
                                 {line.quantity}
-                              </td>
-                              <td className="whitespace-nowrap px-2 py-2 text-right font-mono">
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap px-2 py-2 text-right font-mono">
                                 {formatSourceAmount(
                                   line.sourceUnitCost,
                                   line.sourceCurrency,
                                 )}
-                              </td>
-                              <td className="whitespace-nowrap px-2 py-2 text-right font-mono">
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap px-2 py-2 text-right font-mono">
                                 {formatSourceAmount(
                                   line.sourceTotal,
                                   line.sourceCurrency,
                                 )}
-                              </td>
-                              <td className="whitespace-nowrap px-2 py-2 text-right font-mono">
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap px-2 py-2 text-right font-mono">
                                 {line.totalAmountUsd
                                   ? `${line.totalAmountUsd.toFormat(2)} USD`
                                   : '—'}
-                              </td>
-                              <td className="whitespace-nowrap px-2 py-2 text-right font-mono">
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap px-2 py-2 text-right font-mono">
                                 {line.exchangeRateUsdToUgx
                                   ? line.exchangeRateUsdToUgx.toFormat(0)
                                   : '—'}
-                              </td>
-                              <td className="whitespace-nowrap px-2 py-2 text-right font-mono">
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap px-2 py-2 text-right font-mono">
                                 {formatUgx(line.landedCostUgx)}
-                              </td>
-                              <td className="whitespace-nowrap px-2 py-2 text-right font-mono">
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap px-2 py-2 text-right font-mono">
                                 {line.minimumSellPriceUgx
                                   ? formatUgx(line.minimumSellPriceUgx)
                                   : '—'}
-                              </td>
-                              <td className="whitespace-nowrap px-2 py-2 text-right font-mono">
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap px-2 py-2 text-right font-mono">
                                 {line.lowStockThreshold === 0
                                   ? '0 (off)'
                                   : line.lowStockThreshold.toLocaleString(
                                       'en-UG',
                                     )}
-                              </td>
-                              <td className="whitespace-nowrap px-2 py-2 text-right font-mono">
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap px-2 py-2 text-right font-mono">
                                 {formatUgx(line.sellingValueUgx)}
-                              </td>
-                              <td
+                              </TableCell>
+                              <TableCell
                                 className={cn(
                                   'whitespace-nowrap px-2 py-2 text-right font-mono font-semibold',
                                   line.grossProfitUgx.isNegative()
@@ -535,38 +546,48 @@ export function SupplyRouteReview({
                                 )}
                               >
                                 {formatUgx(line.grossProfitUgx)}
-                              </td>
-                            </tr>
+                              </TableCell>
+                            </TableRow>
                           ))}
-                        </tbody>
-                        <tfoot className="border-t bg-muted/50 font-semibold">
-                          <tr>
-                            <td className="px-2 py-2" colSpan={3}>
+                        </TableBody>
+                        <TableFooter className="border-t bg-muted/50 font-semibold">
+                          <TableRow>
+                            <TableCell className="px-2 py-2" colSpan={3}>
                               Item total
-                            </td>
-                            <td className="px-2 py-2 text-right">—</td>
-                            <td className="px-2 py-2 text-right font-mono">
+                            </TableCell>
+                            <TableCell className="px-2 py-2 text-right">
+                              —
+                            </TableCell>
+                            <TableCell className="px-2 py-2 text-right font-mono">
                               {group.units}
-                            </td>
-                            <td className="px-2 py-2 text-right">—</td>
-                            <td className="px-2 py-2 text-right font-mono">
+                            </TableCell>
+                            <TableCell className="px-2 py-2 text-right">
+                              —
+                            </TableCell>
+                            <TableCell className="px-2 py-2 text-right font-mono">
                               {formatGroupSourceSpend(group.lines)}
-                            </td>
-                            <td className="px-2 py-2 text-right">—</td>
-                            <td className="px-2 py-2 text-right">—</td>
-                            <td className="px-2 py-2 text-right font-mono">
+                            </TableCell>
+                            <TableCell className="px-2 py-2 text-right">
+                              —
+                            </TableCell>
+                            <TableCell className="px-2 py-2 text-right">
+                              —
+                            </TableCell>
+                            <TableCell className="px-2 py-2 text-right font-mono">
                               {formatUgxTotal(group.itemCostUgx)}
-                            </td>
-                            <td className="px-2 py-2 text-right">—</td>
-                            <td className="px-2 py-2 text-right font-mono">
+                            </TableCell>
+                            <TableCell className="px-2 py-2 text-right">
+                              —
+                            </TableCell>
+                            <TableCell className="px-2 py-2 text-right font-mono">
                               {formatUgxTotal(group.sellingValueUgx)}
-                            </td>
-                            <td className="px-2 py-2 text-right font-mono">
+                            </TableCell>
+                            <TableCell className="px-2 py-2 text-right font-mono">
                               {formatUgxTotal(group.grossProfitUgx)}
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
+                            </TableCell>
+                          </TableRow>
+                        </TableFooter>
+                      </Table>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -592,31 +613,31 @@ export function SupplyRouteReview({
             </p>
           ) : (
             <div className="overflow-x-auto rounded-md border">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-                  <tr>
-                    <th scope="col" className="px-3 py-2 font-medium">
+              <Table className="w-full min-w-[760px] text-sm">
+                <TableHeader className="bg-muted/50 text-left text-xs text-muted-foreground">
+                  <TableRow>
+                    <TableHead scope="col" className="px-3 py-2 font-medium">
                       <ReviewLabel label="Category" help="expense.category" />
-                    </th>
-                    <th scope="col" className="px-3 py-2 font-medium">
+                    </TableHead>
+                    <TableHead scope="col" className="px-3 py-2 font-medium">
                       <ReviewLabel
                         label="Description"
                         help="expense.description"
                       />
-                    </th>
-                    <th
+                    </TableHead>
+                    <TableHead
                       scope="col"
                       className="px-3 py-2 text-right font-medium"
                     >
                       <ReviewLabel label="Amount" help="expense.amount" />
-                    </th>
-                    <th
+                    </TableHead>
+                    <TableHead
                       scope="col"
                       className="px-3 py-2 text-right font-medium"
                     >
                       <ReviewLabel label="Rate" help="reviewCol.expenseRate" />
-                    </th>
-                    <th
+                    </TableHead>
+                    <TableHead
                       scope="col"
                       className="px-3 py-2 text-right font-medium"
                     >
@@ -624,38 +645,38 @@ export function SupplyRouteReview({
                         label="Total UGX"
                         help="reviewCol.expenseTotalUgx"
                       />
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {summary.expenses.map((expense, index) => (
-                    <tr
+                    <TableRow
                       key={`${expense.category}-${index}`}
                       className="border-t"
                     >
-                      <td className="px-3 py-2 capitalize">
+                      <TableCell className="px-3 py-2 capitalize">
                         {expense.category}
-                      </td>
-                      <td className="px-3 py-2">
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
                         {expense.description || '—'}
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono">
+                      </TableCell>
+                      <TableCell className="px-3 py-2 text-right font-mono">
                         {formatSourceAmount(expense.amount, expense.currency)}
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono">
+                      </TableCell>
+                      <TableCell className="px-3 py-2 text-right font-mono">
                         {expense.exchangeRate
                           ? expense.exchangeRate.toFormat(2)
                           : '—'}
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono font-semibold">
+                      </TableCell>
+                      <TableCell className="px-3 py-2 text-right font-mono font-semibold">
                         {expense.convertedAmountUgx
                           ? formatUgx(expense.convertedAmountUgx)
                           : 'Conversion needed'}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

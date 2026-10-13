@@ -154,7 +154,7 @@ function ShopPage() {
   const currentShopName = shops.find((s) => s.id === shopId)?.name ?? 'Shop'
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold">Shop</h1>
         <p className="text-muted-foreground">
@@ -553,7 +553,7 @@ function NewSaleForm({
   if (stage === 'select') {
     const selectedIds = new Set(cart.map((c) => c.stockId))
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
           Search and select one or more products to sell.
         </p>
@@ -619,7 +619,7 @@ function NewSaleForm({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <Button
         variant="ghost"
         size="sm"

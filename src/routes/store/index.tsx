@@ -60,7 +60,7 @@ function StoreStockPage() {
   const totalItems = groups.reduce((sum, g) => sum + g.totalQty, 0)
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Store Stock</h1>

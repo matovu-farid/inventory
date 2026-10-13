@@ -85,7 +85,7 @@ function ResetPasswordPage() {
               onSubmit={(e) => {
                 void handleSubmit(e)
               }}
-              className="space-y-4"
+              className="flex flex-col gap-4"
             >
               {error && (
                 <div className="rounded-xl bg-destructive/8 px-4 py-3 text-[13px] text-destructive">

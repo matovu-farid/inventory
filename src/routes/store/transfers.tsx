@@ -69,7 +69,7 @@ function TransfersPage() {
   const dispatchedTransfers = transfers.filter((t) => t.status === 'dispatched')
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold">Store Transfers</h1>
         <p className="text-muted-foreground">
@@ -350,7 +350,7 @@ function CreateTransferForm({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="space-y-2">
         <Label>Destination Shop *</Label>
         <Select value={shopId} onValueChange={setShopId}>
