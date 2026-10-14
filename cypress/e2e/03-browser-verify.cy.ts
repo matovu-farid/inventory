@@ -63,7 +63,9 @@ describe('Browser Verification', () => {
     // Should redirect to dashboard
     cy.url({ timeout: 10000 }).should('not.include', '/login')
     cy.contains('Dashboard', { timeout: 15000 }).should('be.visible')
-    cy.contains('Supply Routes').should('be.visible')
+    cy.get('nav[aria-label="Main navigation"] a[href="/supply"]')
+      .should('contain.text', 'Supply routes')
+      .should('be.visible')
     cy.screenshot('verify-03-dashboard')
   })
 
@@ -102,7 +104,7 @@ describe('Browser Verification', () => {
   it('navigates to settings (no error)', () => {
     cy.loginAndCache(testEmail, testPassword)
     cy.visit('/settings')
-    cy.contains('Settings', { timeout: 10000 }).should('be.visible')
+    cy.contains('h1', 'Settings', { timeout: 10000 }).should('be.visible')
     cy.should('not.contain', 'Something went wrong')
     cy.screenshot('verify-08-settings')
   })
