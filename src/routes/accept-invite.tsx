@@ -133,7 +133,7 @@ function Centered({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f5f5f7]">
       <div className="w-full max-w-[420px] px-6 text-center">
-        <Logo className="mx-auto size-12 shadow-md" />
+        <Logo className="mx-auto size-12" />
         <div className="mt-4">{children}</div>
       </div>
     </div>

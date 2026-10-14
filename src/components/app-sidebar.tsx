@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
 import { ChevronsUpDown, LogOut, Settings } from 'lucide-react'
-import { Logo } from '#/components/logo'
+import { Logo, LogoWordmark } from '#/components/logo'
 import { Avatar, AvatarFallback, AvatarImage } from '#/components/ui/avatar'
 import {
   DropdownMenu,
@@ -89,7 +89,7 @@ function AppSidebar({
               >
                 <Logo className="size-8" />
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Inventory</span>
+                  <LogoWordmark className="truncate text-2xl" />
                   <span className="truncate text-xs text-muted-foreground">
                     Operations workspace
                   </span>

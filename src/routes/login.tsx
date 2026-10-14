@@ -91,7 +91,7 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#f5f5f7]">
       <div className="w-full max-w-[400px] px-6">
         <div className="mb-8 flex flex-col items-center">
-          <Logo className="size-12 shadow-md" />
+          <Logo className="size-12" />
           <h1 className="mt-4 text-[20px] font-semibold tracking-[-0.01em] text-foreground">
             {showSignup ? 'Create the first admin account' : 'Welcome back'}
           </h1>

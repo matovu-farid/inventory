@@ -39,8 +39,13 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
-      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
-      { rel: 'apple-touch-icon', href: '/logo.svg' },
+      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=2' },
+      {
+        rel: 'apple-touch-icon',
+        sizes: '180x180',
+        href: '/apple-touch-icon.png',
+      },
+      { rel: 'manifest', href: '/manifest.json' },
     ],
   }),
   beforeLoad: async () => {

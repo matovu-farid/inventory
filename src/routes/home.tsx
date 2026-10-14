@@ -6,7 +6,7 @@ import {
   PackageCheck,
 } from 'lucide-react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Logo } from '#/components/logo'
+import { Logo, LogoWordmark } from '#/components/logo'
 import { RequestAccessDialog } from '#/components/request-access-dialog'
 import { WorkspacePreview } from '#/components/dashboard/workspace-preview'
 import { Button } from '#/components/ui/button'
@@ -58,20 +58,18 @@ function PublicHome() {
         Skip to content
       </a>
       <header className="border-b bg-card">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-5 sm:px-6 lg:px-10">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:flex-nowrap sm:px-6 lg:px-10">
           <Link
             to="/home"
             aria-label="Inventory home"
-            className="flex items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring sm:gap-3"
           >
-            <Logo className="size-8" />
-            <span className="text-base font-semibold tracking-tight">
-              Inventory
-            </span>
+            <Logo className="size-6 sm:size-8" />
+            <LogoWordmark className="text-lg sm:text-2xl" />
           </Link>
           <nav
             aria-label="Primary navigation"
-            className="flex items-center gap-2 sm:gap-3"
+            className="ml-auto flex items-center gap-2 sm:gap-3"
           >
             <Button asChild variant="ghost" className="hidden sm:inline-flex">
               <a href="#how-it-works">How it works</a>

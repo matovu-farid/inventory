@@ -4,50 +4,34 @@ function Logo({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-[22%] bg-gradient-to-br from-[#4DA6FF] to-[#0066E6] shadow-sm',
+        'flex shrink-0 items-center justify-center text-logo-symbol',
         className,
       )}
       {...props}
     >
       <svg
-        viewBox="0 0 512 512"
-        fill="none"
+        viewBox="0 0 64 64"
+        fill="currentColor"
         xmlns="http://www.w3.org/2000/svg"
-        className="size-[62%]"
+        className="size-full"
+        aria-hidden="true"
+        focusable="false"
       >
-        {/* Box body */}
-        <rect x="136" y="240" width="240" height="164" rx="24" fill="#fff" />
-        {/* Lid */}
-        <rect x="118" y="188" width="276" height="64" rx="18" fill="#fff" />
-        {/* Tape */}
-        <rect
-          x="244"
-          y="188"
-          width="24"
-          height="216"
-          rx="4"
-          fill="#0066E6"
-          opacity="0.18"
-        />
-        {/* Arrow shaft */}
-        <path
-          d="M256 342 V272"
-          stroke="#0066E6"
-          strokeWidth="22"
-          strokeLinecap="round"
-        />
-        {/* Arrow head */}
-        <path
-          d="M228 298 L256 268 L284 298"
-          fill="none"
-          stroke="#0066E6"
-          strokeWidth="22"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <path d="M8 0H64V16H40V28H24V16H0V8Z M24 36H40V48H64V56L56 64H0V48H24Z" />
       </svg>
     </div>
   )
 }
 
-export { Logo }
+function LogoWordmark({ className, ...props }: React.ComponentProps<'span'>) {
+  return (
+    <span
+      className={cn('font-logo font-bold text-logo-wordmark', className)}
+      {...props}
+    >
+      Inventory
+    </span>
+  )
+}
+
+export { Logo, LogoWordmark }

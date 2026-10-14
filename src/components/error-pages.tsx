@@ -22,7 +22,7 @@ function ErrorPageLayout({
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg rounded-2xl border border-border/70 bg-card p-8 text-center shadow-lg sm:p-10">
-        <Logo className="mx-auto size-14 shadow-md" />
+        <Logo className="mx-auto size-14" />
         <div className="mx-auto mt-7 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
           {icon}
         </div>
