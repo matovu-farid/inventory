@@ -2,27 +2,13 @@ export const REMEMBERED_LOGIN_COOKIE = 'inventory_has_logged_in'
 
 const REMEMBERED_LOGIN_MAX_AGE = 60 * 60 * 24 * 365
 
-type HomeRedirect = '/' | '/login'
-
-export function getHomeRedirect({
-  hasSession,
-  hasRememberedLogin: rememberedLogin,
-}: {
-  hasSession: boolean
-  hasRememberedLogin: boolean
-}): HomeRedirect | null {
-  if (hasSession) return '/'
-  if (rememberedLogin) return '/login'
-  return null
-}
-
 export function getRootRedirect({
   hasSession,
   hasRememberedLogin: rememberedLogin,
 }: {
   hasSession: boolean
   hasRememberedLogin: boolean
-}): HomeRedirect | '/home' | null {
+}): '/login' | '/home' | null {
   if (hasSession) return null
   if (rememberedLogin) return '/login'
   return '/home'

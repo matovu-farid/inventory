@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import {
   ArrowLeftRight,
   ArrowRight,
@@ -6,19 +5,13 @@ import {
   Check,
   PackageCheck,
 } from 'lucide-react'
-import {
-  createFileRoute,
-  Link,
-  redirect,
-  useNavigate,
-} from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { Logo } from '#/components/logo'
 import { RequestAccessDialog } from '#/components/request-access-dialog'
 import { WorkspacePreview } from '#/components/dashboard/workspace-preview'
 import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
 import { Separator } from '#/components/ui/separator'
-import { Skeleton } from '#/components/ui/skeleton'
 import {
   Card,
   CardAction,
@@ -26,19 +19,8 @@ import {
   CardHeader,
   CardTitle,
 } from '#/components/ui/card'
-import {
-  getHomeRedirect,
-  hasRememberedLogin,
-} from '#/lib/auth/remembered-login'
 
 export const Route = createFileRoute('/home')({
-  beforeLoad: ({ context }) => {
-    const redirectTo = getHomeRedirect({
-      hasSession: Boolean(context.session),
-      hasRememberedLogin: false,
-    })
-    if (redirectTo) throw redirect({ to: redirectTo })
-  },
   component: PublicHome,
 })
 
@@ -67,34 +49,6 @@ const benefits = [
 ]
 
 function PublicHome() {
-  const navigate = useNavigate()
-  const [isCheckingAccess, setIsCheckingAccess] = useState(true)
-  useEffect(() => {
-    const redirectTo = getHomeRedirect({
-      hasSession: false,
-      hasRememberedLogin: hasRememberedLogin(),
-    })
-    if (redirectTo) {
-      void navigate({ to: redirectTo, replace: true })
-      return
-    }
-    setIsCheckingAccess(false)
-  }, [navigate])
-
-  if (isCheckingAccess) {
-    return (
-      <div
-        className="flex min-h-screen flex-col items-center justify-center gap-4"
-        role="status"
-        aria-busy="true"
-      >
-        <Logo className="size-10" />
-        <Skeleton className="h-2 w-32" />
-        <p className="text-sm text-muted-foreground">Loading your workspace…</p>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <a

@@ -2,7 +2,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import {
-  getHomeRedirect,
   getRootRedirect,
   hasSuccessfulAuth,
   hasRememberedLogin,
@@ -32,20 +31,8 @@ describe('remembered login cookie', () => {
   })
 
   it.each([
-    [true, false, '/'],
-    [false, true, '/login'],
-    [false, false, null],
-  ] as const)(
-    'returns the correct /home redirect for session=%s remembered=%s',
-    (hasSession, remembered, expected) => {
-      expect(
-        getHomeRedirect({ hasSession, hasRememberedLogin: remembered }),
-      ).toBe(expected)
-    },
-  )
-
-  it.each([
     [true, false, null],
+    [true, true, null],
     [false, true, '/login'],
     [false, false, '/home'],
   ] as const)(
